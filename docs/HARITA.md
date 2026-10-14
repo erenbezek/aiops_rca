@@ -48,7 +48,11 @@ flowchart LR
 
 | Dosya | Görev |
 |---|---|
+| `README.md` | Repo tanıtımı (şimdilik sadece başlık) |
 | `.gitignore` | Önbellek, gizli bilgi ve büyük veriyi git dışında tutar |
+| `.gitattributes` | Satır sonlarını sabitler: metin dosyaları LF, `.bat`/`.cmd` CRLF |
+| `.editorconfig` | Editörlerin yeni dosyaları LF, UTF-8 ve sonda boş satırla kaydetmesi |
+| `.vscode/settings.json` | VS Code'da yeni dosyalar LF (`files.eol`) |
 | `docs/PROJE.md` | Ne, neden, bitti ölçütü, kapsam dışı, şu an |
 | `docs/HARITA.md` | Bu dosya: yapı diyagramı ve dosya tablosu |
 | `docs/SOZLUK.md` | Onaylı isimler |

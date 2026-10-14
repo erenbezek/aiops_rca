@@ -60,6 +60,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
   Kütüphane seçimi o zaman sorulacak.
 
 ## Şu an
-Repo kuruldu (git, `.gitignore`), duman testi `tools/api_smoke_test.py` olarak taşındı ve yeni yerinden geçti
-(Groq ve Gemini GEÇTİ; Gemini'de anlık 503 görüldü), `docs/HARITA.md` taslak hedef yapıyla yazıldı.
+Repo GitHub'da (erenbezek/aiops_rca); iş akışı: görev başına `task/<konu>` dalı + PR, merge Eren'de.
+Duman testi `tools/api_smoke_test.py` olarak taşındı ve geçti; `HARITA.md` taslak hedef yapıyla yazıldı.
+Satır sonları LF'e sabitlendi (`.gitattributes`, `.editorconfig`, `.vscode/settings.json`), `task/line-endings` PR'ı inceleme bekliyor.
 Bekleyen: yeni makinede lokal model ölçümü; sonraki uygulama görevi planlamadan gelecek.
