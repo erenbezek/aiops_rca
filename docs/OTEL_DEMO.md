@@ -100,4 +100,4 @@ Bazı sızıntılar silinerek değil yeniden yazılarak giderilmeli (ör. produc
 
 - Docker kurulumu: WSL içinde Docker Engine (öneri) mi, Docker Desktop mı.
 - Demonun repoya girişi: sabit sürümü git dışı klasöre klonlayan betik (öneri), submodule ya da kopya.
-- ~~Snapshot alma yöntemi~~ → karar verildi (2026-10-14): collector dosyaya ve izleme sistemine birlikte yazar, snapshot dosyadan kesilir. Bkz. KARARLAR.md.
+- ~~Snapshot alma yöntemi~~ → karar verildi (2026-10-14): collector dosyaya ve izleme sistemine birlikte yazar, snapshot dosyadan kesilir. Bkz. DECISIONS.md.

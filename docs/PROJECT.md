@@ -64,8 +64,8 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 
 ## Şu an
 Repo GitHub'da (erenbezek/aiops_rca); iş akışı: görev başına `task/<konu>` dalı + PR, merge Eren'de.
-Duman testi `tools/api_smoke_test.py` olarak taşındı ve geçti; `HARITA.md` taslak hedef yapıyla yazıldı.
+Duman testi `tools/api_smoke_test.py` olarak taşındı ve geçti; `ARCHITECTURE.md` taslak hedef yapıyla yazıldı.
 Satır sonları LF'e sabitlendi, PR #1 birleşti.
 OTel Demo 3.1.0 keşfi yapıldı (`docs/OTEL_DEMO.md`); veri akışı kararı verildi (dosya + kalıcı izleme sistemi).
-Vaka kataloğu yazıldı (`docs/VAKA_KATALOGU.md`): 11 flag senaryosu, etiket kuralı, gürültü katmanı, altyapı hataları taslağı.
+Vaka kataloğu yazıldı (`docs/INCIDENT_CATALOG.md`): 11 flag senaryosu, etiket kuralı, gürültü katmanı, altyapı hataları taslağı.
 Yeni makine bekleniyor (Docker, OTel Demo, kalibrasyon, lokal model ölçümü). Beklerken: sızıntı testi → CI iskeleti.
