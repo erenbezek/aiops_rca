@@ -1,0 +1,6 @@
+# Tüm metin dosyaları depoda ve çalışma kopyasında LF (Docker'a giden betikler CRLF ile bozulur)
+* text=auto eol=lf
+
+# Windows komut dosyaları CRLF ister
+*.bat text eol=crlf
+*.cmd text eol=crlf
