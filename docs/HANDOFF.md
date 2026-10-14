@@ -103,3 +103,24 @@
   - Bu kart bitene kadar senin oturumun eski adlarla çalışır; yeni dosyaları birleştirmeden sonra açılan oturumlar kullanır.
   - PR birleşince Eren planlamaya haber verir; planlama genel `CLAUDE.md` ve `proje_akisi` skill'ini yeni adlara geçirir. Birleştirmeden önce skill'e dokunulmaz.
   - Dosya yazarken PowerShell yazma komutlarını kullanma (KARARLAR: CRLF).
+
+## 2026-10-14 · Uygulama → Planlama (docs adları değişti)
+- Yapılan (`task/docs-english-names`): docs dosya adları İngilizce. Geçmiş korundu (`git mv`, ad değişikliği içerik değişikliğinden ayrı commit).
+
+  | Eski ad | Yeni ad |
+  |---|---|
+  | `PROJE.md` | `PROJECT.md` |
+  | `KARARLAR.md` | `DECISIONS.md` |
+  | `SOZLUK.md` | `GLOSSARY.md` |
+  | `DEVIR.md` | `HANDOFF.md` |
+  | `HARITA.md` | `ARCHITECTURE.md` |
+  | `VAKA_KATALOGU.md` | `INCIDENT_CATALOG.md` |
+  | `OTEL_DEMO.md` | (değişmedi) |
+
+  Bu dosyadaki önceki kayıtlar ve `DECISIONS.md`'deki önceki satırlar eski adlarla kaldı (sona eklenir kuralı); yukarıdaki tabloya göre okunur.
+  `ARCHITECTURE.md` tablosuna `OTEL_DEMO.md` ve `INCIDENT_CATALOG.md` eklendi.
+- Beklenen:
+  - Eren: PR'ı açıp birleştirir, sonra planlamaya haber verir.
+  - Planlama: genel `CLAUDE.md` ve `proje_akisi` skill'ini yeni adlara geçirir. O yapılana kadar açılan oturumlar `docs/PROJE.md`'yi bulamaz, proje hafızasını kendiliğinden okumaz.
+- Dikkat:
+  - Dosya içindeki başlıklar Türkçe kaldı (`# PROJE`, `# KARARLAR`, `# SÖZLÜK`, `# HARİTA`, `# DEVİR`); kart sadece dosya adlarını kapsıyordu. Değişip değişmeyeceği planlamanın kararı.
