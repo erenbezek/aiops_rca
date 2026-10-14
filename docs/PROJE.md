@@ -31,6 +31,8 @@ kök neden analizinde ne kadar iş görür?
 - [ ] Hata analizi: başarısız vakalar 12'li hata sınıflandırmasıyla etiketlendi (arXiv 2602.09937)
 - [ ] DevOps kontrol listesi dolduruldu (aşağıda)
 - [ ] Proje 2 (ajan): Proje 1 bittikten sonra
+  - Ajan aynı vakalarda hem dosyadan hem canlı izleme sisteminden (Prometheus, Jaeger, OpenSearch) koşuldu, iki satır tabloda yan yana
+  - Aynı araç çağrılarının dosya ve canlı çıktıları karşılaştırıldı, farklar açıklandı
 
 ### DevOps kontrol listesi
 Proje sonunda her satır için: gerçekten yaptım mı?
@@ -40,7 +42,8 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 | Dockerfile, imaj oluşturma | Kendi Python servisim | [ ] |
 | OTel instrumentation | Kendi Python servisim | [ ] |
 | Docker Compose, kaynak limitleri | OTel Demo yığını | [ ] |
-| Telemetri hattı (collector) | flagd filtresi, dosyaya aktarım | [ ] |
+| Telemetri hattı (collector) | Sızıntı süzmesi, dosyaya ve izleme sistemine çift çıkış | [ ] |
+| Kalıcı depolama, saklama süresi | Jaeger diske, Prometheus/OpenSearch saklama | [ ] |
 | PromQL, Jaeger ve log sorguları | Snapshot kaydedici, ajan araçları | [ ] |
 | Linux ağ/kaynak hataları (tc netem, CPU/bellek, kill) | Hata enjeksiyonu | [ ] |
 | Otomasyon betikleri | Gece boyu vaka üretim hattı | [ ] |
@@ -62,5 +65,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 ## Şu an
 Repo GitHub'da (erenbezek/aiops_rca); iş akışı: görev başına `task/<konu>` dalı + PR, merge Eren'de.
 Duman testi `tools/api_smoke_test.py` olarak taşındı ve geçti; `HARITA.md` taslak hedef yapıyla yazıldı.
-Satır sonları LF'e sabitlendi (`.gitattributes`, `.editorconfig`, `.vscode/settings.json`), `task/line-endings` PR'ı inceleme bekliyor.
-Bekleyen: yeni makinede lokal model ölçümü; sonraki uygulama görevi planlamadan gelecek.
+Satır sonları LF'e sabitlendi, PR #1 birleşti.
+OTel Demo 3.1.0 keşfi yapıldı (`docs/OTEL_DEMO.md`); veri akışı kararı verildi (dosya + kalıcı izleme sistemi).
+Vaka kataloğu yazıldı (`docs/VAKA_KATALOGU.md`): 11 flag senaryosu, etiket kuralı, gürültü katmanı, altyapı hataları taslağı.
+Yeni makine bekleniyor (Docker, OTel Demo, kalibrasyon, lokal model ölçümü). Beklerken: sızıntı testi → CI iskeleti.

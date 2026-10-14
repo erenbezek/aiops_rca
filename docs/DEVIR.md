@@ -82,3 +82,24 @@
   - Token sayıları modeller arası karşılaştırılamaz (aynı log: Groq 5921, Gemini 8135).
   - PowerShell 5.1 `Set-Content`/`Out-File` CRLF yazar; Docker'a bağlanacak dosyalar PowerShell ile yazılmamalı (kalıcı kural gerekirse planlama karar versin).
   - `README.md` sadece başlık; doldurulması ayrı iş.
+
+## 2026-10-14 · Planlama → Uygulama (docs dosya adları İngilizce)
+- Yapılan:
+  - Planlama `main` üzerinde commit edilmemiş docs değişiklikleri bıraktı: `OTEL_DEMO.md` ve `VAKA_KATALOGU.md` (yeni), `KARARLAR.md`, `PROJE.md`, `SOZLUK.md`, `DEVIR.md`.
+    İçerik: OTel Demo 3.1.0 keşfi, veri akışı kararı (dosya + kalıcı izleme sistemi), vaka kataloğu, ilgili kararlar.
+  - Eren docs dosya adlarının İngilizce olmasını onayladı (bkz. KARARLAR.md son satır).
+- Beklenen (amaç: dosya adlarını değiştirmek, geçmişi ve bağlantıları kırmadan):
+  1. `task/docs-english-names` dalı aç. Planlamanın bekleyen değişikliklerini **ayrı bir ilk commit** olarak al (ad değişikliğiyle karışmasın).
+  2. `git mv` ile yeniden adlandır:
+     `PROJE.md` → `PROJECT.md`, `KARARLAR.md` → `DECISIONS.md`, `SOZLUK.md` → `GLOSSARY.md`, `DEVIR.md` → `HANDOFF.md`,
+     `HARITA.md` → `ARCHITECTURE.md`, `VAKA_KATALOGU.md` → `INCIDENT_CATALOG.md`. `OTEL_DEMO.md` aynı kalır.
+  3. Dosya içlerindeki eski adları yenileriyle değiştir (`GLOSSARY.md`'deki dosya satırları, `ARCHITECTURE.md` tablosu, çapraz referanslar).
+     İstisna: `HANDOFF.md`'deki eski kayıtlar ve `DECISIONS.md`'deki eski satırlar değişmez (sona eklenir kuralı).
+  4. `HANDOFF.md` sonuna eski ad → yeni ad eşlemesini içeren bir kayıt ekle.
+  5. Dalı gönder; Eren PR açıp birleştirir.
+  - Bitti ölçütü: `git log --follow docs/PROJECT.md` eski geçmişi gösteriyor;
+    `git grep -nE "PROJE\.md|KARARLAR\.md|SOZLUK\.md|DEVIR\.md|HARITA\.md|VAKA_KATALOGU\.md"` sadece `HANDOFF.md`'nin eski kayıtlarında ve `DECISIONS.md`'nin eski satırlarında sonuç veriyor.
+- Dikkat:
+  - Bu kart bitene kadar senin oturumun eski adlarla çalışır; yeni dosyaları birleştirmeden sonra açılan oturumlar kullanır.
+  - PR birleşince Eren planlamaya haber verir; planlama genel `CLAUDE.md` ve `proje_akisi` skill'ini yeni adlara geçirir. Birleştirmeden önce skill'e dokunulmaz.
+  - Dosya yazarken PowerShell yazma komutlarını kullanma (KARARLAR: CRLF).

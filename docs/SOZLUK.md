@@ -16,4 +16,7 @@ Sadece Eren'in onayladığı isimler.
 | `llm_cache/` | Geliştirme denemelerinin LLM cevapları; git dışı |
 | `eval_responses/` | Resmî değerlendirme koşusunun LLM cevapları; repoda tutulur |
 | `tests/fixtures/snapshots/` | CI için 3-5 incident'lık sabit snapshot alt kümesi; repoda tutulur |
+| `docs/OTEL_DEMO.md` | OpenTelemetry Demo keşif notları: modlar, bellek, senaryolar, sızıntı yolları |
+| `docs/VAKA_KATALOGU.md` | Enjekte edilecek hatalar, doğru cevap kuralı, beklenen belirti ve yayılım yolları |
+| gürültü katmanı | Asıl hatayla aynı anda açılan, yanıltıcı ama kök neden olmayan etki (ör. trafik seli) |
 | `task/<konu>` | Görev kartı dalı; her kart bir dal ve bir PR (ör. `task/line-endings`) |
