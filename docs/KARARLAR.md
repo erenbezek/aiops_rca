@@ -32,3 +32,7 @@
 | 2026-10-13 | Sonuç tablosu geliştirme ve test setini yan yana gösterir | Aradaki fark geliştirme vakalarına aşırı uyumu gösterir |
 | 2026-10-13 | CI snapshot alt kümesi ayrı klasörde (`tests/fixtures/snapshots/`), `.gitignore` istisnası değil | `snapshots/` kuralı klasörü tümden dışlar, `!` ile geri alınamaz; istisna kuralı kırılgan, bozulursa CI verisi sessizce düşer |
 | 2026-10-13 | Duman testinde yorum ve ekran çıktısı Türkçe kaldı, sadece tanımlayıcılar İngilizce | Taşıma "aynı tablo formatı" ölçütünü bozmamalı |
+| 2026-10-14 | `.gitattributes`: tüm metin dosyaları LF, sadece `.bat`/`.cmd` CRLF; enjeksiyon betiklerinden önce eklenir | `core.autocrlf` açık; Windows klasöründen Docker'a giden `.sh` ve shebang'li `.py` dosyaları CRLF ile container'da bozulur. Şimdi eklemek yeniden normalize etmeyi gereksiz kılar |
+| 2026-10-14 | `.editorconfig` eklenir (LF, UTF-8, sonda boş satır; `.bat`/`.cmd` CRLF); girinti kuralı yok | `.gitattributes` sadece commit/checkout'u kapsar; editörde oluşturulup commit edilmeden Docker'a bağlanan dosya boşluğunu kapatır |
+| 2026-10-14 | VS Code için eklenti kurulmaz; `.vscode/settings.json` içinde `"files.eol": "\n"` | Yeni araç gerektirmez, VS Code yerleşik ayarı; `.editorconfig` diğer editörler ve GitHub için kalır |
+| 2026-10-14 | Her görev kartı ayrı dalda (`task/<konu>`); dalı Claude gönderir, PR'ı Eren açar ve birleştirir; Claude `main`'e push/merge yapmaz | İnceleme, kayıt, ileride CI kapısı; `gh` kurulmadı (yeni araç yok) |

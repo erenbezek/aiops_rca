@@ -16,3 +16,4 @@ Sadece Eren'in onayladığı isimler.
 | `llm_cache/` | Geliştirme denemelerinin LLM cevapları; git dışı |
 | `eval_responses/` | Resmî değerlendirme koşusunun LLM cevapları; repoda tutulur |
 | `tests/fixtures/snapshots/` | CI için 3-5 incident'lık sabit snapshot alt kümesi; repoda tutulur |
+| `task/<konu>` | Görev kartı dalı; her kart bir dal ve bir PR (ör. `task/line-endings`) |
