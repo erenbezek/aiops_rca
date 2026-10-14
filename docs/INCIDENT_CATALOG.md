@@ -1,4 +1,4 @@
-# VAKA KATALOĞU
+# INCIDENT CATALOG
 
 Hangi hatalar enjekte edilir, doğru cevap ne sayılır, belirti nerede beklenir.
 Kaynak: OTel Demo 3.1.0 kodu (bkz. `OTEL_DEMO.md`). Belirtiler ve yollar koddan çıkarılan **beklentidir**; yeni makinede kalibrasyonla doğrulanacak.

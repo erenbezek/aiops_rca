@@ -1,4 +1,4 @@
-# KARARLAR
+# DECISIONS
 
 | Tarih | Karar | Neden |
 |---|---|---|
@@ -49,3 +49,4 @@
 | 2026-10-14 | Kendi altyapı hataları eklenir (kill, CPU, bellek, `tc netem`); test setinde ağırlık bunlarda | Büyük modeller OTel Demo senaryolarını belgelerden tanıyabilir (ezber riski) |
 | 2026-10-14 | Doğru cevap kaydı alanları: incident_id, senaryo/varyant, başlangıç/bitiş, kök neden servisi, hata tipi, yayılım yolu, kategori, set | Proje 1 yol doğrulaması ve vaka çeşitliliği ölçütü bu alanlara dayanıyor |
 | 2026-10-14 | `docs/` dosya adları İngilizce, içerik Türkçe kalır: PROJECT, DECISIONS, GLOSSARY, HANDOFF, ARCHITECTURE, INCIDENT_CATALOG, OTEL_DEMO. 2026-10-13 tarihli "docs/ Türkçe" kararı içerik için geçerli. `proje_akisi` skill'i ve genel `CLAUDE.md` de İngilizce adlara geçer | Repo adlandırması tutarlı olsun (kod ve klasörler zaten İngilizce); `ARCHITECTURE.md` GitHub'da bilinen ad |
+| 2026-10-14 | docs dosya adları, başlıkları ve önceki kayıtlardaki dosya referansları İngilizce; "sona eklenir" kuralına tek istisna: dosya adı değişince referanslar güncellenir, başka içerik değişmez | Eski adlar hiçbir yerde kalmasın (Eren) |

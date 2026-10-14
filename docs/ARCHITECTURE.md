@@ -1,4 +1,4 @@
-# HARİTA
+# ARCHITECTURE
 
 ## Hedef yapı (taslak)
 

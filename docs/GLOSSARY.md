@@ -1,4 +1,4 @@
-# SÖZLÜK
+# GLOSSARY
 
 Sadece Eren'in onayladığı isimler.
 

@@ -1,4 +1,4 @@
-# PROJE
+# PROJECT
 
 ## Ne
 Mikroservis ortamına (OpenTelemetry Demo + kendi Python servisim) bilerek hata enjekte edip,
