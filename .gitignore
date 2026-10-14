@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Gizli bilgiler
+.env
+
+# Büyük / üretilen veri
+snapshots/
+llm_cache/

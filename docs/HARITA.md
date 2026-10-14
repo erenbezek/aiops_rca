@@ -1,0 +1,57 @@
+# HARİTA
+
+## Hedef yapı (taslak)
+
+PROJE.md'deki mimariye göre. Kesik çizgili kutular henüz yok; klasör adları ihtiyaç doğduğunda onayla verilecek.
+
+```mermaid
+flowchart LR
+    subgraph ortam["Demo ortamı (Docker Compose)"]
+        otel["OpenTelemetry Demo"]
+        own["Kendi Python servisim"]
+        col["OTel collector<br/>(flagd filtresi)"]
+    end
+
+    inj["Hata enjeksiyonu<br/>(flagd, tc netem, CPU/bellek, kill)"]
+    rec["Snapshot kaydedici<br/>(PromQL, Jaeger, log)"]
+    snap[("snapshot'lar<br/>snapshots/ — git dışı")]
+    fix[("CI alt kümesi<br/>tests/fixtures/snapshots/")]
+
+    base["baseline<br/>(kural, BARO)"]
+    nar["candidate_narrowing"]
+    llm["LLM<br/>küçük lokal model /<br/>büyük API modeli"]
+    cache[("llm_cache/ — git dışı")]
+    evr[("eval_responses/")]
+    ev["Değerlendirme<br/>top-1/3, kanıt, kalibrasyon"]
+    tab["Sonuç tablosu"]
+
+    inj --> ortam
+    col --> rec
+    rec --> snap
+    snap -.-> fix
+    snap --> base
+    snap --> nar --> llm
+    snap -->|ham log| llm
+    llm --> cache
+    llm --> evr
+    base --> ev
+    evr --> ev
+    ev --> tab
+
+    smoke["tools/api_smoke_test.py"] -.->|model seçimi| llm
+
+    classDef yok stroke-dasharray: 5 5
+    class otel,own,col,inj,rec,snap,fix,base,nar,llm,cache,evr,ev,tab yok
+```
+
+## Dosyalar
+
+| Dosya | Görev |
+|---|---|
+| `.gitignore` | Önbellek, gizli bilgi ve büyük veriyi git dışında tutar |
+| `docs/PROJE.md` | Ne, neden, bitti ölçütü, kapsam dışı, şu an |
+| `docs/HARITA.md` | Bu dosya: yapı diyagramı ve dosya tablosu |
+| `docs/SOZLUK.md` | Onaylı isimler |
+| `docs/KARARLAR.md` | Kararlar ve nedenleri |
+| `docs/DEVIR.md` | Oturumlar arası notlar |
+| `tools/api_smoke_test.py` | Aday API modellerinin teknik uygunluk testi (basit cevap, tool calling, uzun girdi) |
