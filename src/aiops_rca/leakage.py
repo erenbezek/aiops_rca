@@ -221,11 +221,11 @@ def _load_records(path: Path) -> list[tuple[int | None, object]]:
     try:
         raw = path.read_bytes()
     except OSError as exc:
-        raise LeakageInputError(f"okunamadı: {path}: {exc}") from exc
+        raise LeakageInputError(f"cannot read: {path}: {exc}") from exc
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
-        raise LeakageInputError(f"UTF-8 değil: {path}: {exc}") from exc
+        raise LeakageInputError(f"not UTF-8: {path}: {exc}") from exc
 
     records: list[tuple[int | None, object]] = []
     line_error = None
@@ -244,22 +244,22 @@ def _load_records(path: Path) -> list[tuple[int | None, object]]:
         return [(None, json.loads(text))]
     except json.JSONDecodeError:
         number, msg = line_error
-        raise LeakageInputError(f"geçersiz JSON: {path}: satır {number}: {msg}") from None
+        raise LeakageInputError(f"invalid JSON: {path}: line {number}: {msg}") from None
 
 
 def scan_model_view(path: str | Path) -> list[Finding]:
     """Klasörü tarar, bulguları döner. Taranamazsa LeakageInputError."""
     root = Path(path)
     if not root.exists():
-        raise LeakageInputError(f"klasör yok: {root}")
+        raise LeakageInputError(f"folder not found: {root}")
     if not root.is_dir():
-        raise LeakageInputError(f"klasör değil: {root}")
+        raise LeakageInputError(f"not a folder: {root}")
     root = root.resolve()
 
     entries = [root, *sorted(root.rglob("*"))]
     files = [e for e in entries if e.is_file()]
     if not files:
-        raise LeakageInputError(f"klasörde dosya yok: {root}")
+        raise LeakageInputError(f"no files in folder: {root}")
 
     out = _Collector()
 
@@ -277,7 +277,7 @@ def scan_model_view(path: str | Path) -> list[Finding]:
         for line, record in records:
             _scan_record(record, display(file), line, out)
     if record_count == 0:
-        raise LeakageInputError(f"taranacak kayıt yok (dosyalar boş): {root}")
+        raise LeakageInputError(f"no records to scan (files are empty): {root}")
 
     return out.findings
 
@@ -285,9 +285,9 @@ def scan_model_view(path: str | Path) -> list[Finding]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m aiops_rca.leakage",
-        description="model_view klasöründe cevabı ele veren izleri arar.",
+        description="Scans a model_view folder for traces that reveal the answer (which fault was injected).",
     )
-    parser.add_argument("model_view", help="taranacak klasör")
+    parser.add_argument("model_view", help="folder to scan")
     args = parser.parse_args(argv)
 
     for stream in (sys.stdout, sys.stderr):
@@ -297,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         findings = scan_model_view(args.model_view)
     except LeakageInputError as exc:
-        print(f"girdi hatası: {exc}", file=sys.stderr)
+        print(f"input error: {exc}", file=sys.stderr)
         return 2
 
     # Satır başına bir bulgu, sekmeyle ayrılmış: konum, sinyal, servis, JSON yolu, kural, eşleşen metin.
@@ -306,9 +306,9 @@ def main(argv: list[str] | None = None) -> int:
         print("\t".join([location, f.signal, f.service or "-", f.json_path or "-", f.rule, f.match]))
 
     if findings:
-        print(f"sızıntı: {len(findings)} bulgu", file=sys.stderr)
+        print(f"leak: {len(findings)} finding(s)", file=sys.stderr)
         return 1
-    print("temiz", file=sys.stderr)
+    print("clean", file=sys.stderr)
     return 0
 
 
