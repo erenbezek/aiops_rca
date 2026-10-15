@@ -7,7 +7,7 @@ Kaynak: OTel Demo 3.1.0 kodu (bkz. `OTEL_DEMO.md`). Belirtiler ve yollar koddan 
 
 - **Kök neden** = hatanın enjekte edildiği, kodu veya ayarı bozulan servis. Belirtinin çıktığı servis değil.
 - **load-generator telemetrisi snapshot'a girmez.** Gerçek ortamda kullanıcıların telemetrisi elde olmaz; ayrıca senaryoyu ele veriyor ve minimal modda sürekli agent bağlantı hatası üretiyor.
-- **`loadGeneratorFloodHomepage` tek başına vaka değildir**, gürültü katmanıdır: başka bir hatayla aynı anda açılır, doğru cevap o diğer hatadır.
+- **`loadGeneratorFloodHomepage` tek başına vaka değildir**, `noise_layer`'dır: başka bir hatayla aynı anda açılır, doğru cevap o diğer hatadır.
 - **Test setinde ağırlık kendi altyapı hatalarımızda.** Büyük modeller OTel Demo flag senaryolarını belgelerden tanıyabilir; kendi hatalarımız ezberlenemez.
 
 ## Doğru cevap kaydı (her incident için)
@@ -48,10 +48,10 @@ Sızıntı notu: `productCatalogFailure` hata mesajı ve `productCatalogLockCont
 | Senaryo | Neden |
 |---|---|
 | `imageSlowLoad` | Gerçekçi değil (istemci proxy'ye kendini geciktirmesini söylüyor); sadece tarayıcı kullanıcılarında (1,5 GB); tek iz Envoy `DI` bayrağı, o da sızıntı olarak siliniyor |
-| `loadGeneratorFloodHomepage` | Tek başına vaka değil; gürültü katmanı olarak kullanılır |
+| `loadGeneratorFloodHomepage` | Tek başına vaka değil; `noise_layer` olarak kullanılır |
 | `kafkaQueueProblems`, `failedReadinessProbe`, `aiRunawayAgent`, `aiSlowResponse`, `emitRawPii` | Minimal modda yok / K8s'e özgü / hata değil (bkz. `OTEL_DEMO.md`) |
 
-## Gürültü katmanı
+## Gürültü katmanı (`noise_layer`)
 
 | Gürültü | Nasıl |
 |---|---|
