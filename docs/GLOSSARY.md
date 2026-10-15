@@ -22,6 +22,12 @@ Sadece Eren'in onayladığı isimler.
 | `src/aiops_rca/` | Projenin Python paketi (src düzeni) |
 | `src/aiops_rca/leakage.py` | Sızıntı testi: modele verilecek görünümde cevabı ele veren iz arar |
 | `tests/fixtures/leakage/` | Sızıntı testinin sahte OTLP JSON dosyaları |
+| `leak_<kaynak>.jsonl`, `clean_symptoms.jsonl`, `clean_false_alarms.jsonl` | Sızıntı testi sahte dosyaları: sızıntı tablosunun bir satırı / normal trafik ve gerçekçi belirtiler / yanlış alarm adayları |
+| `Finding` | Sızıntı testinin tek bulgusu: `file`, `line`, `signal`, `service`, `json_path`, `rule`, `match` |
+| `LeakageInputError` | Sızıntı testinde girdi hatası (çıkış kodu 2); sonuç asla temiz sayılmaz |
+| `scan_model_view` | Bir `model_view` klasörünü tarayıp bulgu listesini dönen fonksiyon |
+| `flag_name`, `feature_flag_phrase`, `flagd_term`, `feature_path`, `envoy_fault_flag`, `excluded_service`, `known_phrase` | Sızıntı testi kural adları (her biri OTEL_DEMO.md sızıntı tablosundaki satırlara bağlı) |
+| `make_view`, `log_line`, `view_with_lines`, `leak_table_rows`, `LEAK_FIXTURES`, `CLEAN_FIXTURES`, `ALL_FLAGS` | `tests/test_leakage.py` yardımcıları ve test tabloları |
 | `positive_control` | Pozitif kontrol: dedektörün bilinen bir sızıntıyı gerçek veride gerçekten bulduğunu gösteren kontrol (süzme kapalı) |
 | `model_view` | Model görünümü: bir incident için yöntemlere verilen veri; etiketler ve cevabı ele veren adlar içermez |
 | `task/<konu>` | Görev kartı dalı; her kart bir dal ve bir PR (ör. `task/line-endings`) |

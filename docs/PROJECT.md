@@ -68,4 +68,6 @@ Duman testi `tools/api_smoke_test.py` olarak taşındı ve geçti; `ARCHITECTURE
 Satır sonları LF'e sabitlendi, PR #1 birleşti.
 OTel Demo 3.1.0 keşfi yapıldı (`docs/OTEL_DEMO.md`); veri akışı kararı verildi (dosya + kalıcı izleme sistemi).
 Vaka kataloğu yazıldı (`docs/INCIDENT_CATALOG.md`): 11 flag senaryosu, etiket kuralı, `noise_layer`, altyapı hataları taslağı.
-Yeni makine bekleniyor (Docker, OTel Demo, kalibrasyon, lokal model ölçümü). Beklerken: sızıntı testi → CI iskeleti.
+Sızıntı testi yazıldı (`src/aiops_rca/leakage.py`, `task/leakage-check`): sahte dosyalarda 190 test yeşil; gerçek veride `positive_control` yeni makinede.
+Python paketi kuruldu (`pyproject.toml`, `src/` düzeni, `.venv`). Program çıktıları artık İngilizce.
+Yeni makine bekleniyor (Docker, OTel Demo, kalibrasyon, lokal model ölçümü). Beklerken sıradaki: CI iskeleti.

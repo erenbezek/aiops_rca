@@ -2,38 +2,52 @@
 
 ## Hedef yapı (taslak)
 
-PROJECT.md'deki mimariye göre. Kesik çizgili kutular henüz yok; klasör adları ihtiyaç doğduğunda onayla verilecek.
+PROJECT.md'deki mimariye ve veri akışı kararına (DECISIONS 2026-10-14: dosya + kalıcı izleme sistemi) göre.
+Kesik çizgili kutular henüz yok; klasör adları ihtiyaç doğduğunda onayla verilecek.
 
 ```mermaid
 flowchart LR
     subgraph ortam["Demo ortamı (Docker Compose)"]
         otel["OpenTelemetry Demo"]
         own["Kendi Python servisim"]
-        col["OTel collector<br/>(flagd filtresi)"]
+        col["OTel collector<br/>(sızıntı süzmesi)"]
     end
 
-    inj["Hata enjeksiyonu<br/>(flagd, tc netem, CPU/bellek, kill)"]
-    rec["Snapshot kaydedici<br/>(PromQL, Jaeger, log)"]
+    inj["Hata enjeksiyonu<br/>(flagd API, tc netem, CPU/bellek, kill)"]
+    raw[("Ham OTLP dosyası<br/>(collector file exporter)")]
+    mon[("Kalıcı izleme sistemi<br/>Prometheus, Jaeger, OpenSearch")]
+    cut["Snapshot kesici<br/>(dosyadan, zaman aralığına göre)"]
     snap[("snapshot'lar<br/>snapshots/ — git dışı")]
     fix[("CI alt kümesi<br/>tests/fixtures/snapshots/")]
+    view["model_view<br/>(etiketler hariç)"]
+    leak["Sızıntı testi<br/>src/aiops_rca/leakage.py"]
 
     base["baseline<br/>(kural, BARO)"]
     nar["candidate_narrowing"]
     llm["LLM<br/>small_local_model /<br/>large_api_model"]
+    agent["Proje 2 ajanı"]
     cache[("llm_cache/ — git dışı")]
     evr[("eval_responses/")]
     ev["Değerlendirme<br/>top-1/3, kanıt, kalibrasyon"]
     tab["Sonuç tablosu"]
 
     inj --> ortam
-    col --> rec
-    rec --> snap
+    otel --> col
+    own --> col
+    col --> raw
+    col --> mon
+    raw --> cut --> snap
     snap -.-> fix
-    snap --> base
-    snap --> nar --> llm
-    snap -->|ham log| llm
+    snap --> view
+    view -->|"0 bulgu şartı"| leak
+    view --> base
+    view --> nar --> llm
+    view -->|ham log| llm
+    view -->|dosya araçları| agent
+    mon -->|canlı araçlar| agent
     llm --> cache
     llm --> evr
+    agent --> evr
     base --> ev
     evr --> ev
     ev --> tab
@@ -41,8 +55,11 @@ flowchart LR
     smoke["tools/api_smoke_test.py"] -.->|model seçimi| llm
 
     classDef yok stroke-dasharray: 5 5
-    class otel,own,col,inj,rec,snap,fix,base,nar,llm,cache,evr,ev,tab yok
+    class otel,own,col,inj,raw,mon,cut,snap,fix,view,base,nar,llm,agent,cache,evr,ev,tab yok
 ```
+
+- Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
+- Sızıntı testi şimdilik sadece sahte dosyalarla sınandı. Gerçek veride sınanması (`positive_control`) yeni makinede yapılacak.
 
 ## Dosyalar
 
@@ -53,6 +70,11 @@ flowchart LR
 | `.gitattributes` | Satır sonlarını sabitler: metin dosyaları LF, `.bat`/`.cmd` CRLF |
 | `.editorconfig` | Editörlerin yeni dosyaları LF, UTF-8 ve sonda boş satırla kaydetmesi |
 | `.vscode/settings.json` | VS Code'da yeni dosyalar LF (`files.eol`) |
+| `pyproject.toml` | Python paket tanımı: `aiops_rca`, `src/` düzeni, Python ≥ 3.11, çalışma zamanı bağımlılığı yok, `[dev]` = pytest |
+| `src/aiops_rca/__init__.py` | Paket işareti (boş) |
+| `src/aiops_rca/leakage.py` | Sızıntı testi: `model_view` klasöründe cevabı ele veren izleri arar; CLI `python -m aiops_rca.leakage <klasör>`, çıkış kodu 0/1/2 |
+| `tests/test_leakage.py` | Sızıntı testinin testleri (kart ölçütleri, kural biçimleri, girdi hataları) |
+| `tests/fixtures/leakage/` | Sahte OTLP JSON dosyaları: `leak_*.jsonl` (OTEL_DEMO.md sızıntı tablosu), `clean_*.jsonl` (temiz, yanlış alarm adayları) |
 | `docs/PROJECT.md` | Ne, neden, bitti ölçütü, kapsam dışı, şu an |
 | `docs/ARCHITECTURE.md` | Bu dosya: yapı diyagramı ve dosya tablosu |
 | `docs/GLOSSARY.md` | Onaylı isimler |
