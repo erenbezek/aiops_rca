@@ -19,7 +19,7 @@ flowchart LR
 
     base["baseline<br/>(kural, BARO)"]
     nar["candidate_narrowing"]
-    llm["LLM<br/>küçük lokal model /<br/>büyük API modeli"]
+    llm["LLM<br/>small_local_model /<br/>large_api_model"]
     cache[("llm_cache/ — git dışı")]
     evr[("eval_responses/")]
     ev["Değerlendirme<br/>top-1/3, kanıt, kalibrasyon"]

@@ -4,12 +4,12 @@
 Mikroservis ortamına (OpenTelemetry Demo + kendi Python servisim) bilerek hata enjekte edip,
 kök nedeni bulan yöntemleri aynı vakalar üzerinde ölçen bir altyapı ve üzerinde iki proje:
 
-- **Proje 1:** CPU'da çalışan küçük lokal model + istatistiksel daraltma (hibrit),
+- **Proje 1:** CPU'da çalışan küçük lokal model (`small_local_model`) + istatistiksel daraltma (hibrit),
   kanıt/yol doğrulaması ve "emin değilim" diyebilme (kalibrasyon).
-- **Proje 2:** Büyük API modeliyle araçlı ajan (Proje 1 bittikten sonra).
+- **Proje 2:** Büyük API modeli (`large_api_model`) ile araçlı ajan (Proje 1 bittikten sonra).
 
 Tüm yöntemler aynı vakalarda baseline'lara (kural, BARO) karşı ölçülür.
-Büyük API modeli satırları iki modelle koşulur (Groq gpt-oss-120b, Gemini 3.5 Flash Lite), ayarlar birebir aynı.
+`large_api_model` satırları iki modelle koşulur (Groq gpt-oss-120b, Gemini 3.5 Flash Lite), ayarlar birebir aynı.
 
 ## Neden
 Logların dışarı çıkamadığı bir ortamda küçük lokal model, doğru desteklenirse
@@ -18,7 +18,7 @@ kök neden analizinde ne kadar iş görür?
 ## Bitti sayılması için
 - [ ] Otomatik vaka üretimi: enjekte et → kaydet → temizle (gece boyu çalışabilir)
 - [ ] En az 30 vakalık snapshot seti; bir kısmı geliştirmede hiç görülmemiş test seti
-- [ ] Sonuç tablosu: baseline'lar, küçük lokal model / büyük API modeli × ham log / daraltma
+- [ ] Sonuç tablosu: baseline'lar, `small_local_model` / `large_api_model` × ham log / daraltma
 - [ ] Ölçütler: top-1/top-3, kanıt geçerliliği, kalibrasyon, süre, token
 - [ ] Canlı demo: hata enjekte et → kanıtlı olay raporu (+ bir sonraki adım önerisi)
 - [ ] CI yeşil: birim testler + sabit snapshot'larda baseline regresyonu + servis imajı (GHCR)
@@ -67,5 +67,5 @@ Repo GitHub'da (erenbezek/aiops_rca); iş akışı: görev başına `task/<konu>
 Duman testi `tools/api_smoke_test.py` olarak taşındı ve geçti; `ARCHITECTURE.md` taslak hedef yapıyla yazıldı.
 Satır sonları LF'e sabitlendi, PR #1 birleşti.
 OTel Demo 3.1.0 keşfi yapıldı (`docs/OTEL_DEMO.md`); veri akışı kararı verildi (dosya + kalıcı izleme sistemi).
-Vaka kataloğu yazıldı (`docs/INCIDENT_CATALOG.md`): 11 flag senaryosu, etiket kuralı, gürültü katmanı, altyapı hataları taslağı.
+Vaka kataloğu yazıldı (`docs/INCIDENT_CATALOG.md`): 11 flag senaryosu, etiket kuralı, `noise_layer`, altyapı hataları taslağı.
 Yeni makine bekleniyor (Docker, OTel Demo, kalibrasyon, lokal model ölçümü). Beklerken: sızıntı testi → CI iskeleti.

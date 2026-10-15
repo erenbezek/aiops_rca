@@ -73,6 +73,8 @@ Cevabı (hangi flag açık) ele veren veriler. Sadece flagd servisini çıkarmak
 | ad logu | `Feature Flag adManualGc enabled, performing a manual gc now` |
 | shipping logu | `shipping.feature_flag.evaluated`, `... due to intlShippingSlowdown feature flag` |
 | frontend-proxy (Envoy) erişim logu ve span'leri | `POST /feature/api/write` isteği; `%RESPONSE_FLAGS%` alanında `DI` (gecikme enjekte edildi) |
+| Tarayıcıdaki frontend'in flag sorguları | Envoy üzerinden `/flagservice/` yolu (`flagd.evaluation.v1...`), upstream cluster `flagservice`; load-generator OFREP kullanıyor |
+| flagd, flagd-ui, load-generator konteyner metrikleri | `docker_stats` ve `span_metrics` bu servisler için de metrik üretir (`container.name`, `service.name`) |
 | product-catalog span durumu ve olayı | `Error: Product Catalog Fail Feature Flag Enabled` |
 | product-catalog logu | `lock contention scenario active: holding ACCESS EXCLUSIVE lock on catalog.products` |
 | load-generator span ve logu | `user_flood_home` span'i, `demo.request.flood.count`, `User flooding homepage N times` |
@@ -101,3 +103,10 @@ Bazı sızıntılar silinerek değil yeniden yazılarak giderilmeli (ör. produc
 - Docker kurulumu: WSL içinde Docker Engine (öneri) mi, Docker Desktop mı.
 - Demonun repoya girişi: sabit sürümü git dışı klasöre klonlayan betik (öneri), submodule ya da kopya.
 - ~~Snapshot alma yöntemi~~ → karar verildi (2026-10-14): collector dosyaya ve izleme sistemine birlikte yazar, snapshot dosyadan kesilir. Bkz. DECISIONS.md.
+
+## Sonraki kartlar için notlar
+
+- **Collector kartı:** flagd, flagd-ui, load-generator konteyner metrikleri (`docker_stats`) ve `span_metrics` çıktıları da düşürülür. Ayrıca belirti korunuyor mu kontrolü: süzme açıkken her senaryoda kök neden servisinde belirti hâlâ görünüyor (aşırı süzme sızıntı testinden geçer ama kanıtı siler).
+- **Enjeksiyon kartı:** flagd telemetrisi her yerden silindiği için flag'in açıldığı Jaeger'dan doğrulanamaz; betik `/feature/api/read` ile geri okuyup doğrular. `docker logs flagd` OTel dışında kalır, sorun gidermede kullanılabilir.
+- **Proje 1 yol doğrulaması:** bağımlılık grafiği trace'lerden çıkarılırsa flagd zaten görünmez; compose `depends_on`'dan çıkarılırsa flagd, flagd-ui, load-generator elle çıkarılır.
+- **Rapor:** "son değişiklik" (deploy/config/flag) ipucu bilerek gizli; yöntemler sadece belirtiden teşhis koyuyor. Sınırlama olarak yazılır.
