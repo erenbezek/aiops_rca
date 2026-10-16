@@ -65,5 +65,5 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 ## Şu an
 Repo GitHub'da (erenbezek/aiops_rca), açık; iş akışı: görev başına `task/<konu>` dalı + PR, merge Eren'de.
 Hazır olanlar: duman testi, satır sonları, OTel Demo keşfi ve veri akışı kararı, vaka kataloğu, sızıntı testi (PR #3; `positive_control` yeni makinede).
-CI iskeleti `task/ci-skeleton` (PR #4): PR koşusu yeşil (26 sn); kasıtlı kırmızı gösterildi (PR #5, çıkış kodu 1 ve 5). Bekleyen: birleştirme, main push koşusu, dal koruma kuralı.
-Sıradaki: makine değişimi (HANDOFF 2026-10-16 listesi), sonra yeni makinede Docker kurulumu kararı.
+CI iskeleti PR #4 ile birleşti: main push koşusu yeşil, dal koruması açık, kasıtlı kırmızı gösterildi (PR #5). CI `ubuntu-24.04`e sabitleniyor (`task/ci-ubuntu-pin`).
+Sıradaki: makine değişimi; proje yeni makinede Ubuntu'da çalışacak (HANDOFF 2026-10-16 iki kayıt). Sonra Python sürümü, Docker kurulumu, OTel Demo.
