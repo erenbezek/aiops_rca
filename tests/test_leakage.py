@@ -376,7 +376,7 @@ def test_finding_fields(tmp_path):
     assert len(hits) == 1
     f = hits[0]
     assert f.file == "model_view/data.jsonl"
-    assert f.line == 2
+    assert f.line == 3  # KASITLI KIRMIZI (task/ci-red-check, birleştirilmez): doğrusu 2
     assert f.signal == "logs"
     assert f.service == "ad"
     assert f.json_path == "resourceLogs[0].scopeLogs[0].logRecords[0].body.stringValue"
