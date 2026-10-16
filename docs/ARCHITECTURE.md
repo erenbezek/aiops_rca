@@ -87,3 +87,4 @@ flowchart LR
 | `docs/OTEL_DEMO.md` | OpenTelemetry Demo 3.1.0 keşif notları |
 | `docs/INCIDENT_CATALOG.md` | Enjekte edilecek hatalar, doğru cevap kuralı, beklenen belirti ve yayılım yolları |
 | `tools/api_smoke_test.py` | Aday API modellerinin teknik uygunluk testi (basit cevap, tool calling, uzun girdi) |
+| `tools/gen_leakage_fixtures.py` | `tests/fixtures/leakage/` sahte dosyalarını üretir; dosyalar elle değil bu betikle değiştirilir |
