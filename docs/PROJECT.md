@@ -48,7 +48,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 | Linux ağ/kaynak hataları (tc netem, CPU/bellek, kill) | Hata enjeksiyonu | [ ] |
 | Otomasyon betikleri | Gece boyu vaka üretim hattı | [ ] |
 | Grafana dashboard | Canlı demo | [ ] |
-| CI/CD (GitHub Actions, GHCR) | Testler, regresyon, imaj | [ ] |
+| CI/CD (GitHub Actions, GHCR) | Testler, regresyon, imaj | [ ] kısmen: testler PR'da ve main'de (`.github/workflows/ci.yml`); baseline regresyonu ve GHCR imajı yok |
 | Dağıtık sistemde sorun giderme | Kurulum ve işletme | [ ] |
 
 ## Kapsam dışı
@@ -63,12 +63,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
   Kütüphane seçimi o zaman sorulacak.
 
 ## Şu an
-Repo GitHub'da (erenbezek/aiops_rca); iş akışı: görev başına `task/<konu>` dalı + PR, merge Eren'de.
-Duman testi `tools/api_smoke_test.py` olarak taşındı ve geçti; `ARCHITECTURE.md` taslak hedef yapıyla yazıldı.
-Satır sonları LF'e sabitlendi, PR #1 birleşti.
-OTel Demo 3.1.0 keşfi yapıldı (`docs/OTEL_DEMO.md`); veri akışı kararı verildi (dosya + kalıcı izleme sistemi).
-Vaka kataloğu yazıldı (`docs/INCIDENT_CATALOG.md`): 11 flag senaryosu, etiket kuralı, `noise_layer`, altyapı hataları taslağı.
-Sızıntı testi yazıldı (`src/aiops_rca/leakage.py`, `task/leakage-check`): sahte dosyalarda 190 test yeşil; gerçek veride `positive_control` yeni makinede.
-Python paketi kuruldu (`pyproject.toml`, `src/` düzeni, `.venv`). Program çıktıları artık İngilizce.
-Sızıntı testi PR #3 ile birleşti. CI iskeleti kartı yazıldı (HANDOFF, 2026-10-16), uygulamada.
-Yeni makine bekleniyor (Docker, OTel Demo, kalibrasyon, lokal model ölçümü); geçişten önce proje ve Claude ayarları yedeklenecek.
+Repo GitHub'da (erenbezek/aiops_rca), açık; iş akışı: görev başına `task/<konu>` dalı + PR, merge Eren'de.
+Hazır olanlar: duman testi, satır sonları, OTel Demo keşfi ve veri akışı kararı, vaka kataloğu, sızıntı testi (PR #3; `positive_control` yeni makinede).
+CI iskeleti `task/ci-skeleton` (PR #4): PR koşusu yeşil (26 sn); kasıtlı kırmızı gösterildi (PR #5, çıkış kodu 1 ve 5). Bekleyen: birleştirme, main push koşusu, dal koruma kuralı.
+Sıradaki: makine değişimi (HANDOFF 2026-10-16 listesi), sonra yeni makinede Docker kurulumu kararı.
