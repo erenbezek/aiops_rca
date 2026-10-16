@@ -74,7 +74,7 @@ flowchart LR
 | `.editorconfig` | Editörlerin yeni dosyaları LF, UTF-8 ve sonda boş satırla kaydetmesi |
 | `.vscode/settings.json` | VS Code'da yeni dosyalar LF (`files.eol`) |
 | `.github/workflows/ci.yml` | CI: PR'da ve main'e push'ta testler; ekstrasız kurulumun sadece `aiops_rca` eklediği ve sızıntı CLI'ının kurulu kopyadan temiz dosyada 0 döndüğü kontrolü |
-| `pyproject.toml` | Python paket tanımı: `aiops_rca`, `src/` düzeni, Python ≥ 3.11, çalışma zamanı bağımlılığı yok, `[dev]` = `pytest==9.1.1` |
+| `pyproject.toml` | Python paket tanımı: `aiops_rca`, `src/` düzeni, Python ≥ 3.12, çalışma zamanı bağımlılığı yok, `[dev]` = `pytest==9.1.1` |
 | `src/aiops_rca/__init__.py` | Paket işareti (boş) |
 | `src/aiops_rca/leakage.py` | Sızıntı testi: `model_view` klasöründe cevabı ele veren izleri arar; CLI `python -m aiops_rca.leakage <klasör>`, çıkış kodu 0/1/2 |
 | `tests/test_leakage.py` | Sızıntı testinin testleri (kart ölçütleri, kural biçimleri, girdi hataları) |

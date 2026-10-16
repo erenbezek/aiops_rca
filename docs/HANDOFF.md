@@ -284,3 +284,12 @@
 - Dikkat:
   - Sahte dosyalar artık elle değil betikle değiştirilir. Bunu zorlayan bir test yok (betik çıktısı ile repodaki dosyaları karşılaştıran test eklenebilir; ayrı karar).
   - `positive_control` gerçek telemetride biçim farkı gösterirse düzeltme bu betikte yapılır.
+
+## 2026-10-17 · Planlama → Planlama (yeni makine, Python 3.12)
+- Taşıma doğrulaması (Ubuntu 24.04, yeni makine): repo `~/cerebrum2/aiops_rca`a klonlandı, `.venv` (sistem Python 3.12.3) + `pip install -e ".[dev]"`, `pytest` 190 yeşil. Hafıza klasörleri Linux yollarına kopyalandı.
+- Yapılan (`task/ci-python-312`; Eren'in kararı): CI ve paket Python 3.12.
+  - `ci.yml`: `python-version: "3.11"` → `"3.12"`, başka değişiklik yok.
+  - `pyproject.toml`: `requires-python = ">=3.12"` (3.11 artık test edilmiyor). `ARCHITECTURE.md` dosya tablosu, `DECISIONS.md` satırı, `PROJECT.md` "Şu an".
+- Bitti ölçütü: PR koşusu yeşil ve "Set up Python" adımında 3.12.x; yerelde `pytest` 190 yeşil.
+- Dikkat:
+  - Kendi Python servisimin Docker imajı yazılırken taban imaj da 3.12 seçilmeli (yerel, CI ve imaj aynı sürüm).
