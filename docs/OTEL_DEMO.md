@@ -89,7 +89,7 @@ Bazı sızıntılar silinerek değil yeniden yazılarak giderilmeli (ör. produc
 
 - `.env`'deki `IMAGE_VERSION=3.0.0`, etiket 3.1.0 olmasına rağmen. 3.1.0 imajları ghcr'de var. İmaj sürümü bizim tarafta açıkça sabitlenmeli.
 - Upstream `.gitattributes` sadece `* text=auto`: Windows'ta `core.autocrlf=true` ile klonlanırsa betikler CRLF gelir. Klon `core.autocrlf=false` ile alınmalı.
-- Collector `docker.sock` ve host dosya sistemini (`/hostfs`) okuyor (`docker_stats`, `host_metrics`); WSL içindeki Docker Engine'de varsayılan yollar uyar.
+- Collector `docker.sock` ve host dosya sistemini (`/hostfs`) okuyor (`docker_stats`, `host_metrics`); Ubuntu'da doğrudan kurulu Docker Engine'de varsayılan yollar uyar (Docker Desktop kendi sanal makinesinde çalıştığı için yollar farklı olabilir).
 - Jaeger depolaması bellekte, en fazla 25.000 trace (`MEMORY_MAX_TRACES`); konteyner yeniden başlarsa trace'ler kaybolur.
 - Prometheus OTLP alıcısı açık, saklama 7 gün. Loglar OpenSearch'e gidiyor.
 - Tarayıcı trafiği varsayılan açık (`LOCUST_BROWSER_TRAFFIC_ENABLED=true`). `imageSlowLoad` sadece tarayıcı kullanıcılarında etki eder.
@@ -100,7 +100,7 @@ Bazı sızıntılar silinerek değil yeniden yazılarak giderilmeli (ör. produc
 
 ## Açık kararlar
 
-- Docker kurulumu: WSL içinde Docker Engine (öneri) mi, Docker Desktop mı.
+- Docker kurulumu: proje Ubuntu'da çalışacak (2026-10-16); Ubuntu'ya doğrudan Docker Engine (öneri) mi, Docker Desktop for Linux mu.
 - Demonun repoya girişi: sabit sürümü git dışı klasöre klonlayan betik (öneri), submodule ya da kopya.
 - ~~Snapshot alma yöntemi~~ → karar verildi (2026-10-14): collector dosyaya ve izleme sistemine birlikte yazar, snapshot dosyadan kesilir. Bkz. DECISIONS.md.
 

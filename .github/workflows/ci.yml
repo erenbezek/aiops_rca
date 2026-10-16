@@ -17,7 +17,7 @@ defaults:
 jobs:
   # Dal korumasında zorunlu kontrol bu job'un adıyla seçilir; ad değişirse kural da güncellenmeli.
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       # Eklentiler commit SHA'sıyla sabit; SHA resmî sürüm etiketinden alındı, git ls-remote ile doğrulandı.
