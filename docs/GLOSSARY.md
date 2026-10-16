@@ -22,6 +22,7 @@ Sadece Eren'in onayladığı isimler.
 | `src/aiops_rca/` | Projenin Python paketi (src düzeni) |
 | `src/aiops_rca/leakage.py` | Sızıntı testi: modele verilecek görünümde cevabı ele veren iz arar |
 | `tests/fixtures/leakage/` | Sızıntı testinin sahte OTLP JSON dosyaları |
+| `gen_leakage_fixtures` | Sızıntı testinin sahte dosyalarını üreten betik (`tools/gen_leakage_fixtures.py`) |
 | `leak_<kaynak>.jsonl`, `clean_symptoms.jsonl`, `clean_false_alarms.jsonl` | Sızıntı testi sahte dosyaları: sızıntı tablosunun bir satırı / normal trafik ve gerçekçi belirtiler / yanlış alarm adayları |
 | `Finding` | Sızıntı testinin tek bulgusu: `file`, `line`, `signal`, `service`, `json_path`, `rule`, `match` |
 | `LeakageInputError` | Sızıntı testinde girdi hatası (çıkış kodu 2); sonuç asla temiz sayılmaz |

@@ -1,6 +1,6 @@
 # OTEL DEMO
 
-OpenTelemetry Demo hakkında keşif notları. Kaynak: `open-telemetry/opentelemetry-demo` etiket **3.1.0** (2026-09-18), dosyalar okunarak çıkarıldı (2026-10-14), çalıştırılmadı.
+OpenTelemetry Demo hakkında keşif notları. Kaynak: `open-telemetry/opentelemetry-demo` etiket **3.1.0** (2026-09-18, commit `dedc0178918e260823323b8d95005a8cb924b007`), dosyalar okunarak çıkarıldı (2026-10-14), çalıştırılmadı.
 Sürüm değişirse bu dosya yeniden kontrol edilir.
 
 ## Çalıştırma modları
