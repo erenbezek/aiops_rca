@@ -33,7 +33,7 @@ jobs:
         run: python -m pip install -e ".[dev]"
 
       - name: Run tests
-        run: python -m pytest
+        run: python -m pytest -k no_such_test  # KASITLI KIRMIZI (b): hiç test seçilmez, pytest çıkış kodu 5 beklenir
 
       # Çalışma zamanında sadece standart kütüphane kuralı: ekstrasız kurulum aiops_rca dışında hiçbir paket
       # eklememeli ya da değiştirmemeli. freeze --all: pip/setuptools/wheel da karşılaştırmaya girer.
