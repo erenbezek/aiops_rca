@@ -70,4 +70,5 @@ OTel Demo 3.1.0 keşfi yapıldı (`docs/OTEL_DEMO.md`); veri akışı kararı ve
 Vaka kataloğu yazıldı (`docs/INCIDENT_CATALOG.md`): 11 flag senaryosu, etiket kuralı, `noise_layer`, altyapı hataları taslağı.
 Sızıntı testi yazıldı (`src/aiops_rca/leakage.py`, `task/leakage-check`): sahte dosyalarda 190 test yeşil; gerçek veride `positive_control` yeni makinede.
 Python paketi kuruldu (`pyproject.toml`, `src/` düzeni, `.venv`). Program çıktıları artık İngilizce.
-Yeni makine bekleniyor (Docker, OTel Demo, kalibrasyon, lokal model ölçümü). Beklerken sıradaki: CI iskeleti.
+Sızıntı testi PR #3 ile birleşti. CI iskeleti kartı yazıldı (HANDOFF, 2026-10-16), uygulamada.
+Yeni makine bekleniyor (Docker, OTel Demo, kalibrasyon, lokal model ölçümü); geçişten önce proje ve Claude ayarları yedeklenecek.
