@@ -31,3 +31,7 @@ Sadece Eren'in onayladığı isimler.
 | `positive_control` | Pozitif kontrol: dedektörün bilinen bir sızıntıyı gerçek veride gerçekten bulduğunu gösteren kontrol (süzme kapalı) |
 | `model_view` | Model görünümü: bir incident için yöntemlere verilen veri; etiketler ve cevabı ele veren adlar içermez |
 | `task/<konu>` | Görev kartı dalı; her kart bir dal ve bir PR (ör. `task/line-endings`) |
+| `.github/workflows/ci.yml` | CI workflow dosyası (GitHub Actions) |
+| `CI` | Workflow adı; GitHub Actions sekmesinde görünür |
+| `test` | CI job'u; main dal korumasında zorunlu kontrol bu adla seçilir |
+| `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |
