@@ -66,5 +66,6 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 Repo GitHub'da (erenbezek/aiops_rca), açık; iş akışı: görev başına `task/<konu>` dalı + PR, merge Eren'de.
 Hazır olanlar: duman testi, satır sonları, OTel Demo keşfi ve veri akışı kararı, vaka kataloğu, sızıntı testi (PR #3; `positive_control` yeni makinede).
 CI iskeleti PR #4 ile birleşti: main push koşusu yeşil, dal koruması açık, kasıtlı kırmızı gösterildi (PR #5). CI `ubuntu-24.04`e sabit (PR #6).
-Makine değişimi yapıldı: proje Ubuntu 24.04'te `~/cerebrum2/aiops_rca`, `pytest` 190 yeşil. Python 3.12'ye geçiliyor (`task/ci-python-312`).
-Sıradaki: Docker kurulumu, OTel Demo.
+Makine değişimi yapıldı: proje Ubuntu 24.04'te `~/cerebrum2/aiops_rca`, `pytest` 190 yeşil, CI ve paket Python 3.12 (PR #8). API anahtarları `~/.config/aiops_rca/keys.env`'de, duman testi Groq ve Gemini'de geçti.
+Docker Engine 29.9.1 kurulu (resmî apt deposu, Compose v5.6.0), sudo'suz çalışıyor, açılışta başlıyor (`task/docker-engine`).
+Sıradaki: OTel Demo kurulumu; lokal model hız ölçümü kartı (model seçiminden önce, araç kararıyla birlikte).
