@@ -100,7 +100,7 @@ Bazı sızıntılar silinerek değil yeniden yazılarak giderilmeli (ör. produc
 
 ## Açık kararlar
 
-- Docker kurulumu: proje Ubuntu'da çalışacak (2026-10-16); Ubuntu'ya doğrudan Docker Engine (öneri) mi, Docker Desktop for Linux mu.
+- ~~Docker kurulumu~~ → karar verildi (2026-10-18): Ubuntu'ya doğrudan Docker Engine, resmî apt deposundan. Bkz. DECISIONS.md.
 - Demonun repoya girişi: sabit sürümü git dışı klasöre klonlayan betik (öneri), submodule ya da kopya.
 - ~~Snapshot alma yöntemi~~ → karar verildi (2026-10-14): collector dosyaya ve izleme sistemine birlikte yazar, snapshot dosyadan kesilir. Bkz. DECISIONS.md.
 
