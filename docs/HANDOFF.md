@@ -332,7 +332,7 @@
   - `systemctl is-enabled docker` → `enabled`; `is-active` → `active`. GEÇTİ.
   - `docker version`: istemci ve sunucu Docker Engine - Community 29.9.1, API 1.56; containerd v2.4.2, runc 1.5.2, docker-init 0.19.0; linux/amd64. GEÇTİ.
   - `docker compose version` → `Docker Compose version v5.6.0`. GEÇTİ.
-  - Repoda sadece `docs/` değişti. PR koşusu: PR açılınca bakılacak.
+  - Repoda sadece `docs/` değişti. PR #9 koşusu yeşil: https://github.com/erenbezek/aiops_rca/actions/runs/39078550856 (2. commit).
 - Dikkat:
   - Log sürücüsü `json-file`, `/etc/docker/daemon.json` yok (Docker varsayılanı, sınır yok). Kök `/var/lib/docker` sistem diskinde (`/`, 310 GB boş). Depolama `overlayfs`, cgroup `systemd` v2. Sınır kararı OTel Demo kartında.
   - `hello-world` imajı yerelde kaldı (birkaç KB); istenirse `docker image rm hello-world`.
