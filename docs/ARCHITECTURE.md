@@ -56,12 +56,15 @@ flowchart LR
     ev --> tab
 
     smoke["tools/api_smoke_test.py"] -.->|model seçimi| llm
+    demo_sh["tools/otel_demo.sh<br/>fetch / up / down / config"] -->|"repo dışı klon 3.1.0,<br/>minimal mod"| otel
+    extras["deploy/otel-demo/compose.extras.yaml<br/>(log 5 MB × 2, 3 port 127.0.0.1)"] -->|son compose katmanı| otel
 
     classDef yok stroke-dasharray: 5 5
-    class otel,own,col,inj,raw,mon,cut,snap,fix,view,base,nar,llm,agent,cache,evr,ev,tab yok
+    class own,col,inj,raw,mon,cut,snap,fix,view,base,nar,llm,agent,cache,evr,ev,tab yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
+- OTel Demo çalışıyor (minimal mod, 2026-10-18). Collector henüz upstream ayarında (süzme ve dosya çıkışı yok); Prometheus, Jaeger, OpenSearch açık ama kalıcı değil. Bu yüzden `col` ve `mon` hâlâ kesik çizgili.
 - Sızıntı testi şimdilik sadece sahte dosyalarla sınandı. Gerçek veride sınanması (`positive_control`) yeni makinede yapılacak.
 
 ## Dosyalar
@@ -87,4 +90,6 @@ flowchart LR
 | `docs/OTEL_DEMO.md` | OpenTelemetry Demo 3.1.0 keşif notları |
 | `docs/INCIDENT_CATALOG.md` | Enjekte edilecek hatalar, doğru cevap kuralı, beklenen belirti ve yayılım yolları |
 | `tools/api_smoke_test.py` | Aday API modellerinin teknik uygunluk testi (basit cevap, tool calling, uzun girdi) |
+| `tools/otel_demo.sh` | OTel Demo 3.1.0'ı repo dışına (`~/cerebrum2/otel-demo`) klonlar ve doğrular (`fetch`); minimal modda başlatır, durdurur, birleşik compose ayarını basar (`up`, `down`, `config`) |
+| `deploy/otel-demo/compose.extras.yaml` | Demonun boş `compose.extras.yaml`'ının yerine en son yüklenen katmanımız: log sınırı, sadece 3 host portu (`127.0.0.1`) |
 | `tools/gen_leakage_fixtures.py` | `tests/fixtures/leakage/` sahte dosyalarını üretir; dosyalar elle değil bu betikle değiştirilir |

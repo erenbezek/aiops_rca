@@ -35,4 +35,7 @@ Sadece Eren'in onayladığı isimler.
 | `.github/workflows/ci.yml` | CI workflow dosyası (GitHub Actions) |
 | `CI` | Workflow adı; GitHub Actions sekmesinde görünür |
 | `test` | CI job'u; main dal korumasında zorunlu kontrol bu adla seçilir |
+| `tools/otel_demo.sh` | OTel Demo betiği: demoyu repo dışına sabit sürümde getirir ve minimal modda çalıştırır |
+| `fetch`, `up`, `down`, `config` | `tools/otel_demo.sh` komutları: klonla ve doğrula / başlat / durdur (volume silmez) / birleşik compose ayarını bas |
+| `deploy/otel-demo/compose.extras.yaml` | Bizim compose katmanımız (`deploy/`: demo ortamının bizim yapılandırma dosyaları); upstream dosyalarına dokunmadan en son yüklenir |
 | `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |

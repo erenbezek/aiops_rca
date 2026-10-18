@@ -68,5 +68,5 @@ Hazır olanlar: duman testi, satır sonları, OTel Demo keşfi ve veri akışı 
 CI iskeleti PR #4 ile birleşti: main push koşusu yeşil, dal koruması açık, kasıtlı kırmızı gösterildi (PR #5). CI `ubuntu-24.04`e sabit (PR #6).
 Makine değişimi yapıldı: proje Ubuntu 24.04'te `~/cerebrum2/aiops_rca`, `pytest` 190 yeşil, CI ve paket Python 3.12 (PR #8). API anahtarları `~/.config/aiops_rca/keys.env`'de, duman testi Groq ve Gemini'de geçti.
 Docker Engine 29.9.1 kurulu (resmî apt deposu, Compose v5.6.0), sudo'suz çalışıyor, açılışta başlıyor (PR #9).
-OTel Demo kurulum kartı uygulamada (`task/otel-demo-setup`): repo dışı klon, imaj sürümü sabit, log sınırı, portlar sadece `127.0.0.1`.
-Sıradaki: lokal model hız ölçümü kartı (model seçiminden önce, araç kararıyla birlikte); collector kartı (sızıntı süzmesi, `positive_control`).
+OTel Demo 3.1.0 minimal modda çalışıyor (`tools/otel_demo.sh`, `task/otel-demo-setup`): 25 konteyner ~2,9 GiB, imaj sürümü sabit, log sınırlı, portlar sadece `127.0.0.1`. Collector süzmesi/dosya çıkışı ve kalıcı depolama henüz yok.
+Sıradaki: lokal model hız ölçümü kartı (model seçiminden önce, araç kararıyla birlikte); collector kartı (sızıntı süzmesi, `positive_control`); depolama kartı (isimli volume).

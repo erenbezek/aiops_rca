@@ -1,6 +1,6 @@
 # OTEL DEMO
 
-OpenTelemetry Demo hakkında keşif notları. Kaynak: `open-telemetry/opentelemetry-demo` etiket **3.1.0** (2026-09-18, commit `dedc0178918e260823323b8d95005a8cb924b007`), dosyalar okunarak çıkarıldı (2026-10-14), çalıştırılmadı.
+OpenTelemetry Demo hakkında keşif notları. Kaynak: `open-telemetry/opentelemetry-demo` etiket **3.1.0** (2026-09-18, commit `dedc0178918e260823323b8d95005a8cb924b007`), dosyalar okunarak çıkarıldı (2026-10-14); 2026-10-18'de minimal modda çalıştırıldı (bkz. "Çalıştırma").
 Sürüm değişirse bu dosya yeniden kontrol edilir.
 
 ## Çalıştırma modları
@@ -27,7 +27,7 @@ Demo 3.x'te tek compose yerine katmanlı dosyalar var (`Makefile` hedefleri):
 | `compose.observability.yaml` | ~2,7 GB | jaeger 1200M, opensearch 1G, prometheus 200M, grafana 175M |
 | `compose.full.yaml` | ~1,1 GB | kafka 620M |
 
-- Minimal mod limit toplamı ~6,8 GB. Gerçek kullanım yeni makinede `docker stats` ile ölçülecek.
+- Minimal mod limit toplamı ~6,8 GB. Gerçek kullanım (2026-10-18, açılıştan ~2 dk sonra): toplam 2,87 GiB; bkz. "Çalıştırma".
 - load-generator'ın büyüklüğü tarayıcı (Playwright) kullanıcılarından: `LOCUST_BROWSER_USER_WEIGHT=0` ile düşürülebilir. Varsayılan `LOCUST_USERS=5`.
 
 ## Hata senaryoları (flag'ler)
@@ -103,6 +103,24 @@ Bazı sızıntılar silinerek değil yeniden yazılarak giderilmeli (ör. produc
 - Log: `compose.yaml`'de `x-default-logging` (`json-file`, `max-size: 5m`, `max-file: 2`); 20 servisin 18'i kullanıyor. Gözlem yığınının 5 servisi ve `compose.full.yaml`'ın 3 servisi aynı değeri açıkça yazıyor. Sınırsız: `frontend-proxy`, `flagd-ui`.
 - Port: ~28 port yayınlanıyor, çoğu sadece konteyner portuyla (`"${CART_PORT}"`): rastgele host portu, `0.0.0.0`. Sabit host portu: `frontend-proxy` 8080 ve 10000 (Envoy admin), Prometheus 9090. OpenSearch `"9200"`.
 - İmaj: `.env`'de `DEMO_VERSION=latest`, `IMAGE_VERSION=3.0.0`. Çalışan imaj `${IMAGE_NAME}:${DEMO_VERSION}-<servis>` (yani `latest-<servis>`); `IMAGE_VERSION` sadece build etiketinde. Üçüncü taraf imajlar sabit: collector-contrib 0.159.0, flagd v0.16.0, Grafana 13.1.0, Jaeger 2.19.0, Prometheus v3.13.1, Postgres 18.4, Valkey 9.0.4.
+
+## Çalıştırma (2026-10-18, Ubuntu 24.04, Docker 29.9.1, Compose v5.6.0)
+
+```
+tools/otel_demo.sh fetch    # ~/cerebrum2/otel-demo'ya 3.1.0 klonu (71 MB), sonra commit + temizlik doğrulaması
+tools/otel_demo.sh up       # minimal mod: compose.yaml + compose.observability.yaml + deploy/otel-demo/compose.extras.yaml
+tools/otel_demo.sh config   # up'ın kullandığı birleşik ayar (ek argümanlar docker compose config'e geçer)
+tools/otel_demo.sh down     # durdurur, volume silmez; klon kirli olsa da çalışır
+```
+
+- Adresler (sadece bu makineden): mağaza `http://127.0.0.1:8080/`, Jaeger `/jaeger/ui`, Grafana `/grafana`; Prometheus `127.0.0.1:9090`, OpenSearch `127.0.0.1:9200`.
+- Makine ayarı `/etc/docker/daemon.json` (repoda değil): `{"log-driver": "json-file", "log-opts": {"max-size": "5m", "max-file": "2"}, "ip": "127.0.0.1"}`. Compose dışı konteynerlere de uygulanır.
+- İlk `up` 15 dk 17 sn: ~14,7 dk 12,2 GB imaj indirme, ~42 sn açılış. İmajlar inmişken `up` 83 sn.
+- 25 konteyner; 19'unda healthcheck var (cart, flagd, grafana, jaeger, otel-collector, prometheus'ta yok).
+- Bellek (açılıştan ~2 dk sonra, `docker stats`): toplam 2,87 GiB. En büyükler: opensearch 860 MiB / 1 GiB, load-generator 583 MiB / 1,47 GiB, ad 223 MiB / 300 MiB, otel-collector 195 MiB / 400 MiB, flagd-ui 175 MiB / 200 MiB. `free -h`: kullanılan 4,7 → 7,4 GiB, kullanılabilir 7,9 GiB.
+- Disk: imajlar 12,2 GB, isimsiz volume'ler 66 MB (prometheus `/prometheus`, jaeger `/tmp`, astronomy-db).
+- Kalıcılık (`up` her seferinde `--force-recreate`): Prometheus verisi imajın isimsiz volume'ü sayesinde yeniden kurulumda kalıyor; OpenSearch verisi siliniyor (volume yok); Jaeger zaten bellekte. `down`/`up` sonrası ölçülmedi.
+- OpenSearch'te zaman damgası 0 (1970) olan loglar var (ilk ~4 dk'da 53 belge).
 
 ## Açık kararlar
 
