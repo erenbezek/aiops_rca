@@ -1,0 +1,76 @@
+# Bizim compose katmanımız (DECISIONS 2026-10-18). tools/otel_demo.sh bunu demonun boş
+# compose.extras.yaml'ının yerine, en son yükler. Upstream dosyalarına dokunulmaz.
+#
+# - Log: demonun değeri (json-file, 5 MB × 2); upstream'de sınırsız kalan iki servise.
+# - Port: host'a sadece üç port, hepsi 127.0.0.1'de; diğerleri kapalı, servisler Docker ağı içinden konuşur.
+#   Host portu sabit, konteyner portu demonun .env değişkeninden.
+#   !override listeyi değiştirir; !reset listeyi boşaltır (ek dosyada ports normalde eklenir). Compose ≥ 2.24.4.
+# - !reset yalnızca minimal modda (compose.yaml + compose.observability.yaml) tanımlı servislere yazılır;
+#   başka servis yazılırsa Compose imajsız yarım servis yaratır. opamp-server port yayınlamıyor, burada yok.
+
+x-default-logging: &logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  # Açık kalan üç port
+  frontend-proxy:          # mağaza, /jaeger/ui, /grafana; Envoy admin 10000 kapalı
+    logging: *logging
+    ports: !override
+      - "127.0.0.1:8080:${ENVOY_PORT}"
+  prometheus:
+    ports: !override
+      - "127.0.0.1:9090:${PROMETHEUS_PORT}"
+  opensearch:
+    ports: !override
+      - "127.0.0.1:9200:${OPENSEARCH_PORT}"
+
+  flagd-ui:
+    logging: *logging
+    ports: !reset []
+
+  # compose.yaml
+  ad:
+    ports: !reset []
+  astronomy-db:
+    ports: !reset []
+  cart:
+    ports: !reset []
+  checkout:
+    ports: !reset []
+  currency:
+    ports: !reset []
+  email:
+    ports: !reset []
+  flagd:
+    ports: !reset []
+  frontend:
+    ports: !reset []
+  image-provider:
+    ports: !reset []
+  load-generator:
+    ports: !reset []
+  otel-collector:
+    ports: !reset []
+  payment:
+    ports: !reset []
+  product-catalog:
+    ports: !reset []
+  quote:
+    ports: !reset []
+  recommendation:
+    ports: !reset []
+  shipping:
+    ports: !reset []
+  telemetry-docs:
+    ports: !reset []
+  valkey-cart:
+    ports: !reset []
+
+  # compose.observability.yaml
+  grafana:
+    ports: !reset []
+  jaeger:
+    ports: !reset []
