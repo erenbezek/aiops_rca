@@ -45,4 +45,12 @@ Sadece Eren'in onayladığı isimler.
 | `~/cerebrum2/models/` | GGUF model dosyaları; repo dışı |
 | `~/cerebrum2/bench_runs/` | Hız ölçümü ham çıktıları (`<tarih-saat>-matrix/`, `<tarih-saat>-sustained/`); repo dışı |
 | `battery-charge-limit.service` | Makinedeki systemd birimi: açılışta ve uykudan dönüşte şarj sınırını %80'e yazar (repoda değil) |
+| `~/cerebrum2/telemetry/` | Collector dosya çıkışı (`filtered/` süzülmüş, `raw/` süzülmemiş kopya); repo dışı |
+| `~/cerebrum2/runtime/flagd/` | flagd ve flagd-ui'nin bağladığı flag dosyası; her `up`'ta klondan sıfırlanır; repo ve klon dışı |
+| `deploy/otel-demo/otelcol-config-extras.yml` | Bizim collector katmanımız: süzme ve dosya çıkışı |
+| `deploy/otel-demo/otelcol-config-raw.yml`, `deploy/otel-demo/compose.raw.yaml` | Süzülmemiş paralel çıkışın collector ve compose katmanları |
+| `--raw` | `tools/otel_demo.sh up`/`config` seçeneği: süzülmemiş kopyayı da yaz (varsayılan kapalı) |
+| `OTEL_COLLECTOR_CONFIG_RAW`, `OTEL_COLLECTOR_USER` | `otel_demo.sh`'in compose'a geçirdiği değişkenler: süzülmemiş katman dosyası / collector kullanıcısı (`uid:docker gid`) |
+| `tools/check_collector_pipelines.py` | Upstream ve bizim collector pipeline listelerini karşılaştıran betik |
+| `filter/sim_world`, `transform/scrub` | Collector processor adları: "simüle edilen dünyada flagd yok" düşürmesi / kalan izleri temizleme ve mesaj yeniden yazma |
 | `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |
