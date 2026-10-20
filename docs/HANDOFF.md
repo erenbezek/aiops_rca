@@ -471,3 +471,48 @@
   - Isınma turu (`llama-bench` warmup) girdi okuma süresi kadar ek iş yapıyor; ölçüm sürelerine dahil değil, toplam koşu süresini uzatıyor (tablo ~4,5 saat sürdü).
   - Eren uzun koşularda prize takılı bırakıyor; şarj sınırı %80'de batarya beklemede, ek zarar yok. DECISIONS'taki "sadece prizdeyken başlar" kuralı betikte "priz yoksa bekler" olarak uygulanıyor.
   - Sonraki kartlar: asıl koşular için aynı yapının `server-b11723` imajı. Kalite ölçülmedi; nicemleme üçüncü taraf.
+
+## 2026-10-20 · Planlama → Planlama (hız ölçümü doğrulaması ve sonraki kartlara notlar)
+- Doğrulama (planlama, main `01f88ed`; main push koşusu yeşil: https://github.com/erenbezek/aiops_rca/actions/runs/39371046997):
+  - Şarj sınırı 80, durum `Not charging` (%80), `battery-charge-limit.service` `enabled`.
+  - llama.cpp imajı makinede etiketsiz (betik digest ile çekiyor); digest `sha256:8f3c2cd0…96a0` kayıttakiyle aynı.
+  - Üç GGUF dosyasının SHA256'sı `docs/LOCAL_MODEL_BENCH.md` ile aynı.
+  - `tools/bench_summary.py` üç ham klasörden aynı bütçe sonucunu üretti (2B 29,6 / 4B 72,3 / 9B 127,4 sn).
+- Takas ölçütü: KALDI olarak kalır; ölçüt kartta yanlış seçilmişti (planlamanın hatası). Bir sonraki ölçümden itibaren `pswpin` ve `/proc/pressure/memory` (DECISIONS 2026-10-20).
+- Priz kopması (tur 2'nin ilk hücresi): kabloyu Eren çıkarmış; donanım/kablo sorunu değil.
+- Sonraki kartlar için:
+  - **Değerlendirme kartı (ham log bütçesi):** 2026-10-20 bütçe satırındaki "240 koşu × 2 dk ≈ 7 saat" ham log koşularını da 2 dk sayıyordu (planlamanın hesap hatası). 4B ile 120 × 72 sn + 120 × 177 sn ≈ 8,3 saat > 7 saat. Gerçek ham log 6144 token'dan çok uzun olabilir (25 servis, dakikalarca log; bağlam penceresini aşabilir). Ham log koşulunun kendi planı gerekiyor (tekrar sayısı, vaka alt kümesi, ayrı gece ya da bağlamı aşan girdide ne yapılacağı); kartta karara bağlanır.
+  - **Asıl koşular (model sunucusu):** hız ölçümünde iterasyon başına ~75 sn ölçülmeyen ek iş var (konteyner, model yükleme, ısınma turu). Koşu başına yeniden başlatılırsa bütçe çöker; sunucu (`server-b11723`) bir kez açılır, koşular ona bağlanır.
+  - **Canlı demo (bellek):** 9B ~8,9 GB (`VmHWM`, 6144 bağlam); demo açıkken boş bellek ~7,2 GB (2026-10-18) → 9B demoyla birlikte sığmaz; 4B sığması beklenir (ölçülmedi).
+  - **Model seçimi:** hızda 2B ve 4B bütçeye sığıyor, 9B 7 sn farkla kalıyor. Kalite ölçülmedi; seçim kalite ölçümünden sonra.
+
+## 2026-10-20 · Planlama → Uygulama (collector C1: süzme, dosya çıkışı, flag dosyası)
+- Yapılan (planlama): DECISIONS 2026-10-20: şarj sınırı günlük kapalı / koşu öncesi açılır; collector iki kart (C1, C2); süzülmemiş paralel çıkış (varsayılan kapalı); dosya çıkışı `~/cerebrum2/telemetry/` ve 2 GB geçici sınır; flag dosyası `~/cerebrum2/runtime/flagd/`; mesaj yeniden yazma ilkesi. Onaylı yeni isimler: `~/cerebrum2/telemetry/`, `~/cerebrum2/runtime/flagd/`.
+- Amaç: modelin ve izleme sisteminin göreceği telemetri flag/senaryo bilgisi taşımasın, ama belirtiler kalsın; telemetri dosyaya sınırlı boyutta yazılsın; flag değiştirmek klonu kirletmesin. Gerçek senaryolarla doğrulama C2'de.
+- Beklenen:
+  1. Dal `task/collector-filter`; ilk commit planlamanın docs değişiklikleri (DECISIONS, HANDOFF, PROJECT; main'de bekleyen 2026-10-20 doğrulama kaydı dahil).
+  2. **Flag dosyası:** `up` klondaki `src/flagd/demo.flagd.json`'u `~/cerebrum2/runtime/flagd/`'a kopyalar (her seferinde üzerine); `compose.extras.yaml` `flagd` (`/etc/flagd`) ve `flagd-ui` (`/app/data`) bağlamalarını bu klasöre çevirir. flagd-ui'nin yazabildiği izinler.
+  3. **Collector ayarı:** bizim `deploy/otel-demo/otelcol-config-extras.yml` (upstream'deki dosyanın adı; DECISIONS 2026-10-14), betik `OTEL_COLLECTOR_CONFIG_EXTRAS` ile bağlar. Süzme iki çıkıştan (dosya ve izleme sistemi) önce, ortak:
+     - `flagd`, `flagd-ui`, `load-generator` servislerinin bütün telemetrisi; bu konteynerlerin `docker_stats` ve `span_metrics` metrikleri.
+     - "Simüle edilen dünyada flagd yok" (DECISIONS 2026-10-15): servislerin flagd'ye giden rutin çağrıları (client span'leri), `/feature` ve `/flagservice` yolları, `flagd`/`ofrep` geçen alanlar.
+     - Span olayı `feature_flag.evaluation`, `feature_flag.*` öznitelik ve metrikleri, `demo.feature_flag.recommendation_cache`.
+     - Envoy erişim logunda `DI` bayrağı (DECISIONS 2026-10-15'teki arama kuralıyla).
+     - OTEL_DEMO.md sızıntı tablosundaki her satır ya bir kurala bağlanır ya da neden gerekmediği yazılır; yeniden yazılacak mesajların metinleri Eren'e önerilir.
+     - Upstream'in pipeline listeleri **değiştirilir, eklenmez** (OTEL_DEMO.md): upstream'deki her processor ve exporter bizim listede de olmalı.
+  4. **Dosya çıkışı:** collector `file` exporter, OTLP JSON, satır başına bir kayıt (sızıntı testinin okuyabildiği biçim); sinyal başına ayrı dosya; `~/cerebrum2/telemetry/filtered/`. Dosya döndürme ayarları toplamı (süzülmüş + süzülmemiş) ≤ 2 GB.
+  5. **Süzülmemiş paralel çıkış:** süzme processor'larından geçmeyen ayrı pipeline'lar → `~/cerebrum2/telemetry/raw/`. Açma yöntemini (ayrı ek dosya, ortam değişkeni vb.) öner; varsayılan kapalı.
+- Bitti ölçütü:
+  - Flag: `up` sonrası klon temiz; çalışma kopyası klondaki dosyayla aynı (SHA256). flagd-ui API ile bir flag açılıp `/feature/api/read`'den geri okununca açık; çalışma kopyası değişti, klon temiz; flag kapatıldı. İkinci `up` dosyayı başlangıç haline döndürdü.
+  - Collector ayarı: collector imajıyla (`0.159.0`) `validate` geçti; bizim pipeline'larımız upstream'deki bütün processor ve exporter'ları içeriyor (elle değil, upstream config'le karşılaştırarak; yöntem kayda).
+  - 30 dk normal koşu (flag'ler kapalı, süzülmemiş çıkış kapalı): `filtered/`'da üç sinyalin dosyası var; `raw/` boş; `aiops_rca` sızıntı CLI'ı `filtered/` üzerinde 0 bulgu; Jaeger servis listesinde (`/jaeger/ui/api/services`) `flagd`, `flagd-ui`, `load-generator` yok ve `frontend` trace'i var; Prometheus'ta `feature_flag` ile başlayan metrik yok; OpenSearch'te `load-generator` logu yok (sorgular kayda).
+  - Kısa koşu (5 dk, süzülmemiş çıkış açık): sızıntı CLI'ı `raw/` üzerinde bulgu verir (en az flagd ve load-generator), aynı anda `filtered/` 0. Bu rutin trafik için mini `positive_control`; senaryo bazlı tam kontrol C2'de. Koşu sonunda `raw/` silinir.
+  - Hacim: 30 dk koşudan sinyal başına MB/saat; 2 GB sınırının gece koşusunda kaç saate yettiği hesaplanır ve kayda; gerekirse sınır önerisi.
+  - Zaman damgası 0 (1970) olan kayıtlar dosya çıkışında sayılır ve kayda (bu kartta düzeltilmez).
+  - `pytest` yeşil; PR koşusu yeşil.
+- Dikkat:
+  - Şarj sınırı şu an kapalı (100). 30 dk'lık koşu uzun koşu sayılmaz; C2 ve gece koşularından önce açılır.
+  - Senaryoya özgü kurallar (yeniden yazılan mesajlar, `DI`, `feature_flag.evaluation` olayları) flag açılmadan gerçek veride görülemez; C1'de kurallar yazılır ve `validate` edilir, gerçek doğrulama C2'de. İstersen bir senaryoyla (ör. `paymentFailure`) kısa bir deneme yapılabilir, kart ölçütü değil.
+  - Bir span'i silmek trace'te boşluk bırakır (ör. flagd client span'leri); kabul edildi, rapor sınırlaması.
+  - Collector'ın Docker soketi ve host dosya sistemi erişimi upstream tasarımı (`docker_stats`, `host_metrics`); değiştirilmez, risk olarak kayıtlı.
+  - Collector bellek limiti 400M; süzme ve iki dosya çıkışı sonrası `docker stats` kayda.
+  - Kart dışı: C2 koşusu, snapshot kesme aracı, kalıcı depolama (isimli volume), kendi Python servisi, hata enjeksiyonu betiği.
