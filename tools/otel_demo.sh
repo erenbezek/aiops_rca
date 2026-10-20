@@ -11,6 +11,8 @@ DEMO_DIR="${HOME}/cerebrum2/otel-demo"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 EXTRAS_FILE="${REPO_ROOT}/deploy/otel-demo/compose.extras.yaml"
+# flagd ve flagd-ui bu klasörü bağlar (compose.extras.yaml'da aynı yol).
+FLAGD_RUNTIME_DIR="${HOME}/cerebrum2/runtime/flagd"
 
 die() {
     echo "error: $*" >&2
@@ -75,9 +77,19 @@ cmd_fetch() {
     echo "ok: cloned $DEMO_TAG ($DEMO_COMMIT)"
 }
 
+# Her up bütün flag'ler kapalı, sabit commit'teki haliyle başlar. flagd-ui dosyayı root olarak
+# yeniden yazmış olabilir: üzerine kopyalamak yerine silinir (klasör bizim, sudo gerekmez).
+reset_flag_file() {
+    mkdir -p "$FLAGD_RUNTIME_DIR"
+    rm -f "${FLAGD_RUNTIME_DIR}/demo.flagd.json"
+    cp "${DEMO_DIR}/src/flagd/demo.flagd.json" "${FLAGD_RUNTIME_DIR}/demo.flagd.json"
+    chmod 0644 "${FLAGD_RUNTIME_DIR}/demo.flagd.json"
+}
+
 cmd_up() {
     require_clone
     verify_clone
+    reset_flag_file
     # Bayraklar demonun Makefile'ındaki start-minimal ile aynı.
     compose up --force-recreate --remove-orphans --detach
 }
