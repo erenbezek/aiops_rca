@@ -3,8 +3,8 @@
 # sonra yüklenir.
 #
 # DİKKAT: collector katmanları birleştirirken listeleri DEĞİŞTİRİR, eklemez. Burada yazılan her pipeline
-# listesi upstream'deki bütün elemanları tekrar içermeli; tools/check_collector_pipelines.py kontrol eder.
-# Upstream'in birleşik listeleri (3.1.0, print-config ile okundu):
+# listesi upstream'deki bütün elemanları aynı sırayla tekrar içermeli; tools/check_collector_pipelines.py
+# kontrol eder. Upstream'in birleşik listeleri (3.1.0, print-config ile okundu):
 #   traces  processors: resource_detection, memory_limiter, transform/sanitize_spans, gen_ai_normalizer,
 #                       transform/redact_sensitive_data, redaction
 #           exporters:  debug, otlp_grpc/jaeger, span_metrics
@@ -12,6 +12,100 @@
 #           exporters:  debug, otlp_http/prometheus
 #   logs    processors: resource_detection, memory_limiter, transform/sanitize_logs
 #           exporters:  debug, opensearch
+#
+# Süzme (DECISIONS 2026-10-15 "simüle edilen dünyada flagd yok", 2026-10-20): iki çıkıştan (dosya ve izleme
+# sistemi) önce, ortak. Kurallar 2026-10-20 keşif koşusunun envanterine dayanır (HANDOFF). Süzme sırası:
+# önce düşür (filter/sim_world), sonra kalanı temizle ve mesajları yeniden yaz (transform/scrub).
+
+processors:
+  filter/sim_world:
+    error_mode: ignore
+    traces:
+      span:
+        # flagd, flagd-ui ve load-generator'ın kendi telemetrisi
+        - 'IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")'
+        # OpenFeature SDK'larının kendi span'leri (ad: dev.openfeature.contrib.providers.flagd)
+        - 'IsMatch(instrumentation_scope.name, "(?i)openfeature")'
+        # Servislerin flagd'ye rutin çağrıları (client span'leri) ve Envoy'un flag yolları
+        - 'IsMatch(name, "(?i)flagd|flagservice|ofrep")'
+        - 'attributes["server.address"] == "flagd"'
+        - 'attributes["net.peer.name"] == "flagd"'
+        - 'IsMatch(attributes["rpc.service"], "(?i)flagd")'
+        - 'IsMatch(attributes["original_span_name"], "(?i)flagd|ofrep")'
+        - 'IsMatch(attributes["thread.name"], "(?i)flagd")'
+        - 'IsMatch(attributes["url.full"], "(?i)flagd|/flagservice/|ofrep|/feature(/|$)|/loadgen(/|$)")'
+        - 'IsMatch(attributes["http.url"], "(?i)flagd|/flagservice/|ofrep|/feature(/|$)|/loadgen(/|$)")'
+        - 'IsMatch(attributes["url.path"], "^/(flagservice|feature|loadgen)(/|$)")'
+        - 'IsMatch(attributes["upstream_cluster"], "^(flagservice|flagd-ui|loadgen)$")'
+        - 'IsMatch(attributes["upstream_cluster.name"], "^(flagservice|flagd-ui|loadgen)$")'
+      spanevent:
+        # OpenFeature TracingHook: flag adı, varyant, sağlayıcı
+        - 'name == "feature_flag.evaluation"'
+    metrics:
+      metric:
+        - 'IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")'
+        # docker_stats: bu konteynerlerin metrikleri
+        - 'IsMatch(resource.attributes["container.name"], "^(flagd|flagd-ui|load-generator)$")'
+        # OpenFeature MetricsHook (cart)
+        - 'IsMatch(name, "^feature_flag\\.")'
+        - 'IsMatch(instrumentation_scope.name, "(?i)openfeature")'
+        # host_metrics süreç metrikleri tümden (Eren onayı, 2026-10-20): makinedeki her sürecin komut
+        # satırı (flagd, locust, enjeksiyon komutları, masaüstü) bunlarla dışarı çıkıyordu.
+        - 'IsMatch(instrumentation_scope.name, "processscraper")'
+      datapoint:
+        # flagd'ye giden RPC/HTTP istemci metrikleri ve span metrikleri
+        - 'IsMatch(attributes["rpc.service"], "(?i)flagd")'
+        - 'attributes["server.address"] == "flagd"'
+        - 'IsMatch(attributes["span.name"], "(?i)flagd|flagservice|ofrep")'
+        - 'IsMatch(attributes["http.route"], "^/(flagservice|feature|loadgen)(/|$)")'
+        - 'IsMatch(attributes["url.path"], "^/(flagservice|feature|loadgen)(/|$)")'
+    logs:
+      log_record:
+        - 'IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")'
+        - 'IsMatch(instrumentation_scope.name, "(?i)openfeature")'
+        # shipping: shipping.feature_flag.evaluated / evaluation_failed
+        - 'IsMatch(event_name, "feature_flag")'
+        - 'attributes["feature_flag_key"] != nil'
+        # Envoy erişim logu: flag ve load-generator yolları
+        - 'IsMatch(attributes["upstream.cluster"], "^(flagservice|flagd-ui|loadgen)$")'
+        - 'IsMatch(attributes["url.path"], "^/(flagservice|feature|loadgen)(/|$)")'
+        - 'IsMatch(attributes["url.full"], "(?i)flagd|/flagservice/|ofrep")'
+        - 'IsMatch(body, "^\\[[^\\]]*\\] \"[A-Z]+ /(flagservice|feature|loadgen)(/|[ ?])")'
+
+  transform/scrub:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - 'delete_key(attributes, "demo.feature_flag.recommendation_cache")'
+          - 'delete_matching_keys(attributes, "^feature_flag\\.")'
+          # Envoy yanıt bayrağında DI (gecikme enjekte edildi; DECISIONS 2026-10-15)
+          - 'set(attributes["response_flags"], "-") where attributes["response_flags"] == "DI"'
+          - 'replace_pattern(attributes["response_flags"], "^DI,", "")'
+          - 'replace_pattern(attributes["response_flags"], ",DI(,|$)", "$$1")'
+          # product-catalog hata mesajı; çağıran servislerin span'lerine de yayılıyor (Eren onayı)
+          - 'replace_pattern(status.message, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_all_patterns(attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+      - context: spanevent
+        statements:
+          - 'replace_pattern(name, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_all_patterns(attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'delete_matching_keys(attributes, "^feature_flag\\.")'
+    log_statements:
+      - context: log
+        statements:
+          - 'delete_matching_keys(attributes, "^feature_flag")'
+          # Envoy erişim logu: 6. alan (yanıt bayrakları) DI ise "-", listedeyse DI çıkarılır
+          - 'replace_pattern(body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ )DI ", "$$1- ")'
+          - 'replace_pattern(body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ )DI,", "$$1")'
+          - 'replace_pattern(body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ [A-Z,]*),DI([ ,])", "$$1$$2")'
+          # Belirtiyi koruyan yeniden yazımlar (Eren onayı, 2026-10-20); hata durumu ve önem düzeyi değişmez
+          - 'replace_pattern(body, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_all_patterns(attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_pattern(body, "^Feature Flag adManualGc enabled, performing a manual gc now$", "Performing a full garbage collection now")'
+          - 'replace_pattern(body, "^Delaying international shipment due to intlShippingSlowdown feature flag$", "Delaying international shipment")'
+          - 'replace_pattern(body, "^lock contention scenario active: holding ACCESS EXCLUSIVE lock on catalog\\.products$", "holding ACCESS EXCLUSIVE lock on catalog.products")'
+          - 'replace_pattern(body, "^failed to acquire lock for lock contention scenario$", "failed to acquire ACCESS EXCLUSIVE lock on catalog.products")'
 
 # Dosya çıkışı: OTLP JSON, satır başına bir istek (sızıntı testinin okuduğu biçim), sinyal başına bir dosya.
 # Sınır (DECISIONS 2026-10-20, geçici 2 GB): dosya 100 MB'ta döner, 2 yedek → sinyal başına ≤ 300 MB,
@@ -39,8 +133,11 @@ exporters:
 service:
   pipelines:
     traces:
+      processors: [resource_detection, memory_limiter, transform/sanitize_spans, gen_ai_normalizer, transform/redact_sensitive_data, redaction, filter/sim_world, transform/scrub]
       exporters: [debug, otlp_grpc/jaeger, span_metrics, file/traces]
     metrics:
+      processors: [resource_detection, memory_limiter, filter/sim_world]
       exporters: [debug, otlp_http/prometheus, file/metrics]
     logs:
+      processors: [resource_detection, memory_limiter, transform/sanitize_logs, filter/sim_world, transform/scrub]
       exporters: [debug, opensearch, file/logs]
