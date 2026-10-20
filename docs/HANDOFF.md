@@ -516,3 +516,16 @@
   - Collector'ın Docker soketi ve host dosya sistemi erişimi upstream tasarımı (`docker_stats`, `host_metrics`); değiştirilmez, risk olarak kayıtlı.
   - Collector bellek limiti 400M; süzme ve iki dosya çıkışı sonrası `docker stats` kayda.
   - Kart dışı: C2 koşusu, snapshot kesme aracı, kalıcı depolama (isimli volume), kendi Python servisi, hata enjeksiyonu betiği.
+
+## 2026-10-20 · Uygulama → Uygulama (collector C1: sıra, kararlar ve ölçüm yöntemleri, ölçmeden önce)
+- Eren onayı (2026-10-20). Kart ölçütleri değişmedi.
+- Sıra: flag dosyası → dosya çıkışı (süzmesiz) + `--raw` → keşif koşusu (~10 dk, `raw/` açık) → süzme kuralları → 30 dk normal + 5 dk `raw/` koşuları. Kurallar keşifteki envantere dayanır (OTTL'de "her alanda ara" yok; alanlar tek tek adlandırılır).
+- Collector kullanıcısı `1000:984` (eren, `docker` grubu); upstream `0:0`. Doğrulama: aynı süre (5 dk) upstream kullanıcıyla ve bizimkiyle çalışırken Prometheus'taki metrik adları listesi (`/api/v1/label/__name__/values`) karşılaştırılır; bizimkinde eksik ad olmamalı (yeni ad olabilir). Eksik çıkarsa root'a dönülür, kayda yazılır.
+- Süzülmemiş çıkış: `deploy/otel-demo/otelcol-config-raw.yml` + `deploy/otel-demo/compose.raw.yaml`, sadece `tools/otel_demo.sh up --raw` ile yüklenir; varsayılan yüklenmez.
+- Upstream karşılaştırması: collector `0.159.0` imajıyla `print-config --format=json --feature-gates=otelcol.printInitialConfig`; upstream birleşik ayarı (4 katman, demonun boş extras'ıyla) ve bizim birleşik ayarımız; `tools/check_collector_pipelines.py <upstream.json> <ours.json>` her sinyalde upstream processor/exporter/receiver'ın bizim süzülmüş pipeline'da olduğunu kontrol eder, eksikte çıkış ≠ 0. Kasıtlı kırmızı: bir upstream processor'ı listeden çıkarınca çıkış ≠ 0.
+- Ölçüm sorguları (30 dk koşu):
+  - Jaeger: `curl -s http://127.0.0.1:8080/jaeger/ui/api/services | jq -r '.data[]'` → `flagd`, `flagd-ui`, `load-generator` yok; `frontend` trace sayısı (`/jaeger/ui/api/traces?service=frontend&limit=1`) ≥ 1.
+  - Prometheus: `curl -s http://127.0.0.1:9090/api/v1/label/__name__/values | jq -r '.data[]' | grep -c '^feature_flag'` → 0.
+  - OpenSearch: `curl -s 'http://127.0.0.1:9200/otel-logs-*/_count' -H 'Content-Type: application/json' -d '{"query":{"term":{"resource.service.name":"load-generator"}}}'` → `count` 0 (alan adı keşifte doğrulanır; yanlış alan 0 vereceği için aynı sorgu `frontend` ile > 0 vermeli).
+  - Sızıntı: `python -m aiops_rca.leakage ~/cerebrum2/telemetry/filtered` → çıkış 0, 0 bulgu; 5 dk koşuda `raw/` üzerinde çıkış 1 ve bulgularda flagd ile load-generator.
+  - Hacim: sinyal başına dosya boyutu / koşu süresi → MB/saat.
