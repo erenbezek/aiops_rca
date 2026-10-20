@@ -56,6 +56,7 @@ flowchart LR
     ev --> tab
 
     smoke["tools/api_smoke_test.py"] -.->|model seçimi| llm
+    bench["tools/local_model_bench.sh<br/>+ bench_summary.py"] -.->|hız ölçümü, model boyutu| llm
     demo_sh["tools/otel_demo.sh<br/>fetch / up / down / config"] -->|"repo dışı klon 3.1.0,<br/>minimal mod"| otel
     extras["deploy/otel-demo/compose.extras.yaml<br/>(log 5 MB × 2, 3 port 127.0.0.1)"] -->|son compose katmanı| otel
 
@@ -92,4 +93,7 @@ flowchart LR
 | `tools/api_smoke_test.py` | Aday API modellerinin teknik uygunluk testi (basit cevap, tool calling, uzun girdi) |
 | `tools/otel_demo.sh` | OTel Demo 3.1.0'ı repo dışına (`~/cerebrum2/otel-demo`) klonlar ve doğrular (`fetch`); minimal modda başlatır, durdurur, birleşik compose ayarını basar (`up`, `down`, `config`) |
 | `deploy/otel-demo/compose.extras.yaml` | Demonun boş `compose.extras.yaml`'ının yerine en son yüklenen katmanımız: log sınırı, sadece 3 host portu (`127.0.0.1`) |
+| `tools/local_model_bench.sh` | Lokal model hız ölçümü: `matrix` (model × iş parçacığı tablosu, turlar halinde), `sustained` (30 dk bütçe döngüsü); llama.cpp sabit imajda, 10 sn izleme, priz kopmasında bekle-tekrarla, `--resume`; ham çıktılar `~/cerebrum2/bench_runs/` |
+| `tools/bench_summary.py` | `local_model_bench.sh` koşularından özet: geçerli hücreleri birleştirir, soğuk/ısınmış bütçe, GEÇER/KALIR |
+| `docs/LOCAL_MODEL_BENCH.md` | Lokal model hız ölçümünün kurulumu, yöntemi ve sonuç tablosu |
 | `tools/gen_leakage_fixtures.py` | `tests/fixtures/leakage/` sahte dosyalarını üretir; dosyalar elle değil bu betikle değiştirilir |
