@@ -38,4 +38,11 @@ Sadece Eren'in onayladığı isimler.
 | `tools/otel_demo.sh` | OTel Demo betiği: demoyu repo dışına sabit sürümde getirir ve minimal modda çalıştırır |
 | `fetch`, `up`, `down`, `config` | `tools/otel_demo.sh` komutları: klonla ve doğrula / başlat / durdur (volume silmez) / birleşik compose ayarını bas |
 | `deploy/otel-demo/compose.extras.yaml` | Bizim compose katmanımız (`deploy/`: demo ortamının bizim yapılandırma dosyaları); upstream dosyalarına dokunmadan en son yüklenir |
+| `tools/local_model_bench.sh` | Lokal model hız ölçümü betiği (llama-bench, sabit Docker imajı) |
+| `matrix`, `sustained`, `--resume` | `local_model_bench.sh` komutları: model × iş parçacığı tablosu turlar halinde / 30 dk sürekli yük / yarım kalan tablo koşusunu eksik hücrelerden sürdür |
+| `tools/bench_summary.py` | Hız ölçümü koşularının özetini (tablo, bütçe kararı) üreten betik |
+| `docs/LOCAL_MODEL_BENCH.md` | Lokal model hız ölçümünün kurulumu, yöntemi ve sonuçları |
+| `~/cerebrum2/models/` | GGUF model dosyaları; repo dışı |
+| `~/cerebrum2/bench_runs/` | Hız ölçümü ham çıktıları (`<tarih-saat>-matrix/`, `<tarih-saat>-sustained/`); repo dışı |
+| `battery-charge-limit.service` | Makinedeki systemd birimi: açılışta ve uykudan dönüşte şarj sınırını %80'e yazar (repoda değil) |
 | `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |

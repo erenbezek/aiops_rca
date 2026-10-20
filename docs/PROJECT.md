@@ -69,5 +69,6 @@ CI iskeleti PR #4 ile birleşti: main push koşusu yeşil, dal koruması açık,
 Makine değişimi yapıldı: proje Ubuntu 24.04'te `~/cerebrum2/aiops_rca`, `pytest` 190 yeşil, CI ve paket Python 3.12 (PR #8). API anahtarları `~/.config/aiops_rca/keys.env`'de, duman testi Groq ve Gemini'de geçti.
 Docker Engine 29.9.1 kurulu (resmî apt deposu, Compose v5.6.0), sudo'suz çalışıyor, açılışta başlıyor (PR #9).
 OTel Demo 3.1.0 minimal modda çalışıyor (`tools/otel_demo.sh`, `task/otel-demo-setup`): 25 konteyner ~2,9 GiB, imaj sürümü sabit, log sınırlı, portlar sadece `127.0.0.1`. Collector süzmesi/dosya çıkışı ve kalıcı depolama henüz yok.
-Lokal model hız ölçümü kartı uygulamada (`task/local-model-bench`): llama.cpp (Docker), 3 model boyutu, 30 dk sürekli yük; şarj sınırı %80 kalıcı.
+Lokal model hız ölçümü yapıldı (`task/local-model-bench`, `docs/LOCAL_MODEL_BENCH.md`): llama.cpp b11723, Qwen3.5 Q4_K_M; 2048+300 bütçesine 2B (30 sn) ve 4B (73 sn) sığıyor, 9B (127 sn) sığmıyor; en iyi ayar 4 iş parçacığı; ısınmayla yavaşlama yok. Şarj sınırı %80 kalıcı (`battery-charge-limit.service`).
+Sıradaki karar: model seçimi (boyut ve aile; kalite ölçülmedi).
 Sıradaki: collector kartı (sızıntı süzmesi, `positive_control`); depolama kartı (isimli volume).

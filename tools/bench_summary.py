@@ -216,14 +216,15 @@ def summarize_sustained(run, best):
     )
     out.append(f"- En yüksek bellek (llama-bench VmHWM): {peak:.2f} GB" if peak else "- En yüksek bellek: -")
     first = [ts for end, ts in points if end <= 120]
+    first_label = "İlk 2 dk"
+    if not first:
+        # Bir iterasyon 2 dk'dan uzunsa pencere boş kalır; ilk iterasyon kullanılır (Eren onayı, 2026-10-20).
+        first = [points[0][1]]
+        first_label = f"İlk 2 dk boş (iterasyon {points[0][0] / 60:.1f}. dk'da bitti); ilk iterasyon"
     last = [ts for end, ts in points if end >= total - 600]
-    if not first or not last:
-        out.append("- İlk 2 dk ya da son 10 dk'da iterasyon yok; yavaşlama oranı hesaplanamadı.")
-        out.extend(machine_lines(run, monitor))
-        return out
     ratio = statistics.mean(last) / statistics.mean(first)
     out.append(
-        f"- İlk 2 dk {statistics.mean(first):.2f} t/s ({len(first)} iterasyon), son 10 dk "
+        f"- {first_label} {statistics.mean(first):.2f} t/s ({len(first)} iterasyon), son 10 dk "
         f"{statistics.mean(last):.2f} t/s ({len(last)} iterasyon): hız farkı {(ratio - 1) * 100:+.1f} %"
     )
     out.extend(machine_lines(run, monitor))
