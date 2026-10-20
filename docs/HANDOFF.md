@@ -543,7 +543,7 @@
   - 5 dk koşu (`--raw`, 16:09–16:15): sızıntı CLI'ı `raw/` → 28.543 bulgu, çıkış 1 (flagd 10.821, load-generator 551, flagd-ui 99, product-catalog, recommendation, frontend-proxy, cart, checkout, frontend-web, ad, payment, süreç metrikleri); aynı koşuda `filtered/` → `clean`. `raw/` silindi. GEÇTİ.
   - Hacim: 30 dk'da traces 194,7 MB (bir kez döndü), logs 65,6, metrics 54,1 → ~630 MB/saat (traces ~389, logs ~131, metrics ~108). 2 GB sınırı (filtered 900 MB + raw 900 MB) şimdiki döndürmeyle traces'te ~46 dk, logs'ta ~2,3 saat, metrics'te ~2,8 saat geriye gidiyor; 7 saatlik gece ~4,4 GB üretir. Öneri aşağıda. Ölçüldü ve yazıldı.
   - Zaman damgası 0: dosya çıkışında logların 2.716 / 55.965'i (currency 1.973, shipping 743); span ve metrikte 0. Düzeltilmedi.
-  - `pytest` 190 yeşil. PR koşusu: PR açılınca bakılacak.
+  - `pytest` 190 yeşil. PR #12 koşusu yeşil: https://github.com/erenbezek/aiops_rca/actions/runs/39429246500 (`a176143`).
 - Dikkat:
   - **2 GB sınırı önerisi (karar planlamada):** toplam sınır yetmez değil ama döndürme eski veriyi siliyor; snapshot vaka bitiminden sonra en geç ~45 dk içinde (traces'in ömrü) kesilmeli. İki seçenek: (a) toplamı 2 GB tutup hacme göre dağıtmak (raw normalde kapalı olduğu için filtered'a daha çok: ör. traces 1 GB, logs/metrics 300'er MB → traces ~2,5 saat) ve raw'ı sadece positive_control gecesinde açmak; (b) snapshot kesicinin vaka sonunda hemen kesmesini zorunlu kılıp sınırı olduğu gibi bırakmak.
   - Collector belleği: süzme açık ~107 MiB, raw da açıkken ~239 MiB (limit 400M, `GOMEMLIMIT=160MiB`). C2'de raw açık ve senaryo yükü altında izlenmeli.
