@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # OTel Demo'yu repo dışına getirir, sabit sürümü doğrular ve minimal modda çalıştırır (DECISIONS 2026-10-18).
-# Kullanım: tools/otel_demo.sh fetch|up|down|config
+# Kullanım: tools/otel_demo.sh fetch | up [--raw] | down | config [--raw] [docker compose config argümanları]
 set -euo pipefail
 
 # Sürüm burada sabit: etiket taşınırsa commit kontrolü yakalar.
@@ -10,9 +10,15 @@ DEMO_COMMIT="dedc0178918e260823323b8d95005a8cb924b007"
 DEMO_DIR="${HOME}/cerebrum2/otel-demo"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-EXTRAS_FILE="${REPO_ROOT}/deploy/otel-demo/compose.extras.yaml"
+DEPLOY_DIR="${REPO_ROOT}/deploy/otel-demo"
+EXTRAS_FILE="${DEPLOY_DIR}/compose.extras.yaml"
+RAW_FILE="${DEPLOY_DIR}/compose.raw.yaml"
+COLLECTOR_EXTRAS="${DEPLOY_DIR}/otelcol-config-extras.yml"
+COLLECTOR_RAW="${DEPLOY_DIR}/otelcol-config-raw.yml"
 # flagd ve flagd-ui bu klasörü bağlar (compose.extras.yaml'da aynı yol).
 FLAGD_RUNTIME_DIR="${HOME}/cerebrum2/runtime/flagd"
+# Collector dosya çıkışı (compose.extras.yaml'da aynı yol): filtered/ her zaman, raw/ sadece --raw ile.
+TELEMETRY_DIR="${HOME}/cerebrum2/telemetry"
 
 die() {
     echo "error: $*" >&2
@@ -47,17 +53,29 @@ verify_clone() {
         || die "$DEMO_DIR has local changes (upstream files must stay untouched):"$'\n'"$changes"
 }
 
-# Minimal mod: demonun compose.yaml + compose.observability.yaml, en son bizim katmanımız
-# (demonun boş compose.extras.yaml'ı yüklenmez). Env dosyaları Makefile'daki sırayla.
-# DEMO_VERSION açıkça verilir: upstream .env'de "latest"; kabuk değişkeni --env-file'ı ezer.
+# Minimal mod: demonun compose.yaml + compose.observability.yaml, sonra bizim katmanımız (demonun boş
+# compose.extras.yaml'ı yüklenmez); RAW=1 ise en son compose.raw.yaml. Env dosyaları Makefile'daki sırayla.
+# Kabuk değişkenleri --env-file'ı ezer:
+# - DEMO_VERSION: upstream .env'de "latest".
+# - OTEL_COLLECTOR_CONFIG_EXTRAS: demonun boş collector extras'ı yerine bizimki.
+# - OTEL_COLLECTOR_USER: eren + docker grubu (dosyalar eren'in olsun, Docker soketi okunabilsin).
+# - OTEL_COLLECTOR_CONFIG_RAW: sadece compose.raw.yaml kullanır.
+RAW=0
 compose() {
-    [[ -f "$EXTRAS_FILE" ]] || die "$EXTRAS_FILE not found"
+    local f files=(-f compose.yaml -f compose.observability.yaml -f "$EXTRAS_FILE")
+    (( RAW )) && files+=(-f "$RAW_FILE")
+    for f in "$EXTRAS_FILE" "$RAW_FILE" "$COLLECTOR_EXTRAS" "$COLLECTOR_RAW"; do
+        [[ -f "$f" ]] || die "$f not found"
+    done
+    local docker_gid
+    docker_gid="$(getent group docker | cut -d: -f3)" || die "docker group not found"
     (
         cd "$DEMO_DIR"
-        DEMO_VERSION="$DEMO_TAG" docker compose \
-            --env-file .env --env-file .env.override \
-            -f compose.yaml -f compose.observability.yaml -f "$EXTRAS_FILE" \
-            "$@"
+        DEMO_VERSION="$DEMO_TAG" \
+        OTEL_COLLECTOR_CONFIG_EXTRAS="$COLLECTOR_EXTRAS" \
+        OTEL_COLLECTOR_CONFIG_RAW="$COLLECTOR_RAW" \
+        OTEL_COLLECTOR_USER="$(id -u):${docker_gid}" \
+            docker compose --env-file .env --env-file .env.override "${files[@]}" "$@"
     )
 }
 
@@ -86,10 +104,17 @@ reset_flag_file() {
     chmod 0644 "${FLAGD_RUNTIME_DIR}/demo.flagd.json"
 }
 
+# Klasörler collector'dan önce eren'in kullanıcısıyla açılır (Docker eksik bağlama klasörünü root'la açar).
+prepare_telemetry_dirs() {
+    mkdir -p "${TELEMETRY_DIR}/filtered" "${TELEMETRY_DIR}/raw"
+}
+
 cmd_up() {
     require_clone
     verify_clone
     reset_flag_file
+    prepare_telemetry_dirs
+    (( RAW )) && echo "warning: unfiltered output on; ${TELEMETRY_DIR}/raw holds answer-revealing data, delete it after use" >&2
     # Bayraklar demonun Makefile'ındaki start-minimal ile aynı.
     compose up --force-recreate --remove-orphans --detach
 }
@@ -109,13 +134,17 @@ cmd_config() {
 }
 
 usage() {
-    echo "usage: $0 fetch|up|down|config [docker compose config args]" >&2
+    echo "usage: $0 fetch | up [--raw] | down | config [--raw] [docker compose config args]" >&2
     exit 2
 }
 
 [[ $# -ge 1 ]] || usage
 cmd="$1"
 shift
+if [[ "$cmd" == "up" || "$cmd" == "config" ]] && [[ "${1:-}" == "--raw" ]]; then
+    RAW=1
+    shift
+fi
 case "$cmd" in
     fetch)  [[ $# -eq 0 ]] || usage; cmd_fetch ;;
     up)     [[ $# -eq 0 ]] || usage; cmd_up ;;

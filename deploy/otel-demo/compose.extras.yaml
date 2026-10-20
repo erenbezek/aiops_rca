@@ -58,8 +58,14 @@ services:
     ports: !reset []
   load-generator:
     ports: !reset []
+  # Collector dosya çıkışı repo dışına (DECISIONS 2026-10-20). Kullanıcı upstream'de 0:0; burada eren +
+  # docker grubu (OTEL_COLLECTOR_USER, tools/otel_demo.sh hesaplar): dosyalar eren'in olur, Docker soketi
+  # docker grubuna açık. Ayar dosyası bizimki (OTEL_COLLECTOR_CONFIG_EXTRAS).
   otel-collector:
     ports: !reset []
+    user: ${OTEL_COLLECTOR_USER}
+    volumes:
+      - ${HOME}/cerebrum2/telemetry:/telemetry
   payment:
     ports: !reset []
   product-catalog:
