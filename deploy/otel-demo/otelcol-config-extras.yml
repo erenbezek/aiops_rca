@@ -16,6 +16,8 @@
 # Süzme (DECISIONS 2026-10-15 "simüle edilen dünyada flagd yok", 2026-10-20): iki çıkıştan (dosya ve izleme
 # sistemi) önce, ortak. Kurallar 2026-10-20 keşif koşusunun envanterine dayanır (HANDOFF). Süzme sırası:
 # önce düşür (filter/sim_world), sonra kalanı temizle ve mesajları yeniden yaz (transform/scrub).
+# transform/scrub yolları bağlam ön ekiyle yazılır (span., spanevent., log.): ön eksiz yazılınca collector
+# ifadeleri, yani yeniden yazılan metinleri, kendi loguna basıyor.
 
 processors:
   filter/sim_world:
@@ -62,6 +64,10 @@ processors:
     logs:
       log_record:
         - 'IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")'
+        # Collector'ın kendi logları: ayar ve kural metinlerini (yeniden yazılan mesajlar, flag adları) loglayabiliyor
+        # (2026-10-20 30 dk koşusu: "context prefix" uyarısı). Mağaza hakkında değil, hat hakkında; tümden düşer.
+        # Collector metrikleri (otelcol_*) kalır.
+        - 'resource.attributes["service.name"] == "otelcol-contrib"'
         - 'IsMatch(instrumentation_scope.name, "(?i)openfeature")'
         # shipping: shipping.feature_flag.evaluated / evaluation_failed
         - 'IsMatch(event_name, "feature_flag")'
@@ -77,35 +83,35 @@ processors:
     trace_statements:
       - context: span
         statements:
-          - 'delete_key(attributes, "demo.feature_flag.recommendation_cache")'
-          - 'delete_matching_keys(attributes, "^feature_flag\\.")'
+          - 'delete_key(span.attributes, "demo.feature_flag.recommendation_cache")'
+          - 'delete_matching_keys(span.attributes, "^feature_flag\\.")'
           # Envoy yanıt bayrağında DI (gecikme enjekte edildi; DECISIONS 2026-10-15)
-          - 'set(attributes["response_flags"], "-") where attributes["response_flags"] == "DI"'
-          - 'replace_pattern(attributes["response_flags"], "^DI,", "")'
-          - 'replace_pattern(attributes["response_flags"], ",DI(,|$)", "$$1")'
+          - 'set(span.attributes["response_flags"], "-") where span.attributes["response_flags"] == "DI"'
+          - 'replace_pattern(span.attributes["response_flags"], "^DI,", "")'
+          - 'replace_pattern(span.attributes["response_flags"], ",DI(,|$)", "$$1")'
           # product-catalog hata mesajı; çağıran servislerin span'lerine de yayılıyor (Eren onayı)
-          - 'replace_pattern(status.message, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
-          - 'replace_all_patterns(attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_pattern(span.status.message, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_all_patterns(span.attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
       - context: spanevent
         statements:
-          - 'replace_pattern(name, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
-          - 'replace_all_patterns(attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
-          - 'delete_matching_keys(attributes, "^feature_flag\\.")'
+          - 'replace_pattern(spanevent.name, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_all_patterns(spanevent.attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'delete_matching_keys(spanevent.attributes, "^feature_flag\\.")'
     log_statements:
       - context: log
         statements:
-          - 'delete_matching_keys(attributes, "^feature_flag")'
+          - 'delete_matching_keys(log.attributes, "^feature_flag")'
           # Envoy erişim logu: 6. alan (yanıt bayrakları) DI ise "-", listedeyse DI çıkarılır
-          - 'replace_pattern(body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ )DI ", "$$1- ")'
-          - 'replace_pattern(body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ )DI,", "$$1")'
-          - 'replace_pattern(body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ [A-Z,]*),DI([ ,])", "$$1$$2")'
+          - 'replace_pattern(log.body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ )DI ", "$$1- ")'
+          - 'replace_pattern(log.body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ )DI,", "$$1")'
+          - 'replace_pattern(log.body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ [A-Z,]*),DI([ ,])", "$$1$$2")'
           # Belirtiyi koruyan yeniden yazımlar (Eren onayı, 2026-10-20); hata durumu ve önem düzeyi değişmez
-          - 'replace_pattern(body, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
-          - 'replace_all_patterns(attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
-          - 'replace_pattern(body, "^Feature Flag adManualGc enabled, performing a manual gc now$", "Performing a full garbage collection now")'
-          - 'replace_pattern(body, "^Delaying international shipment due to intlShippingSlowdown feature flag$", "Delaying international shipment")'
-          - 'replace_pattern(body, "^lock contention scenario active: holding ACCESS EXCLUSIVE lock on catalog\\.products$", "holding ACCESS EXCLUSIVE lock on catalog.products")'
-          - 'replace_pattern(body, "^failed to acquire lock for lock contention scenario$", "failed to acquire ACCESS EXCLUSIVE lock on catalog.products")'
+          - 'replace_pattern(log.body, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_all_patterns(log.attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")'
+          - 'replace_pattern(log.body, "^Feature Flag adManualGc enabled, performing a manual gc now$", "Performing a full garbage collection now")'
+          - 'replace_pattern(log.body, "^Delaying international shipment due to intlShippingSlowdown feature flag$", "Delaying international shipment")'
+          - 'replace_pattern(log.body, "^lock contention scenario active: holding ACCESS EXCLUSIVE lock on catalog\\.products$", "holding ACCESS EXCLUSIVE lock on catalog.products")'
+          - 'replace_pattern(log.body, "^failed to acquire lock for lock contention scenario$", "failed to acquire ACCESS EXCLUSIVE lock on catalog.products")'
 
 # Dosya çıkışı: OTLP JSON, satır başına bir istek (sızıntı testinin okuduğu biçim), sinyal başına bir dosya.
 # Sınır (DECISIONS 2026-10-20, geçici 2 GB): dosya 100 MB'ta döner, 2 yedek → sinyal başına ≤ 300 MB,
