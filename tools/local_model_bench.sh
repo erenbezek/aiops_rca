@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Lokal model hız ölçümü (HANDOFF 2026-10-20). llama-bench sabit Docker imajında koşar;
 # ham çıktılar repo dışına, ~/cerebrum2/bench_runs/<tarih-saat>-<komut>/ altına yazılır.
-# Özet: tools/bench_summary.py <koşu klasörü> [<sustained klasörü>]
+# Özet: tools/bench_summary.py <koşu klasörleri...>
 #
 # Kullanım:
-#   tools/local_model_bench.sh matrix [--rounds N] [--models "2B 4B 9B"] [--threads "4 8 12"]
+#   tools/local_model_bench.sh matrix [--rounds N] [--models "2B 4B 9B"] [--threads "4 8 12"] [--resume <klasör>]
 #   tools/local_model_bench.sh sustained <model> <threads> [--minutes N]
 set -euo pipefail
 
@@ -65,19 +65,26 @@ freq_avg_max() {
 swap_used_kb() { awk '/^SwapTotal/ {t = $2} /^SwapFree/ {f = $2} END {print t - f}' /proc/meminfo; }
 mem_avail_kb() { awk '/^MemAvailable/ {print $2}' /proc/meminfo; }
 
-# Çalışan konteynerin cgroup'undaki en yüksek bellek (bayt); konteyner yoksa boş.
-container_mem_peak() {
-    local name="$1" id
-    id="$(docker inspect --format '{{.Id}}' "$name" 2>/dev/null)" || return 0
-    cat "/sys/fs/cgroup/system.slice/docker-${id}.scope/memory.peak" 2>/dev/null || true
+# llama-bench sürecinin belleği (kB): anlık (VmRSS) ve en yüksek (VmHWM). Eşlenen model dosyası dahil;
+# cgroup sayacından farklı olarak sayfa önbelleğini hangi konteynerin doldurduğundan etkilenmez.
+bench_rss_hwm() {
+    local pid
+    pid="$(pgrep -x llama-bench | head -1)" || { echo ","; return 0; }
+    awk '/^VmRSS/ {r = $2} /^VmHWM/ {h = $2} END {printf "%s,%s", r, h}' "/proc/${pid}/status" 2>/dev/null \
+        || echo ","
 }
 
-# --- Koşu klasörü ve izleme ---
+# --- Koşu klasörü, olay kaydı ve izleme ---
 
 RUN=""
 MONITOR_PID=""
+ACWATCH_PID=""
 
-start_run() {
+log_event() {
+    echo "$(date --iso-8601=seconds) $*" | tee -a "$RUN/events.log"
+}
+
+new_run() {
     local kind="$1"
     RUN="${RUNS_DIR}/$(date +%Y%m%d-%H%M%S)-${kind}"
     mkdir -p "$RUN/raw"
@@ -86,6 +93,8 @@ start_run() {
 
 # Ortam kaydı: kart "ölçüm başında AC, profil, sıcaklık" istiyor; model dosyalarının hash'i de doğrulanır.
 write_env() {
+    local file="$1"
+    shift
     {
         echo "date=$(date --iso-8601=seconds)"
         echo "command=$*"
@@ -106,21 +115,20 @@ write_env() {
         for m in "${!MODEL_FILES[@]}"; do
             echo "model_${m}=${MODEL_FILES[$m]} sha256=$(sha256sum "${MODELS_DIR}/${MODEL_FILES[$m]}" | cut -d' ' -f1)"
         done
-    } > "$RUN/env.txt"
+    } > "$file"
 }
 
 # 10 sn'de bir makine durumu; sıcaklık sınırı aşılırsa ABORT dosyası yazar ve konteyneri durdurur.
 monitor_loop() {
-    local hot_since="" now temp name peak
-    echo "ts,pkg_temp_c,freq_avg_mhz,freq_max_mhz,swap_used_kb,mem_avail_kb,ac_online,container,mem_peak_bytes" \
+    local hot_since="" now temp name
+    [[ -s "$RUN/monitor.csv" ]] || echo \
+        "ts,pkg_temp_c,freq_avg_mhz,freq_max_mhz,swap_used_kb,mem_avail_kb,ac_online,container,rss_kb,hwm_kb" \
         > "$RUN/monitor.csv"
     while true; do
         now="$(date +%s)"
         temp="$(pkg_temp_c)"
         name="$(cat "$RUN/current" 2>/dev/null || true)"
-        peak=""
-        [[ -n "$name" ]] && peak="$(container_mem_peak "$name")"
-        echo "${now},${temp},$(freq_avg_max),$(swap_used_kb),$(mem_avail_kb),$(ac_online),${name},${peak}" \
+        echo "${now},${temp},$(freq_avg_max),$(swap_used_kb),$(mem_avail_kb),$(ac_online),${name},$(bench_rss_hwm)" \
             >> "$RUN/monitor.csv"
 
         if (( temp > TEMP_LIMIT_C )); then
@@ -137,27 +145,51 @@ monitor_loop() {
     done
 }
 
-start_monitor() {
-    monitor_loop &
-    MONITOR_PID=$!
+# Saniyede bir priz kontrolü: hücre sırasında priz giderse AC_LOST yazılır ve iş hemen durdurulur
+# (bataryada ölçülen hız prizdekiyle karşılaştırılamaz; boşuna batarya harcanmasın).
+acwatch_loop() {
+    local name
+    while true; do
+        if [[ "$(ac_online)" != "1" ]]; then
+            name="$(cat "$RUN/current" 2>/dev/null || true)"
+            if [[ -n "$name" && ! -e "$RUN/AC_LOST" ]]; then
+                touch "$RUN/AC_LOST"
+                docker kill "$name" >/dev/null 2>&1 || true
+            fi
+        fi
+        sleep 1
+    done
 }
 
-stop_monitor() {
-    [[ -n "$MONITOR_PID" ]] && kill "$MONITOR_PID" 2>/dev/null || true
-    wait "$MONITOR_PID" 2>/dev/null || true
+start_watchers() {
+    monitor_loop &
+    MONITOR_PID=$!
+    acwatch_loop &
+    ACWATCH_PID=$!
 }
 
 cleanup() {
-    local name
+    local name pid
     name="$(cat "$RUN/current" 2>/dev/null || true)"
     [[ -n "$name" ]] && docker kill "$name" >/dev/null 2>&1 || true
-    stop_monitor
+    for pid in "$MONITOR_PID" "$ACWATCH_PID"; do
+        [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
+    done
+    wait 2>/dev/null || true
 }
 
-# Ölçüm her hücreden önce koşulları kontrol eder; bozulursa koşu durur (sonuçlar yarım ama kayıtlı).
-check_conditions() {
+# Priz yoksa iş başlatmadan bekler; makine bu sırada yüklenmez.
+wait_for_ac() {
+    [[ "$(ac_online)" == "1" ]] && return 0
+    log_event "AC offline; waiting for mains power (no load while waiting)"
+    while [[ "$(ac_online)" != "1" ]]; do
+        sleep "$SAMPLE_SECS"
+    done
+    log_event "AC back online; continuing"
+}
+
+check_abort() {
     [[ ! -e "$RUN/ABORT" ]] || die "aborted: $(cat "$RUN/ABORT")"
-    [[ "$(ac_online)" == "1" ]] || die "AC adapter offline; measurements only on mains power"
 }
 
 # Tek llama-bench çağrısı; JSON satırları $1 dosyasına. Konteyner adı izlemeye bildirilir.
@@ -174,47 +206,89 @@ run_bench() {
     return "$rc"
 }
 
+# Bir ölçümü priz kopmasına dayanıklı koşar: priz koparsa çıktı .aclost<N> olarak saklanır,
+# satır "ac_lost" ile yazılır, priz gelince aynı ölçüm baştan koşulur.
+# $1: CSV dosyası, $2: CSV satırının ilk alanları, $3: çıktı dosyası, sonrası run_bench argümanları.
+run_resilient() {
+    local csv="$1" prefix="$2" out="$3"
+    shift 3
+    local attempt=0 start temp rc status
+    while true; do
+        check_abort
+        wait_for_ac
+        rm -f "$RUN/AC_LOST"
+        start="$(date +%s)"
+        temp="$(pkg_temp_c)"
+        rc=0
+        run_bench "$out" "$@" || rc=$?
+        status="$rc"
+        if [[ -e "$RUN/AC_LOST" ]]; then
+            status="ac_lost"
+            attempt=$(( attempt + 1 ))
+            mv "$out" "${out}.aclost${attempt}"
+            mv "${out%.jsonl}.stderr" "${out%.jsonl}.stderr.aclost${attempt}"
+        fi
+        echo "${prefix},${start},$(date +%s),${temp},${status}" >> "$csv"
+        LAST_START_TEMP="$temp"
+        check_abort
+        if [[ "$status" == "ac_lost" ]]; then
+            log_event "AC lost during ${out##*/}; result discarded, will redo"
+            continue
+        fi
+        (( rc == 0 )) || die "llama-bench failed (exit $rc), see ${out%.jsonl}.stderr"
+        return 0
+    done
+}
+
 parse_model() {
     [[ -n "${MODEL_FILES[$1]:-}" ]] || die "unknown model '$1' (known: ${!MODEL_FILES[*]})"
     [[ -f "${MODELS_DIR}/${MODEL_FILES[$1]}" ]] || die "${MODELS_DIR}/${MODEL_FILES[$1]} not found"
 }
 
 cmd_matrix() {
-    local rounds=3 models="2B 4B 9B" threads_list="4 8 12"
+    local rounds=3 models="2B 4B 9B" threads_list="4 8 12" resume=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --rounds) rounds="$2"; shift 2 ;;
             --models) models="$2"; shift 2 ;;
             --threads) threads_list="$2"; shift 2 ;;
+            --resume) resume="$2"; shift 2 ;;
             *) usage ;;
         esac
     done
     local m t
     for m in $models; do parse_model "$m"; done
 
-    start_run matrix
-    [[ "$(ac_online)" == "1" ]] || die "AC adapter offline; measurements only on mains power"
-    write_env "matrix --rounds $rounds --models '$models' --threads '$threads_list'"
+    local cmdline="matrix --rounds $rounds --models '$models' --threads '$threads_list'"
+    if [[ -n "$resume" ]]; then
+        [[ -f "$resume/cells.csv" ]] || die "$resume/cells.csv not found"
+        RUN="$(cd "$resume" && pwd -P)"
+        : > "$RUN/current"
+        rm -f "$RUN/AC_LOST"
+        wait_for_ac
+        write_env "$RUN/env_resume_$(date +%Y%m%d-%H%M%S).txt" "$cmdline --resume $resume"
+    else
+        new_run matrix
+        wait_for_ac
+        write_env "$RUN/env.txt" "$cmdline"
+        echo "round,model,threads,start_ts,end_ts,start_temp_c,exit_code" > "$RUN/cells.csv"
+    fi
     trap cleanup EXIT
-    start_monitor
+    start_watchers
     echo "run dir: $RUN"
-    echo "round,model,threads,start_ts,end_ts,start_temp_c,exit_code" > "$RUN/cells.csv"
 
     # Tekrarlar arka arkaya değil: tablo baştan sona $rounds tur koşulur.
-    local r start temp rc out
+    # --resume: geçerli (çıkış kodu 0) kaydı olan hücreler atlanır.
+    local r
     for (( r = 1; r <= rounds; r++ )); do
         for m in $models; do
             for t in $threads_list; do
-                check_conditions
-                start="$(date +%s)"
-                temp="$(pkg_temp_c)"
-                out="$RUN/raw/r${r}_${m}_t${t}.jsonl"
-                echo "$(date +%T) round $r/$rounds model $m threads $t (start ${temp} C)"
-                rc=0
-                run_bench "$out" "$m" "$t" "${MATRIX_TESTS[@]}" || rc=$?
-                echo "${r},${m},${t},${start},$(date +%s),${temp},${rc}" >> "$RUN/cells.csv"
-                check_conditions
-                (( rc == 0 )) || die "llama-bench failed (exit $rc), see ${out%.jsonl}.stderr"
+                if grep -q "^${r},${m},${t},.*,0$" "$RUN/cells.csv"; then
+                    continue
+                fi
+                echo "$(date +%T) round $r/$rounds model $m threads $t (start $(pkg_temp_c) C)"
+                run_resilient "$RUN/cells.csv" "${r},${m},${t}" "$RUN/raw/r${r}_${m}_t${t}.jsonl" \
+                    "$m" "$t" "${MATRIX_TESTS[@]}"
             done
         done
     done
@@ -233,30 +307,30 @@ cmd_sustained() {
     done
     parse_model "$model"
 
-    start_run sustained
-    [[ "$(ac_online)" == "1" ]] || die "AC adapter offline; measurements only on mains power"
-    write_env "sustained $model $threads --minutes $minutes"
-    trap cleanup EXIT
-    start_monitor
-    echo "run dir: $RUN"
+    new_run sustained
+    wait_for_ac
+    write_env "$RUN/env.txt" "sustained $model $threads --minutes $minutes"
     echo "iter,model,threads,start_ts,end_ts,start_temp_c,exit_code" > "$RUN/iterations.csv"
+    trap cleanup EXIT
+    start_watchers
+    echo "run dir: $RUN"
 
-    # İterasyonlar arka arkaya; aralarındaki boşluk (konteyner başlatma + model yükleme) kayıtta görünür.
-    local end=$(( $(date +%s) + minutes * 60 )) i=0 start temp rc out
+    # İterasyonlar arka arkaya. Priz kopmasıyla geçen süre 30 dk'ya sayılmaz (bitiş o kadar uzar).
+    local end=$(( $(date +%s) + minutes * 60 )) i=0 before t0 valid
     while (( $(date +%s) < end )); do
-        check_conditions
         i=$(( i + 1 ))
-        start="$(date +%s)"
-        temp="$(pkg_temp_c)"
-        out="$RUN/raw/i$(printf '%04d' "$i").jsonl"
-        rc=0
-        run_bench "$out" "$model" "$threads" "${SUSTAINED_TESTS[@]}" || rc=$?
-        echo "${i},${model},${threads},${start},$(date +%s),${temp},${rc}" >> "$RUN/iterations.csv"
-        check_conditions
-        (( rc == 0 )) || die "llama-bench failed (exit $rc), see ${out%.jsonl}.stderr"
-        echo "$(date +%T) iter $i done (start ${temp} C)"
+        before="$(wc -l < "$RUN/iterations.csv")"
+        t0="$(date +%s)"
+        run_resilient "$RUN/iterations.csv" "${i},${model},${threads}" "$RUN/raw/i$(printf '%04d' "$i").jsonl" \
+            "$model" "$threads" "${SUSTAINED_TESTS[@]}"
+        # Priz koptuysa (birden fazla deneme), geçerli denemenin dışındaki süre (iptal + bekleme) bitişe eklenir.
+        if (( $(wc -l < "$RUN/iterations.csv") - before > 1 )); then
+            valid="$(tail -1 "$RUN/iterations.csv" | awk -F, '{print $5 - $4}')"
+            end=$(( end + $(date +%s) - t0 - valid ))
+        fi
+        echo "$(date +%T) iter $i done (start ${LAST_START_TEMP} C)"
     done
-    echo "ok: sustained done; summary: tools/bench_summary.py <matrix dir> $RUN"
+    echo "ok: sustained done; summary: tools/bench_summary.py <matrix dirs...> $RUN"
 }
 
 [[ $# -ge 1 ]] || usage
