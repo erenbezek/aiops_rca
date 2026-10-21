@@ -66,5 +66,5 @@ Amaç: model seçiminden önce bu makinede hangi boyutun süre bütçesine sığ
 
 - 2048 token "daraltılmış girdi" bir varsayım; daraltma yazılınca gerçek uzunluk ölçülür ve bütçe yeniden hesaplanır.
 - Isınma turu (`llama-bench` warmup) girdi okuma süresi kadar ek iş; tablo ve sürekli yük sürelerine dahil değil.
-- Asıl koşular OpenAI uyumlu sunucuyla olacak: hız ölçümüyle aynı kod için `server-b11723` imajı.
+- Asıl koşular OpenAI uyumlu sunucuyla olacak: hız ölçümüyle aynı kod için `server-b11723` imajı. Not (2026-10-21): `full-b11723` imajında da `llama-server` var; kaba kalite denemesi onu kullanıyor (yeni indirme ve digest yok). Asıl koşulardaki imaj o kartta kesinleşir.
 - Kalite ölçülmedi; nicemleme üçüncü taraf (unsloth). Model seçimi ayrı kararla.
