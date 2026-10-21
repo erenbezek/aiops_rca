@@ -53,4 +53,7 @@ Sadece Eren'in onayladığı isimler.
 | `OTEL_COLLECTOR_CONFIG_RAW`, `OTEL_COLLECTOR_USER` | `otel_demo.sh`'in compose'a geçirdiği değişkenler: süzülmemiş katman dosyası / collector kullanıcısı (`uid:docker gid`) |
 | `tools/check_collector_pipelines.py` | Upstream ve bizim collector pipeline listelerini karşılaştıran betik |
 | `filter/sim_world`, `transform/scrub` | Collector processor adları: "simüle edilen dünyada flagd yok" düşürmesi / kalan izleri temizleme ve mesaj yeniden yazma |
+| `tools/trial_summary.py` | Kaba kalite denemesi: süzülmüş dosyalardan alarm öncesi/sonrası 10 dk'lık vaka özeti (JSON) |
+| `tools/trial_ask_models.py` | Kaba kalite denemesi: aynı istemi ve özeti beş modele sorar, cevapları kaydeder |
+| `~/cerebrum2/quality_trial/` | Kaba kalite denemesi çıktıları; `case1/`, `case2/` altında `view/summary.json` (modele giden, sızıntı CLI'ın taradığı), `answers/` (model cevapları), `case.json` (doğru cevap, `view/` dışında); repo dışı |
 | `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |
