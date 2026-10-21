@@ -71,4 +71,5 @@ Docker Engine 29.9.1 kurulu (resmî apt deposu, Compose v5.6.0), sudo'suz çalı
 OTel Demo 3.1.0 minimal modda çalışıyor (`tools/otel_demo.sh`, `task/otel-demo-setup`): 25 konteyner ~2,9 GiB, imaj sürümü sabit, log sınırlı, portlar sadece `127.0.0.1`. Collector süzmesi/dosya çıkışı ve kalıcı depolama henüz yok.
 Lokal model hız ölçümü yapıldı (`task/local-model-bench`, `docs/LOCAL_MODEL_BENCH.md`): llama.cpp b11723, Qwen3.5 Q4_K_M; 2048+300 bütçesine 2B (30 sn) ve 4B (73 sn) sığıyor, 9B (127 sn) sığmıyor; en iyi ayar 4 iş parçacığı; ısınmayla yavaşlama yok. Şarj sınırı %80 kalıcı (`battery-charge-limit.service`).
 Sıradaki karar: model seçimi (boyut ve aile; kalite ölçülmedi).
-Sıradaki: collector kartı (sızıntı süzmesi, `positive_control`); depolama kartı (isimli volume).
+Collector C1 yapıldı (`task/collector-filter`): süzme (flag/flagd/load-generator izleri, host süreç metrikleri, collector logları), dosya çıkışı `~/cerebrum2/telemetry/filtered/` (~630 MB/saat), `--raw` süzülmemiş kopya, flag dosyası klon dışında. 30 dk normal koşuda sızıntı testi 0 bulgu.
+Sıradaki: C2 (`positive_control` + belirti korunması, kalibrasyonla aynı gece); depolama kartı (isimli volume); vaka üretimi (gece koşucusu).

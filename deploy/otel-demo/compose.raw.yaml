@@ -1,0 +1,16 @@
+# Süzülmemiş paralel çıkış katmanı: sadece `tools/otel_demo.sh up --raw` ile, compose.extras.yaml'dan sonra
+# yüklenir (DECISIONS 2026-10-20, varsayılan kapalı).
+# command listesi upstream compose.observability.yaml'dakinin aynısı + otelcol-config-raw.yml;
+# upstream sürümü değişirse bu liste elle güncellenir.
+
+services:
+  otel-collector:
+    command: !override
+      - "--config=/etc/otelcol-config.yml"
+      - "--config=/etc/otelcol-config-full.yml"
+      - "--config=/etc/otelcol-config-observability.yml"
+      - "--config=/etc/otelcol-config-extras.yml"
+      - "--config=/etc/otelcol-config-raw.yml"
+      - "--feature-gates=service.profilesSupport"
+    volumes:
+      - ${OTEL_COLLECTOR_CONFIG_RAW}:/etc/otelcol-config-raw.yml:ro

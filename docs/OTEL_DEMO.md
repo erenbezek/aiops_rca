@@ -85,6 +85,32 @@ Bazı sızıntılar silinerek değil yeniden yazılarak giderilmeli (ör. produc
 
 Önerilen yaklaşım: süzme collector'da (`otelcol-config-extras.yml`, demonun kart numarası maskelemesiyle aynı yöntem); sızıntı testi snapshot'ta ikinci güvenlik ağı.
 
+## Süzme kuralları (C1, 2026-10-20; `deploy/otel-demo/otelcol-config-extras.yml`)
+
+`filter/sim_world` düşürür, `transform/scrub` temizler ve yeniden yazar; ikisi de upstream processor'larından sonra, iki çıkıştan (dosya ve izleme sistemi) önce. Kurallar 2026-10-20 keşif koşusunun envanterine dayanır (10 dk, flag'ler kapalı).
+
+| Sızıntı tablosu satırı | Kural |
+|---|---|
+| flagd, flagd-ui servis telemetrisi | `service.name` flagd/flagd-ui/load-generator → span, log, metrik düşer (flagd-ui'nin kendi telemetrisi yok; konteyner metrikleri aşağıda) |
+| OpenFeature `TracingHook` `feature_flag.evaluation` olayı | span olayı düşer (span kalır); OpenFeature kapsamlı span ve loglar düşer; span ve olay özniteliklerinde `feature_flag.*` silinir |
+| cart `MetricsHook` `feature_flag.*` metrikleri | `feature_flag.` ile başlayan metrikler ve OpenFeature kapsamlı metrikler düşer |
+| recommendation `demo.feature_flag.recommendation_cache` | öznitelik silinir |
+| ad logu (`adManualGc`) | yeniden yazılır: `Performing a full garbage collection now` (WARN korunur) |
+| shipping logu | `shipping.feature_flag.evaluated/evaluation_failed` kayıtları düşer; gecikme logu `Delaying international shipment` olur (`delay_secs` korunur) |
+| frontend-proxy erişim logu ve span'leri (`/feature`, `DI`) | `/flagservice`, `/feature`, `/loadgen` yolları ve `flagservice`/`flagd-ui`/`loadgen` cluster'ı → log ve span düşer; `DI` yanıt bayrağı (gövdenin 6. alanı ve span `response_flags`) `-` olur ya da listeden çıkarılır |
+| Tarayıcının flag sorguları (`/flagservice/`, OFREP) | `frontend-web` dahil `url.full`/`http.url`/`url.path` kuralı → span düşer; OFREP kullanan load-generator tümden düşüyor |
+| flagd, flagd-ui, load-generator konteyner metrikleri | `container.name` kuralı (`docker_stats`); `span_metrics` için flagd'ye giden span'ler bağlayıcıdan önce düştüğü için metrik üretilmez, kalanlar `span.name` veri noktası kuralıyla düşer |
+| product-catalog span durumu ve olayı | yeniden yazılır: `Error: failed to load product from catalog` (durum, olay adı, olay ve span öznitelikleri, loglar; çağıran servislere yayılan hali dahil) |
+| product-catalog kilit logu | yeniden yazılır: `holding ACCESS EXCLUSIVE lock on catalog.products`; hata hali `failed to acquire ACCESS EXCLUSIVE lock on catalog.products` |
+| load-generator span ve logu | `service.name` kuralı (tümden düşer) |
+| *Tabloda yoktu:* servislerin flagd'ye rutin çağrıları | span adı, `server.address`/`net.peer.name` = flagd, `rpc.service`, `original_span_name`, `thread.name` → span düşer; RPC istemci metriklerinde `rpc.service`/`server.address` → veri noktası düşer |
+| *Tabloda yoktu:* host süreç metrikleri (`host_metrics` process) | bütün süreçlerin komut satırını taşıyordu (flagd, locust, masaüstü, enjeksiyon komutları) → `processscraper` kapsamlı metrikler tümden düşer (Eren onayı); sistem metrikleri kalır |
+| *Tabloda yoktu:* collector'ın kendi logları | ayar ve kural metinlerini (yeniden yazılan mesajlar) logluyordu → `service.name = otelcol-contrib` logları düşer; `otelcol_*` metrikleri kalır |
+
+- Flag açıkken görünen kurallar (yeniden yazımlar, `DI`, olaylar) C1'de sentetik kayıtlarla sınandı (girdide 43 bulgu, çıktıda 0); gerçek veride C2'de.
+- `transform/scrub` yolları bağlam ön ekli (`span.`, `spanevent.`, `log.`): ön eksiz yazılınca collector açılışta ifadeleri kendi loguna basıyordu.
+- Sınır: kurallar alan adlarına dayanır (OTTL'de "her alanda ara" yok); yeni bir alan çıkarsa sızıntı testi yakalar.
+
 ## Kurulum notları
 
 - `.env`'deki `IMAGE_VERSION=3.0.0`, etiket 3.1.0 olmasına rağmen. 3.1.0 imajları ghcr'de var. İmaj sürümü bizim tarafta açıkça sabitlenmeli.
@@ -121,6 +147,10 @@ tools/otel_demo.sh down     # durdurur, volume silmez; klon kirli olsa da çalı
 - Disk: imajlar 12,2 GB, isimsiz volume'ler 66 MB (prometheus `/prometheus`, jaeger `/tmp`, astronomy-db).
 - Kalıcılık (`up` her seferinde `--force-recreate`): Prometheus verisi imajın isimsiz volume'ü sayesinde yeniden kurulumda kalıyor; OpenSearch verisi siliniyor (volume yok); Jaeger zaten bellekte. `down`/`up` sonrası ölçülmedi.
 - OpenSearch'te zaman damgası 0 (1970) olan loglar var (ilk ~4 dk'da 53 belge).
+- Collector (C1, 2026-10-20): dosya çıkışı `~/cerebrum2/telemetry/filtered/{traces,metrics,logs}.jsonl` (100 MB'ta döner, 2 yedek). `tools/otel_demo.sh up --raw` ayrıca süzülmemiş kopyayı `raw/`'a yazar (iş bitince silinir). Collector `eren:docker` kullanıcısıyla. Flag dosyası `~/cerebrum2/runtime/flagd/demo.flagd.json`, her `up`'ta klondan sıfırlanır.
+- Hacim (30 dk, süzme açık): traces ~389 MB/saat, logs ~131, metrics ~108 → ~630 MB/saat. Süzülmemiş kopya açıkken toplam ~1,5 GB/saat. Şimdiki döndürmeyle dosyalar traces'te ~46 dk, logs'ta ~2,3 saat, metrics'te ~2,8 saat geriye gidiyor.
+- Zaman damgası 0 (dosya çıkışı, 30 dk): logların 2.716 / 55.965'i (currency 1.973, shipping 743); span ve metrik veri noktalarında 0.
+- Collector belleği: süzme açık ~107 MiB, süzülmemiş kopya da açıkken ~239 MiB (limit 400M).
 
 ## Açık kararlar
 
@@ -132,5 +162,8 @@ tools/otel_demo.sh down     # durdurur, volume silmez; klon kirli olsa da çalı
 
 - **Collector kartı:** flagd, flagd-ui, load-generator konteyner metrikleri (`docker_stats`) ve `span_metrics` çıktıları da düşürülür. Ayrıca belirti korunuyor mu kontrolü: süzme açıkken her senaryoda kök neden servisinde belirti hâlâ görünüyor (aşırı süzme sızıntı testinden geçer ama kanıtı siler).
 - **Enjeksiyon kartı:** flagd telemetrisi her yerden silindiği için flag'in açıldığı Jaeger'dan doğrulanamaz; betik `/feature/api/read` ile geri okuyup doğrular. `docker logs flagd` OTel dışında kalır, sorun gidermede kullanılabilir.
+- **Enjeksiyon kartı (flag, 2026-10-20 ölçüldü):** flagd dosyayı ~1 sn aralıkla okuyor; betik flag'i değiştirdikten sonra flagd'ye sorarak doğrulamalı (`POST /flagservice/flagd.evaluation.v1.Service/ResolveBoolean`, `{"flagKey": ..., "context": {}}`), flagd-ui'nin `/feature/api/read`'i yetmez. flagd-ui dosyayı root olarak yeni dosya halinde yazıyor. flagd-ui'de rastgele flag açan bir zamanlayıcı var (`FlagdUi.Scheduler`, 15 dk'da bir 1–3 dk); varsayılan kapalı, sadece arayüzden başlıyor: her vakadan önce kapalı olduğu kontrol edilmeli.
+- **Vaka üretim kartı (collector açılış yarışı, 2026-10-20):** collector ile diğer konteynerler aynı anda başlıyor; `docker_stats` açılışta bir konteyneri kaçırabiliyor (ölçümde `ad` 5 dk boyunca yoktu, collector yeniden başlayınca geldi; upstream'de de aynı yarış). Vaka öncesi kontrol: Prometheus'ta `count(container_uptime_seconds)` = beklenen konteyner sayısı (minimal modda 25; süzme açıkken flagd, flagd-ui ve load-generator düştüğü için 22); değilse collector yeniden başlatılır.
+- **Upstream notu:** birleşik upstream ayarında (`otelcol-config-full.yml` metrik alıcı listesini değiştirdiği için) `prometheus/ad` alıcısı kullanılmıyor; ad'nin Prometheus metrikleri demonun kendisinde de toplanmıyor. Bizim katman bunu değiştirmez.
 - **Proje 1 yol doğrulaması:** bağımlılık grafiği trace'lerden çıkarılırsa flagd zaten görünmez; compose `depends_on`'dan çıkarılırsa flagd, flagd-ui, load-generator elle çıkarılır.
 - **Rapor:** "son değişiklik" (deploy/config/flag) ipucu bilerek gizli; yöntemler sadece belirtiden teşhis koyuyor. Sınırlama olarak yazılır.
