@@ -553,3 +553,77 @@
   - Sentetik kural testi (geçici collector'a hazırlanmış OTLP kayıtları; girdide 43 bulgu, çıktıda 0) repoya alınmadı. Öneri: `tools/test_collector_rules.sh` + `tests/fixtures/collector_rules/` (Docker ister, CI'da koşmaz); collector sürümü değişince ve kural eklenince elle koşulur.
   - `tests/test_leakage.py` OTEL_DEMO.md'de `## Sızıntı yolları` bölümünü bir sonraki `## ` başlığına kadar okuyor; o bölüme alt başlıklı tablo eklenirse satırlar sızıntı satırı sayılır (bu kartta eşleme tablosu ayrı `##` bölümüne konarak çözüldü).
   - Upstream değişirse elle güncellenecekler: `compose.raw.yaml`'daki collector komut listesi, `otelcol-config-extras.yml` başındaki upstream liste notu, `otelcol-config-raw.yml`'daki alıcı listeleri (`check_collector_pipelines.py` süzülmüş pipeline'ları kontrol eder, raw'ı etmez).
+
+## 2026-10-21 · Planlama → Planlama (collector C1 doğrulaması)
+- Doğrulama (planlama, main `b232f03`; PR #12 koşusu https://github.com/erenbezek/aiops_rca/actions/runs/39429246500 ve main push koşusu yeşil). Makine bataryadaydı (%86): 30 + 5 dk yerine 10 + 5 dk tekrar ölçüm; önceki dosyalar silinmedi, sadece bu koşunun eklediği kısım ölçüldü.
+  - Flag dosyası: `up` sonrası klon temiz, iki dosyanın SHA256'sı aynı (`20a4c5d5…`), sahibi eren. flagd-ui API ile `adFailure` açıldı: flagd'den `on` (ResolveBoolean), çalışma kopyası değişti (sahibi root), klon temiz; 60 sn sonra kapatıldı, flagd `off`. İkinci `up` (`--raw`) dosyayı klonla aynı SHA'ya ve eren'e döndürdü. GEÇTİ.
+  - Collector ayarı: `validate` (0.159.0) bizim ayar ve bizim + raw, çıkış 0. `check_collector_pipelines.py` upstream'e karşı 4 pipeline, eksik 0 (raw açıkken de 0); kasıtlı kırmızı: `redaction` silinince 1, logs'ta sıra bozulunca 1. Raw pipeline'larda alıcı ve processor listeleri upstream'le aynı, tek fark `span_metrics` → `span_metrics/raw`. GEÇTİ.
+  - Normal koşu (12:52–13:02, `adFailure` 1 dk açık dahil): sızıntı CLI'ı bu koşunun `filtered/` kısmında `clean`, çıkış 0; Jaeger servislerinde flagd/flagd-ui/load-generator yok, `frontend` trace 1; Prometheus `feature_flag*` 0, flagd/flagd-ui/load-generator serisi 0; OpenSearch load-generator 0, flagd 0, flagd-ui 0 (frontend 9.562). `RestartCount`/`OOMKilled` temiz. GEÇTİ.
+  - `--raw` 5 dk (13:05–13:10): raw → 26.401 bulgu, çıkış 1 (product-catalog 10.854, flagd 10.041, recommendation, frontend-proxy, load-generator 582, cart, checkout, frontend-web, flagd-ui 99, ad, payment); aynı dakikalarda `filtered/` → `clean`. `raw/` ve planlamanın kopyası silindi. GEÇTİ.
+  - Hacim (10 dk): traces ~382, logs ~131, metrics ~108 MB/saat (~621; uygulama ~630). Dosya döndürme çalıştı (`traces-<zaman>-size.jsonl`).
+  - Zaman damgası 0: logların 824 / 17.912'si (%4,6; currency 584, shipping 240); uygulamada %4,9.
+  - `pytest` 190 yeşil.
+- Farklar ve notlar:
+  - Açılış yarışı tekrarlandı: Prometheus'ta `count(container_uptime_seconds)` 22 yerine 21, eksik `image-provider` (uygulamada `ad`). Vaka öncesi sayı kontrolü gerekli (OTEL_DEMO "Sonraki kartlar için notlar"a eklendi).
+  - flagd-ui flag'i kapatınca dosya ilk haline dönmüyor (yeniden biçimlendiriyor, SHA farklı); başlangıç hali yalnız `up` ile (OTEL_DEMO "Flag'i açıp kapatma" düzeltildi, eski satır klondaki dosyayı gösteriyordu).
+  - Collector belleği raw açıkken ~110 MiB ölçüldü (uygulama ~239 MiB). C2'de raw açık ve senaryo yükü altında izlenir.
+  - HANDOFF 2026-10-20 yöntem kaydındaki `--feature-gates=otelcol.printInitialConfig` 0.159.0'da yok (hata verir). Çalışan komut: `print-config --format=json --feature-gates=service.profilesSupport`, dört katman `--config` ile; `host_metrics` için `/hostfs` bağlanmalı (boş klasör yeter) ve demonun `.env`'i `--env-file` ile verilmeli.
+  - `adFailure` açıkken ad'de hata span'i görüldü (41 span'de 1), kapalıyken 0; örnek çok küçük, sadece işaret. Belirti kontrolü C2'de.
+  - İsimsiz volume'ler 24 → 27 (iki `up`). Depolama kartına.
+- Kararlar (Eren, 2026-10-21): 2 GB sınırında seçenek (b): snapshot vaka biter bitmez kesilir, sınırların dağılımı depolama kartında. Kural testi betiği C2'de. Kaba kalite denemesi C2'den önce (DECISIONS 2026-10-21).
+
+## 2026-10-21 · Planlama → Uygulama (kaba kalite denemesi)
+- Yapılan (planlama): DECISIONS 2026-10-21 (kaba kalite denemesi, snapshot vaka biter bitmez kesilir, kural testi betiği C2'de); PROJECT ve OTEL_DEMO güncellendi; C1 doğrulaması yukarıda.
+- Amaç: asıl değerlendirmeden önce, aynı basit özetle küçük modellerin ve `large_api_model`'in kök neden servisini bulup bulamadığına kaba bakmak. Model boyutu seçimine ve hibritin gereğine işaret verir. Oran değildir, rapora girmez.
+- Beklenen:
+  1. Dal `task/quality-trial`; ilk commit planlamanın docs değişiklikleri (DECISIONS, HANDOFF, PROJECT, OTEL_DEMO).
+  2. **Vakalar** (elle, sırayla, ikisi de "deneme" işaretli; geliştirme/test setine girmez):
+     - Her vaka ayrı `tools/otel_demo.sh up` (flag dosyası sıfırlanır; `--raw` yok). Açılıştan sonra: Prometheus'ta `count(container_uptime_seconds)` = 22 (değilse collector yeniden başlatılır), flagd-ui zamanlayıcısı kapalı.
+     - 10 dk normal → flag açılır ve flagd'den doğrulanır → 10 dk → flag kapatılır → özet hemen kesilir → `down`.
+     - Vaka 1: `paymentFailure` = `50%` (sayısal flag; flagd'de `ResolveFloat`). Vaka 2: `paymentUnreachable` = `on`. Doğru servis INCIDENT_CATALOG'dan: payment / checkout.
+  3. **Özet betiği** (adı ve çıktı klasörü önce Eren'e önerilir; klasör repo dışı): sadece `~/cerebrum2/telemetry/filtered/`'dan, vaka penceresini (alarm zamanından önceki 10 dk + sonraki 10 dk) okur. Pencere kaydın zamanına göre kesilir; `timeUnixNano` 0 ise `observedTimeUnixNano` kullanılır (C1: currency ve shipping loglarının ~%5'i; 2026-10-21'de 1.918 kaydın hepsinde `observedTimeUnixNano` dolu). Özet **JSON** (sızıntı CLI'ı sadece JSON okuyor, düz metinde çıkış 2) ve vaka başına kendi klasöründe; dosya ve klasör adlarında flag ya da senaryo adı geçmez (CLI adları da tarıyor). Doğru cevap kaydı (flag, varyant, doğru servis) özet klasörünün dışında tutulur. İçerik: servis başına istek sayısı, hata oranı, p95 gecikme (önce / sonra) ve en sık hata log mesajları (servis ve sayıyla). Alarm zamanı flag açılış zamanıdır; özete flag adı, senaryo adı ya da kök neden ipucu girmez. Bilerek basit: daraltma değil.
+  4. **Modeller** (demo kapalıyken; vaka kaydı sırasında model çalışmaz, 9B demoyla sığmaz):
+     - Yerel: llama.cpp `full-b11723` (hız ölçümündeki imaj, kayıtlı digest `sha256:8f3c2cd0…96a0`; içinde `llama-server` var, yeni imaj indirilmez), sunucu bir kez açılır; Qwen3.5 2B/4B/9B Q4_K_M sırayla; 4 iş parçacığı; düşünme modu kapalı (hız bütçesi 300 çıktı token'ıyla ölçüldü); çıktı ≤ 300 token.
+     - API: Groq gpt-oss-120b ve Gemini 3.5 Flash Lite. İkisi de akıl yürütme modeli; düşünme tamamen kapatılamıyor (gpt-oss), düşünme token'ları çıktı sınırından düşebiliyor. Düşünme en düşük seviyeye çekilir (parametre adları ve en düşük değerler sağlayıcı dokümanından doğrulanıp kayda); çıktı sınırı düşünmeye yetecek kadar yüksek, son cevap hedefi ≤ 300 token; düşünme ve son cevap token'ları ayrı kayda. Groq'ta girdi + düşünme + cevap dakikada 8K token altında kalmalı. Anahtarlar `keys.env`'den, ekrana basılmaz.
+     - Beş modelde aynı olanlar: istem, girdi, temperature 0. Düşünme ve çıktı sınırı aynı değil (yukarıda).
+  5. **İstem:** önce Eren'e önerilir, onaylanınca beş modelde aynı ve değişmez. Çıktı biçimi: en olası 3 servis sırayla + her biri için kısa gerekçe (JSON).
+- Bitti ölçütü (ölçmeden önce yazıldı, sonuca göre değişmez):
+  - İki vaka kaydı: flag açılış/kapanış zamanları, flagd doğrulaması, konteyner sayısı, `RestartCount`/`OOMKilled`. Hedef dışı beklenmeyen yeniden başlama varsa vaka geçersiz, yazılır.
+  - İki özet: token sayısı ≤ 2048 (llama.cpp sunucusunun `/tokenize`'ı ile); sızıntı CLI'ı özet dosyasında 0 bulgu (bulgu varsa o özet modele verilmez, yazılır); dosya yolu ve SHA256'sı kayda.
+  - Sonuç tablosu: 2 vaka × 5 model; doğru servis top-1'de mi, top-3'te mi; süre; girdi, düşünme ve son cevap token'ları; biçimi bozuk çıktı (bozuk çıktı "çözemedi" sayılır). İstisna: token sınırına takıldığı için boş ya da yarım gelen cevap "çözemedi" sayılmaz; sınır bir kez iki katına çıkarılıp tekrar istenir, ikisi de kayda (yoksa kural yanlışlıkla "girdi kötü" der).
+  - "Çözer" = doğru servis ilk 3'te. Yorum DECISIONS 2026-10-21 kuralıyla, her küçük model için ayrı; iki API modeli ayrışırsa ikisi de ayrı yazılır ve sinyal "belirsiz" sayılır. Asimetri: küçükler düşünmeden, büyükler düşünerek cevaplar; "büyük çözer + küçük çözemez" çıkarsa "düşünmesiz küçük model yetmiyor" diye yazılır, yalnız boyut farkı diye değil.
+  - Repoda kod ve docs; özetler, model cevapları ve ham çıktılar repoya girmez. `pytest` yeşil; PR koşusu yeşil.
+- Dikkat:
+  - 2 vaka, tek tekrar: genelleme yazılmaz ("küçük model ödeme hatalarını çözüyor" gibi). Sonuç model seçimi için tek başına yetmez.
+  - Prizde yapılır; toplam ~1 saat, uzun koşu sayılmaz (şarj sınırı gerekmez).
+  - Vaka penceresinde 8080 üzerinden Jaeger/Grafana açılmaz (C1: operatör trafiği frontend-proxy telemetrisine düşüyor). Flag yazma ve flagd doğrulaması `/feature` ve `/flagservice` yollarından gider, süzmede düşer.
+  - Groq dakikada 8K token: ~2K girdiyle sorun beklenmez; Gemini anlık 503 verebilir, tek yeniden deneme yazılır.
+  - Kart dışı: daraltma, kalibrasyon, C2, vaka üretim otomasyonu, model ailesi ya da nicemleme değişikliği.
+
+## 2026-10-21 · Uygulama → Planlama (kaba kalite denemesi, sonuç)
+- Yapılan (`task/quality-trial`): `tools/trial_summary.py` (vaka özeti), `tools/trial_ask_models.py` (beş model, `--score`); isimler ve özet alanları GLOSSARY'de. Çıktılar repo dışı, `~/cerebrum2/quality_trial/case1|case2/` (`view/summary.json`, `case.json`, `answers/`) ve `run.log`.
+  - Özet: girintisiz JSON (girintili 1.713, girintisiz 1.099 token; aynı içerik). Hata logu = WARN ve üstü (payment ödeme hatasını WARN logluyor; Eren onayı). Pencere uçlarında kayıt yoksa özet yazılmaz (çıkış 1; 13:00 alarmıyla denendi).
+  - Düşünme ayarları denenerek doğrulandı: Groq `reasoning_effort: low` (en düşük; `low`/`medium`/`high`), düşünme token'ları `max_tokens`'tan düşüyor (20 sınırla boş cevap, `finish_reason: length`), kayıtta `usage.completion_tokens_details.reasoning_tokens`. Gemini `reasoning_effort: minimal` (dokümanda 3.x için en düşük; 3.5 Flash Lite tabloda yok), düşünme token'ı raporlanmadı (`total = prompt + completion`). Qwen3.5 `chat_template_kwargs.enable_thinking: false` çalışıyor (açıkken 300 token'ın tamamı düşünmeye gitti). API çıktı sınırı 2000, yerel 300.
+  - İstem (Eren onayı): kök neden tanımı istemde ("kendi kodu ya da ayarı bozuk servis, başka yerdeki sorunun belirtisini gösteren değil"; DECISIONS 2026-10-14); JSON modu zorlanmadı, cevaptaki ilk JSON nesnesi okunur. Metin `trial_ask_models.py`'de.
+- Bitti ölçütü:
+  - Vaka kayıtları (`case.json`): vaka 1 `paymentFailure` `50%` açık 11:19:47–11:30:00 UTC, vaka 2 `paymentUnreachable` `on` açık 11:43:33–11:53:47 UTC; flagd'den doğrulandı (ResolveFloat 0,5 / ResolveBoolean true, ≤ 1 sn; kapanışta off). Konteyner sayısı normal başında, açılışta ve kapanışta 22; zamanlayıcı üç kontrolde kapalı; `RestartCount` 0, `OOMKilled` yok. GEÇTİ.
+  - Özetler: `/tokenize` ile 869 ve 850 token (istemle 1.100 / 1.081; sohbet şablonuyla girdi 1.116 / 1.097); sızıntı CLI'ı ikisinde `clean`; SHA256 `db393952…dba12`, `ebd14cd2…e4c0`. GEÇTİ.
+  - Sonuç tablosu (doğru servis: vaka 1 payment, vaka 2 checkout; süre sn; token girdi/düşünme/cevap):
+
+    | Model | Vaka 1 top-1 / top-3 | süre | token | Vaka 2 top-1 / top-3 | süre | token |
+    |---|---|---|---|---|---|---|
+    | `qwen3.5-2b` | ✓ / ✓ | 16,9 | 1116/0/194 | ✓ / ✓ | 14,3 | 1097/0/151 |
+    | `qwen3.5-4b` | ✓ / ✓ | 33,4 | 1116/0/116 | ✓ / ✓ | 35,8 | 1097/0/134 |
+    | `qwen3.5-9b` | biçim bozuk → ✗ | 64,2 | 1116/0/143 | biçim bozuk → ✗ | 62,3 | 1097/0/121 |
+    | `gpt-oss-120b` | ✓ / ✓ | 1,7 | 1060/285/138 | ✓ / ✓ | 0,9 | 1041/104/129 |
+    | `gemini-3.5-flash-lite` | ✓ / ✓ | 1,4 | 1256/0/146 | ✓ / ✓ | 50,8 | 1234/0/102 |
+
+    Token sınırına takılan cevap yok (tekrar deneme olmadı). GEÇTİ (ölçüldü ve yazıldı).
+  - Yorum (DECISIONS 2026-10-21 kuralı, her küçük model ayrı): iki API modeli aynı (sinyal belirsiz değil). 2B ve 4B: büyük çözer + küçük çözer → **umut var**. 9B: büyük çözer + küçük çözemez → kural "düşünmesiz küçük model yetmiyor" der; ama sebep servis seçimi değil biçim: iki cevapta da son `}` eksik, `finish_reason: stop` (sınıra takılmadı, kart tekrar denemeye izin vermiyor). Okunabilseydi ikisinde de doğru servis top-1'deydi; bu sadece not, ölçüt değişmedi.
+  - Repoda kod ve docs; özetler ve cevaplar repo dışı. `pytest` 190 yeşil. PR #13 koşusu yeşil: https://github.com/erenbezek/aiops_rca/actions/runs/39597212650 (`d945062`).
+- Dikkat:
+  - 2 vaka, tek tekrar, ikisi de ödeme yolu: genelleme yok. "Zor" vaka beklenenden kolaydı: özette checkout %100 hata ve p95 39 → 201 ms, payment ve email'e 0 istek; tek log frontend "Checkout failed to place order" (30). İstemdeki kök neden tanımı da işi kolaylaştırmış olabilir. Sessiz senaryolarda (ör. `adHighCpu`) aynı sonuç beklenmemeli.
+  - 9B biçim hatası: Qwen3.5 9B iki kez aynı şekilde nesneyi kapatmadı. Asıl koşularda JSON modu ya da daha toleranslı okuyucu düşünülürse bu karar planlamanın; burada değiştirilmedi.
+  - Gemini vaka 2'de 50,8 sn: kayıtta tek deneme. Koşu sırasında betik 503 sonrası tekrar denemeyi ayrı yazmıyordu (kart "yazılır" diyordu); 50,8 sn ikinci çağrının süresi olsaydı ilk çağrı 503 alıp 30 sn beklemiş olurdu, büyük ihtimalle tek yavaş çağrı ama kesin değil. Koşudan sonra düzeltildi: ilk hata `retried_after` alanına yazılıyor (sahte cevapla denendi); bu koşunun verisi değişmedi.
+  - Vaka sırasında 8080'den sadece flag yazma (`/feature`) ve flagd doğrulaması (`/flagservice`) yapıldı. Kontroller betiği (flag yaz/doğrula, konteyner sayısı, zamanlayıcı) repoya alınmadı; zamanlayıcı durumu `GET /feature/scheduler` sayfasındaki "Scheduler stopped" yazısından okundu (flagd-ui'de bunun için API yok). Vaka üretim kartında işe yarar.
+  - flagd-ui zamanlayıcı ve `/feature/api/write` yolu upstream testindeki gibi: `read` → `defaultVariant` değiştir → `write`.

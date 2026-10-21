@@ -68,8 +68,9 @@ Hazır olanlar: duman testi, satır sonları, OTel Demo keşfi ve veri akışı 
 CI iskeleti PR #4 ile birleşti: main push koşusu yeşil, dal koruması açık, kasıtlı kırmızı gösterildi (PR #5). CI `ubuntu-24.04`e sabit (PR #6).
 Makine değişimi yapıldı: proje Ubuntu 24.04'te `~/cerebrum2/aiops_rca`, `pytest` 190 yeşil, CI ve paket Python 3.12 (PR #8). API anahtarları `~/.config/aiops_rca/keys.env`'de, duman testi Groq ve Gemini'de geçti.
 Docker Engine 29.9.1 kurulu (resmî apt deposu, Compose v5.6.0), sudo'suz çalışıyor, açılışta başlıyor (PR #9).
-OTel Demo 3.1.0 minimal modda çalışıyor (`tools/otel_demo.sh`, `task/otel-demo-setup`): 25 konteyner ~2,9 GiB, imaj sürümü sabit, log sınırlı, portlar sadece `127.0.0.1`. Collector süzmesi/dosya çıkışı ve kalıcı depolama henüz yok.
-Lokal model hız ölçümü yapıldı (`task/local-model-bench`, `docs/LOCAL_MODEL_BENCH.md`): llama.cpp b11723, Qwen3.5 Q4_K_M; 2048+300 bütçesine 2B (30 sn) ve 4B (73 sn) sığıyor, 9B (127 sn) sığmıyor; en iyi ayar 4 iş parçacığı; ısınmayla yavaşlama yok. Şarj sınırı %80 kalıcı (`battery-charge-limit.service`).
-Sıradaki karar: model seçimi (boyut ve aile; kalite ölçülmedi).
-Collector C1 yapıldı (`task/collector-filter`): süzme (flag/flagd/load-generator izleri, host süreç metrikleri, collector logları), dosya çıkışı `~/cerebrum2/telemetry/filtered/` (~630 MB/saat), `--raw` süzülmemiş kopya, flag dosyası klon dışında. 30 dk normal koşuda sızıntı testi 0 bulgu.
-Sıradaki: C2 (`positive_control` + belirti korunması, kalibrasyonla aynı gece); depolama kartı (isimli volume); vaka üretimi (gece koşucusu).
+OTel Demo 3.1.0 minimal modda çalışıyor (`tools/otel_demo.sh`, `task/otel-demo-setup`): 25 konteyner ~2,9 GiB, imaj sürümü sabit, log sınırlı, portlar sadece `127.0.0.1`. Kalıcı depolama henüz yok.
+Lokal model hız ölçümü yapıldı (`task/local-model-bench`, `docs/LOCAL_MODEL_BENCH.md`): llama.cpp b11723, Qwen3.5 Q4_K_M; 2048+300 bütçesine 2B (30 sn) ve 4B (73 sn) sığıyor, 9B (127 sn) sığmıyor; en iyi ayar 4 iş parçacığı; ısınmayla yavaşlama yok. Şarj sınırı birimi var (`battery-charge-limit.service`), günlükte kapalı, uzun koşudan önce açılır.
+Model seçimi (boyut ve aile) kalite ölçülmeden yapılmaz.
+Collector C1 yapıldı (`task/collector-filter`): süzme (flag/flagd/load-generator izleri, host süreç metrikleri, collector logları), dosya çıkışı `~/cerebrum2/telemetry/filtered/` (~630 MB/saat), `--raw` süzülmemiş kopya, flag dosyası klon dışında. 30 dk normal koşuda sızıntı testi 0 bulgu. Planlama 2026-10-21'de makinede yeniden ölçtü (PR #12, main `b232f03`).
+Kaba kalite denemesi yapıldı (`task/quality-trial`, 2 vaka, kaba sinyal, rapora girmez): 2B, 4B ve iki `large_api_model` iki vakada doğru servisi top-1 buldu; 9B iki cevapta JSON biçimini bozdu (çözemedi sayıldı).
+Sıradaki: C2 (`positive_control` + belirti korunması + collector kural testi betiği, kalibrasyonla aynı gece); depolama kartı (isimli volume, döndürme sınırları); vaka üretimi (gece koşucusu).
