@@ -55,5 +55,6 @@ Sadece Eren'in onayladığı isimler.
 | `filter/sim_world`, `transform/scrub` | Collector processor adları: "simüle edilen dünyada flagd yok" düşürmesi / kalan izleri temizleme ve mesaj yeniden yazma |
 | `tools/trial_summary.py` | Kaba kalite denemesi: süzülmüş dosyalardan alarm öncesi/sonrası 10 dk'lık vaka özeti (JSON) |
 | `tools/trial_ask_models.py` | Kaba kalite denemesi: aynı istemi ve özeti beş modele sorar, cevapları kaydeder |
+| `alarm_time_utc`, `window_minutes`, `requests_before/after`, `error_rate_before/after`, `p95_ms_before/after`, `top_warning_and_error_logs_after_alarm` | `trial_summary.py` özetinin JSON alanları: alarm zamanı / pencere uzunluğu / servise gelen istek sayısı / hatalı istek oranı / istek süresinin 95. yüzdeliği (ms) / alarm sonrası en sık WARN+ log mesajları |
 | `~/cerebrum2/quality_trial/` | Kaba kalite denemesi çıktıları; `case1/`, `case2/` altında `view/summary.json` (modele giden, sızıntı CLI'ın taradığı), `answers/` (model cevapları), `case.json` (doğru cevap, `view/` dışında); repo dışı |
 | `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |
