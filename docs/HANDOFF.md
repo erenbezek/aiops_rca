@@ -627,3 +627,42 @@
   - Gemini vaka 2'de 50,8 sn: kayıtta tek deneme. Koşu sırasında betik 503 sonrası tekrar denemeyi ayrı yazmıyordu (kart "yazılır" diyordu); 50,8 sn ikinci çağrının süresi olsaydı ilk çağrı 503 alıp 30 sn beklemiş olurdu, büyük ihtimalle tek yavaş çağrı ama kesin değil. Koşudan sonra düzeltildi: ilk hata `retried_after` alanına yazılıyor (sahte cevapla denendi); bu koşunun verisi değişmedi.
   - Vaka sırasında 8080'den sadece flag yazma (`/feature`) ve flagd doğrulaması (`/flagservice`) yapıldı. Kontroller betiği (flag yaz/doğrula, konteyner sayısı, zamanlayıcı) repoya alınmadı; zamanlayıcı durumu `GET /feature/scheduler` sayfasındaki "Scheduler stopped" yazısından okundu (flagd-ui'de bunun için API yok). Vaka üretim kartında işe yarar.
   - flagd-ui zamanlayıcı ve `/feature/api/write` yolu upstream testindeki gibi: `read` → `defaultVariant` değiştir → `write`.
+
+## 2026-10-21 · Planlama → Planlama (kaba kalite denemesi doğrulaması)
+- Doğrulama (planlama, main `821cf5d`; PR #13 koşusu ve main push koşusu yeşil):
+  - `trial_ask_models.py --score` kayıtlı cevaplardan tabloyu birebir üretti.
+  - Özetlerin SHA256'sı kayıtla aynı (`db393952…`, `ebd14cd2…`); sızıntı CLI'ı iki `view/`'da `clean`. `case.json` `view/` dışında.
+  - Vaka 2 özeti `trial_summary.py` ile `filtered/`'dan yeniden üretildi: SHA256 aynı. Vaka 1'in penceresi döndürmeyle silinmişti (traces 14:09–14:16 yerel); betik "window not covered by data" deyip çıkış 1 verdi (koruma çalışıyor; DECISIONS 2026-10-21 "vaka biter bitmez kesilir" kararının örneği).
+  - 9B'nin iki cevabı: yalnız son `}` eksik, sıralama vaka 1 payment/checkout/frontend-proxy, vaka 2 checkout/frontend/payment. Kural gereği "çözemedi" doğru.
+  - `trial-llama` konteyneri kapalı.
+- Yorum: iki vaka da kolaydı; özet cevaba çok yakındı (vaka 1 payment logunda `Invalid token`, vaka 2'de hata veren tek servis checkout, %100). Gösterdiği: özet biçimi işe yarıyor, 2B/4B böyle bir JSON özeti okuyup servis seçebiliyor. Göstermediği: zor vakada boyut farkı ve hibritin gereği (denemenin asıl sorusu cevapsız kaldı; Eren).
+- Kararlar (Eren, 2026-10-21): asıl koşularda JSON şeması zorlanır; 9B elenmez (DECISIONS 2026-10-21). `c68d8b3`'teki ikinci karar: bu denemenin `filtered/` verisi kalır (süzülmüş, cevap içermiyor; döndürme zamanla siler).
+- Süreç notu: uygulama PR #13 birleştikten sonra dala bir commit daha attı (`c68d8b3`, GitHub'da `task/quality-trial`'da, main'de yok). İçeriği bu kayıtla ve DECISIONS'la main'e taşındı; ek PR açılmadı. **Kural (uygulama için): PR birleştikten sonra dala commit atılmaz; sonradan çıkan karar planlamaya iletilir, planlama main'e yazar.** Dalın silinmesi Eren'de.
+
+## 2026-10-21 · Planlama → Uygulama (zor deneme)
+- Yapılan (planlama): DECISIONS 2026-10-21 (JSON şeması zorlanır, 9B elenmez, zor deneme); kaba kalite denemesi doğrulaması yukarıda; PROJECT güncellendi.
+- Amaç: zor vakalarda küçük modellerin (2B/4B/9B) kök neden servisini bulup bulamadığına ve boyutun fark edip etmediğine kaba bakmak; hibritin gereğine işaret. Oran değil, rapora girmez.
+- Beklenen:
+  1. Dal `task/quality-trial-2`; ilk commit planlamanın docs değişiklikleri (DECISIONS, HANDOFF, PROJECT). **PR birleştikten sonra dala commit atılmaz** (sonradan çıkan karar planlamaya iletilir).
+  2. **Vakalar** (ilk denemedeki akış: her vaka ayrı `up`, 22 konteyner kontrolü, zamanlayıcı kapalı, 10 dk normal → flag aç + flagd'den doğrula → 10 dk → kapat → özet hemen kesilir → `down`; `RestartCount`/`OOMKilled` kaydı):
+     - `adHighCpu` = `on` → ad
+     - `productCatalogFailure` = `on` → product-catalog (`defaultVariant` değil, targeting kuralının dalı: OTEL_DEMO "Flag'i açıp kapatma")
+     - `productCatalogLockContention` = `on` → product-catalog
+     - `intlShippingSlowdown` = `10sec` → shipping
+     - Klasörler mevcut yapıda `~/cerebrum2/quality_trial/case3` … `case6` (adlarda flag/senaryo yok; `case.json` `view/` dışında).
+  3. **Özet** (`tools/trial_summary.py` genişler): mevcut alanlara ek olarak servis başına `docker_stats`'tan CPU kullanımı ve bellek kullanımı (önce/sonra; ortalama ve en yüksek). Konteyner adı servis adına eşlenir. Yeni alan adları önerilir, GLOSSARY'ye yazılır. Özet ≤ 2048 token; sızıntı CLI'ı `clean`.
+  4. **Belirti kontrolü (modellerden önce):** her özette kök neden servisinin önce/sonra değerleri tabloya; hiçbir sinyalde (hata oranı, p95, CPU, bellek, WARN+ log) görünür sapma yoksa vaka "belirtisiz" yazılır, modeller yine koşar ama sonucu yoruma girmez. Sapma eşiği ölçmeden önce önerilir, Eren onaylar (INCIDENT_CATALOG kalibrasyon ölçütü: "normal döneme göre görünür sapma").
+  5. **Modeller** (`tools/trial_ask_models.py` genişler): aynı beş model ve ayarlar (yerel düşünme kapalı ≤ 300 token; API düşünme en düşük, sınır 2000; temperature 0). **JSON şeması zorlanır**: llama.cpp sunucusunda `response_format` şema/gramer, Groq ve Gemini'de kendi `response_format` desteği; her sağlayıcının mekanizması dokümandan ve bir denemeyle doğrulanıp kayda (desteklenmiyorsa dur ve yaz). İstemin alan açıklamasına CPU ve bellek eklenir; yeni metin Eren'e önerilir, onaylanınca beş modelde aynı.
+- Bitti ölçütü (ölçmeden önce yazıldı, sonuca göre değişmez):
+  - Dört vaka kaydı (ilk denemedeki alanlar). Hedef dışı beklenmeyen yeniden başlama → vaka geçersiz, yazılır.
+  - Dört özet: token ≤ 2048 (`/tokenize`), sızıntı CLI'ı `clean`, SHA256 kayda; belirti tablosu ve "belirtili/belirtisiz" kararı modellerden önce yazılı.
+  - Sonuç tablosu: 4 vaka × 5 model; top-1, top-3, süre, girdi/düşünme/cevap token, biçim. Token sınırına takılan cevapta sınır bir kez iki katı (ilk denemedeki kural).
+  - Yorum DECISIONS 2026-10-21 zor deneme kuralıyla, vaka başına; "çözer" = doğru servis ilk 3'te. Ezber sınırlaması yorumda yazılır.
+  - `trial_ask_models.py --score` ilk denemenin cevaplarından aynı tabloyu üretmeye devam eder (geriye uyum). `pytest` yeşil; PR koşusu yeşil.
+- Dikkat:
+  - Toplam ~2 saat: uzun koşu. Prizde; şarj sınırı önceden açılır (DECISIONS 2026-10-20; sudo komutunu Eren `!` ile çalıştırır), `systemd-inhibit` altında.
+  - Kalibrasyon yapılmadı: sessiz vakalarda (özellikle `adHighCpu`) 10 dk'da belirti zayıf olabilir; bu yüzden belirti kontrolü var. Varyant değiştirilmez (kalibrasyon C2'de).
+  - `productCatalogFailure` mesajı süzmede yeniden yazılıyor (`failed to load product from catalog`): yeniden yazımın gerçek veride ilk görüldüğü yer; sızıntı CLI'ı `clean` vermezse o vaka modele verilmez, yazılır (C2 için bulgu).
+  - `productCatalogLockContention` kilit logu da yeniden yazılıyor; aynı kural.
+  - Vaka penceresinde 8080'den sadece flag yazma ve flagd doğrulaması.
+  - Kart dışı: daraltma, C2, kalibrasyon, varyant seçimi, yeni senaryo, model ailesi değişikliği.
