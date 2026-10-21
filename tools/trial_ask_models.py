@@ -117,10 +117,13 @@ def ask(kind: str, model: str, max_tokens: int, extra: dict, messages: list[dict
     url, key_env = ENDPOINTS[kind]
     body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens, **extra}
     status, resp, elapsed = post(url, body, key_env)
+    retried = None
     if kind == "gemini" and status in (429, 503):
+        # İlk hata kayda girer; süre ikinci çağrının süresidir.
+        retried = {"status": status, "elapsed_s": round(elapsed, 1), "error": str(resp)[:500]}
         time.sleep(RETRY_WAIT)
         status, resp, elapsed = post(url, body, key_env)
-    attempt = {"max_tokens": max_tokens, "status": status, "elapsed_s": round(elapsed, 1)}
+    attempt = {"max_tokens": max_tokens, "status": status, "elapsed_s": round(elapsed, 1), "retried_after": retried}
     if status != 200 or not isinstance(resp, dict):
         attempt["error"] = resp if isinstance(resp, str) else json.dumps(resp)[:500]
         return attempt

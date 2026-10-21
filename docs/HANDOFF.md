@@ -599,3 +599,31 @@
   - Vaka penceresinde 8080 üzerinden Jaeger/Grafana açılmaz (C1: operatör trafiği frontend-proxy telemetrisine düşüyor). Flag yazma ve flagd doğrulaması `/feature` ve `/flagservice` yollarından gider, süzmede düşer.
   - Groq dakikada 8K token: ~2K girdiyle sorun beklenmez; Gemini anlık 503 verebilir, tek yeniden deneme yazılır.
   - Kart dışı: daraltma, kalibrasyon, C2, vaka üretim otomasyonu, model ailesi ya da nicemleme değişikliği.
+
+## 2026-10-21 · Uygulama → Planlama (kaba kalite denemesi, sonuç)
+- Yapılan (`task/quality-trial`): `tools/trial_summary.py` (vaka özeti), `tools/trial_ask_models.py` (beş model, `--score`); isimler ve özet alanları GLOSSARY'de. Çıktılar repo dışı, `~/cerebrum2/quality_trial/case1|case2/` (`view/summary.json`, `case.json`, `answers/`) ve `run.log`.
+  - Özet: girintisiz JSON (girintili 1.713, girintisiz 1.099 token; aynı içerik). Hata logu = WARN ve üstü (payment ödeme hatasını WARN logluyor; Eren onayı). Pencere uçlarında kayıt yoksa özet yazılmaz (çıkış 1; 13:00 alarmıyla denendi).
+  - Düşünme ayarları denenerek doğrulandı: Groq `reasoning_effort: low` (en düşük; `low`/`medium`/`high`), düşünme token'ları `max_tokens`'tan düşüyor (20 sınırla boş cevap, `finish_reason: length`), kayıtta `usage.completion_tokens_details.reasoning_tokens`. Gemini `reasoning_effort: minimal` (dokümanda 3.x için en düşük; 3.5 Flash Lite tabloda yok), düşünme token'ı raporlanmadı (`total = prompt + completion`). Qwen3.5 `chat_template_kwargs.enable_thinking: false` çalışıyor (açıkken 300 token'ın tamamı düşünmeye gitti). API çıktı sınırı 2000, yerel 300.
+  - İstem (Eren onayı): kök neden tanımı istemde ("kendi kodu ya da ayarı bozuk servis, başka yerdeki sorunun belirtisini gösteren değil"; DECISIONS 2026-10-14); JSON modu zorlanmadı, cevaptaki ilk JSON nesnesi okunur. Metin `trial_ask_models.py`'de.
+- Bitti ölçütü:
+  - Vaka kayıtları (`case.json`): vaka 1 `paymentFailure` `50%` açık 11:19:47–11:30:00 UTC, vaka 2 `paymentUnreachable` `on` açık 11:43:33–11:53:47 UTC; flagd'den doğrulandı (ResolveFloat 0,5 / ResolveBoolean true, ≤ 1 sn; kapanışta off). Konteyner sayısı normal başında, açılışta ve kapanışta 22; zamanlayıcı üç kontrolde kapalı; `RestartCount` 0, `OOMKilled` yok. GEÇTİ.
+  - Özetler: `/tokenize` ile 869 ve 850 token (istemle 1.100 / 1.081; sohbet şablonuyla girdi 1.116 / 1.097); sızıntı CLI'ı ikisinde `clean`; SHA256 `db393952…dba12`, `ebd14cd2…e4c0`. GEÇTİ.
+  - Sonuç tablosu (doğru servis: vaka 1 payment, vaka 2 checkout; süre sn; token girdi/düşünme/cevap):
+
+    | Model | Vaka 1 top-1 / top-3 | süre | token | Vaka 2 top-1 / top-3 | süre | token |
+    |---|---|---|---|---|---|---|
+    | `qwen3.5-2b` | ✓ / ✓ | 16,9 | 1116/0/194 | ✓ / ✓ | 14,3 | 1097/0/151 |
+    | `qwen3.5-4b` | ✓ / ✓ | 33,4 | 1116/0/116 | ✓ / ✓ | 35,8 | 1097/0/134 |
+    | `qwen3.5-9b` | biçim bozuk → ✗ | 64,2 | 1116/0/143 | biçim bozuk → ✗ | 62,3 | 1097/0/121 |
+    | `gpt-oss-120b` | ✓ / ✓ | 1,7 | 1060/285/138 | ✓ / ✓ | 0,9 | 1041/104/129 |
+    | `gemini-3.5-flash-lite` | ✓ / ✓ | 1,4 | 1256/0/146 | ✓ / ✓ | 50,8 | 1234/0/102 |
+
+    Token sınırına takılan cevap yok (tekrar deneme olmadı). GEÇTİ (ölçüldü ve yazıldı).
+  - Yorum (DECISIONS 2026-10-21 kuralı, her küçük model ayrı): iki API modeli aynı (sinyal belirsiz değil). 2B ve 4B: büyük çözer + küçük çözer → **umut var**. 9B: büyük çözer + küçük çözemez → kural "düşünmesiz küçük model yetmiyor" der; ama sebep servis seçimi değil biçim: iki cevapta da son `}` eksik, `finish_reason: stop` (sınıra takılmadı, kart tekrar denemeye izin vermiyor). Okunabilseydi ikisinde de doğru servis top-1'deydi; bu sadece not, ölçüt değişmedi.
+  - Repoda kod ve docs; özetler ve cevaplar repo dışı. `pytest` 190 yeşil.
+- Dikkat:
+  - 2 vaka, tek tekrar, ikisi de ödeme yolu: genelleme yok. "Zor" vaka beklenenden kolaydı: özette checkout %100 hata ve p95 39 → 201 ms, payment ve email'e 0 istek; tek log frontend "Checkout failed to place order" (30). İstemdeki kök neden tanımı da işi kolaylaştırmış olabilir. Sessiz senaryolarda (ör. `adHighCpu`) aynı sonuç beklenmemeli.
+  - 9B biçim hatası: Qwen3.5 9B iki kez aynı şekilde nesneyi kapatmadı. Asıl koşularda JSON modu ya da daha toleranslı okuyucu düşünülürse bu karar planlamanın; burada değiştirilmedi.
+  - Gemini vaka 2'de 50,8 sn: kayıtta tek deneme. Koşu sırasında betik 503 sonrası tekrar denemeyi ayrı yazmıyordu (kart "yazılır" diyordu); 50,8 sn ikinci çağrının süresi olsaydı ilk çağrı 503 alıp 30 sn beklemiş olurdu, büyük ihtimalle tek yavaş çağrı ama kesin değil. Koşudan sonra düzeltildi: ilk hata `retried_after` alanına yazılıyor (sahte cevapla denendi); bu koşunun verisi değişmedi.
+  - Vaka sırasında 8080'den sadece flag yazma (`/feature`) ve flagd doğrulaması (`/flagservice`) yapıldı. Kontroller betiği (flag yaz/doğrula, konteyner sayısı, zamanlayıcı) repoya alınmadı; zamanlayıcı durumu `GET /feature/scheduler` sayfasındaki "Scheduler stopped" yazısından okundu (flagd-ui'de bunun için API yok). Vaka üretim kartında işe yarar.
+  - flagd-ui zamanlayıcı ve `/feature/api/write` yolu upstream testindeki gibi: `read` → `defaultVariant` değiştir → `write`.
