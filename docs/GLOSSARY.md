@@ -62,6 +62,8 @@ Sadece Eren'in onayladığı isimler.
 | `error_rate`, `p95_ms`, `cpu_pct_avg`, `mem_mb_avg`, `new_warn_log`, `request_drop` | `symptoms.json` sinyal adları: hata oranı / p95 süre / CPU ortalaması / bellek ortalaması / önceki pencerede olmayan WARN+ log / istek düşüşü |
 | `qwen3.5-2b`, `qwen3.5-4b`, `qwen3.5-9b`, `gpt-oss-120b`, `gemini-3.5-flash-lite` | `trial_ask_models.py` model etiketleri; `answers/<etiket>.json` dosya adları |
 | `--score` | `trial_ask_models.py` seçeneği: model çağırmadan kayıtlı cevaplardan puan tablosu basar |
+| `unmatched` | `--score` tablosunun son sütunu: cevaptaki, özetteki hiçbir servise uymayan adlar (harf dışı karakterler atılıp küçük harfle karşılaştırılır) |
+| `root_cause_candidates` | `trial_ask_models.py`'nin modellere zorladığı JSON şemasının adı: tam 3 `{service, reason}` adayı |
 | `trial-llama` | `trial_ask_models.py`'nin açtığı llama.cpp sunucu konteyneri (`127.0.0.1:8081`) |
 | `~/cerebrum2/quality_trial/` | Kaba kalite denemesi çıktıları; `case1/`, `case2/` altında `view/summary.json` (modele giden, sızıntı CLI'ın taradığı), `answers/` (model cevapları), `case.json` (doğru cevap, `view/` dışında); repo dışı |
 | `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |
