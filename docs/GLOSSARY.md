@@ -57,6 +57,9 @@ Sadece Eren'in onayladığı isimler.
 | `tools/trial_ask_models.py` | Kaba kalite denemesi: aynı istemi ve özeti beş modele sorar, cevapları kaydeder |
 | `alarm_time_utc`, `window_minutes`, `requests_before/after`, `error_rate_before/after`, `p95_ms_before/after`, `top_warning_and_error_logs_after_alarm` | `trial_summary.py` özetinin JSON alanları: alarm zamanı / pencere uzunluğu / servise gelen istek sayısı / hatalı istek oranı / istek süresinin 95. yüzdeliği (ms) / alarm sonrası en sık WARN+ log mesajları |
 | `cpu_pct_avg_before/after`, `cpu_pct_max_before/after`, `mem_mb_avg_before/after` | `trial_summary.py` özetinin konteyner alanları: CPU (bir çekirdeğin yüzdesi) ortalaması / en yüksek değeri / bellek ortalaması (MB) |
+| `tools/trial_symptoms.py`, `symptoms.json` | Zor deneme belirti kontrolü: kök neden servisinde özetteki değerler normal döneme göre sapıyor mu; sonuç vaka klasöründe, `view/` dışında |
+| `symptomatic`, `no_symptom` | `trial_symptoms.py` kararı: belirtili / belirtisiz (belirtisiz vakanın model sonucu yoruma girmez) |
+| `error_rate`, `p95_ms`, `cpu_pct_avg`, `mem_mb_avg`, `new_warn_log`, `request_drop` | `symptoms.json` sinyal adları: hata oranı / p95 süre / CPU ortalaması / bellek ortalaması / önceki pencerede olmayan WARN+ log / istek düşüşü |
 | `qwen3.5-2b`, `qwen3.5-4b`, `qwen3.5-9b`, `gpt-oss-120b`, `gemini-3.5-flash-lite` | `trial_ask_models.py` model etiketleri; `answers/<etiket>.json` dosya adları |
 | `--score` | `trial_ask_models.py` seçeneği: model çağırmadan kayıtlı cevaplardan puan tablosu basar |
 | `trial-llama` | `trial_ask_models.py`'nin açtığı llama.cpp sunucu konteyneri (`127.0.0.1:8081`) |
