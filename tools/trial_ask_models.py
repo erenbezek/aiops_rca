@@ -1,4 +1,4 @@
-"""Kaba kalite denemesi: aynı istem ve özeti beş modele sorar (HANDOFF 2026-10-21, DECISIONS 2026-10-21).
+"""Kaba kalite denemeleri: aynı istem ve özeti beş modele sorar (HANDOFF 2026-10-21, DECISIONS 2026-10-21).
 
 Kullanım: python tools/trial_ask_models.py <vaka klasörü>... [--models qwen3.5-2b,gpt-oss-120b,...]
           python tools/trial_ask_models.py <vaka klasörü>... --score   # sadece kayıtlı cevaplardan tablo
@@ -12,12 +12,16 @@ Modeller:
 - API: Groq gpt-oss-120b (`reasoning_effort: low`, en düşük; kapatılamıyor) ve Gemini 3.5 Flash Lite
   (`reasoning_effort: minimal`, en düşük; kapatılamıyor). Düşünme token'ları çıktı sınırından düşüyor (Groq'ta
   20 sınırla boş cevap ölçüldü), bu yüzden sınır 2000. Anahtarlar ortamdan (`keys.env`); ekrana basılmaz.
-- Beşinde aynı: istem, girdi, temperature 0. JSON modu zorlanmaz; cevaptaki ilk JSON nesnesi okunur (``` dahil).
+- Beşinde aynı: istem, girdi, temperature 0, JSON şeması (`response_format` `json_schema`, `strict`; tam 3 aday,
+  servis adı serbest metin, enum yok). Şema üç sağlayıcıda denenerek doğrulandı (zor deneme, 2026-10-23).
+  İlk denemede şema yoktu; okuyucu hâlâ cevaptaki ilk JSON nesnesini okur (``` dahil).
 
 Kurallar (kart ölçütü):
 - Cevap token sınırına takıldı (`finish_reason: length`) ve okunamadıysa sınır bir kez iki katına çıkarılıp
   tekrar sorulur; iki deneme de kayda, puan ikinciden.
-- Okunamayan cevap "çözemedi". Doğru servis ilk 3'te → çözdü; top-1 ayrıca yazılır.
+- Okunamayan cevap "çözemedi". Doğru servis ilk 3'te → çözdü; top-1 ayrıca yazılır. Adlar harf dışı karakterler
+  atılarak karşılaştırılır (`product_catalog` = `product-catalog`); özetteki hiçbir servise uymayan adlar ayrı
+  sütunda (`unmatched`). İlk denemenin tablosu aynı kalır (yeni sütun en sonda).
 - Groq dakikada 8K token: Groq istekleri arasında 65 sn beklenir. Gemini 503/429'da bir kez 30 sn sonra tekrar.
 Çıkış kodu: 0 tamam, 1 bir model ya da vaka hata verdi, 2 kullanım/girdi hatası.
 """
@@ -59,11 +63,14 @@ ENDPOINTS = {
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "GEMINI_API_KEY"),
 }
 
-# İstem taslağı: Eren onaylayınca değişmez (kart madde 5).
+# İstem: Eren onaylayınca değişmez. İlk denemenin metni git geçmişinde (`7c34225`); bu metin zor deneme için
+# CPU ve bellek alanlarını anlatır.
 SYSTEM_PROMPT = "You are an SRE assistant doing root cause analysis for a microservice-based online shop."
 USER_TEMPLATE = """An alert fired at {alarm_time}. Below is a telemetry summary of the shop for the 10 minutes before \
 and the 10 minutes after the alert: for each service, the number of incoming requests, the error rate and the p95 \
-latency in milliseconds, and the most frequent warning and error log messages after the alert.
+latency in milliseconds; for each container, the CPU usage (percent of one core, average and maximum) and the memory \
+usage in MB (average); and the most frequent warning and error log messages after the alert. Some rows, such as \
+databases, have only some of these fields.
 
 Find the root cause service: the service whose own code or configuration is faulty, not a service that only shows \
 symptoms of a problem elsewhere. List the 3 most likely services, most likely first, using service names exactly as \
@@ -74,6 +81,18 @@ Answer with JSON only, no other text:
 
 Summary:
 {summary}"""
+
+
+# Beş modelde aynı şema (DECISIONS 2026-10-21). strict: bütün alanlar zorunlu, fazladan alan yok (Groq şartı).
+SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["candidates"],
+    "properties": {"candidates": {
+        "type": "array", "minItems": 3, "maxItems": 3,
+        "items": {"type": "object", "additionalProperties": False, "required": ["service", "reason"],
+                  "properties": {"service": {"type": "string"}, "reason": {"type": "string"}}}}},
+}
+RESPONSE_FORMAT = {"type": "json_schema",
+                   "json_schema": {"name": "root_cause_candidates", "strict": True, "schema": SCHEMA}}
 
 
 def build_messages(summary_text: str) -> list[dict]:
@@ -115,7 +134,8 @@ def parse_answer(content: str | None) -> list[str] | None:
 
 def ask(kind: str, model: str, max_tokens: int, extra: dict, messages: list[dict]) -> dict:
     url, key_env = ENDPOINTS[kind]
-    body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens, **extra}
+    body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens,
+            "response_format": RESPONSE_FORMAT, **extra}
     status, resp, elapsed = post(url, body, key_env)
     retried = None
     if kind == "gemini" and status in (429, 503):
@@ -158,7 +178,8 @@ def run_model(label: str, kind: str, model: str, max_tokens: int, extra: dict, c
                 time.sleep(GROQ_GAP)
             attempts.append(ask(kind, model, max_tokens * 2, extra, messages))
         record = {"model": label, "kind": kind, "model_id": model, "request": {
-            "temperature": 0, **extra}, "system_prompt": SYSTEM_PROMPT, "attempts": attempts}
+            "temperature": 0, "response_format": RESPONSE_FORMAT, **extra}, "system_prompt": SYSTEM_PROMPT,
+            "user_template": USER_TEMPLATE, "attempts": attempts}
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(record, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         final = attempts[-1]
@@ -200,11 +221,18 @@ def count_tokens(text: str) -> int:
         return len(json.loads(r.read())["tokens"])
 
 
+def name_key(name: str) -> str:
+    """Ad karşılaştırması: harf dışı karakterler atılır, küçük harf (Eren, 2026-10-21)."""
+    return re.sub(r"[^a-z]", "", name.lower())
+
+
 def score(cases: list[Path]) -> None:
     print("\t".join(["case", "model", "top1", "top3", "parsed", "elapsed_s", "input", "reasoning", "answer",
-                     "attempts", "answer_services"]))
+                     "attempts", "answer_services", "unmatched"]))
     for case in cases:
-        truth = json.loads((case / "case.json").read_text(encoding="utf-8"))["root_cause_service"].lower()
+        truth = name_key(json.loads((case / "case.json").read_text(encoding="utf-8"))["root_cause_service"])
+        summary = json.loads((case / "view" / "summary.json").read_text(encoding="utf-8"))
+        known = {name_key(r["service"]) for r in summary["services"]}
         for label, *_ in MODELS:
             path = case / "answers" / f"{label}.json"
             if not path.exists():
@@ -212,10 +240,12 @@ def score(cases: list[Path]) -> None:
             attempts = json.loads(path.read_text(encoding="utf-8"))["attempts"]
             final = attempts[-1]
             services = [s.lower() for s in (final.get("parsed") or [])]
+            keys = [name_key(s) for s in services]
+            unmatched = [s for s, k in zip(services, keys) if k not in known]
             print("\t".join(str(x) for x in [
-                case.name, label, bool(services[:1]) and services[0] == truth, truth in services[:3],
+                case.name, label, bool(keys[:1]) and keys[0] == truth, truth in keys[:3],
                 final.get("parsed") is not None, final.get("elapsed_s"), final.get("input_tokens"),
-                final.get("reasoning_tokens"), final.get("answer_tokens"), len(attempts), services]))
+                final.get("reasoning_tokens"), final.get("answer_tokens"), len(attempts), services, unmatched]))
 
 
 def main(argv: list[str] | None = None) -> int:
