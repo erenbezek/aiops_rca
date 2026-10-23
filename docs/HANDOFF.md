@@ -855,3 +855,40 @@
   - Kapsama: pencere başı en eski kayıttan (filtered/metrics 2026-10-20T13:09:31Z) 1 dk önceye alınınca üç sinyal de "kısaldı"; 1 dk sonraya alınınca metrics kapsandı, traces/logs kısaldı (onların en eski kaydı daha yeni).
   - Uçtan uca: `positive_control` PASS (sahte shipping logu, beklenen yol shipping), filtered `clean`; eski veride `file/raw_*` sent serisi yok → collector FAIL (beklenen: o koşuda raw yoktu); opensearch `send_failed` +3742 kayıtta; ölçüm koşu başına ~3 dk.
   - Bulunan ve düzeltilen hata: pencere kopyası her kaynak dosyada hedefi yeniden açıp sıfırlıyordu (NUL dolu delikler).
+
+## 2026-10-24 · Uygulama → Planlama (C2, gözetimli iki koşu)
+- Koşular (UTC; `~/cerebrum2/c2_runs/`, `tools/scenario_runner.py run adManualGc_on productCatalogFailure_on`): korumalar tuttu (priz 1, şarj sınırı 80, `balanced`, inhibit, disk ~300 GB), en yüksek `x86_pkg_temp` 71 °C.
+  - `adManualGc_on_1` (22:41–23:03): **geçersiz, uygulamanın hatası.** Kapsama kontrolü "pencere başı"nı kopyanın başı (normal − 2 dk = 22:40:18) aldı; raw klasörü koşudan önce boştu, ilk raw kaydı collector açılışı (22:41:54). Planlamanın tanımıyla (normal başı 22:42:18) kapsanıyordu. Koşucu kuralla bir kez yeniden koştu. Öneri aşağıda.
+  - `adManualGc_on_2` (23:03–23:24): geçerli. Collector en yüksek bellek 127 MiB (ilk denemede 311 MiB).
+  - `productCatalogFailure_on_1` (23:24–23:51): geçerli. 6 dk'da 21 konteyner → collector yeniden başlatıldı (normal öncesi, kurala göre), sonra 22. Flag `TARGETING_MATCH` ile doğrulandı. En yüksek bellek 125 MiB.
+  - Pencerede yeniden başlama/OOM yok. Ölçüm koşu başına ~2,3 dk.
+- Ölçümler (`measure.json`):
+
+  | | adManualGc | productCatalogFailure |
+  |---|---|---|
+  | `positive_control` | PASS: raw flag penceresinde ad'de 233 (normal 16); filtered `clean` | PASS: raw flag penceresinde product-catalog'da 3274 (normal 3079, TracingHook her istekte); filtered `clean` |
+  | Belirti (raw = filtered, aynı) | belirtili, p99 gücü 75,5 (p95 52, yeni WARN 23, CPU 3,8, bellek 1,04) | belirtili, hata oranı gücü 1,67 (gecikme/CPU/bellek < 0,1) |
+  | Yeniden yazım | orijinal raw 123 / filtered 0; yeni filtered 123 | orijinal raw 1996 / filtered 0; yeni filtered 1996 |
+  | Basit kural top-3 | ad (5 sinyal), frontend-proxy, frontend → top-1 ✓ | frontend (2), checkout, product-catalog → top-1 ✗, top-3 ✓ |
+  | Collector | PASS | PASS |
+
+  - Aşırı süzme görülmedi: iki koşuda raw ve filtered kök neden sinyalleri birebir aynı.
+  - Collector: 6 dosya çıkışında sent artışı > 0, `send_failed`/`enqueue_failed` serisi yok (0); `receiver_refused` 27–28 seri, artış 0; `processor_refused` yok. Kayıt: opensearch 20 dk'da sent ~25 bin, `send_failed` ~10,5 bin (demonun log deposu ~%30 kayıp; bizim dosyalar etkilenmiyor); `jaeger_storage_exporter` da listede.
+- Madde 9 — hız ve 300 MB'la en kötü tutma (600 MB / hız; iki koşunun büyüğü):
+
+  | | traces | metrics | logs |
+  |---|---|---|---|
+  | raw MB/dk | 7,37 → 81 dk | 3,03 → 198 dk | 2,67 → 225 dk |
+  | filtered MB/dk | 6,53 → 92 dk | 1,74 → 345 dk | 2,17 → 276 dk |
+
+  Pencere başından kopyaya ~22 dk; en kötü 81 dk ile ~3,7 kat pay (trafik seli için).
+- Madde 9 — otelcol metrik adları (39): `otelcol_exporter_{sent,send_failed}_*` (send_failed yalnız `log_records`, yalnız opensearch), `otelcol_exporter_{in_flight_requests,queue_capacity,queue_size}`, `otelcol_receiver_{accepted,failed,refused}_*`, `otelcol_processor_{incoming,outgoing}_items`, `otelcol_processor_memory_limiter_accepted_*` (refused yok), `otelcol_processor_filter_*.filtered`, `otelcol_processor_batch_*`, `otelcol_process_*`, `otelcol_scraper_*`, `otelcol.resourcedetection.*`. `enqueue_failed` ve `processor_refused` adı hiç yok.
+- Madde 2 — raw `flag_name` bulgularının servis kırılımı (iki koşu toplamı) ve tablo:
+  - Tabloyla uyan: cartFailure → cart 240; paymentUnreachable → checkout 102; productCatalogFailure → product-catalog 11026; recommendationCacheFailure → recommendation 2250; intlShippingSlowdown → shipping 9; adManualGc → ad 127 (log); loadGeneratorFloodHomepage → load-generator 260 (flood ifadesi ayrıca aranır).
+  - flagd yolundakiler: emailMemoryLeak flagd 102 (flag kapalıyken de, flag penceresinde ~20: email flagd üzerinden değerlendiriyor; ölçüt kolay geçer, ayırt edici değil); paymentFailure flagd pencere başına 1; adFailure ve adHighCpu flagd 1 (sadece normal penceresinde, açılışta). Değişen flag'in adı flagd'de yazma anında görünüyor (adManualGc: flag penceresinde flagd 2), adFailure/adHighCpu'nun flag penceresindeki flagd bulgusu buna dayanacak; gece görülür.
+  - Tabloda olup görülmeyen: productCatalogLockContention product-catalog'da `flag_name` yok (sadece flagd 1). Ölçüt PHRASES (`lock contention scenario` logu, sadece açıkken) ile geçmeli; gece görülür.
+  - Beklenmeyen servis: adFailure ve adHighCpu ad'de 1'er (normal); emitRawPii → checkout 107; failedReadinessProbe → cart 138 (senaryo değiller).
+  - Servissiz kayıt (`-`): adManualGc ve productCatalogFailure 88–92 / koşu: raw'da `host_metrics` süreç metrikleri (`processscraper`), koşucunun komut satırı (`scenario_runner.py run adManualGc_on productCatalogFailure_on`) sızıyor. filtered'da yok (C1 kuralı: processscraper tümden düşer). Gece koşusu `run all` ile bütün senaryo adlarını komut satırına koyar: raw'da her senaryo adı her koşuda görünür; `-` beklenen yolda olmadığı için senaryoya özgü sayılmaz.
+  - Sonuç: tablo değişikliği gerekmiyor görünüyor; karar planlamada.
+- Kural testi adayları için not: `samples/` kayıtları makineye ait bilgi taşıyabiliyor (`processscraper`: komut satırı, ev klasörü yolları). Repoya girecek örnek seçilirken temizlenmeli/kısaltılmalı; satırlar Eren'e gösterilecek.
+- Öneri (onay bekliyor): kapsama kontrolünde pencere başı = normal başlangıcı (planlamanın tanımı); kopya yine normal − 2 dk'dan başlar. Geceden önce.
