@@ -245,8 +245,19 @@ def run_model(label: str, kind: str, model: str, max_tokens: int, extra: dict, c
     return ok
 
 
+def wait_container_gone(timeout_s: int = 60) -> None:
+    """`--rm` silmesi arka planda sürer; bitmeden aynı adla `docker run` çakışır (takma ad ön denemesi a2'de
+    9B açılışı 125 ile düştü)."""
+    for _ in range(timeout_s):
+        if subprocess.run(["docker", "inspect", LOCAL_NAME], capture_output=True).returncode != 0:
+            return
+        time.sleep(1)
+    raise RuntimeError(f"container {LOCAL_NAME} still exists after {timeout_s} s")
+
+
 def start_local(gguf: str) -> None:
     subprocess.run(["docker", "rm", "-f", LOCAL_NAME], capture_output=True)
+    wait_container_gone()
     subprocess.run(
         ["docker", "run", "-d", "--rm", "--name", LOCAL_NAME, "-p", f"127.0.0.1:{LOCAL_PORT}:8080",
          "-v", f"{MODELS_DIR}:/models:ro", IMAGE, "--server", "-m", f"/models/{gguf}",
@@ -265,6 +276,10 @@ def start_local(gguf: str) -> None:
 
 def stop_local() -> None:
     subprocess.run(["docker", "stop", LOCAL_NAME], capture_output=True)
+    try:
+        wait_container_gone()
+    except RuntimeError as e:
+        print(f"warning: {e}", file=sys.stderr)
 
 
 def count_tokens(text: str) -> int:
