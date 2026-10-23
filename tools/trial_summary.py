@@ -10,9 +10,12 @@ Sadece süzülmüş collector dosyalarını (`*.jsonl`, döndürülmüş dosyala
 İçerik bilerek basit (daraltma değil):
 - Servis başına gelen istek sayısı (SERVER ve CONSUMER span'leri), hata oranı (span durumu ERROR), p95 süre (ms),
   önce / sonra.
-- Konteyner başına CPU (`container.cpu.utilization`, `docker stats` gibi bir çekirdeğin yüzdesi; ortalama ve en
-  yüksek) ve bellek (`container.memory.usage.total`, MB; sadece ortalama), önce / sonra. Konteyner adı servis adıdır. İzleme
+- Konteyner başına CPU (`docker stats` gibi bir çekirdeğin yüzdesi; ortalama ve en yüksek) ve bellek (`container.memory.usage.total`, MB; sadece ortalama), önce / sonra. Konteyner adı servis adıdır. İzleme
   araçlarının konteynerleri (mağazanın değil ölçüm aracının parçası) yok; mağazanın veritabanları var.
+  CPU, birikimli CPU süresi sayacından (`container.cpu.usage.total`, ns) hesaplanır: ardışık iki ölçüm arasındaki
+  artış / geçen süre × 100; değer ikinci ölçümün düştüğü pencereye yazılır, sayaç geriye düşerse (yeniden başlama)
+  o çift atlanır. `container.cpu.utilization` kullanılmaz: bu collector sürümünde anlık değil, açılıştan beri
+  birikmiş bir ortalama gibi davranıyor (zor deneme vaka 3: `ad` %404 iken 0,03 → 3,44 doğrusal arttı).
   Servis satırında olmayan alan (ör. veritabanında istek, tarayıcı tarafında CPU) satırda yok.
 - En sık WARN ve üstü log mesajları (sonraki pencerede), servis ve önce / sonra sayısıyla. WARN dahil: payment
   ödeme hatasını WARN seviyesinde logluyor. Mesajlar gruplanmak için sadeleşir: kimlikler ve sayılar yer tutucu olur.
@@ -42,7 +45,7 @@ TOP_MESSAGES = 10
 MESSAGE_CHARS = 200
 MESSAGE_KEYS = ("exception.message", "err.message", "error.message", "error", "err", "message")
 
-CPU_METRIC = "container.cpu.utilization"
+CPU_METRIC = "container.cpu.usage.total"  # birikimli CPU süresi, ns
 MEMORY_METRIC = "container.memory.usage.total"
 # İzleme araçları (Eren, 2026-10-21): özete girmez. flagd, flagd-ui, load-generator collector'da zaten düşüyor.
 TOOLING_CONTAINERS = frozenset({"jaeger", "grafana", "prometheus", "opensearch", "otel-collector", "opamp-server"})
@@ -132,6 +135,7 @@ def summarize(paths: list[Path], window: Window) -> tuple[dict, dict]:
     spans = defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})  # [istek, hata, süreler]
     logs = defaultdict(Counter)  # (servis, mesaj) -> {before, after}
     resources = defaultdict(lambda: {"before": [], "after": []})  # (konteyner, metrik) -> değerler
+    cpu_counters = defaultdict(dict)  # konteyner -> {zaman: birikimli CPU ns}
     edges = {"spans": [False, False], "logs": [False, False], "metrics": [False, False]}
 
     def mark(signal: str, t: int) -> None:
@@ -176,9 +180,21 @@ def summarize(paths: list[Path], window: Window) -> tuple[dict, dict]:
                         mark("metrics", t)
                         side = window.side(t)
                         value = point_value(dp)
-                        if side is None or not container or container in TOOLING_CONTAINERS or value is None:
+                        if not container or container in TOOLING_CONTAINERS or value is None:
                             continue
-                        resources[(container, m["name"])][side].append(value)
+                        if m["name"] == CPU_METRIC:
+                            # Pencereden hemen önceki ölçüm de lazım: ilk hız onunla hesaplanır.
+                            if window.start - EDGE_NS <= t < window.end:
+                                cpu_counters[container][t] = value
+                        elif side is not None:
+                            resources[(container, m["name"])][side].append(value)
+    for container, points in cpu_counters.items():
+        ordered = sorted(points.items())
+        for (t1, v1), (t2, v2) in zip(ordered, ordered[1:]):
+            side = window.side(t2)
+            if side is None or v2 < v1:  # sayaç geriye düştü: konteyner yeniden başladı
+                continue
+            resources[(container, CPU_METRIC)][side].append((v2 - v1) / (t2 - t1) * 100)
     return {"spans": spans, "logs": logs, "resources": resources}, edges
 
 
