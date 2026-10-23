@@ -2,6 +2,8 @@
 
 Kullanım: python tools/trial_ask_models.py <vaka klasörü>... [--models qwen3.5-2b,gpt-oss-120b,...]
           python tools/trial_ask_models.py <vaka klasörü>... --score   # sadece kayıtlı cevaplardan tablo
+          [--view view_alias] [--answers answers_alias] [--alias]       # takma ad ön denemesi
+          python tools/trial_ask_models.py --probe <klasör> [--score]   # bilgi yoklaması
 
 Vaka klasörü: `view/summary.json` (modele giden özet) ve `case.json` (doğru cevap; sadece puanlamada okunur,
 modele gitmez). Her cevap `answers/<model>.json`'a yazılır; mevcut cevap üzerine yazılmaz (silinip tekrar koşulur).
@@ -23,6 +25,16 @@ Kurallar (kart ölçütü):
   atılarak karşılaştırılır (`product_catalog` = `product-catalog`); özetteki hiçbir servise uymayan adlar ayrı
   sütunda (`unmatched`). İlk denemenin tablosu aynı kalır (yeni sütun en sonda).
 - Groq dakikada 8K token: Groq istekleri arasında 65 sn beklenir. Gemini 503/429'da bir kez 30 sn sonra tekrar.
+- Takma ad ön denemesi (HANDOFF/DECISIONS 2026-10-23): `--view` özetin okunduğu klasör (varsayılan `view`),
+  `--answers` cevap klasörü (varsayılan `answers`); `--alias` puanlamada cevaptaki takma adları `ALIASES`
+  (`tools/trial_alias.py`) ile gerçek ada çevirir. Varsayılanlarla davranış ve tablolar öncekiyle aynı.
+- Bilgi yoklaması (`--probe <klasör>`, ölçüte girmez): vaka yok; beş modele OTel Demo'nun flag senaryoları sorulur,
+  cevap `<klasör>/<model>.json`. Şema: `scenarios` listesi (`{flag, service}`, sınır yok). Çıktı sınırı yerelde
+  600 (13 flag'e 300 yetmeyebilir), API'de 2000. `--score` ile sayım: flag adı ve servis harf dışı karakterler
+  atılarak OTEL_DEMO "Hata senaryoları" tablosuyla karşılaştırılır; model başına doğru flag adı ve doğru
+  flag→servis çifti (13 üzerinden). `paymentUnreachable` payment ya da checkout, `imageSlowLoad` frontend,
+  frontend-proxy ya da image-provider, `loadGeneratorFloodHomepage` load-generator ya da frontend kabul (soru
+  demoyu bilmek, kök neden kuralı değil; Eren, 2026-10-23).
 Çıkış kodu: 0 tamam, 1 bir model ya da vaka hata verdi, 2 kullanım/girdi hatası.
 """
 from __future__ import annotations
@@ -94,6 +106,30 @@ SCHEMA = {
 RESPONSE_FORMAT = {"type": "json_schema",
                    "json_schema": {"name": "root_cause_candidates", "strict": True, "schema": SCHEMA}}
 
+# Bilgi yoklaması (Eren onayı 2026-10-23; sistem mesajı yok).
+PROBE_PROMPT = ("The OpenTelemetry Demo (Astronomy Shop) has built-in failure scenarios that are turned on with "
+                "feature flags. List every such feature flag you know, with the exact flag name and the service it "
+                "affects. Leave out flags you are not sure about. Answer with JSON only: "
+                '{"scenarios": [{"flag": "<flag name>", "service": "<service name>"}]}')
+PROBE_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["scenarios"],
+    "properties": {"scenarios": {
+        "type": "array",
+        "items": {"type": "object", "additionalProperties": False, "required": ["flag", "service"],
+                  "properties": {"flag": {"type": "string"}, "service": {"type": "string"}}}}},
+}
+PROBE_FORMAT = {"type": "json_schema",
+                "json_schema": {"name": "feature_flag_scenarios", "strict": True, "schema": PROBE_SCHEMA}}
+PROBE_LOCAL_MAX_TOKENS = 600
+# OTEL_DEMO "Hata senaryoları" (minimal mod, 13 flag): flag -> kabul edilen servisler.
+PROBE_TRUTH = {
+    "adFailure": {"ad"}, "adHighCpu": {"ad"}, "adManualGc": {"ad"}, "cartFailure": {"cart"},
+    "emailMemoryLeak": {"email"}, "imageSlowLoad": {"frontend", "frontend-proxy", "image-provider"},
+    "intlShippingSlowdown": {"shipping"}, "paymentFailure": {"payment"}, "paymentUnreachable": {"payment", "checkout"},
+    "productCatalogFailure": {"product-catalog"}, "productCatalogLockContention": {"product-catalog"},
+    "recommendationCacheFailure": {"recommendation"}, "loadGeneratorFloodHomepage": {"load-generator", "frontend"},
+}
+
 
 def build_messages(summary_text: str) -> list[dict]:
     summary = json.loads(summary_text)
@@ -132,10 +168,11 @@ def parse_answer(content: str | None) -> list[str] | None:
     return services or None
 
 
-def ask(kind: str, model: str, max_tokens: int, extra: dict, messages: list[dict]) -> dict:
+def ask(kind: str, model: str, max_tokens: int, extra: dict, messages: list[dict],
+        response_format: dict = RESPONSE_FORMAT, parse=None) -> dict:
     url, key_env = ENDPOINTS[kind]
     body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens,
-            "response_format": RESPONSE_FORMAT, **extra}
+            "response_format": response_format, **extra}
     status, resp, elapsed = post(url, body, key_env)
     retried = None
     if kind == "gemini" and status in (429, 503):
@@ -159,25 +196,41 @@ def ask(kind: str, model: str, max_tokens: int, extra: dict, messages: list[dict
         answer_tokens=(usage.get("completion_tokens") or 0) - reasoning,
         usage=usage,
     )
-    attempt["parsed"] = parse_answer(attempt["content"])
+    attempt["parsed"] = (parse or parse_answer)(attempt["content"])
     return attempt
 
 
-def run_model(label: str, kind: str, model: str, max_tokens: int, extra: dict, cases: list[Path]) -> bool:
+def parse_probe(content: str | None) -> list[list[str]] | None:
+    """Bilgi yoklaması cevabı: [[flag, servis], ...]; okunamazsa None."""
+    if not content:
+        return None
+    text = re.sub(r"```(?:json)?", "", content)
+    start = text.find("{")
+    if start < 0:
+        return None
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(text[start:])
+        return [[str(s["flag"]).strip(), str(s["service"]).strip()] for s in obj["scenarios"]]
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def run_model(label: str, kind: str, model: str, max_tokens: int, extra: dict, cases: list[Path],
+              view: str = "view", answers: str = "answers") -> bool:
     ok = True
     for case in cases:
-        out = case / "answers" / f"{label}.json"
+        out = case / answers / f"{label}.json"
         if out.exists():
             print(f"skip: {out} exists")
             continue
-        messages = build_messages((case / "view" / "summary.json").read_text(encoding="utf-8"))
+        messages = build_messages((case / view / "summary.json").read_text(encoding="utf-8"))
         attempts = [ask(kind, model, max_tokens, extra, messages)]
         last = attempts[-1]
         if last.get("finish_reason") == "length" and last.get("parsed") is None:
             if kind == "groq":
                 time.sleep(GROQ_GAP)
             attempts.append(ask(kind, model, max_tokens * 2, extra, messages))
-        record = {"model": label, "kind": kind, "model_id": model, "request": {
+        record = {"model": label, "kind": kind, "model_id": model, "view": view, "request": {
             "temperature": 0, "response_format": RESPONSE_FORMAT, **extra}, "system_prompt": SYSTEM_PROMPT,
             "user_template": USER_TEMPLATE, "attempts": attempts}
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -226,42 +279,107 @@ def name_key(name: str) -> str:
     return re.sub(r"[^a-z]", "", name.lower())
 
 
-def score(cases: list[Path]) -> None:
+def score(cases: list[Path], view: str = "view", answers: str = "answers", alias: bool = False) -> None:
+    back = {}
+    if alias:  # takma ad -> gerçek ad (aynı ad karşılaştırmasıyla)
+        from trial_alias import ALIASES
+        back = {name_key(a): name_key(r) for r, a in ALIASES.items()}
     print("\t".join(["case", "model", "top1", "top3", "parsed", "elapsed_s", "input", "reasoning", "answer",
                      "attempts", "answer_services", "unmatched"]))
     for case in cases:
         truth = name_key(json.loads((case / "case.json").read_text(encoding="utf-8"))["root_cause_service"])
-        summary = json.loads((case / "view" / "summary.json").read_text(encoding="utf-8"))
+        summary = json.loads((case / view / "summary.json").read_text(encoding="utf-8"))
         known = {name_key(r["service"]) for r in summary["services"]}
         for label, *_ in MODELS:
-            path = case / "answers" / f"{label}.json"
+            path = case / answers / f"{label}.json"
             if not path.exists():
                 continue
             attempts = json.loads(path.read_text(encoding="utf-8"))["attempts"]
             final = attempts[-1]
             services = [s.lower() for s in (final.get("parsed") or [])]
-            keys = [name_key(s) for s in services]
-            unmatched = [s for s, k in zip(services, keys) if k not in known]
+            # Özette olmayan ad (takma adlı koşuda gerçek ad dahil) unmatched; doğru sayılmaz.
+            unmatched = [s for s in services if name_key(s) not in known]
+            keys = [back.get(name_key(s), name_key(s)) if name_key(s) in known else None for s in services]
             print("\t".join(str(x) for x in [
                 case.name, label, bool(keys[:1]) and keys[0] == truth, truth in keys[:3],
                 final.get("parsed") is not None, final.get("elapsed_s"), final.get("input_tokens"),
                 final.get("reasoning_tokens"), final.get("answer_tokens"), len(attempts), services, unmatched]))
 
 
+def run_probe(label: str, kind: str, model: str, max_tokens: int, extra: dict, out_dir: Path) -> bool:
+    out = out_dir / f"{label}.json"
+    if out.exists():
+        print(f"skip: {out} exists")
+        return True
+    if kind == "local":
+        max_tokens = PROBE_LOCAL_MAX_TOKENS
+    messages = [{"role": "user", "content": PROBE_PROMPT}]
+    attempts = [ask(kind, model, max_tokens, extra, messages, PROBE_FORMAT, parse_probe)]
+    last = attempts[-1]
+    if last.get("finish_reason") == "length" and last.get("parsed") is None:
+        if kind == "groq":
+            time.sleep(GROQ_GAP)
+        attempts.append(ask(kind, model, max_tokens * 2, extra, messages, PROBE_FORMAT, parse_probe))
+    record = {"model": label, "kind": kind, "model_id": model, "request": {
+        "temperature": 0, "response_format": PROBE_FORMAT, **extra}, "prompt": PROBE_PROMPT, "attempts": attempts}
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(record, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    final = attempts[-1]
+    print(f"probe {label}: status {final['status']}, {final['elapsed_s']} s, "
+          f"{len(final.get('parsed') or [])} scenarios")
+    return "error" not in final
+
+
+def score_probe(out_dir: Path) -> None:
+    truth = {name_key(f): {name_key(s) for s in svcs} for f, svcs in PROBE_TRUTH.items()}
+    print("\t".join(["model", "parsed", "listed", "flags_correct", "pairs_correct", "of", "unknown_flags"]))
+    for label, *_ in MODELS:
+        path = out_dir / f"{label}.json"
+        if not path.exists():
+            continue
+        final = json.loads(path.read_text(encoding="utf-8"))["attempts"][-1]
+        pairs = final.get("parsed") or []
+        flags_ok, pairs_ok, unknown = set(), set(), []
+        for flag, service in pairs:
+            f = name_key(flag)
+            if f in truth:
+                flags_ok.add(f)
+                if name_key(service) in truth[f]:
+                    pairs_ok.add(f)
+            else:
+                unknown.append(flag)
+        print("\t".join(str(x) for x in [label, final.get("parsed") is not None, len(pairs), len(flags_ok),
+                                          len(pairs_ok), len(truth), unknown]))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("cases", nargs="+", help="case folders (with view/summary.json)")
+    parser.add_argument("cases", nargs="*", help="case folders (with <view>/summary.json)")
     parser.add_argument("--models", help="comma-separated labels; default all")
     parser.add_argument("--score", action="store_true", help="only print the table from saved answers")
+    parser.add_argument("--view", default="view", help="folder in each case with summary.json (default view)")
+    parser.add_argument("--answers", default="answers", help="answer folder in each case (default answers)")
+    parser.add_argument("--alias", action="store_true", help="score: map alias names back to real names")
+    parser.add_argument("--probe", metavar="DIR", help="knowledge probe: ask the flag question, answers to DIR")
     args = parser.parse_args(argv)
 
+    if args.probe:
+        if args.cases:
+            print("error: --probe takes no case folders", file=sys.stderr)
+            return 2
+        if args.score:
+            score_probe(Path(args.probe).expanduser())
+            return 0
+    elif not args.cases:
+        print("error: case folders required (or --probe)", file=sys.stderr)
+        return 2
     cases = [Path(c).expanduser() for c in args.cases]
     for case in cases:
-        if not (case / "view" / "summary.json").is_file():
-            print(f"error: {case}/view/summary.json not found", file=sys.stderr)
+        if not (case / args.view / "summary.json").is_file():
+            print(f"error: {case}/{args.view}/summary.json not found", file=sys.stderr)
             return 2
     if args.score:
-        score(cases)
+        score(cases, args.view, args.answers, args.alias)
         return 0
     wanted = set(args.models.split(",")) if args.models else {m[0] for m in MODELS}
     unknown = wanted - {m[0] for m in MODELS}
@@ -277,17 +395,25 @@ def main(argv: list[str] | None = None) -> int:
     for label, kind, model, max_tokens, extra in MODELS:
         if label not in wanted:
             continue
-        if all((case / "answers" / f"{label}.json").exists() for case in cases):
+        if args.probe:
+            if (Path(args.probe).expanduser() / f"{label}.json").exists():
+                print(f"skip: {label} already answered the probe")
+                continue
+        elif all((case / args.answers / f"{label}.json").exists() for case in cases):
             print(f"skip: {label} already answered every case")
             continue
         try:
             if kind == "local":
                 start_local(model)
+            if args.probe:
+                ok &= run_probe(label, kind, model, max_tokens, extra, Path(args.probe).expanduser())
+                continue
+            if kind == "local":
                 for case in cases:
-                    text = (case / "view" / "summary.json").read_text(encoding="utf-8")
+                    text = (case / args.view / "summary.json").read_text(encoding="utf-8")
                     prompt = "\n".join(m["content"] for m in build_messages(text))
                     print(f"{case.name}: summary {count_tokens(text)} tokens, prompt {count_tokens(prompt)} tokens")
-            ok &= run_model(label, kind, model, max_tokens, extra, cases)
+            ok &= run_model(label, kind, model, max_tokens, extra, cases, args.view, args.answers)
         except (RuntimeError, subprocess.CalledProcessError, OSError) as e:
             print(f"error: {label}: {e}", file=sys.stderr)
             ok = False
