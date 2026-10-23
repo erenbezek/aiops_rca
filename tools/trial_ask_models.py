@@ -34,7 +34,8 @@ Kurallar (kart ölçütü):
   atılarak OTEL_DEMO "Hata senaryoları" tablosuyla karşılaştırılır; model başına doğru flag adı ve doğru
   flag→servis çifti (13 üzerinden). `paymentUnreachable` payment ya da checkout, `imageSlowLoad` frontend,
   frontend-proxy ya da image-provider, `loadGeneratorFloodHomepage` load-generator ya da frontend kabul (soru
-  demoyu bilmek, kök neden kuralı değil; Eren, 2026-10-23).
+  demoyu bilmek, kök neden kuralı değil; Eren, 2026-10-23). Serviste sondaki `service` eki atılır (`adservice` =
+  `ad`; eski demo sürümlerinin adları; Eren seçeneği A, 2026-10-23, ölçmeden önce).
 Çıkış kodu: 0 tamam, 1 bir model ya da vaka hata verdi, 2 kullanım/girdi hatası.
 """
 from __future__ import annotations
@@ -330,6 +331,11 @@ def run_probe(label: str, kind: str, model: str, max_tokens: int, extra: dict, o
     return "error" not in final
 
 
+def probe_service_key(name: str) -> str:
+    key = name_key(name)
+    return key[:-len("service")] if key.endswith("service") and key != "service" else key
+
+
 def score_probe(out_dir: Path) -> None:
     truth = {name_key(f): {name_key(s) for s in svcs} for f, svcs in PROBE_TRUTH.items()}
     print("\t".join(["model", "parsed", "listed", "flags_correct", "pairs_correct", "of", "unknown_flags"]))
@@ -344,7 +350,7 @@ def score_probe(out_dir: Path) -> None:
             f = name_key(flag)
             if f in truth:
                 flags_ok.add(f)
-                if name_key(service) in truth[f]:
+                if probe_service_key(service) in truth[f]:
                     pairs_ok.add(f)
             else:
                 unknown.append(flag)
