@@ -827,3 +827,31 @@
   - **Güç formülü:** her sinyalde T = iki koşulun gerektirdiği değerlerin büyüğü (ör. p95 için max(önce × 1,5, önce + 20 ms)); güç = (sonra − önce) / (T − önce); istek düşüşünde ters yönde (önce − sonra) / (önce − T). Güç ≥ 1 belirtili; 0,8 ≤ güç < 1,2 sınırda. Senaryonun gücü = belirtili sinyaller arasında en büyük güç, karar o sinyale göre. Basit kuralda eşitliği oran değil güç bozar.
   - **Isınma:** koşu sırasında `x86_pkg_temp` kuralı tutmazsa koşu geçersiz, soğuyunca baştan koşulur. İkinci kez de ısınırsa üçüncü kez koşulmaz, kayda yazılır, karar Eren'de (`adHighCpu`'da olası).
 - Kural testi örnekleri: DECISIONS 2026-10-24 (elle gözden geçirilmiş küçük raw örnekleri, satırlar Eren'e gösterilir).
+- Planlama kararları (2) (Eren onaylı, 2026-10-24; ölçmeden önce yazıldı, sonuca göre değişmez). Yukarıdaki "Collector" maddesinin ölçüt kısmının ve "Güç formülü" maddesinin karar eşiklerinin yerine geçer:
+  1. **Collector ölçütü:**
+     - Kapsam: 6 dosya çıkışımız (`file/traces`, `file/metrics`, `file/logs`, `file/raw_traces`, `file/raw_metrics`, `file/raw_logs`). Her biri için `otelcol_exporter_sent_*` serisi var ve pencerede artış > 0; `send_failed` ve `enqueue_failed` artışı 0 (seri yoksa 0). `otelcol_receiver_refused_*` serisi var, artışı 0.
+     - Artış = pencere sonundaki değer − pencere başından önceki son değer; pencere başından önce noktası olmayan seri 0'dan başlamış sayılır (pencerede 120 ile doğan seri → 120). Pencere: normal başı – flag kapanışı.
+     - opensearch, otlp_grpc/jaeger, otlp_http/prometheus, span_metrics, debug (ve bulunan diğerleri): sadece kayda, sent ve failed artışı birlikte. `processor_refused` yoksa kayda.
+     - Neden: bu sürümde `enqueue_failed` ve dosya çıkışlarının `send_failed` serisi hiç yok (sayaç ilk hatada doğuyor). Eski veride (zor deneme vaka 6) `send_failed_log_records` artışı yalnız opensearch'te (demonun log deposu), `file/logs` eksiksiz.
+  2. **Senaryoya özgü bulgu:** CLI bulgusu (`flag_name` kuralıyla senaryonun flag adı ya da metinde senaryonun `PHRASES` ifadesi), flag penceresinde, senaryonun beklenen yolundaki serviste ≥ 1:
+     - adManualGc → ad; cartFailure → cart; paymentUnreachable → checkout; productCatalogFailure ve productCatalogLockContention → product-catalog; recommendationCacheFailure → recommendation; intlShippingSlowdown → shipping. Bunlarda flagd bulgusu sayılmaz.
+     - adFailure, adHighCpu, emailMemoryLeak, paymentFailure → flagd (OTEL_DEMO sızıntı tablosuna göre ad, email ve payment flag değerlendirme olayı yaymıyor).
+     - loadGeneratorFloodHomepage → load-generator kaydı ve aynı satırda flood ifadesi.
+     - Normal pencere sayısı ve servis kırılımı kayda; senaryonun flag adı beklenmeyen bir serviste çıkarsa kayda.
+     - Gözetimli iki koşudan sonra, geceden önce: raw'daki `flag_name` bulgularının servis kırılımı bu tabloyla karşılaştırılır. Tutmazsa tablo geceden önce düzeltilir (Eren).
+  3. **Belirti kararı:** sınırda önce gelir: güç < 0,8 belirtisiz; 0,8 ≤ güç < 1,2 sınırda; ≥ 1,2 belirtili. raw ve filtered kararı farklıysa (herhangi iki kategori) sinyal bazında incelenir; sinyal başına güç iki taraf için kayda. Kök neden servisinde CPU ya da bellek iki pencerede de değersizse karar "ölçülemedi" (belirtisiz değil); değersiz sinyaller kayda.
+  4. Yeni WARN log gücü = en sık yeni mesajın sayısı / 5.
+  5. Soğuma: 2 dk boyunca 90 °C altı.
+  6. **Pencere kapsaması:** bütün dosya çıkışlarında `max_megabytes` 100 → 300 (raw ve filtered; `max_backups` 2; en fazla 5,4 GB; DECISIONS 2026-10-24). Kopyalamada her {raw, filtered} × {traces, metrics, logs} için kaynak dosyalardaki en eski kaydın kendi zamanı (izlerde `startTimeUnixNano`, metriklerde `timeUnixNano`, loglarda `timeUnixNano`, 0 ise `observedTimeUnixNano`) ≤ pencere başı; değilse koşu geçersiz ("pencere döndürmeyle kısaldı (<base>/<signal>)"), bir kez yeniden koşulur, ikincisinde kayda, karar Eren'de. `run.json`'a sinyal başına en eski kayıt zamanı ve hız (MB/dk).
+  7. **Süzülmemiş kopyalar:** `c2_runs/*/window/raw/` ve `samples/` kart bitince silinmez; planlama doğrulamasından sonra Eren onayıyla silinir ve kayda yazılır (DECISIONS 2026-10-24). Kural testi örnekleri bundan önce, kartın içinde seçilir. "Gece sonunda `telemetry/raw/` boş" ölçütü aynı.
+  8. Adlar onaylı: `window/raw/`, `window/filtered/`, `collector_mem.tsv`, `containers_start.txt`, `containers_end.txt`.
+  9. Gözetimli iki koşunun raporuna: sinyal başına raw ve filtered hız (MB/dk) ve 300 MB'la en kötü tutma süresi (600 MB / hız); otelcol metrik adları; madde 2 karşılaştırması.
+- Uygulamanın tanımları (ölçmeden önce):
+  - Kapsamadaki "pencere başı" = kopyanın başı (normal başlangıcı − 2 dk). Normal başından biraz sıkı: CPU'nun ilk hızı ve collector sayaçlarının "pencere başından önceki son değeri" bu 2 dk'dan geliyor.
+  - Kopya: zamanlarından biri [normal − 2 dk, flag kapanışı + 1 dk] içinde olan satırlar (satır = bir OTLP isteği).
+  - Senaryoya özgü bulgunun penceresi: satırdaki en büyük zaman flag yazılışı ile flag kapanışı arasında.
+- Demo açmadan gösterildi (eski süzülmüş veri, zor deneme vaka 6 penceresi; sahte raw satırları sızıntı fixture'larından):
+  - Artış: pencerede 120 ile doğan sabit seri → 120; önceden 100 sabit → 0; önceden 50, sonda 80 → 30; pencereden sonra artan → 0. `file/raw_traces` `send_failed` pencerede doğunca ölçüt FAIL; sadece opensearch hatası → PASS (kayıtta); `file/logs` sent serisi yoksa FAIL.
+  - Kapsama: pencere başı en eski kayıttan (filtered/metrics 2026-10-20T13:09:31Z) 1 dk önceye alınınca üç sinyal de "kısaldı"; 1 dk sonraya alınınca metrics kapsandı, traces/logs kısaldı (onların en eski kaydı daha yeni).
+  - Uçtan uca: `positive_control` PASS (sahte shipping logu, beklenen yol shipping), filtered `clean`; eski veride `file/raw_*` sent serisi yok → collector FAIL (beklenen: o koşuda raw yoktu); opensearch `send_failed` +3742 kayıtta; ölçüm koşu başına ~3 dk.
+  - Bulunan ve düzeltilen hata: pencere kopyası her kaynak dosyada hedefi yeniden açıp sıfırlıyordu (NUL dolu delikler).

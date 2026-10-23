@@ -75,3 +75,12 @@ Sadece Eren'in onayladığı isimler.
 | `--view`, `--answers`, `--alias`, `--probe` | `trial_ask_models.py` seçenekleri: özetin okunduğu klasör / cevapların yazıldığı klasör / puanlamada takma adları gerçek ada çevir / bilgi yoklaması kipi (cevaplar verilen klasöre) |
 | `feature_flag_scenarios` | Bilgi yoklamasının JSON şemasının adı: `scenarios` listesi, öğeleri `{flag, service}` |
 | `~/cerebrum2/quality_trial_probe/` | Bilgi yoklaması cevapları (OTel Demo flag senaryoları; cevap içerir, `quality_trial` dışında); repo dışı |
+| `tools/scenario_runner.py` | Senaryo koşucusu (C2, vaka üretiminde de): korumalar → `up --raw` → 10 dk normal + 10 dk flag → kayıt ve telemetri penceresinin kopyası; `list`, `guards`, `run <id>… \| all` |
+| `tools/c2_measure.py` | C2 ölçümü: koşu klasöründen sızıntı (`positive_control`), belirti ve güç (raw/filtered), yeniden yazımlar, basit kural, collector sayaçları; model yok |
+| `~/cerebrum2/c2_runs/` | Koşucu çıktıları, koşu başına `<senaryo>_<varyant>_<deneme>/` (`%` → `pct`); cevap ve süzülmemiş veri içerir, repo dışı; süzülmemiş kısmı planlama doğrulamasından sonra Eren onayıyla silinir |
+| `run.json` | Koşu kaydı: senaryo, flag, varyant, kök neden, zamanlar (UTC), konteyner sayıları, zamanlayıcı, pencerede yeniden başlama/OOM, korumalar, en yüksek sıcaklık, collector en yüksek bellek, pencere kapsaması (sinyal başına en eski kayıt, MB/dk), geçerli/geçersiz ve sebep |
+| `measure.json` | `c2_measure.py`'nin koşu başına sonucu (koşu klasöründe) |
+| `samples/` | Koşu klasöründe kural testi için aday kayıtlar (raw bulgularından tek kayda indirilmiş OTLP satırları ve `index.tsv`); repoya girmeden önce Eren görür |
+| `window/raw/`, `window/filtered/` | Koşu klasöründe telemetri penceresinin kopyası (normal − 2 dk … flag kapanışı + 1 dk), sinyal başına `traces.jsonl`, `metrics.jsonl`, `logs.jsonl`; `raw/` cevap içerir, planlama doğrulamasından sonra Eren onayıyla silinir |
+| `collector_mem.tsv` | Koşu klasöründe collector belleği, dakikada bir (UTC zaman, MiB) |
+| `containers_start.txt`, `containers_end.txt` | Koşu klasöründe normal başında ve flag kapanışında konteyner durumu (yeniden başlama sayısı, OOM, çalışıyor mu, başlama zamanı) |
