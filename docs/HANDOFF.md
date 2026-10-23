@@ -767,3 +767,56 @@
   - "Eski" ile a1 farkı (9B 3 → 5) koşul farkı: vaka 1–2 eski cevapları şemasız ve CPU/belleksiz istemle alındı (9B'nin "çözemedi"si biçimdi). Gürültüye girmedi.
   - Sınırlamalar: 5 belirtili vaka, sinyaller güçlü (özetteki hata/CPU/gecikme cevabı taşıyor); `Invalid token` gibi ayırt edici log ifadeleri kaldı; bilgi yoklaması sadece flag adlarını ölçüyor, mimariyi (hangi servis kimi çağırır) değil. Sonuç: bu vakalarda başarı ad tanımaya dayanmıyor gibi; "ezber yok" demek değil.
   - Süre: yerel modeller bu akşam dünden ~%30 yavaş (9B vaka 3–5'te 134–144 sn, zor denemede 102–107; yük ortalaması ~3). Ölçüt değil; neden araştırılmadı.
+
+## 2026-10-23 · Planlama → Planlama (takma ad ön denemesi doğrulaması)
+- Doğrulama (planlama, main `6875f76`; PR #15 koşusu yeşil, birleşmeden sonra dala commit yok):
+  - (a1), (a2) ve takma adlı (b) tablolar kayıtlı cevaplardan aynı üretildi; belirtili 5 vakada çözülen: 2B 3/3/3, 4B 5/5/5, 9B 5/5/4, gpt-oss 5/5/5, Gemini 5/5/5.
+  - Takma adlı 6 özet: planlamanın ayrı betiğiyle eşleme gerçek adlı özete uygulanınca birebir aynı (ad dışında fark yok; tek mesaj değişikliği vaka 1 `demo.` öneki). Servis alanlarında gerçek ad yok; `astronomy`/`valkey`/`otel`/`demo.`/tireli ve CamelCase adlar yok. Sızıntı CLI'ı altısında `clean`.
+  - Bilgi yoklaması cevapları okundu, sayım doğru: hiçbir model OTel Demo flag'lerini hatırlamıyor (Gemini eski `…service` adlarıyla uydurma; gpt-oss'un tek eşleşmesi `payment-failure` genel kalıp).
+- Sonucun gücü (planlamanın hatası): test ezberin **avantajını** ölçemezdi. Bu 5 vakada büyük modeller gerçek adla zaten 5/5 çözüyordu (tavan etkisi) ve özetteki sayılar cevabı taşıyordu (zor deneme doğrulamasında yazılmıştı). Ölçülebilen tek şey "takma ad modeli bozuyor mu" idi. Bu, öneri anında Eren'e açıkça söylenmeliydi; sadece "6 vaka, sinyal zayıf" denmişti. Değerli kalanlar: bilgi yoklaması (flag ezberi yok), takma ad aracı (asıl değerlendirmede hazır), API gürültüsü ölçüldü (temperature 0'da 2.–3. adaylar değişiyor). Ezberin güçlü testi asıl değerlendirmede, geliştirme setinin zor vakalarında gerçek ad/takma ad (DECISIONS 2026-10-23); yeni ön deneme yok. Süreç kuralı: güç kontrolü (DECISIONS 2026-10-23).
+- Notlar (değerlendirme kartına):
+  - Yerel modeller bu koşuda zor denemeden ~%30 yavaştı (9B 134–144 sn); nedeni araştırılmadı. Asıl koşulardan önce o gün hız yeniden ölçülür, bütçe ona göre.
+  - Boyut: 4B her koşulda 5/5; karar geliştirme setinde.
+  - `tools/trial_alias.py --help` yardım göstermiyor (argümanı yol sanıyor); küçük, sadece not.
+- Eren (2026-10-23): C2 kartı önce ertelendi, aynı gün yazıldı (aşağıda).
+
+## 2026-10-23 · Planlama → Uygulama (collector C2: positive_control, belirti korunması, kalibrasyon)
+- Yapılan (planlama): DECISIONS 2026-10-23 (C2 tasarımı, güç kontrolü kuralı); takma ad ön denemesi doğrulaması yukarıda.
+- Amaç: gerçek senaryolarla, süzülmemiş (`raw/`) ve süzülmüş (`filtered/`) çıkış yan yana açıkken her senaryoda: (1) sızıntı testi gerçek veride senaryoya özgü sızıntıyı buluyor, süzülmüş veride hiçbir şey bulmuyor; (2) süzme belirtiyi silmiyor; (3) senaryo 10 dk'da telemetride belirti üretiyor, varyant seçilebiliyor; (4) collector yük altında dayanıyor.
+- Güç kontrolü (DECISIONS 2026-10-23): raw'da senaryoya özgü bulgu yok → sızıntı CLI'ı düzeltilir; filtered'da bulgu → collector kuralı düzeltilir; belirti raw'da var filtered'da yok → aşırı süzme, kural düzeltilir; belirti raw'da da yok → varyant değişir ya da senaryo katalogdan çıkar (Eren); iki seviye → vaka üretimindeki varyant (Eren); collector bellek sınıra yakın → limit değişir. Tavan/taban yok (senaryolar bağımsız). Zayıf yan: her senaryo bir kez; sınırda sonuçlar vaka üretiminde tekrarlanır. Ek (Eren, 2026-10-23): belirti gücü ve basit kural kontrolü → vaka üretiminde kendi altyapı hatalarımızın oranı ve zorluk seviyeleri (kural senaryoyu kolayca çözüyorsa o senaryo modelleri ayırt edemez; tavan etkisi model çalıştırmadan görülür).
+- Beklenen:
+  1. Dal `task/collector-c2`; ilk commit planlamanın docs değişiklikleri (DECISIONS, HANDOFF, PROJECT; main'de bekleyen takma ad doğrulaması dahil). **PR birleştikten sonra dala commit atılmaz.**
+  2. **Koşucu betiği** (adı, çıktı klasörü ve kayıt alanları önce Eren'e önerilir; kayıtlar cevap içerir, repo dışı). Koşu başına: `tools/otel_demo.sh up --raw` → 22 konteyner (`count(container_uptime_seconds)`; değilse collector yeniden başlatılır, tekrar sayılır) → flagd-ui zamanlayıcısı kapalı → 10 dk normal → flag yaz, flagd'den doğrula (`productCatalogFailure` `product_id` bağlamıyla; sayısal flag'ler doğru tiple) → 10 dk → flag kapat, doğrula → ölçümler **hemen** (DECISIONS 2026-10-21: döndürme) → `RestartCount`/`OOMKilled` (hedef dışı beklenmeyen yeniden başlama → koşu geçersiz; `emailMemoryLeak`'te email'in yeniden başlaması beklenen, kayda) → `down`. Collector belleği dakikada bir. Vaka penceresinde 8080'den sadece flag yazma ve doğrulama.
+  3. **Gece korumaları** (DECISIONS 2026-10-20 makine sınırları): priz (`AC online=1`), şarj sınırı 80, `x86_pkg_temp` kuralı, boş disk ≥ 30 GB, `systemd-inhibit`; biri tutmazsa başlamaz ya da sıradaki koşudan önce durur ve yazar. Güç profili `balanced`.
+  4. **Ölçümler (koşu başına, raw ve filtered ayrı):**
+     - Sızıntı: sızıntı CLI'ı raw'da çıkış 1 ve **senaryoya özgü** bulgu (flag adı ya da OTEL_DEMO sızıntı tablosundaki ifade; flagd/load-generator'ın rutin bulguları sayılmaz); filtered'da `clean`.
+     - Belirti (kök neden servisi, telemetriden; normal 10 dk ile flag 10 dk): hata oranı, p95, p99, CPU, bellek, istek sayısı, yeni WARN+ log. Eşikler zor denemedekiler (HANDOFF 2026-10-23 sonuç kaydı) + p99 (×1,5 ve +20 ms). Karar: belirtili / belirtisiz / sınırda (karar veren sinyal eşiğe %20'den yakın).
+     - Yeniden yazımlar: senaryoya özgü orijinal metin raw'da ≥ 1 ve filtered'da 0; yeni metin filtered'da ≥ 1 (product-catalog hata mesajı, kilit logları, `adManualGc`, shipping gecikme logu; WARN+ ile sınırlı değil, bütün sinyaller).
+     - Collector: en yüksek bellek, yeniden başlama.
+     - **Belirti gücü:** karar veren sinyalin (en güçlü sapma) gözlenen değişimi ve eşiğe oranı (kaç kat aştı), raw ve filtered için.
+     - **Basit kural kontrolü** (model yok, filtered telemetriden; kural ölçmeden önce burada yazılı): kök neden servisi için kullanılan sinyaller ve eşikler **bütün servislere** uygulanır. Servis puanı = eşiği aşan sinyal sayısı; eşitlikte eşiği aşan sinyaller arasında en büyük oran (sonra/önce) öne geçer. En yüksek puanlı 3 servis kuralın cevabı; top-1 ve top-3 kayda. `astronomy-db` ve `valkey-cart` sadece CPU/bellekle puanlanır; izleme araçları puanlanmaz.
+  5. **Kural testi betiği** (DECISIONS 2026-10-21; önerilen adlar `tools/test_collector_rules.sh`, `tests/fixtures/collector_rules/`, Eren onaylar): geçici collector'a C2'nin raw verisinden çıkarılmış küçük örnekler (her kurala en az bir); girdide bulgu > 0, çıktıda 0; kasıtlı kırmızı: bir kural silinince bulgu çıkar. Docker ister, CI'da koşmaz.
+  6. Sıra: koşucu + 2 senaryo gözetimli (yeniden yazım içerenlerden: `adManualGc`, `productCatalogFailure`) → Eren onayı → gece (15 koşu, ~6–6,5 saat; sığmazsa iki gece) → kural testi betiği.
+- Bitti ölçütü (ölçmeden önce yazıldı, sonuca göre değişmez):
+  - 15 koşu kaydı: geçerli/geçersiz ve sebep; korumalar ve makine durumu (priz, şarj, sıcaklık, disk, güç profili).
+  - `positive_control`: her geçerli koşuda raw'da senaryoya özgü bulgu ≥ 1, filtered `clean`. Tutmayan senaryo için sebep (CLI mı collector mı) yazılır, düzeltilir, o senaryo yeniden koşar.
+  - Belirti tablosu: senaryo × {raw, filtered} × sinyal ve karar. Raw belirtili + filtered belirtisiz → aşırı süzme: kural düzeltilir, yeniden koşar.
+  - Yeniden yazım tablosu: dört metin için raw/filtered sayıları.
+  - Kalibrasyon önerisi INCIDENT_CATALOG'a (karar Eren'de): iki seviyeli senaryolarda varyant; belirtisiz senaryolar için seçenek (varyant, pencere ya da çıkarma); `intlShippingSlowdown` için p99 sonucu.
+  - Collector: 15 koşuda yeniden başlama 0, en yüksek bellek < 400 MiB (kayda).
+  - Zorluk tablosu: senaryo başına belirti gücü (eşiğin kaç katı) ve basit kuralın top-1/top-3 sonucu; kuralın kaç senaryoyu top-1'de çözdüğü. Yorum ve kendi hatalarımızın oranı önerisi vaka üretim kartında (karar Eren'de).
+  - Kural testi betiği geçer, kasıtlı kırmızı kırmızı.
+  - Gece sonunda `raw/` boş (örnekler çıkarıldıktan sonra silinir); `pytest` yeşil; PR koşusu yeşil.
+- Dikkat:
+  - C2 verisi vaka seti değildir: geliştirme/test setine girmez, snapshot kesilmez (snapshot biçimi vaka üretim kartında).
+  - `DI` kuralı gerçek veride sınanamaz (tek kaynağı `imageSlowLoad`, katalog dışı); yazılır.
+  - Modeller bu kartta çalışmaz.
+  - Kart dışı: snapshot biçimi, depolama kartı, kendi altyapı hatalarımız, özet/daraltma tasarımı, model koşuları.
+
+## 2026-10-24 · Planlama → Planlama (değerlendirme kartı: 30 vakanın ayırma gücü)
+- Hesap (planlama, kaba): aynı 30 vakada iki model, McNemar p<0,05; iki modelin vakalardaki başarısı bağımsız varsayıldı.
+  - Farkın görünmesi için gereken net vaka farkı: ters yönde 0 vaka varken 6 (%20); 1'de 7; 2'de 8; 3–4'te 9 (%30).
+  - Farkı görme olasılığı (simülasyon): %70'e %80 → ~%8; %60'a %80 → ~%29; %50'ye %80 → ~%58; %50'ye %90 → ~%90.
+- Anlamı: 30 vakalık set büyük farkları gösterebilir (küçük/büyük model, daraltmalı/daraltmasız), yakın farkları göstermez (4B/9B).
+- Değerlendirme kartına (ölçmeden önce yazılır): bu, API gürültüsü ölçümüyle birlikte çalışmanın bilinen sınırı olarak yer alır. Model boyutu seçimi için ya vaka sayısı artırılır ya da yakın fark "ayırt edilemedi" diye yazılır. 1–2 vakalık fark "daha iyi" diye okunmaz.
+- Şart değil, sınır notu; DECISIONS'a yazılmadı (Eren, 2026-10-24).
