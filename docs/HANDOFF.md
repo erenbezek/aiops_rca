@@ -760,7 +760,7 @@
 
     Kural (DECISIONS 2026-10-23): gürültü ≥ 2 → belirsiz; b ≤ min(a1, a2) − 2 → ezber işareti. Hiçbir modelde ikisi de yok. 9B'nin tek kaybı vaka 4 (takma adla ilk 3'te yok). Vaka 6 belirtisiz: dört koşulda beş model de çözemedi. Satır satır: `python tools/trial_ask_models.py ~/cerebrum2/quality_trial/case{1..6} --answers answers_a1 --score` (a2 aynı; b: `--view view_alias --answers answers_alias --alias`). GEÇTİ (ölçüldü ve yazıldı).
   - Bilgi yoklaması (13 flag; doğru flag adı / doğru flag→servis çifti): 2B 0/0 (tek anlamsız satır), 4B 0/0 (boş liste), 9B 0/0 (`OTEL_FEATURE_FLAGS`), gpt-oss-120b 1/1 (`payment-failure` → payment; diğerleri `checkout-failure`, `inventory-failure`, `recommendation-failure` genel kalıplar, bu da büyük ihtimalle tahmin), Gemini 0/0 (10 uydurma `…ServiceFailure`, eski `…service` adlarıyla). Cevaplar `~/cerebrum2/quality_trial_probe/`. GEÇTİ (ölçüldü).
-  - `pytest` 190 yeşil. PR koşusu: (PR açılınca eklenecek).
+  - `pytest` 190 yeşil. PR #15 koşusu yeşil: https://github.com/erenbezek/aiops_rca/actions/runs/40009549741 (`7433d11`).
 - Dikkat:
   - Takma adla top-1 biraz düştü (ölçüt değil): gpt-oss-120b 4 → 3, Gemini 5 → 4, ikisi de vaka 5'te (product-catalog → inventory 2. sıraya, önüne order-processor / suggestions). 4B ve 9B top-1 a1'de de 3.
   - Gürültü 0 (çözülen sayı farkı): yerel modeller temperature 0'da a1 ve a2'de birebir aynı cevap verdi. API'de temperature 0'a rağmen adaylar değişti: gpt-oss vaka 1, 3, 4'te 2.–3. aday (sıra ya da başka servis), vaka 6'da (belirtisiz) üç adayın üçü de farklı (top-1 checkout → frontend-proxy); Gemini vaka 3'te 3. aday (quote → email). Belirtili vakalarda top-1 ve ilk-3 sonucu hiç değişmedi.
