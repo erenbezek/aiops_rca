@@ -21,7 +21,7 @@ Kayıt: `run.json` (alanlar aşağıda `record`), `runner.log`, `collector_mem.t
 
 Geçersiz koşu: flag doğrulanamadı, 22 konteyner yok, pencerede hedef dışı bir konteyner yeniden başladı ya da
 durdu, ısınma (95 °C üstünde 1 dk'dan fazla), pencere döndürmeyle kısaldı (bir {raw, filtered} × {traces, metrics,
-logs} için kaynak dosyalardaki en eski kaydın kendi zamanı kopyanın başından, normal başlangıcı − 2 dk, sonra).
+logs} için kaynak dosyalardaki en eski kaydın kendi zamanı normal başlangıcından sonra).
 Isınmada koşu kesilir, soğuyunca (90 °C altında 2 dk) baştan; döndürmede baştan. İkinci kez de olursa üçüncü kez
 koşulmaz, kayda (Eren, 2026-10-24). Korumalardan biri koşu öncesi tutmazsa sıra durur.
 Çıkış kodu: 0 bütün koşular geçerli, 1 en az biri geçersiz ya da sıra durdu, 2 kullanım hatası.
@@ -309,11 +309,12 @@ def log_times(line: bytes) -> list[int]:
     return times
 
 
-def copy_window(lo: int, hi: int, dest: Path) -> dict:
+def copy_window(lo: int, hi: int, dest: Path, start: int) -> dict:
     """telemetry/{raw,filtered}/*.jsonl'dan zamanlarından biri [lo, hi] içinde olan satırları kopyalar.
 
     Döner: {"<base>/<sinyal>": {bytes, mb_per_min, oldest_utc, covered}}. covered: kaynak dosyalardaki en eski
-    kaydın kendi zamanı ≤ lo (döndürme pencerenin başını silmemiş).
+    kaydın kendi zamanı ≤ start (pencere başı = normal başlangıcı; döndürme pencerenin başını silmemiş). Kopya
+    lo'dan başlar (normal − 2 dk); bu pay kontrolde aranmaz: koşudan önce raw boşsa ilk kayıt collector açılışıdır.
     """
     info = {}
     minutes = (hi - lo) / 60e9
@@ -338,7 +339,7 @@ def copy_window(lo: int, hi: int, dest: Path) -> dict:
             size = (dest / base / f"{signal}.jsonl").stat().st_size if signal in outs else 0
             info[f"{base}/{signal}"] = {"bytes": size, "mb_per_min": round(size / 1e6 / minutes, 2),
                                         "oldest_utc": iso(oldest.get(signal)),
-                                        "covered": signal in oldest and oldest[signal] <= lo}
+                                        "covered": signal in oldest and oldest[signal] <= start}
     return info
 
 
@@ -488,7 +489,7 @@ def run_one(s: dict, attempt: int) -> dict:
         record["collector_mem_samples"] = monitor.mem_samples
         if record["valid"]:
             lo, hi = normal_ns - WINDOW_MARGIN_NS[0], flag_off_ns + WINDOW_MARGIN_NS[1]
-            record["window"] = copy_window(lo, hi, d / "window")
+            record["window"] = copy_window(lo, hi, d / "window", normal_ns)
             mark("window_copied")
             short = [k for k, v in record["window"].items() if not v["covered"]]
             if short:
