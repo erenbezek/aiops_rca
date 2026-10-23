@@ -698,3 +698,72 @@
   - Normal dönem tabanı vakalar arasında oynuyor: product-catalog CPU ort. %53 / %21 / %14 (vaka 3/4/5), p95 172,8 / 49,2 / 23,6 ms.
   - Vaka 3'te kayıt betiği (repo dışı) alarm zamanını yanlış alandan okudu; özet 15 sn sonra elle aynı alarmla alındı, veri kaybı yok. Kontroller ve kayıt betikleri repoya alınmadı (vaka üretim kartında işe yarar: flag yaz/doğrula, targeting dalı, konteyner sayısı, zamanlayıcı, `docker stats` örneği, telemetri yedeği).
   - Kart 3. madde bellek için "ortalama ve en yüksek" diyordu; en yüksek Eren kararıyla çıkarıldı (token).
+
+## 2026-10-23 · Planlama → Planlama (zor deneme doğrulaması)
+- Doğrulama (planlama, main `88c13a6`; PR #14 koşusu yeşil, birleşmeden sonra dala commit yok):
+  - `trial_ask_models.py --score` vaka 3–6 tablosunu kayıtlı cevaplardan birebir üretti; vaka 1–2 tablosu yeni ad karşılaştırmasıyla değişmedi.
+  - Dört özetin SHA256'sı `case.json`'la aynı; sızıntı CLI'ı dördünde `clean`.
+  - Vaka 6 özeti `filtered/`'dan yeniden üretildi, SHA256 aynı (`784d5baa…`). Vaka 3–5'in penceresi döndürmeyle silinmiş; vaka 5'te betik "window not covered by data" verdi (koruma çalışıyor).
+  - `trial_symptoms.py` dört vakada aynı `symptoms.json`'u üretti.
+  - Kod: şema `strict`, tam 3 aday, enum yok; ad karşılaştırması `[^a-z]` atılarak (rakam da atılıyor; şimdiki servis adlarında rakam yok). Özette izleme araçları yok, astronomy-db ve valkey-cart var.
+  - CPU düzeltmesi model sonuçlarından önce, önceden yazılmış ölçütle ve Eren onayıyla yapılmış; ölçüt sonuca göre değişmemiş.
+- Düzeltme (vaka 6 neden belirtisiz): sonuç kaydındaki "yük üreteci yurt dışı adres neredeyse göndermiyor" açıklaması eksik. `people.json`'da 9 kişinin 1'i Kanada (siparişlerin ~%11'i, katalogdaki gibi). Vaka 6'da alarm sonrası 26 sipariş → ~3 yurt dışı beklenir, 1 geldi (tesadüf sınırında). Asıl sebep yapısal: gecikme sadece `ship-order`'da; shipping'in 131 isteğinin ~105'i fiyat sorgusu (`quote`). 3 sipariş de gecikse istek payı ~%2 < %5 → p95 değişmez; checkout'ta da 26 siparişin 1–3'ü. Bu özet ve 10 dk pencereyle senaryo görünmez; C2 kalibrasyonunda karar (INCIDENT_CATALOG notu).
+- Yorum notları:
+  - Belirtili vakaların sapmaları çok büyüktü (ad CPU 1,4 → 397; product-catalog p95 23,6 → 25.693 ms): "zor" vakalar yüksek sesliydi.
+  - Vaka 4 en öğretici: Gemini dışında bütün modeller hatayı gösteren çağıranları (frontend, checkout) kök nedenin önüne koydu. Daraltmanın asıl işi: hatanın çıktığı en derin servisi öne almak. Daraltma kartında bu vaka akılda tutulur.
+  - Boyut: 2B 1/3, 4B ve 9B 3/3; 9B 4B'den ~2 kat yavaş ve fazladan bir şey göstermedi. Model seçimi geliştirme setinde; şimdi eleme yok.
+  - Eren: kaba denemelerin başarısı zayıf; büyük modellerin OTel Demo'yu eğitimde görmüş olması muhtemel (kesin değil). Eşit şartlar sorusu açık (aşağıdaki planlama önerisi Eren'e soruldu).
+
+## 2026-10-23 · Planlama → Uygulama (takma ad ön denemesi)
+- Yapılan (planlama): DECISIONS 2026-10-23 (takma ad ayarı, ön deneme); GLOSSARY'de takma ad ve eşleme; zor deneme doğrulaması yukarıda; INCIDENT_CATALOG `intlShippingSlowdown` notu; PROJECT güncellendi.
+- Amaç: büyük (ve küçük) modellerin deneme vakalarındaki başarısının ne kadarının OTel Demo'yu tanımaktan geldiğine kaba bakmak. Oran değil, rapora girmez.
+- Beklenen:
+  1. Dal `task/alias-trial`; ilk commit planlamanın docs değişiklikleri (DECISIONS, GLOSSARY, HANDOFF, INCIDENT_CATALOG, PROJECT). **PR birleştikten sonra dala commit atılmaz.**
+  2. **Dönüştürme betiği** (adı, kod adı ve çıktı klasörleri önce Eren'e önerilir; repo dışı, `view/` mantığı korunur): `~/cerebrum2/quality_trial/case1`…`case6`'daki `view/summary.json`'dan takma adlı kopya. Eşleme GLOSSARY'deki tablo (16 ad), bütün vakalarda aynı. Değişen: servis adı alanları; mesajlardaki tanımlayıcı biçimler (`product-catalog`, `frontend-proxy`, `ProductCatalog`, `CheckoutService`, `oteldemo.` gibi); `astronomy`, `valkey`, `otel`, `opentelemetry`. Kalan: mesajlardaki sıradan İngilizce kelimeler (payment, cart, email, shipping, checkout…; e-ticaret anlamı korunur, demoyu ele vermez). Değiştirmede uzun adlar önce (`frontend-proxy` `frontend`'den önce). Rakamlar, alanlar, sıra ve mesajların geri kalanı aynı.
+  3. **Koşular** (`trial_ask_models.py` aynı istem ve ayarlar, JSON şeması): (a1) ve (a2) gerçek adlı özetlerle beş model, aynı gün iki kez; (b) takma adlı özetlerle beş model. Her koşul ayrı cevap klasörüne (seçenek ve klasör adı önerilir). Cevaplar eşlemeyle gerçek ada çevrilip puanlanır; özette olmayan adlar `unmatched`. Eski cevaplar yerinde kalır, üzerine yazılmaz; tabloda bilgi olarak, gürültü hesabına girmez.
+  4. **Bilgi yoklaması** (ölçüte girmez): beş modele aynı istem: OpenTelemetry Demo'daki (Astronomy Shop) hata senaryolarını (feature flag) ve etkiledikleri servisleri listelemesi. İstem metni Eren'e önerilir. Cevaplar deneme klasörlerinin dışında, ayrı klasörde (cevap içerir; adı önerilir). Doğru bilinen flag/servis eşleşmeleri sayılır (OTEL_DEMO "Hata senaryoları" tablosuna göre).
+- Bitti ölçütü (ölçmeden önce yazıldı, sonuca göre değişmez):
+  - Dönüştürme kontrolü (modellerden önce): takma adlı 6 özette sızıntı CLI'ı `clean`; servis adı alanlarında 16 gerçek addan hiçbiri yok; mesajlarda gerçek adların tanımlayıcı biçimleri (tireli, CamelCase, `…Service`, `oteldemo.`) ve `astronomy`, `valkey`, `otel`, `opentelemetry` geçmiyor (sıradan kelimeler aranmaz); ad dışındaki bütün değerler gerçek adlı özetle aynı (betikle karşılaştırma); token sayıları kayda (≤ 2048).
+  - Sonuç tablosu: 6 vaka × 5 model × {eski (bilgi), (a1), (a2), (b)}: top-1, top-3, `unmatched`. Gürültü (a1–a2) ve yorum DECISIONS 2026-10-23 kuralıyla, model başına; vaka 6 tabloda, yorumda değil.
+  - Bilgi yoklaması: model başına doğru flag→servis eşleşmesi sayısı (13 minimal mod flag'inden).
+  - `--score` ilk iki denemenin tablolarını aynı üretmeye devam eder. `pytest` yeşil; PR koşusu yeşil.
+- Dikkat:
+  - Takma ad log mesajlarındaki ayırt edici ifadeleri (ör. `Invalid token`) silmez; bunlar belirti, kalır. Model bu ifadelerden demoyu tanıyabilir: sınırlama olarak yazılır.
+  - Gemini anlık 503: tek yeniden deneme, `retried_after` kayda.
+  - Demo kapalı; ~65 dk (üç koşul), uzun koşu değil; prizde.
+  - Planlama düzeltmesi (2026-10-23, ölçmeden önce, uygulamanın itirazı): gürültü eski cevaplardan değil (a1–a2)'den; dönüşüm sıradan kelimeleri değiştirmez.
+  - Kart dışı: C2, yeni vaka, daraltma, ham log/ajan yolunda takma ad (değerlendirme kartı).
+
+## 2026-10-23 · Uygulama → Uygulama (takma ad ön denemesi: kararlar, ölçmeden önce)
+- Dönüştürme: `demo.` öneki de tanımlayıcı biçimlerden sayılır (`oteldemo.` gibi); önek silinir, gerisi kalır. Örnek (vaka 1 payment logu): `demo.user_context.loyalty_level=gold` → `user_context.loyalty_level=gold`. Ölçütteki "mesajlarda geçmiyor" kontrolüne `demo.` de girer (Eren, 2026-10-23; uygulamanın notu üzerine, model koşmadan önce).
+- Altı özetteki bütün WARN+ mesajları (dönüştürmeden önce bakıldı): 3 farklı mesaj, 4 kayıt (`Payment request failed. Invalid token. demo.user_context.loyalty_level=gold`, `Checkout failed to place order`, `API request failed`); takma adın etkisi asıl olarak servis adı alanlarında.
+- Bilgi yoklaması sayımı: serviste sondaki `service` eki atılır (`adservice` = `ad`, `productcatalogservice` = `product-catalog`); eski demo sürümlerinin adlarını bilen model düşük görünmesin (Eren seçeneği A, 2026-10-23, ölçmeden önce). Flag adında değişiklik yok.
+- Puanlama düzeltmesi (sahte cevapla bulundu, ölçmeden önce): takma adlı koşuda cevaptaki gerçek ad (özette yok) `unmatched`'e düşer ve doğru sayılmaz; ilk sürüm onu gerçek ada eşleyip doğru sayıyordu. İlk iki denemenin tabloları değişmedi.
+
+## 2026-10-23 · Uygulama → Planlama (takma ad ön denemesi, sonuç)
+- Yapılan (dal `task/alias-trial`):
+  - `tools/trial_alias.py`: `view/summary.json` → `view_alias/summary.json` (servis adı alanları; mesajlarda tireli/alt çizgili, CamelCase, `…Service` biçimleri; `oteldemo.` ve `demo.` önekleri silinir; uzun adlar önce). Aynı betik kontrolü yapar: alanlarda gerçek ad yok, mesajlarda tanımlayıcı biçim ve `astronomy`/`valkey`/`otel`/`opentelemetry` yok, ad dışındaki değerler/alanlar/sıra aynı, mesajların değişmeyen parçaları aynı sırada; tutmazsa yazmaz (çıkış 1). Bozuk girdilerle denendi (gerçek ad, sayı, sıra, mesaj metni, `valkey`): hepsinde yazmadı.
+  - `trial_ask_models.py`: `--view`, `--answers`, `--alias` (puanlamada takma ad → gerçek ad), `--probe` (bilgi yoklaması, `--score` ile sayım). Varsayılanlarla ilk iki denemenin tabloları birebir aynı.
+  - Yerel sunucu düzeltmesi (Eren onayı, kart dışı küçük iş): `start_local`/`stop_local` eski konteynerin silinmesini bekliyor (a2'de 9B açılışı `docker run` 125 ile düştü; `--rm` silmesi bitmeden aynı ad). Arka arkaya üç açılışla denendi.
+- Ölçüt sonuçları:
+  - Dönüştürme kontrolü (modellerden önce): 6 özette geçti; değişen tek mesaj vaka 1 (`demo.` silindi). Sızıntı CLI'ı 6 `view_alias/`'ta `clean`. Token (özet / istemle): vaka 1–6 875/1146, 858/1129, 1769/2040, 1796/2067, 1749/2020, 1738/2009 (gerçek adla 869–1789). GEÇTİ.
+  - Koşular (aynı gün, 2026-10-23 17:39–19:10 UTC): (a1), (a2), (b), bilgi yoklaması. a2'de 9B sunucu açılamadı; 9B a2 aynı akşam ayrıca koşuldu (aynı ayarlar). 120 cevabın hepsi geçerli JSON, tekrar deneme yok, `unmatched` hepsinde boş (takma adlı koşuda gerçek ad kullanan model yok).
+  - Sonuç (belirtili vaka 1–5'te ilk 3'te çözülen sayı; eski = önceki denemelerin cevapları, bilgi):
+
+    | Model | eski | a1 | a2 | b (takma ad) | gürültü | karar |
+    |---|---|---|---|---|---|---|
+    | `qwen3.5-2b` | 3 | 3 | 3 | 3 | 0 | bu vakalarda görülmedi |
+    | `qwen3.5-4b` | 5 | 5 | 5 | 5 | 0 | bu vakalarda görülmedi |
+    | `qwen3.5-9b` | 3 | 5 | 5 | 4 | 0 | bu vakalarda görülmedi |
+    | `gpt-oss-120b` | 5 | 5 | 5 | 5 | 0 | bu vakalarda görülmedi |
+    | `gemini-3.5-flash-lite` | 5 | 5 | 5 | 5 | 0 | bu vakalarda görülmedi |
+
+    Kural (DECISIONS 2026-10-23): gürültü ≥ 2 → belirsiz; b ≤ min(a1, a2) − 2 → ezber işareti. Hiçbir modelde ikisi de yok. 9B'nin tek kaybı vaka 4 (takma adla ilk 3'te yok). Vaka 6 belirtisiz: dört koşulda beş model de çözemedi. Satır satır: `python tools/trial_ask_models.py ~/cerebrum2/quality_trial/case{1..6} --answers answers_a1 --score` (a2 aynı; b: `--view view_alias --answers answers_alias --alias`). GEÇTİ (ölçüldü ve yazıldı).
+  - Bilgi yoklaması (13 flag; doğru flag adı / doğru flag→servis çifti): 2B 0/0 (tek anlamsız satır), 4B 0/0 (boş liste), 9B 0/0 (`OTEL_FEATURE_FLAGS`), gpt-oss-120b 1/1 (`payment-failure` → payment; diğerleri `checkout-failure`, `inventory-failure`, `recommendation-failure` genel kalıplar, bu da büyük ihtimalle tahmin), Gemini 0/0 (10 uydurma `…ServiceFailure`, eski `…service` adlarıyla). Cevaplar `~/cerebrum2/quality_trial_probe/`. GEÇTİ (ölçüldü).
+  - `pytest` 190 yeşil. PR #15 koşusu yeşil: https://github.com/erenbezek/aiops_rca/actions/runs/40009549741 (`7433d11`).
+- Dikkat:
+  - Takma adla top-1 biraz düştü (ölçüt değil): gpt-oss-120b 4 → 3, Gemini 5 → 4, ikisi de vaka 5'te (product-catalog → inventory 2. sıraya, önüne order-processor / suggestions). 4B ve 9B top-1 a1'de de 3.
+  - Gürültü 0 (çözülen sayı farkı): yerel modeller temperature 0'da a1 ve a2'de birebir aynı cevap verdi. API'de temperature 0'a rağmen adaylar değişti: gpt-oss vaka 1, 3, 4'te 2.–3. aday (sıra ya da başka servis), vaka 6'da (belirtisiz) üç adayın üçü de farklı (top-1 checkout → frontend-proxy); Gemini vaka 3'te 3. aday (quote → email). Belirtili vakalarda top-1 ve ilk-3 sonucu hiç değişmedi.
+  - "Eski" ile a1 farkı (9B 3 → 5) koşul farkı: vaka 1–2 eski cevapları şemasız ve CPU/belleksiz istemle alındı (9B'nin "çözemedi"si biçimdi). Gürültüye girmedi.
+  - Sınırlamalar: 5 belirtili vaka, sinyaller güçlü (özetteki hata/CPU/gecikme cevabı taşıyor); `Invalid token` gibi ayırt edici log ifadeleri kaldı; bilgi yoklaması sadece flag adlarını ölçüyor, mimariyi (hangi servis kimi çağırır) değil. Sonuç: bu vakalarda başarı ad tanımaya dayanmıyor gibi; "ezber yok" demek değil.
+  - Süre: yerel modeller bu akşam dünden ~%30 yavaş (9B vaka 3–5'te 134–144 sn, zor denemede 102–107; yük ortalaması ~3). Ölçüt değil; neden araştırılmadı.

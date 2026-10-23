@@ -39,7 +39,7 @@ Alan adları ve dosya biçimi uygulamada önerilir, Eren onaylar.
 | `productCatalogFailure` | product-catalog | error | Tek üründe (`OLJCESPC7Z`) hata | product-catalog → frontend, checkout, recommendation | O ürüne ait isteklerde hata zinciri | cascading, partial |
 | `productCatalogLockContention` | product-catalog | latency | Kendi işlemi `catalog.products` tablosunu 30 sn kilitler (10 sn'de bir kontrol) | product-catalog → frontend, recommendation, checkout | DB bekleme, product-catalog ve frontend gecikmesi | cascading |
 | `recommendationCacheFailure` | recommendation | resource | Önbellek sınırsız büyür | recommendation → frontend | recommendation bellek ve gecikme artışı | silent |
-| `intlShippingSlowdown` | shipping | latency | Yurt dışı gönderide 5/10 sn gecikme | shipping → checkout → frontend | Siparişlerin ~%11'inde gecikme | partial |
+| `intlShippingSlowdown` | shipping | latency | Yurt dışı gönderide 5/10 sn gecikme | shipping → checkout → frontend | Siparişlerin ~%11'inde gecikme (zor deneme 2026-10-23: gecikme sadece `ship-order`'da, shipping isteklerinin ~%2'si; 10 dk pencerede p95'te görünmedi, belirtisiz. C2 kalibrasyonunda karar: p99/en yüksek, daha uzun pencere ya da çıkarma) | partial |
 
 Sızıntı notu: `productCatalogFailure` hata mesajı ve `productCatalogLockContention` logu flag'i ele veriyor; silinmez, gerçekçi bir mesajla yeniden yazılır (belirti korunur). Ayrıntı `OTEL_DEMO.md`.
 

@@ -67,3 +67,11 @@ Sadece Eren'in onayladığı isimler.
 | `trial-llama` | `trial_ask_models.py`'nin açtığı llama.cpp sunucu konteyneri (`127.0.0.1:8081`) |
 | `~/cerebrum2/quality_trial/` | Kaba kalite denemesi çıktıları; `case1/`, `case2/` altında `view/summary.json` (modele giden, sızıntı CLI'ın taradığı), `answers/` (model cevapları), `case.json` (doğru cevap, `view/` dışında); repo dışı |
 | `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |
+| takma ad | Modele giden girdide servis adlarının (ve log mesajlarındaki tanımlayıcı biçimlerinin: tireli, CamelCase, `…Service`; sıradan kelimeler değil) yerine konan, OTel Demo'yu ve Online Boutique'i çağrıştırmayan anlamlı adlar; ezber etkisini kaldırmak ve ölçmek için. Cevap eşleme tablosuyla gerçek ada çevrilip puanlanır. Kod adı uygulamada önerilir |
+| takma ad eşlemesi (2026-10-23) | frontend → storefront, frontend-proxy → edge-gateway, ad → promotions, cart → basket, checkout → order-processor, payment → billing, product-catalog → inventory, recommendation → suggestions, shipping → logistics, quote → rate-calculator, currency → fx-rates, email → notifier, image-provider → media-server, telemetry-docs → docs-site, astronomy-db → main-db, valkey-cart → session-cache |
+| `tools/trial_alias.py`, `ALIASES` | Takma ad ön denemesi: `view/summary.json`'dan takma adlı kopya üretir ve kontrol eder / koddaki eşleme tablosu (GLOSSARY eşlemesinin aynısı) |
+| `view_alias/` | Vaka klasöründe takma adlı özetin klasörü (`view_alias/summary.json`; modele giden, sızıntı CLI'ın taradığı) |
+| `answers_a1/`, `answers_a2/`, `answers_alias/` | Takma ad ön denemesinin cevap klasörleri: gerçek adla 1. ve 2. koşu / takma adla koşu (eski `answers/` yerinde) |
+| `--view`, `--answers`, `--alias`, `--probe` | `trial_ask_models.py` seçenekleri: özetin okunduğu klasör / cevapların yazıldığı klasör / puanlamada takma adları gerçek ada çevir / bilgi yoklaması kipi (cevaplar verilen klasöre) |
+| `feature_flag_scenarios` | Bilgi yoklamasının JSON şemasının adı: `scenarios` listesi, öğeleri `{flag, service}` |
+| `~/cerebrum2/quality_trial_probe/` | Bilgi yoklaması cevapları (OTel Demo flag senaryoları; cevap içerir, `quality_trial` dışında); repo dışı |
