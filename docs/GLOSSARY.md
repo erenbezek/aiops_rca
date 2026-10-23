@@ -81,6 +81,7 @@ Sadece Eren'in onayladığı isimler.
 | `run.json` | Koşu kaydı: senaryo, flag, varyant, kök neden, zamanlar (UTC), konteyner sayıları, zamanlayıcı, pencerede yeniden başlama/OOM, korumalar, en yüksek sıcaklık, collector en yüksek bellek, pencere kapsaması (sinyal başına en eski kayıt, MB/dk), geçerli/geçersiz ve sebep |
 | `measure.json` | `c2_measure.py`'nin koşu başına sonucu (koşu klasöründe) |
 | `samples/` | Koşu klasöründe kural testi için aday kayıtlar (raw bulgularından tek kayda indirilmiş OTLP satırları ve `index.tsv`); repoya girmeden önce Eren görür |
+| `samples/index.tsv` | `samples/` dizini: satır başına örnek konumu (`<sinyal>.jsonl:<n>`), sinyal, CLI kuralı, servis, eşleşen metin, senaryoya özgü mü (`specific`/`routine`), pencere |
 | `window/raw/`, `window/filtered/` | Koşu klasöründe telemetri penceresinin kopyası (normal − 2 dk … flag kapanışı + 1 dk), sinyal başına `traces.jsonl`, `metrics.jsonl`, `logs.jsonl`; `raw/` cevap içerir, planlama doğrulamasından sonra Eren onayıyla silinir |
 | `collector_mem.tsv` | Koşu klasöründe collector belleği, dakikada bir (UTC zaman, MiB) |
 | `containers_start.txt`, `containers_end.txt` | Koşu klasöründe normal başında ve flag kapanışında konteyner durumu (yeniden başlama sayısı, OOM, çalışıyor mu, başlama zamanı) |
