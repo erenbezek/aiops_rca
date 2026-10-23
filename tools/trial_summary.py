@@ -1,20 +1,28 @@
-"""Kaba kalite denemesi için vaka özeti (HANDOFF 2026-10-21, DECISIONS 2026-10-21).
+"""Kaba kalite denemeleri için vaka özeti (HANDOFF 2026-10-21, DECISIONS 2026-10-21).
 
 Kullanım: python tools/trial_summary.py --alarm 2026-10-21T14:00:00+03:00 --out <klasör>/summary.json
           [--input ~/cerebrum2/telemetry/filtered]
 
 Sadece süzülmüş collector dosyalarını (`*.jsonl`, döndürülmüş dosyalar dahil) okur. Pencere: alarmdan önceki
 10 dk ("before") ve sonraki 10 dk ("after"). Kaydın zamanı: span'de `startTimeUnixNano`; logda `timeUnixNano`,
-0 ya da yoksa `observedTimeUnixNano`.
+0 ya da yoksa `observedTimeUnixNano`; metrikte veri noktasının `timeUnixNano`'su.
 
 İçerik bilerek basit (daraltma değil):
 - Servis başına gelen istek sayısı (SERVER ve CONSUMER span'leri), hata oranı (span durumu ERROR), p95 süre (ms),
-  önce / sonra. Gelen span'i olmayan servis (ör. tarayıcı tarafı) tabloda yok.
+  önce / sonra.
+- Konteyner başına CPU (`docker stats` gibi bir çekirdeğin yüzdesi; ortalama ve en yüksek) ve bellek (`container.memory.usage.total`, MB; sadece ortalama), önce / sonra. Konteyner adı servis adıdır. İzleme
+  araçlarının konteynerleri (mağazanın değil ölçüm aracının parçası) yok; mağazanın veritabanları var.
+  CPU, birikimli CPU süresi sayacından (`container.cpu.usage.total`, ns) hesaplanır: ardışık iki ölçüm arasındaki
+  artış / geçen süre × 100; değer ikinci ölçümün düştüğü pencereye yazılır, sayaç geriye düşerse (yeniden başlama)
+  o çift atlanır. `container.cpu.utilization` kullanılmaz: bu collector sürümünde anlık değil, açılıştan beri
+  birikmiş bir ortalama gibi davranıyor (zor deneme vaka 3: `ad` %404 iken 0,03 → 3,44 doğrusal arttı).
+  Servis satırında olmayan alan (ör. veritabanında istek, tarayıcı tarafında CPU) satırda yok.
 - En sık WARN ve üstü log mesajları (sonraki pencerede), servis ve önce / sonra sayısıyla. WARN dahil: payment
   ödeme hatasını WARN seviyesinde logluyor. Mesajlar gruplanmak için sadeleşir: kimlikler ve sayılar yer tutucu olur.
 
 Özete flag adı, senaryo adı ya da kök neden ipucu yazılmaz; çıktı sızıntı CLI'ı ile ayrıca taranır.
-Pencerenin iki ucunda da kayıt yoksa (dosya döndürmesi silmiş ya da koşu kısa) hata verir, eksik özet yazmaz.
+Pencerenin iki ucunda span, log ya da metrik kaydı yoksa (dosya döndürmesi silmiş ya da koşu kısa) hata verir,
+eksik özet yazmaz.
 Çıkış kodu: 0 yazıldı, 1 pencere eksik, 2 kullanım/girdi hatası.
 """
 from __future__ import annotations
@@ -37,6 +45,11 @@ TOP_MESSAGES = 10
 MESSAGE_CHARS = 200
 MESSAGE_KEYS = ("exception.message", "err.message", "error.message", "error", "err", "message")
 
+CPU_METRIC = "container.cpu.usage.total"  # birikimli CPU süresi, ns
+MEMORY_METRIC = "container.memory.usage.total"
+# İzleme araçları (Eren, 2026-10-21): özete girmez. flagd, flagd-ui, load-generator collector'da zaten düşüyor.
+TOOLING_CONTAINERS = frozenset({"jaeger", "grafana", "prometheus", "opensearch", "otel-collector", "opamp-server"})
+
 ID_PATTERNS = (
     (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I), "<id>"),
     (re.compile(r"\b[0-9a-f]{16,}\b", re.I), "<id>"),
@@ -44,9 +57,9 @@ ID_PATTERNS = (
 )
 
 
-def service_name(resource: dict) -> str | None:
+def resource_attr(resource: dict, key: str) -> str | None:
     for a in resource.get("attributes", []):
-        if a.get("key") == "service.name":
+        if a.get("key") == key:
             return a.get("value", {}).get("stringValue")
     return None
 
@@ -85,6 +98,14 @@ def p95_ms(durations_ns: list[int]) -> float | None:
     return round(ordered[idx] / 1e6, 1)
 
 
+def point_value(dp: dict) -> float | None:
+    if "asDouble" in dp:
+        return float(dp["asDouble"])
+    if "asInt" in dp:
+        return float(dp["asInt"])
+    return None
+
+
 class Window:
     def __init__(self, alarm_ns: int):
         self.start = alarm_ns - WINDOW_NS
@@ -113,7 +134,9 @@ def iter_lines(paths: list[Path]):
 def summarize(paths: list[Path], window: Window) -> tuple[dict, dict]:
     spans = defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})  # [istek, hata, süreler]
     logs = defaultdict(Counter)  # (servis, mesaj) -> {before, after}
-    edges = {"spans": [False, False], "logs": [False, False]}
+    resources = defaultdict(lambda: {"before": [], "after": []})  # (konteyner, metrik) -> değerler
+    cpu_counters = defaultdict(dict)  # konteyner -> {zaman: birikimli CPU ns}
+    edges = {"spans": [False, False], "logs": [False, False], "metrics": [False, False]}
 
     def mark(signal: str, t: int) -> None:
         if window.start <= t < window.start + EDGE_NS:
@@ -123,7 +146,7 @@ def summarize(paths: list[Path], window: Window) -> tuple[dict, dict]:
 
     for doc in iter_lines(paths):
         for rs in doc.get("resourceSpans", []):
-            svc = service_name(rs.get("resource", {}))
+            svc = resource_attr(rs.get("resource", {}), "service.name")
             for ss in rs.get("scopeSpans", []):
                 for sp in ss.get("spans", []):
                     t = int(sp.get("startTimeUnixNano", 0))
@@ -137,7 +160,7 @@ def summarize(paths: list[Path], window: Window) -> tuple[dict, dict]:
                         row[1] += 1
                     row[2].append(int(sp.get("endTimeUnixNano", t)) - t)
         for rl in doc.get("resourceLogs", []):
-            svc = service_name(rl.get("resource", {}))
+            svc = resource_attr(rl.get("resource", {}), "service.name")
             for sl in rl.get("scopeLogs", []):
                 for rec in sl.get("logRecords", []):
                     t = int(rec.get("timeUnixNano", 0)) or int(rec.get("observedTimeUnixNano", 0))
@@ -146,18 +169,62 @@ def summarize(paths: list[Path], window: Window) -> tuple[dict, dict]:
                     if side is None or rec.get("severityNumber", 0) < SEVERITY_WARN:
                         continue
                     logs[(svc or "<unknown>", normalize(log_message(rec)))][side] += 1
-    return {"spans": spans, "logs": logs}, edges
+        for rm in doc.get("resourceMetrics", []):
+            container = resource_attr(rm.get("resource", {}), "container.name")
+            for sm in rm.get("scopeMetrics", []):
+                for m in sm.get("metrics", []):
+                    if m.get("name") not in (CPU_METRIC, MEMORY_METRIC):
+                        continue
+                    for dp in (m.get("gauge") or m.get("sum") or {}).get("dataPoints", []):
+                        t = int(dp.get("timeUnixNano", 0))
+                        mark("metrics", t)
+                        side = window.side(t)
+                        value = point_value(dp)
+                        if not container or container in TOOLING_CONTAINERS or value is None:
+                            continue
+                        if m["name"] == CPU_METRIC:
+                            # Pencereden hemen önceki ölçüm de lazım: ilk hız onunla hesaplanır.
+                            if window.start - EDGE_NS <= t < window.end:
+                                cpu_counters[container][t] = value
+                        elif side is not None:
+                            resources[(container, m["name"])][side].append(value)
+    for container, points in cpu_counters.items():
+        ordered = sorted(points.items())
+        for (t1, v1), (t2, v2) in zip(ordered, ordered[1:]):
+            side = window.side(t2)
+            if side is None or v2 < v1:  # sayaç geriye düştü: konteyner yeniden başladı
+                continue
+            resources[(container, CPU_METRIC)][side].append((v2 - v1) / (t2 - t1) * 100)
+    return {"spans": spans, "logs": logs, "resources": resources}, edges
+
+
+def avg_max(values: list[float], scale: float, digits: int) -> tuple[float | None, float | None]:
+    if not values:
+        return None, None
+    avg, peak = round(sum(values) / len(values) * scale, digits), round(max(values) * scale, digits)
+    if digits == 0:  # "217" yerine "217.0" yazılmasın (bellek alanlarında ~130 token)
+        avg, peak = int(avg), int(peak)
+    return avg, peak
 
 
 def build(result: dict, window: Window) -> dict:
+    names = set(result["spans"]) | {c for c, _ in result["resources"]}
     services = []
-    for svc in sorted(result["spans"]):
+    for svc in sorted(names):
         row = {"service": svc}
         for side in ("before", "after"):
-            count, errors, durations = result["spans"][svc][side]
-            row[f"requests_{side}"] = count
-            row[f"error_rate_{side}"] = round(errors / count, 3) if count else None
-            row[f"p95_ms_{side}"] = p95_ms(durations)
+            if svc in result["spans"]:
+                count, errors, durations = result["spans"][svc][side]
+                row[f"requests_{side}"] = count
+                row[f"error_rate_{side}"] = round(errors / count, 3) if count else None
+                row[f"p95_ms_{side}"] = p95_ms(durations)
+            if (svc, CPU_METRIC) in result["resources"]:
+                avg, peak = avg_max(result["resources"][(svc, CPU_METRIC)][side], 1, 2)
+                row[f"cpu_pct_avg_{side}"], row[f"cpu_pct_max_{side}"] = avg, peak
+            if (svc, MEMORY_METRIC) in result["resources"]:
+                # Bellek en yükseği yok (token; Eren, 2026-10-21): bellek yavaş değişir, ortalama yeter.
+                avg, _ = avg_max(result["resources"][(svc, MEMORY_METRIC)][side], 1 / 2**20, 0)
+                row[f"mem_mb_avg_{side}"] = avg
         services.append(row)
     ranked = sorted(result["logs"].items(), key=lambda kv: (-kv[1]["after"], kv[0]))
     messages = [

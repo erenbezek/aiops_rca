@@ -627,3 +627,74 @@
   - Gemini vaka 2'de 50,8 sn: kayıtta tek deneme. Koşu sırasında betik 503 sonrası tekrar denemeyi ayrı yazmıyordu (kart "yazılır" diyordu); 50,8 sn ikinci çağrının süresi olsaydı ilk çağrı 503 alıp 30 sn beklemiş olurdu, büyük ihtimalle tek yavaş çağrı ama kesin değil. Koşudan sonra düzeltildi: ilk hata `retried_after` alanına yazılıyor (sahte cevapla denendi); bu koşunun verisi değişmedi.
   - Vaka sırasında 8080'den sadece flag yazma (`/feature`) ve flagd doğrulaması (`/flagservice`) yapıldı. Kontroller betiği (flag yaz/doğrula, konteyner sayısı, zamanlayıcı) repoya alınmadı; zamanlayıcı durumu `GET /feature/scheduler` sayfasındaki "Scheduler stopped" yazısından okundu (flagd-ui'de bunun için API yok). Vaka üretim kartında işe yarar.
   - flagd-ui zamanlayıcı ve `/feature/api/write` yolu upstream testindeki gibi: `read` → `defaultVariant` değiştir → `write`.
+
+## 2026-10-21 · Planlama → Planlama (kaba kalite denemesi doğrulaması)
+- Doğrulama (planlama, main `821cf5d`; PR #13 koşusu ve main push koşusu yeşil):
+  - `trial_ask_models.py --score` kayıtlı cevaplardan tabloyu birebir üretti.
+  - Özetlerin SHA256'sı kayıtla aynı (`db393952…`, `ebd14cd2…`); sızıntı CLI'ı iki `view/`'da `clean`. `case.json` `view/` dışında.
+  - Vaka 2 özeti `trial_summary.py` ile `filtered/`'dan yeniden üretildi: SHA256 aynı. Vaka 1'in penceresi döndürmeyle silinmişti (traces 14:09–14:16 yerel); betik "window not covered by data" deyip çıkış 1 verdi (koruma çalışıyor; DECISIONS 2026-10-21 "vaka biter bitmez kesilir" kararının örneği).
+  - 9B'nin iki cevabı: yalnız son `}` eksik, sıralama vaka 1 payment/checkout/frontend-proxy, vaka 2 checkout/frontend/payment. Kural gereği "çözemedi" doğru.
+  - `trial-llama` konteyneri kapalı.
+- Yorum: iki vaka da kolaydı; özet cevaba çok yakındı (vaka 1 payment logunda `Invalid token`, vaka 2'de hata veren tek servis checkout, %100). Gösterdiği: özet biçimi işe yarıyor, 2B/4B böyle bir JSON özeti okuyup servis seçebiliyor. Göstermediği: zor vakada boyut farkı ve hibritin gereği (denemenin asıl sorusu cevapsız kaldı; Eren).
+- Kararlar (Eren, 2026-10-21): asıl koşularda JSON şeması zorlanır; 9B elenmez (DECISIONS 2026-10-21). `c68d8b3`'teki ikinci karar: bu denemenin `filtered/` verisi kalır (süzülmüş, cevap içermiyor; döndürme zamanla siler).
+- Süreç notu: uygulama PR #13 birleştikten sonra dala bir commit daha attı (`c68d8b3`, GitHub'da `task/quality-trial`'da, main'de yok). İçeriği bu kayıtla ve DECISIONS'la main'e taşındı; ek PR açılmadı. **Kural (uygulama için): PR birleştikten sonra dala commit atılmaz; sonradan çıkan karar planlamaya iletilir, planlama main'e yazar.** Dalın silinmesi Eren'de.
+
+## 2026-10-21 · Planlama → Uygulama (zor deneme)
+- Yapılan (planlama): DECISIONS 2026-10-21 (JSON şeması zorlanır, 9B elenmez, zor deneme); kaba kalite denemesi doğrulaması yukarıda; PROJECT güncellendi.
+- Amaç: zor vakalarda küçük modellerin (2B/4B/9B) kök neden servisini bulup bulamadığına ve boyutun fark edip etmediğine kaba bakmak; hibritin gereğine işaret. Oran değil, rapora girmez.
+- Beklenen:
+  1. Dal `task/quality-trial-2`; ilk commit planlamanın docs değişiklikleri (DECISIONS, HANDOFF, PROJECT). **PR birleştikten sonra dala commit atılmaz** (sonradan çıkan karar planlamaya iletilir).
+  2. **Vakalar** (ilk denemedeki akış: her vaka ayrı `up`, 22 konteyner kontrolü, zamanlayıcı kapalı, 10 dk normal → flag aç + flagd'den doğrula → 10 dk → kapat → özet hemen kesilir → `down`; `RestartCount`/`OOMKilled` kaydı):
+     - `adHighCpu` = `on` → ad
+     - `productCatalogFailure` = `on` → product-catalog (`defaultVariant` değil, targeting kuralının dalı: OTEL_DEMO "Flag'i açıp kapatma")
+     - `productCatalogLockContention` = `on` → product-catalog
+     - `intlShippingSlowdown` = `10sec` → shipping
+     - Klasörler mevcut yapıda `~/cerebrum2/quality_trial/case3` … `case6` (adlarda flag/senaryo yok; `case.json` `view/` dışında).
+  3. **Özet** (`tools/trial_summary.py` genişler): mevcut alanlara ek olarak servis başına `docker_stats`'tan CPU kullanımı ve bellek kullanımı (önce/sonra; ortalama ve en yüksek). Konteyner adı servis adına eşlenir. Yeni alan adları önerilir, GLOSSARY'ye yazılır. Özet ≤ 2048 token; sızıntı CLI'ı `clean`.
+  4. **Belirti kontrolü (modellerden önce):** her özette kök neden servisinin önce/sonra değerleri tabloya; hiçbir sinyalde (hata oranı, p95, CPU, bellek, WARN+ log) görünür sapma yoksa vaka "belirtisiz" yazılır, modeller yine koşar ama sonucu yoruma girmez. Sapma eşiği ölçmeden önce önerilir, Eren onaylar (INCIDENT_CATALOG kalibrasyon ölçütü: "normal döneme göre görünür sapma").
+  5. **Modeller** (`tools/trial_ask_models.py` genişler): aynı beş model ve ayarlar (yerel düşünme kapalı ≤ 300 token; API düşünme en düşük, sınır 2000; temperature 0). **JSON şeması zorlanır**: llama.cpp sunucusunda `response_format` şema/gramer, Groq ve Gemini'de kendi `response_format` desteği; her sağlayıcının mekanizması dokümandan ve bir denemeyle doğrulanıp kayda (desteklenmiyorsa dur ve yaz). İstemin alan açıklamasına CPU ve bellek eklenir; yeni metin Eren'e önerilir, onaylanınca beş modelde aynı.
+- Bitti ölçütü (ölçmeden önce yazıldı, sonuca göre değişmez):
+  - Dört vaka kaydı (ilk denemedeki alanlar). Hedef dışı beklenmeyen yeniden başlama → vaka geçersiz, yazılır.
+  - Dört özet: token ≤ 2048 (`/tokenize`), sızıntı CLI'ı `clean`, SHA256 kayda; belirti tablosu ve "belirtili/belirtisiz" kararı modellerden önce yazılı.
+  - Sonuç tablosu: 4 vaka × 5 model; top-1, top-3, süre, girdi/düşünme/cevap token, biçim. Token sınırına takılan cevapta sınır bir kez iki katı (ilk denemedeki kural).
+  - Yorum DECISIONS 2026-10-21 zor deneme kuralıyla, vaka başına; "çözer" = doğru servis ilk 3'te. Ezber sınırlaması yorumda yazılır.
+  - `trial_ask_models.py --score` ilk denemenin cevaplarından aynı tabloyu üretmeye devam eder (geriye uyum). `pytest` yeşil; PR koşusu yeşil.
+- Dikkat:
+  - Toplam ~2 saat: uzun koşu. Prizde; şarj sınırı önceden açılır (DECISIONS 2026-10-20; sudo komutunu Eren `!` ile çalıştırır), `systemd-inhibit` altında.
+  - Kalibrasyon yapılmadı: sessiz vakalarda (özellikle `adHighCpu`) 10 dk'da belirti zayıf olabilir; bu yüzden belirti kontrolü var. Varyant değiştirilmez (kalibrasyon C2'de).
+  - `productCatalogFailure` mesajı süzmede yeniden yazılıyor (`failed to load product from catalog`): yeniden yazımın gerçek veride ilk görüldüğü yer; sızıntı CLI'ı `clean` vermezse o vaka modele verilmez, yazılır (C2 için bulgu).
+  - `productCatalogLockContention` kilit logu da yeniden yazılıyor; aynı kural.
+  - Vaka penceresinde 8080'den sadece flag yazma ve flagd doğrulaması.
+  - Kart dışı: daraltma, C2, kalibrasyon, varyant seçimi, yeni senaryo, model ailesi değişikliği.
+
+## 2026-10-23 · Uygulama → Planlama (zor deneme, sonuç)
+- Yapılan (dal `task/quality-trial-2`):
+  - `trial_summary.py`: konteyner başına CPU (`cpu_pct_avg/max_before/after`, bir çekirdeğin yüzdesi) ve bellek (`mem_mb_avg_before/after`, MB). Bellek en yükseği yok, sadece ortalama (token; Eren seçeneği B). İzleme araçlarının konteynerleri yok; veritabanı satırlarında sadece CPU/bellek. Metrikler için de pencere ucu kontrolü.
+  - **CPU düzeltmesi (koşu sırasında):** ilk sürüm `container.cpu.utilization` okuyordu. Bu collector sürümünde metrik anlık değil (birim `1`, açılıştan beri birikmiş ortalama gibi). Vaka 3'te `ad` `docker stats`'ta ~%404 iken özet 0,03 → 3,44 doğrusal artış gösterdi. Kaynak formüle bakıp "yüzde" demiştim, gerçek veriyle karşılaştırmamıştım; yanlıştı. Düzeltme (Eren onayı, ölçüt önceden): birikimli CPU süresi sayacından (`container.cpu.usage.total`, ns) hız = artış / süre × 100. Ölçütler: vaka 3 `ad` sonra 397,15 (364–445 aralığında), önce 1,42 (< 5), CPU dışı bütün alanlar eski özetle birebir aynı, özetler ≤ 2048, `pytest` 190 yeşil. GEÇTİ (`ebde62e`). Vaka 3 özeti alınan telemetri yedeğinden yeniden üretildi (`case.json` `summary_note`); vaka 4–6 betikle zaten düzeltilmiş kodla çıktı. Yedekler silindi.
+  - `trial_symptoms.py` (yeni): kök neden servisinde özetteki değerler normal döneme göre sapıyor mu; eşikler ölçmeden önce Eren onaylı (hata oranı +0,05; p95 ×1,5 ve +20 ms; CPU ×1,5 ve +5 puan; bellek ×1,2; önceki pencerede olmayan ≥ 5 WARN+ log; istek ≥ 20 iken ≤ ×0,5). Sonuç `symptoms.json` (`view/` dışında).
+  - `trial_ask_models.py`: JSON şeması `root_cause_candidates` (`response_format` `json_schema`, `strict`; tam 3 `{service, reason}`, enum yok). Yerel llama.cpp, Groq ve Gemini'de denendi: 5 servis istendiğinde bile üçü de geçerli JSON ve tam 3 aday döndürdü. Adlar harf dışı karakterler atılarak karşılaştırılıyor; özette olmayan adlar `unmatched` sütununda. İlk denemenin `--score` tablosu birebir aynı (yeni sütun en sonda). İstem metni Eren onaylı (sadece veri tanımına CPU/bellek cümlesi eklendi).
+- Ölçüt sonuçları:
+  - Vaka kayıtları (`case.json`, UTC; flag açık aralığı): vaka 3 `adHighCpu` `on` 22:56:58–23:07:04; vaka 4 `productCatalogFailure` targeting `if[1]`=`on` 23:19:28–23:29:34 (ResolveBoolean context `product_id=OLJCESPC7Z`, `TARGETING_MATCH`); vaka 5 `productCatalogLockContention` `on` 23:41:03–23:51:09; vaka 6 `intlShippingSlowdown` `10sec` 00:02:34–00:12:39 (ResolveInt 10; shipping int okuyor). Hepsi flagd'den ≤ 1 sn'de doğrulandı, kapanışta off. Konteyner sayısı üç kontrolde 22, zamanlayıcı kapalı; 25 konteyner çalışıyor, `RestartCount` 0, `OOMKilled` yok. GEÇTİ.
+  - Özetler: token 1.764 / 1.789 / 1.744 / 1.733 (istemle 2.035 / 2.060 / 2.015 / 2.004); sızıntı CLI'ı dördünde `clean`; SHA256 `f59d4509…`, `d68f5cc9…`, `019a4e11…`, `784d5baa…` (tamı `case.json`'da). GEÇTİ.
+  - Belirti kontrolü (modellerden önce): vaka 3 belirtili (ad CPU 1,42 → 397,15); vaka 4 belirtili (product-catalog hata oranı 0 → 0,082); vaka 5 belirtili (p95 23,6 → 25.692,7 ms, istek 3.243 → 1.405); vaka 6 **belirtisiz** (shipping p95 3,4 → 3,5). Bilgi için (karar özete göre): vaka 6'da 131 shipping isteğinden sadece 1'i > 9 sn; yük üreteci neredeyse hiç yurt dışı adres göndermiyor.
+  - Sonuç tablosu (doğru servisin sırası; ✗ = ilk 3'te yok; süre sn):
+
+    | Model | Vaka 3 ad | Vaka 4 product-catalog | Vaka 5 product-catalog | Vaka 6 shipping (belirtisiz) | süre |
+    |---|---|---|---|---|---|
+    | `qwen3.5-2b` | ✗ | ✗ | 1 | ✗ | 25–29 |
+    | `qwen3.5-4b` | 1 | 3 | 1 | ✗ | 54–64 |
+    | `qwen3.5-9b` | 1 | 3 | 2 | ✗ | 102–107 |
+    | `gpt-oss-120b` | 1 | 2 | 1 | ✗ | 1,3–1,6 |
+    | `gemini-3.5-flash-lite` | 1 | 1 | 1 | ✗ | 1,2–1,6 |
+
+    20 cevabın hepsi geçerli JSON, tekrar deneme yok, `unmatched` boş. Girdi token: yerel 2.020–2.076, Groq 1.966–2.009 (+ düşünme 135–186), Gemini 2.447–2.506. Satır satır tablo: `python tools/trial_ask_models.py ~/cerebrum2/quality_trial/case{3,4,5,6} --score`. GEÇTİ (ölçüldü ve yazıldı).
+  - Yorum (DECISIONS 2026-10-21 zor deneme kuralı, "çözer" = ilk 3): vaka 3, 4, 5'te iki büyük model çözer ve küçüklerden en az biri çözer → üçü de **umut var**. Boyuta göre: 2B üç belirtili vakanın birinde; 4B ve 9B üçünde (vaka 4'te ikisi de 3. sırada). Vaka 6 belirtisiz, yoruma girmez (beşi de çözemedi, beklenen).
+  - `pytest` 190 yeşil. PR #14 koşusu yeşil: https://github.com/erenbezek/aiops_rca/actions/runs/39879013368 (`b8394a1`).
+- Dikkat:
+  - Örnek küçük: yorumlanabilen 3 vaka, ikisinin kök nedeni aynı servis (product-catalog). product-catalog normal dönemde de yüksek CPU'da (vaka 3: ort. %53, en yüksek %84) ve modeller onu sık listeye koyuyor (vaka 3 ve 6'da 5 cevabın 4'ünde). "Hep product-catalog" diyen bir model vaka 4 ve 5'i çözmüş görünürdü; sonuç küçük modellerin işe yaradığını tek başına göstermez.
+  - İlk 3 cömert: ~16 servisten rastgele 3 seçmek bile ~%19. Vaka 4'te top-1'i sadece Gemini buldu.
+  - Ezber sınırlaması: büyük modeller OTel Demo'yu eğitimde görmüş olabilir (flag senaryoları upstream'de açık).
+  - Süzmede yeniden yazılan product-catalog mesajları (`failed to load product from catalog`, kilit logu) vaka 4 ve 5 özetlerinde hiç görünmedi: WARN+ loglarda product-catalog satırı yok (vaka 4'te sadece frontend `API request failed` 279 ve `Checkout failed to place order` 3). Yeniden yazımın gerçek veride çalıştığı bu denemede gösterilmedi (C2 için).
+  - Normal dönem tabanı vakalar arasında oynuyor: product-catalog CPU ort. %53 / %21 / %14 (vaka 3/4/5), p95 172,8 / 49,2 / 23,6 ms.
+  - Vaka 3'te kayıt betiği (repo dışı) alarm zamanını yanlış alandan okudu; özet 15 sn sonra elle aynı alarmla alındı, veri kaybı yok. Kontroller ve kayıt betikleri repoya alınmadı (vaka üretim kartında işe yarar: flag yaz/doğrula, targeting dalı, konteyner sayısı, zamanlayıcı, `docker stats` örneği, telemetri yedeği).
+  - Kart 3. madde bellek için "ortalama ve en yüksek" diyordu; en yüksek Eren kararıyla çıkarıldı (token).
