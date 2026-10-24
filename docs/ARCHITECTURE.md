@@ -61,14 +61,19 @@ flowchart LR
     bench["tools/local_model_bench.sh<br/>+ bench_summary.py"] -.->|hız ölçümü, model boyutu| llm
     demo_sh["tools/otel_demo.sh<br/>fetch / up / down / config"] -->|"repo dışı klon 3.1.0,<br/>minimal mod"| otel
     extras["deploy/otel-demo/compose.extras.yaml<br/>(log 5 MB × 2, 3 port 127.0.0.1)"] -->|son compose katmanı| otel
+    runner["tools/scenario_runner.py<br/>(10 dk normal + 10 dk flag, korumalar)"] -->|"flag aç/kapat (flagd-ui API)"| otel
+    runner -->|"pencere kopyası (raw + filtered)"| c2runs[("~/cerebrum2/c2_runs/<br/>repo dışı, cevap içerir")]
+    c2runs --> meas["tools/c2_measure.py<br/>(sızıntı, belirti, collector)"]
+    meas -->|positive_control| leak
+    rtest["tools/test_collector_rules.sh<br/>+ tests/fixtures/collector_rules/"] -.->|"kural testi (geçici collector, Docker)"| col
 
     classDef yok stroke-dasharray: 5 5
     class own,inj,mon,cut,snap,fix,view,base,nar,llm,agent,cache,evr,ev,tab yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
-- OTel Demo çalışıyor (minimal mod, 2026-10-18). Collector süzüyor ve dosyaya yazıyor (C1, 2026-10-20); gerçek senaryolarla doğrulama C2'de. Prometheus, Jaeger, OpenSearch açık ama kalıcı değil, bu yüzden `mon` hâlâ kesik çizgili.
-- Sızıntı testi şimdilik sadece sahte dosyalarla sınandı. Gerçek veride sınanması (`positive_control`) yeni makinede yapılacak.
+- OTel Demo çalışıyor (minimal mod, 2026-10-18). Collector süzüyor ve dosyaya yazıyor (C1, 2026-10-20); 15 gerçek senaryoyla doğrulandı (C2, 2026-10-24). Prometheus, Jaeger, OpenSearch açık ama kalıcı değil, bu yüzden `mon` hâlâ kesik çizgili.
+- Sızıntı testi gerçek veride sınandı (C2 `positive_control`: her senaryoda raw'da bulgu, filtered temiz). Senaryo koşucusu (`scenario_runner.py`) vaka üretiminin temeli; `inj` kesik çizgili, çünkü flag dışı enjeksiyonlar (tc netem, CPU/bellek, kill) yok.
 
 ## Dosyalar
 
@@ -102,4 +107,8 @@ flowchart LR
 | `tools/local_model_bench.sh` | Lokal model hız ölçümü: `matrix` (model × iş parçacığı tablosu, turlar halinde), `sustained` (30 dk bütçe döngüsü); llama.cpp sabit imajda, 10 sn izleme, priz kopmasında bekle-tekrarla, `--resume`; ham çıktılar `~/cerebrum2/bench_runs/` |
 | `tools/bench_summary.py` | `local_model_bench.sh` koşularından özet: geçerli hücreleri birleştirir, soğuk/ısınmış bütçe, GEÇER/KALIR |
 | `docs/LOCAL_MODEL_BENCH.md` | Lokal model hız ölçümünün kurulumu, yöntemi ve sonuç tablosu |
+| `tools/scenario_runner.py` | Senaryo koşucusu: korumalar (priz, şarj 80, sıcaklık, disk, güç profili, GNOME + systemd uyku engeli), demo `up --raw`, 10 dk normal + 10 dk flag, uyku ve yeniden başlama kontrolü, pencere kopyası `~/cerebrum2/c2_runs/` |
+| `tools/c2_measure.py` | C2 ölçümü: koşu klasöründen sızıntı (`positive_control`), belirti gücü (raw/filtered), yeniden yazımlar, basit kural, collector sayaçları; `measure.json`, `samples/` |
+| `tools/test_collector_rules.sh` | Collector kural testi: geçici collector'a ayarımız + fixture kayıtları; kapsam, tam ayarda çıktı temiz, kural başına `delete`/`alone` (kasıtlı kırmızı). Docker ister, CI'da koşmaz |
+| `tests/fixtures/collector_rules/` | Kural testi girdisi: C2 raw verisinden tek kayıtlık örnekler ve temiz kontroller (`traces/metrics/logs.jsonl`), kural listesi `rules.tsv` |
 | `tools/gen_leakage_fixtures.py` | `tests/fixtures/leakage/` sahte dosyalarını üretir; dosyalar elle değil bu betikle değiştirilir |
