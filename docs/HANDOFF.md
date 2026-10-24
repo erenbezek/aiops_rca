@@ -975,3 +975,46 @@
   - Collector belleği normal öncesi yeniden başlatılmayan koşuda ~300 MiB, başlatılanlarda ~110 MiB (sınır ölçütü < 400 tuttu). 16 gece koşusunun 12'sinde normal öncesi 21 konteyner (collector yeniden başlatıldı; hangi konteynerin metriği eksik, bakılmadı).
   - Kural testi: yedekli 23 kural savunma katmanı; örneksiz 17 kuralın 12'sinin gerçek kaydı yok (DI, `lock_failed`, `url.path`/`http.route`, PC log gövdesi). Collector sürümü değişince `tools/test_collector_rules.sh` elle koşulur.
   - `gnome-session-inhibit --inhibit` listesi iki nokta üst üsteyle (`suspend:idle`); yardım metnindeki virgüllü biçim yok sayılıyor.
+
+## 2026-10-24 · Planlama → Uygulama (C2 doğrulama ve kalibrasyon)
+- Gözetimli iki koşu (planlamanın bağımsız kontrolü):
+  - Yeniden yazım sayıları tuttu: adManualGc 123/0/123, product-catalog 1996/0/1996.
+  - Sızıntı CLI'ı filtered'da 0, raw'da 1 döndü.
+  - Beklenen yol tablosu değişmedi.
+  - Planlamanın o sırada sözlü verdiği "açılış etkisi yok, ısınma gerekmez" sonucu (yalnız ad'e bakılarak çıkarılmıştı) aşağıda düzeltildi.
+- Gece sonucu doğrulandı (run.json, measure.json, pencere dosyaları):
+  - Geçerlilik bu dosyadaki kayıtlarla aynı.
+  - journalctl'da gece tek uyku var: 04:56–07:06 UTC, yalnız productCatalogFailure_on_2'ye denk. 11:15–12:57 UTC uykusu koşuların arasında.
+  - productCatalogFailure_on_2'nin run.json'u valid: true kalmıştı; bu kartta düzeltildi.
+  - Belirti ve kural tablosu 17 measure.json'dan yeniden çıkarıldı; uygulamanın tablosuyla aynı.
+  - Sızıntı, CLI'dan bağımsız olarak düz metinle arandı: 19 filtered pencerede 18 flag adı, yazım biçimleri (_, -, boşluk), flagd, feature_flag, openfeature ve flood ifadeleri. Sonuç 0. Tek eşleşme dotnet.monitor.lock_contentions (cart'ın .NET çalışma zamanı metriği, her koşuda var); sızıntı değil.
+  - Koşu başında başka flag açık değildi (raw'daki flag değerlendirmeleri, 3 koşu).
+- Uygulamanın raporuna düzeltmeler:
+  - cartFailure belirtisiz değil, zincirleme:
+    - EmptyCart (cart isteklerinin ~%3'ü) p99: %10'da 5 ms → 75 sn (1 hata), %50'de 4 ms → 380 sn (4 hata).
+    - checkout PlaceOrder p95: 54 ms → 31 sn ve 37 ms → 450 sn; %50'de 31 siparişin 8'i hata.
+    - frontend-proxy POST'ta 15 sn zaman aşımı.
+    - Servis düzeyi ölçüm EmptyCart'ı GetCart ve AddItem içinde kaybediyor.
+  - intlShippingSlowdown çelişkisi rastlantı: C2'de 26 ship-order'ın 8'i gecikmeli (beklenen ~3). Servis p95'i, gecikmeli istekler %5'i (~7) geçince oynuyor. Zor denemede ~3 vardı.
+  - paymentFailure %10: Charge'da 26 istekte 1 hata (10 dk'da 16–43 sipariş).
+  - emailMemoryLeak 100x: bellek flag açıkken ~1,8 MB/dk, normal dönemde ~0,8 MB/dk artıyor (adFailure koşusunda ~0,65); ayrılmıyor. 1000x: 2 dk'da 53 → 89 MB, sonra dalgalanıyor.
+  - Collector'ın ~300 MiB belleği "yeniden başlatılmayan koşu" ile açıklanmıyor: yeniden başlatılmayan 4 gece koşusu 119–127 MiB.
+    - ~300 MiB olan iki koşu (adManualGc_on_1, recommendationCacheFailure_on_2) "yavaş taban" koşuları: bütün servisler 20 dk boyunca 3–10 kat yavaş (frontend p95 85–230 ms, gece ~24 ms); product-catalog normal dönemde %26–57 CPU harcıyor (gece %9–10); istek sayısı aynı (~25 bin span).
+    - Neden bulunmadı. Başka flag açık değildi. rec_2 uykudan uyandıktan 10 dk sonra başladı, ama adManualGc_on_1 son uyanmadan 5,5 saat sonra başladı. Uygulama o sırada dosya yazmıyordu. İkisi de gündüz ya da gözetimli koşu.
+    - recommendation gücünün 112'den 4,18'e düşmesi bu yavaş tabandan; karar (belirtili) değişmiyor.
+    - Gözetimli adManualGc_on_2'de hafif yükselme var (frontend 35–48 ms).
+  - Isınma: normal dönemi açılıştan ~10–30 sn sonra başlayan koşularda ilk 3–5 dk daha yavaş (ad ilk dakikada 85–135 ms, sonra ~4 ms; frontend ve product-catalog ~%30). Collector'ın yeniden başlatıldığı 12 koşuda 6 dk bekleme yüzünden bu etki yok. C2 kararlarını değiştirmiyor: sınırdaki koşular hata oranı, bellek ve WARN ile karar veriyor.
+- Kararlar (Eren, 2026-10-24): kalibrasyon ve işlem düzeyi belirti (DECISIONS'ta); productCatalogFailure_on_2 geçersiz işaretlenir; c2_runs raw kopyaları ve samples/ silinir.
+- Vaka üretimi kartı için notlar (karar o kartta verilecek):
+  - Koşular gece yapılır; normal dönemden önce sabit ısınma (~5 dk) olur. Taban sağlık kontrolü eklenir: normal dönemde frontend p95 referansın X katını geçerse koşu geçersiz; eşik veriyle konur.
+  - Basit kural belirtili 10 koşunun 8'inde kök nedeni ilk sırada buluyor (tavan). Kolay vakalar modelleri ayırmaz; ağırlık zincirleme vakalarda olmalı (productCatalogFailure, LockContention, cartFailure).
+  - ad ve astronomy-db ilgisiz senaryolarda da kuralın ilk 3'üne giriyor (gürültü).
+  - Sipariş yolu senaryolarında olay az (10 dk'da 25–30 PlaceOrder). Düşük seviyeli varyantlarda pencere olaysız kalabilir; vaka başına "olay var mı" kontrolü gerekir.
+  - 16 koşunun 12'sinde bir konteynerin metriği (count(container_uptime_seconds) = 21) collector yeniden başlatılana kadar gelmedi; koşu başına +6 dk. Hangi konteyner olduğuna bakılmadı.
+  - Collector belleği en çok 311 MiB oldu, sınır 400 MiB; yavaş taban koşularında pay az. Kayda alınır.
+
+## 2026-10-25 · Uygulama → Planlama (C2 doğrulama ve kalibrasyon, sonuç)
+- Yapılan (dal `task/c2-dogrulama`): planlamanın kaydı (yapıştırmada iki kez giren "paymentFailure %10" satırı bir kez, Eren onayı), DECISIONS iki satır, INCIDENT_CATALOG dört satır. intlShippingSlowdown belirtisinde "Siparişlerin ~%11'inde gecikme" kaldı, parantezin içi yeni metin; yeni metindeki iç parantezler kaldırıldı (Eren onayı).
+- `productCatalogFailure_on_2/run.json`: `valid` true → false, `invalid_reasons` [] → kartın metni. Önce/sonra JSON farkı yalnız bu iki alan, anahtar sırası aynı; dosya koşucunun biçimiyle (`indent=1`) yazıldı.
+- Silme (Eren onayı): `c2_runs/*/window/raw/` 19 klasör 5,50 GB ve `*/samples/` 17 klasör 5,8 MB (önce ölçüldü, planlamanın ölçümüyle aynı). Sonra: ikisi de 0; 19 `window/filtered/` 4,39 GB, 57 dosyanın sha256'sı silmeden öncekiyle aynı; 17 `measure.json`, 19 `run.json`, `window_manual_copy.json` duruyor. Boş disk 287,96 → 293,47 GB (+5,51 GB, `df -B1`). `c2_runs/` toplam 4,39 GB.
+- Dikkat: `measure.json`'daki `samples/` yolları artık yok (kart: düzeltme gerekmiyor). `c2_measure.py` değişmedi.
