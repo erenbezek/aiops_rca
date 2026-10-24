@@ -767,3 +767,202 @@
   - "Eski" ile a1 farkı (9B 3 → 5) koşul farkı: vaka 1–2 eski cevapları şemasız ve CPU/belleksiz istemle alındı (9B'nin "çözemedi"si biçimdi). Gürültüye girmedi.
   - Sınırlamalar: 5 belirtili vaka, sinyaller güçlü (özetteki hata/CPU/gecikme cevabı taşıyor); `Invalid token` gibi ayırt edici log ifadeleri kaldı; bilgi yoklaması sadece flag adlarını ölçüyor, mimariyi (hangi servis kimi çağırır) değil. Sonuç: bu vakalarda başarı ad tanımaya dayanmıyor gibi; "ezber yok" demek değil.
   - Süre: yerel modeller bu akşam dünden ~%30 yavaş (9B vaka 3–5'te 134–144 sn, zor denemede 102–107; yük ortalaması ~3). Ölçüt değil; neden araştırılmadı.
+
+## 2026-10-23 · Planlama → Planlama (takma ad ön denemesi doğrulaması)
+- Doğrulama (planlama, main `6875f76`; PR #15 koşusu yeşil, birleşmeden sonra dala commit yok):
+  - (a1), (a2) ve takma adlı (b) tablolar kayıtlı cevaplardan aynı üretildi; belirtili 5 vakada çözülen: 2B 3/3/3, 4B 5/5/5, 9B 5/5/4, gpt-oss 5/5/5, Gemini 5/5/5.
+  - Takma adlı 6 özet: planlamanın ayrı betiğiyle eşleme gerçek adlı özete uygulanınca birebir aynı (ad dışında fark yok; tek mesaj değişikliği vaka 1 `demo.` öneki). Servis alanlarında gerçek ad yok; `astronomy`/`valkey`/`otel`/`demo.`/tireli ve CamelCase adlar yok. Sızıntı CLI'ı altısında `clean`.
+  - Bilgi yoklaması cevapları okundu, sayım doğru: hiçbir model OTel Demo flag'lerini hatırlamıyor (Gemini eski `…service` adlarıyla uydurma; gpt-oss'un tek eşleşmesi `payment-failure` genel kalıp).
+- Sonucun gücü (planlamanın hatası): test ezberin **avantajını** ölçemezdi. Bu 5 vakada büyük modeller gerçek adla zaten 5/5 çözüyordu (tavan etkisi) ve özetteki sayılar cevabı taşıyordu (zor deneme doğrulamasında yazılmıştı). Ölçülebilen tek şey "takma ad modeli bozuyor mu" idi. Bu, öneri anında Eren'e açıkça söylenmeliydi; sadece "6 vaka, sinyal zayıf" denmişti. Değerli kalanlar: bilgi yoklaması (flag ezberi yok), takma ad aracı (asıl değerlendirmede hazır), API gürültüsü ölçüldü (temperature 0'da 2.–3. adaylar değişiyor). Ezberin güçlü testi asıl değerlendirmede, geliştirme setinin zor vakalarında gerçek ad/takma ad (DECISIONS 2026-10-23); yeni ön deneme yok. Süreç kuralı: güç kontrolü (DECISIONS 2026-10-23).
+- Notlar (değerlendirme kartına):
+  - Yerel modeller bu koşuda zor denemeden ~%30 yavaştı (9B 134–144 sn); nedeni araştırılmadı. Asıl koşulardan önce o gün hız yeniden ölçülür, bütçe ona göre.
+  - Boyut: 4B her koşulda 5/5; karar geliştirme setinde.
+  - `tools/trial_alias.py --help` yardım göstermiyor (argümanı yol sanıyor); küçük, sadece not.
+- Eren (2026-10-23): C2 kartı önce ertelendi, aynı gün yazıldı (aşağıda).
+
+## 2026-10-23 · Planlama → Uygulama (collector C2: positive_control, belirti korunması, kalibrasyon)
+- Yapılan (planlama): DECISIONS 2026-10-23 (C2 tasarımı, güç kontrolü kuralı); takma ad ön denemesi doğrulaması yukarıda.
+- Amaç: gerçek senaryolarla, süzülmemiş (`raw/`) ve süzülmüş (`filtered/`) çıkış yan yana açıkken her senaryoda: (1) sızıntı testi gerçek veride senaryoya özgü sızıntıyı buluyor, süzülmüş veride hiçbir şey bulmuyor; (2) süzme belirtiyi silmiyor; (3) senaryo 10 dk'da telemetride belirti üretiyor, varyant seçilebiliyor; (4) collector yük altında dayanıyor.
+- Güç kontrolü (DECISIONS 2026-10-23): raw'da senaryoya özgü bulgu yok → sızıntı CLI'ı düzeltilir; filtered'da bulgu → collector kuralı düzeltilir; belirti raw'da var filtered'da yok → aşırı süzme, kural düzeltilir; belirti raw'da da yok → varyant değişir ya da senaryo katalogdan çıkar (Eren); iki seviye → vaka üretimindeki varyant (Eren); collector bellek sınıra yakın → limit değişir. Tavan/taban yok (senaryolar bağımsız). Zayıf yan: her senaryo bir kez; sınırda sonuçlar vaka üretiminde tekrarlanır. Ek (Eren, 2026-10-23): belirti gücü ve basit kural kontrolü → vaka üretiminde kendi altyapı hatalarımızın oranı ve zorluk seviyeleri (kural senaryoyu kolayca çözüyorsa o senaryo modelleri ayırt edemez; tavan etkisi model çalıştırmadan görülür).
+- Beklenen:
+  1. Dal `task/collector-c2`; ilk commit planlamanın docs değişiklikleri (DECISIONS, HANDOFF, PROJECT; main'de bekleyen takma ad doğrulaması dahil). **PR birleştikten sonra dala commit atılmaz.**
+  2. **Koşucu betiği** (adı, çıktı klasörü ve kayıt alanları önce Eren'e önerilir; kayıtlar cevap içerir, repo dışı). Koşu başına: `tools/otel_demo.sh up --raw` → 22 konteyner (`count(container_uptime_seconds)`; değilse collector yeniden başlatılır, tekrar sayılır) → flagd-ui zamanlayıcısı kapalı → 10 dk normal → flag yaz, flagd'den doğrula (`productCatalogFailure` `product_id` bağlamıyla; sayısal flag'ler doğru tiple) → 10 dk → flag kapat, doğrula → ölçümler **hemen** (DECISIONS 2026-10-21: döndürme) → `RestartCount`/`OOMKilled` (hedef dışı beklenmeyen yeniden başlama → koşu geçersiz; `emailMemoryLeak`'te email'in yeniden başlaması beklenen, kayda) → `down`. Collector belleği dakikada bir. Vaka penceresinde 8080'den sadece flag yazma ve doğrulama.
+  3. **Gece korumaları** (DECISIONS 2026-10-20 makine sınırları): priz (`AC online=1`), şarj sınırı 80, `x86_pkg_temp` kuralı, boş disk ≥ 30 GB, `systemd-inhibit`; biri tutmazsa başlamaz ya da sıradaki koşudan önce durur ve yazar. Güç profili `balanced`.
+  4. **Ölçümler (koşu başına, raw ve filtered ayrı):**
+     - Sızıntı: sızıntı CLI'ı raw'da çıkış 1 ve **senaryoya özgü** bulgu (flag adı ya da OTEL_DEMO sızıntı tablosundaki ifade; flagd/load-generator'ın rutin bulguları sayılmaz); filtered'da `clean`.
+     - Belirti (kök neden servisi, telemetriden; normal 10 dk ile flag 10 dk): hata oranı, p95, p99, CPU, bellek, istek sayısı, yeni WARN+ log. Eşikler zor denemedekiler (HANDOFF 2026-10-23 sonuç kaydı) + p99 (×1,5 ve +20 ms). Karar: belirtili / belirtisiz / sınırda (karar veren sinyal eşiğe %20'den yakın).
+     - Yeniden yazımlar: senaryoya özgü orijinal metin raw'da ≥ 1 ve filtered'da 0; yeni metin filtered'da ≥ 1 (product-catalog hata mesajı, kilit logları, `adManualGc`, shipping gecikme logu; WARN+ ile sınırlı değil, bütün sinyaller).
+     - Collector: en yüksek bellek, yeniden başlama.
+     - **Belirti gücü:** karar veren sinyalin (en güçlü sapma) gözlenen değişimi ve eşiğe oranı (kaç kat aştı), raw ve filtered için.
+     - **Basit kural kontrolü** (model yok, filtered telemetriden; kural ölçmeden önce burada yazılı): kök neden servisi için kullanılan sinyaller ve eşikler **bütün servislere** uygulanır. Servis puanı = eşiği aşan sinyal sayısı; eşitlikte eşiği aşan sinyaller arasında en büyük oran (sonra/önce) öne geçer. En yüksek puanlı 3 servis kuralın cevabı; top-1 ve top-3 kayda. `astronomy-db` ve `valkey-cart` sadece CPU/bellekle puanlanır; izleme araçları puanlanmaz.
+  5. **Kural testi betiği** (DECISIONS 2026-10-21; önerilen adlar `tools/test_collector_rules.sh`, `tests/fixtures/collector_rules/`, Eren onaylar): geçici collector'a C2'nin raw verisinden çıkarılmış küçük örnekler (her kurala en az bir); girdide bulgu > 0, çıktıda 0; kasıtlı kırmızı: bir kural silinince bulgu çıkar. Docker ister, CI'da koşmaz.
+  6. Sıra: koşucu + 2 senaryo gözetimli (yeniden yazım içerenlerden: `adManualGc`, `productCatalogFailure`) → Eren onayı → gece (15 koşu, ~6–6,5 saat; sığmazsa iki gece) → kural testi betiği.
+- Bitti ölçütü (ölçmeden önce yazıldı, sonuca göre değişmez):
+  - 15 koşu kaydı: geçerli/geçersiz ve sebep; korumalar ve makine durumu (priz, şarj, sıcaklık, disk, güç profili).
+  - `positive_control`: her geçerli koşuda raw'da senaryoya özgü bulgu ≥ 1, filtered `clean`. Tutmayan senaryo için sebep (CLI mı collector mı) yazılır, düzeltilir, o senaryo yeniden koşar.
+  - Belirti tablosu: senaryo × {raw, filtered} × sinyal ve karar. Raw belirtili + filtered belirtisiz → aşırı süzme: kural düzeltilir, yeniden koşar.
+  - Yeniden yazım tablosu: dört metin için raw/filtered sayıları.
+  - Kalibrasyon önerisi INCIDENT_CATALOG'a (karar Eren'de): iki seviyeli senaryolarda varyant; belirtisiz senaryolar için seçenek (varyant, pencere ya da çıkarma); `intlShippingSlowdown` için p99 sonucu.
+  - Collector: 15 koşuda yeniden başlama 0, en yüksek bellek < 400 MiB (kayda).
+  - Zorluk tablosu: senaryo başına belirti gücü (eşiğin kaç katı) ve basit kuralın top-1/top-3 sonucu; kuralın kaç senaryoyu top-1'de çözdüğü. Yorum ve kendi hatalarımızın oranı önerisi vaka üretim kartında (karar Eren'de).
+  - Kural testi betiği geçer, kasıtlı kırmızı kırmızı.
+  - Gece sonunda `raw/` boş (örnekler çıkarıldıktan sonra silinir); `pytest` yeşil; PR koşusu yeşil.
+- Dikkat:
+  - C2 verisi vaka seti değildir: geliştirme/test setine girmez, snapshot kesilmez (snapshot biçimi vaka üretim kartında).
+  - `DI` kuralı gerçek veride sınanamaz (tek kaynağı `imageSlowLoad`, katalog dışı); yazılır.
+  - Modeller bu kartta çalışmaz.
+  - Kart dışı: snapshot biçimi, depolama kartı, kendi altyapı hatalarımız, özet/daraltma tasarımı, model koşuları.
+
+## 2026-10-24 · Planlama → Planlama (değerlendirme kartı: 30 vakanın ayırma gücü)
+- Hesap (planlama, kaba): aynı 30 vakada iki model, McNemar p<0,05; iki modelin vakalardaki başarısı bağımsız varsayıldı.
+  - Farkın görünmesi için gereken net vaka farkı: ters yönde 0 vaka varken 6 (%20); 1'de 7; 2'de 8; 3–4'te 9 (%30).
+  - Farkı görme olasılığı (simülasyon): %70'e %80 → ~%8; %60'a %80 → ~%29; %50'ye %80 → ~%58; %50'ye %90 → ~%90.
+- Anlamı: 30 vakalık set büyük farkları gösterebilir (küçük/büyük model, daraltmalı/daraltmasız), yakın farkları göstermez (4B/9B).
+- Değerlendirme kartına (ölçmeden önce yazılır): bu, API gürültüsü ölçümüyle birlikte çalışmanın bilinen sınırı olarak yer alır. Model boyutu seçimi için ya vaka sayısı artırılır ya da yakın fark "ayırt edilemedi" diye yazılır. 1–2 vakalık fark "daha iyi" diye okunmaz.
+- Şart değil, sınır notu; DECISIONS'a yazılmadı (Eren, 2026-10-24).
+
+## 2026-10-24 · Uygulama → Uygulama (C2, ölçmeden önce)
+- Planlama kararları (Eren onaylı, 2026-10-24); kart değişmez, bu bölüm ölçmeden önce yazıldı ve sonuca göre değişmez:
+  - **Collector:** "en yüksek bellek < 400 MiB" ölçütü kalkar (konteyner sınırı zaten 400M; aşınca OOM, yeniden başlama ölçütüne takılır); en yüksek bellek sadece kayda. Yeni ölçüt: `otelcol_receiver_refused_*`, `otelcol_exporter_send_failed_*`, `otelcol_exporter_enqueue_failed_*` her koşuda seri olarak var ve pencerede (normal + flag) artış 0; seri yoksa ölçüt geçmez. `otelcol_processor_refused_*` bu sürümde yoksa kayda yazılır. Mevcut adlar ilk gözetimli koşuda listelenir. Not: `docker stats` süreç belleğini, `memory_limiter` Go heap'ini ölçer; aynı şey değil (yumuşak sınır ~220 MiB = %80 − %25 × 400 MiB).
+  - **Güç formülü:** her sinyalde T = iki koşulun gerektirdiği değerlerin büyüğü (ör. p95 için max(önce × 1,5, önce + 20 ms)); güç = (sonra − önce) / (T − önce); istek düşüşünde ters yönde (önce − sonra) / (önce − T). Güç ≥ 1 belirtili; 0,8 ≤ güç < 1,2 sınırda. Senaryonun gücü = belirtili sinyaller arasında en büyük güç, karar o sinyale göre. Basit kuralda eşitliği oran değil güç bozar.
+  - **Isınma:** koşu sırasında `x86_pkg_temp` kuralı tutmazsa koşu geçersiz, soğuyunca baştan koşulur. İkinci kez de ısınırsa üçüncü kez koşulmaz, kayda yazılır, karar Eren'de (`adHighCpu`'da olası).
+- Kural testi örnekleri: DECISIONS 2026-10-24 (elle gözden geçirilmiş küçük raw örnekleri, satırlar Eren'e gösterilir).
+- Planlama kararları (2) (Eren onaylı, 2026-10-24; ölçmeden önce yazıldı, sonuca göre değişmez). Yukarıdaki "Collector" maddesinin ölçüt kısmının ve "Güç formülü" maddesinin karar eşiklerinin yerine geçer:
+  1. **Collector ölçütü:**
+     - Kapsam: 6 dosya çıkışımız (`file/traces`, `file/metrics`, `file/logs`, `file/raw_traces`, `file/raw_metrics`, `file/raw_logs`). Her biri için `otelcol_exporter_sent_*` serisi var ve pencerede artış > 0; `send_failed` ve `enqueue_failed` artışı 0 (seri yoksa 0). `otelcol_receiver_refused_*` serisi var, artışı 0.
+     - Artış = pencere sonundaki değer − pencere başından önceki son değer; pencere başından önce noktası olmayan seri 0'dan başlamış sayılır (pencerede 120 ile doğan seri → 120). Pencere: normal başı – flag kapanışı.
+     - opensearch, otlp_grpc/jaeger, otlp_http/prometheus, span_metrics, debug (ve bulunan diğerleri): sadece kayda, sent ve failed artışı birlikte. `processor_refused` yoksa kayda.
+     - Neden: bu sürümde `enqueue_failed` ve dosya çıkışlarının `send_failed` serisi hiç yok (sayaç ilk hatada doğuyor). Eski veride (zor deneme vaka 6) `send_failed_log_records` artışı yalnız opensearch'te (demonun log deposu), `file/logs` eksiksiz.
+  2. **Senaryoya özgü bulgu:** CLI bulgusu (`flag_name` kuralıyla senaryonun flag adı ya da metinde senaryonun `PHRASES` ifadesi), flag penceresinde, senaryonun beklenen yolundaki serviste ≥ 1:
+     - adManualGc → ad; cartFailure → cart; paymentUnreachable → checkout; productCatalogFailure ve productCatalogLockContention → product-catalog; recommendationCacheFailure → recommendation; intlShippingSlowdown → shipping. Bunlarda flagd bulgusu sayılmaz.
+     - adFailure, adHighCpu, emailMemoryLeak, paymentFailure → flagd (OTEL_DEMO sızıntı tablosuna göre ad, email ve payment flag değerlendirme olayı yaymıyor).
+     - loadGeneratorFloodHomepage → load-generator kaydı ve aynı satırda flood ifadesi.
+     - Normal pencere sayısı ve servis kırılımı kayda; senaryonun flag adı beklenmeyen bir serviste çıkarsa kayda.
+     - Gözetimli iki koşudan sonra, geceden önce: raw'daki `flag_name` bulgularının servis kırılımı bu tabloyla karşılaştırılır. Tutmazsa tablo geceden önce düzeltilir (Eren).
+  3. **Belirti kararı:** sınırda önce gelir: güç < 0,8 belirtisiz; 0,8 ≤ güç < 1,2 sınırda; ≥ 1,2 belirtili. raw ve filtered kararı farklıysa (herhangi iki kategori) sinyal bazında incelenir; sinyal başına güç iki taraf için kayda. Kök neden servisinde CPU ya da bellek iki pencerede de değersizse karar "ölçülemedi" (belirtisiz değil); değersiz sinyaller kayda.
+  4. Yeni WARN log gücü = en sık yeni mesajın sayısı / 5.
+  5. Soğuma: 2 dk boyunca 90 °C altı.
+  6. **Pencere kapsaması:** bütün dosya çıkışlarında `max_megabytes` 100 → 300 (raw ve filtered; `max_backups` 2; en fazla 5,4 GB; DECISIONS 2026-10-24). Kopyalamada her {raw, filtered} × {traces, metrics, logs} için kaynak dosyalardaki en eski kaydın kendi zamanı (izlerde `startTimeUnixNano`, metriklerde `timeUnixNano`, loglarda `timeUnixNano`, 0 ise `observedTimeUnixNano`) ≤ pencere başı; değilse koşu geçersiz ("pencere döndürmeyle kısaldı (<base>/<signal>)"), bir kez yeniden koşulur, ikincisinde kayda, karar Eren'de. `run.json`'a sinyal başına en eski kayıt zamanı ve hız (MB/dk).
+  7. **Süzülmemiş kopyalar:** `c2_runs/*/window/raw/` ve `samples/` kart bitince silinmez; planlama doğrulamasından sonra Eren onayıyla silinir ve kayda yazılır (DECISIONS 2026-10-24). Kural testi örnekleri bundan önce, kartın içinde seçilir. "Gece sonunda `telemetry/raw/` boş" ölçütü aynı.
+  8. Adlar onaylı: `window/raw/`, `window/filtered/`, `collector_mem.tsv`, `containers_start.txt`, `containers_end.txt`.
+  9. Gözetimli iki koşunun raporuna: sinyal başına raw ve filtered hız (MB/dk) ve 300 MB'la en kötü tutma süresi (600 MB / hız); otelcol metrik adları; madde 2 karşılaştırması.
+- Uygulamanın tanımları (ölçmeden önce):
+  - Kapsamadaki "pencere başı" = kopyanın başı (normal başlangıcı − 2 dk). Normal başından biraz sıkı: CPU'nun ilk hızı ve collector sayaçlarının "pencere başından önceki son değeri" bu 2 dk'dan geliyor.
+  - Kopya: zamanlarından biri [normal − 2 dk, flag kapanışı + 1 dk] içinde olan satırlar (satır = bir OTLP isteği).
+  - Senaryoya özgü bulgunun penceresi: satırdaki en büyük zaman flag yazılışı ile flag kapanışı arasında.
+- Demo açmadan gösterildi (eski süzülmüş veri, zor deneme vaka 6 penceresi; sahte raw satırları sızıntı fixture'larından):
+  - Artış: pencerede 120 ile doğan sabit seri → 120; önceden 100 sabit → 0; önceden 50, sonda 80 → 30; pencereden sonra artan → 0. `file/raw_traces` `send_failed` pencerede doğunca ölçüt FAIL; sadece opensearch hatası → PASS (kayıtta); `file/logs` sent serisi yoksa FAIL.
+  - Kapsama: pencere başı en eski kayıttan (filtered/metrics 2026-10-20T13:09:31Z) 1 dk önceye alınınca üç sinyal de "kısaldı"; 1 dk sonraya alınınca metrics kapsandı, traces/logs kısaldı (onların en eski kaydı daha yeni).
+  - Uçtan uca: `positive_control` PASS (sahte shipping logu, beklenen yol shipping), filtered `clean`; eski veride `file/raw_*` sent serisi yok → collector FAIL (beklenen: o koşuda raw yoktu); opensearch `send_failed` +3742 kayıtta; ölçüm koşu başına ~3 dk.
+  - Bulunan ve düzeltilen hata: pencere kopyası her kaynak dosyada hedefi yeniden açıp sıfırlıyordu (NUL dolu delikler).
+
+## 2026-10-24 · Uygulama → Planlama (C2, gözetimli iki koşu)
+- Koşular (UTC; `~/cerebrum2/c2_runs/`, `tools/scenario_runner.py run adManualGc_on productCatalogFailure_on`): korumalar tuttu (priz 1, şarj sınırı 80, `balanced`, inhibit, disk ~300 GB), en yüksek `x86_pkg_temp` 71 °C.
+  - `adManualGc_on_1` (22:41–23:03): **geçersiz, uygulamanın hatası.** Kapsama kontrolü "pencere başı"nı kopyanın başı (normal − 2 dk = 22:40:18) aldı; raw klasörü koşudan önce boştu, ilk raw kaydı collector açılışı (22:41:54). Planlamanın tanımıyla (normal başı 22:42:18) kapsanıyordu. Koşucu kuralla bir kez yeniden koştu. Öneri aşağıda.
+  - `adManualGc_on_2` (23:03–23:24): geçerli. Collector en yüksek bellek 127 MiB (ilk denemede 311 MiB).
+  - `productCatalogFailure_on_1` (23:24–23:51): geçerli. 6 dk'da 21 konteyner → collector yeniden başlatıldı (normal öncesi, kurala göre), sonra 22. Flag `TARGETING_MATCH` ile doğrulandı. En yüksek bellek 125 MiB.
+  - Pencerede yeniden başlama/OOM yok. Ölçüm koşu başına ~2,3 dk.
+- Ölçümler (`measure.json`):
+
+  | | adManualGc | productCatalogFailure |
+  |---|---|---|
+  | `positive_control` | PASS: raw flag penceresinde ad'de 233 (normal 16); filtered `clean` | PASS: raw flag penceresinde product-catalog'da 3274 (normal 3079, TracingHook her istekte); filtered `clean` |
+  | Belirti (raw = filtered, aynı) | belirtili, p99 gücü 75,5 (p95 52, yeni WARN 23, CPU 3,8, bellek 1,04) | belirtili, hata oranı gücü 1,67 (gecikme/CPU/bellek < 0,1) |
+  | Yeniden yazım | orijinal raw 123 / filtered 0; yeni filtered 123 | orijinal raw 1996 / filtered 0; yeni filtered 1996 |
+  | Basit kural top-3 | ad (5 sinyal), frontend-proxy, frontend → top-1 ✓ | frontend (2), checkout, product-catalog → top-1 ✗, top-3 ✓ |
+  | Collector | PASS | PASS |
+
+  - Aşırı süzme görülmedi: iki koşuda raw ve filtered kök neden sinyalleri birebir aynı.
+  - Collector: 6 dosya çıkışında sent artışı > 0, `send_failed`/`enqueue_failed` serisi yok (0); `receiver_refused` 27–28 seri, artış 0; `processor_refused` yok. Kayıt: opensearch 20 dk'da sent ~25 bin, `send_failed` ~10,5 bin (demonun log deposu ~%30 kayıp; bizim dosyalar etkilenmiyor); `jaeger_storage_exporter` da listede.
+- Madde 9 — hız ve 300 MB'la en kötü tutma (600 MB / hız; iki koşunun büyüğü):
+
+  | | traces | metrics | logs |
+  |---|---|---|---|
+  | raw MB/dk | 7,37 → 81 dk | 3,03 → 198 dk | 2,67 → 225 dk |
+  | filtered MB/dk | 6,53 → 92 dk | 1,74 → 345 dk | 2,17 → 276 dk |
+
+  Pencere başından kopyaya ~22 dk; en kötü 81 dk ile ~3,7 kat pay (trafik seli için).
+- Madde 9 — otelcol metrik adları (39): `otelcol_exporter_{sent,send_failed}_*` (send_failed yalnız `log_records`, yalnız opensearch), `otelcol_exporter_{in_flight_requests,queue_capacity,queue_size}`, `otelcol_receiver_{accepted,failed,refused}_*`, `otelcol_processor_{incoming,outgoing}_items`, `otelcol_processor_memory_limiter_accepted_*` (refused yok), `otelcol_processor_filter_*.filtered`, `otelcol_processor_batch_*`, `otelcol_process_*`, `otelcol_scraper_*`, `otelcol.resourcedetection.*`. `enqueue_failed` ve `processor_refused` adı hiç yok.
+- Madde 2 — raw `flag_name` bulgularının servis kırılımı (iki koşu toplamı) ve tablo:
+  - Tabloyla uyan: cartFailure → cart 240; paymentUnreachable → checkout 102; productCatalogFailure → product-catalog 11026; recommendationCacheFailure → recommendation 2250; intlShippingSlowdown → shipping 9; adManualGc → ad 127 (log); loadGeneratorFloodHomepage → load-generator 260 (flood ifadesi ayrıca aranır).
+  - flagd yolundakiler: emailMemoryLeak flagd 102 (flag kapalıyken de, flag penceresinde ~20: email flagd üzerinden değerlendiriyor; ölçüt kolay geçer, ayırt edici değil); paymentFailure flagd pencere başına 1; adFailure ve adHighCpu flagd 1 (sadece normal penceresinde, açılışta). Değişen flag'in adı flagd'de yazma anında görünüyor (adManualGc: flag penceresinde flagd 2), adFailure/adHighCpu'nun flag penceresindeki flagd bulgusu buna dayanacak; gece görülür.
+  - Tabloda olup görülmeyen: productCatalogLockContention product-catalog'da `flag_name` yok (sadece flagd 1). Ölçüt PHRASES (`lock contention scenario` logu, sadece açıkken) ile geçmeli; gece görülür.
+  - Beklenmeyen servis: adFailure ve adHighCpu ad'de 1'er (normal); emitRawPii → checkout 107; failedReadinessProbe → cart 138 (senaryo değiller).
+  - Servissiz kayıt (`-`): adManualGc ve productCatalogFailure 88–92 / koşu: raw'da `host_metrics` süreç metrikleri (`processscraper`), koşucunun komut satırı (`scenario_runner.py run adManualGc_on productCatalogFailure_on`) sızıyor. filtered'da yok (C1 kuralı: processscraper tümden düşer). Gece koşusu `run all` ile bütün senaryo adlarını komut satırına koyar: raw'da her senaryo adı her koşuda görünür; `-` beklenen yolda olmadığı için senaryoya özgü sayılmaz.
+  - Sonuç: tablo değişikliği gerekmiyor görünüyor; karar planlamada.
+- Kural testi adayları için not: `samples/` kayıtları makineye ait bilgi taşıyabiliyor (`processscraper`: komut satırı, ev klasörü yolları). Repoya girecek örnek seçilirken temizlenmeli/kısaltılmalı; satırlar Eren'e gösterilecek.
+- Öneri (onay bekliyor): kapsama kontrolünde pencere başı = normal başlangıcı (planlamanın tanımı); kopya yine normal − 2 dk'dan başlar. Geceden önce.
+- Kapsama düzeltmesi yapıldı (Eren onayı, 2026-10-24; gece koşusundan önce): pencere başı = normal başlangıcı; kopya yine normal − 2 dk'dan başlar, pay kontrolde aranmaz. `adManualGc_on_1` kayıtlı değerleriyle yeni kural: raw en eski kayıtlar 22:41:54–56 ≤ normal başı 22:42:18 → kapsanırdı. O koşu yine geçersiz kalır (kayıt değişmez), `adManualGc_on_2` geçerli olan.
+- Planlama (Eren onaylı, 2026-10-24), gece koşusundan önce; ölçmeden önce yazıldı:
+  - Beklenen yol tablosu değişmez; gece koşusuna geçilebilir.
+  - `positive_control` 0 çıkan koşuda karar sırası: (1) CLI'ın flag penceresindeki bulgularında senaryonun flag adı/ifadesi başka bir serviste var mı (servissiz `-` hariç)? Varsa tablo eksik → kayda, tablo düzeltilir, yeniden koşulmaz. (2) Yoksa raw flag penceresinde düz metin araması: bulursa CLI hatası → düzeltilir, senaryo yeniden koşar; bulmazsa bu senaryoda sızıntı yolu yok → kayda, CLI hatası sayılmaz, yeniden koşulmaz.
+
+## 2026-10-24 · Uygulama → Planlama (C2, gece koşusu sonucu)
+- Koşu: `scenario_runner.py run all`, 2026-10-24 00:19–09:03 UTC (03:19–12:03 yerel). Prizde, şarj sınırı 80, `balanced`; en yüksek `x86_pkg_temp` 77 °C (adHighCpu), ısınma yok. Ölçüm: 13 geçerli koşu `c2_measure.py` (4 paralel, ~25 dk).
+- 15 koşudan 13 geçerli (gözetimli `adManualGc_on_2` ve `productCatalogFailure_on_1` da geçerli):
+  - `productCatalogFailure_on_2` **geçersiz (elle):** makine 04:56–07:06 UTC uykuda kaldı (systemd-inhibit `block` kilidine rağmen; GNOME'un 2 saat hareketsizlik uykusu açık: `sleep-inactive-ac-timeout` 7200, `-type` suspend; logind kaydında isteği gönderen yok, en olası GNOME). Uyku normal penceresinin ortasına düştü; koşucu bekleme süresini monotonik saatle saydığı için fark etmedi ve "VALID" yazdı (uygulamanın eksiği). Ölçülmedi; `productCatalogFailure_on_1` (gözetimli) geçerli sonuç. Kalan koşular `gnome-session-inhibit --inhibit suspend:idle` (elle, kod değişmeden) altında bitti.
+  - `recommendationCacheFailure_on_1` **geçersiz (koşucu):** recommendation flag penceresinde 3 kez yeniden başladı (OOM bayrağı sonda yok). Kart "hedef **dışı** beklenmeyen yeniden başlama → geçersiz" diyor; koşucu yalnız email'i beklenen saydı (uygulamanın kartı dar okuması). Pencere elle kopyalandı (demo kapanırken; son saniyeler eksik olabilir, `window_manual_copy.json`), kayıt için ölçüldü: `positive_control` PASS, belirtili (p99 gücü 112, bellek 5,1, CPU 1,4), filtered `clean`, collector PASS, kural top-1 recommendation.
+  - 16 koşunun 12'sinde normal öncesi konteyner sayısı 6 dk'da 21'de kaldı, collector yeniden başlatıldı (koşu başına +6 dk). Hangi konteynerin metriği eksik, bakılmadı.
+- **Bitti ölçütleri:**
+  - `positive_control`: 15/15 PASS (geçersiz recommendation dahil); filtered 15/15 `clean`. flagd yolundakiler flag penceresinde 2–39 bulgu (adFailure/adHighCpu 2: flag yazma anı). Beklenmeyen servis: adFailure/adHighCpu'da `ad` (flag adı, normal penceresinde 1); diğerlerinde `flagd` (yazma anı) ve `-` (`processscraper`, sadece raw).
+  - Aşırı süzme: yok. 14 koşunun hepsinde kök neden servisinin bütün sinyalleri raw ve filtered'da aynı (`verdicts_differ` hep False).
+  - Yeniden yazımlar (raw orijinal / filtered orijinal / filtered yeni): `adManualGc` 109/0/109; product-catalog hata mesajı 1996/0/1996; kilit logu (`lock_holding`) 15/0/15; shipping gecikme logu 8/0/8. `lock_failed` ("failed to acquire lock…") hiç görülmedi.
+  - Collector: 15/15 PASS (6 dosya çıkışı sent > 0, failed 0; `receiver_refused` 0); pencerede collector yeniden başlaması yok; en yüksek bellek 118–128 MiB (sadece gözetimli ilk denemede 311). opensearch her koşuda ~%30 kayıp (sent ~25 bin, failed ~10 bin; kayıt).
+  - Hız ve en kötü tutma (300 MB, 600 MB / hız): raw traces 8,89 MB/dk (flood) → 67 dk; filtered traces 7,94 (flood) → 76 dk; metrics/logs ≥ 198 dk. Pencereden kopyaya ~22 dk.
+- **Belirti ve zorluk tablosu** (filtered; raw aynı). Güç = karar veren sinyalin eşiğe oranı. Kural = basit kural top-3:
+
+  | Senaryo | Karar | Güç (sinyal) | Kural top-1 / top-3 |
+  |---|---|---|---|
+  | adFailure | belirtili | 6,0 (yeni WARN; hata oranı 2,8) | ad ✓ / ✓ |
+  | adHighCpu | belirtili | 78,6 (CPU 1,3 → 394) | ad ✓ / ✓ |
+  | adManualGc (gece) | belirtili | 118,6 (p99 4,5 → 2377 ms) | ad ✓ / ✓ |
+  | cartFailure %10 | belirtisiz | 0,14 (bellek; hata oranı +0,001) | checkout ✗ / ✗ |
+  | cartFailure %50 | sınırda | 0,8 (4 yeni WARN "Wasn't able to connect to redis"; hata oranı +0,005) | checkout ✗ / ✗ |
+  | emailMemoryLeak 100x | belirtisiz | 0,70 (bellek 68 → 77 MB) | ad ✗ / ✗ |
+  | emailMemoryLeak 1000x | belirtili | 2,95 (bellek 50 → 80 MB; yeniden başlama yok) | email ✓ / ✓ |
+  | paymentFailure %10 | belirtisiz | 0,77 (hata oranı +0,038) | checkout ✗ / ✗ |
+  | paymentFailure %50 | belirtili | 7,8 (hata oranı +0,39) | payment ✓ / ✓ |
+  | paymentUnreachable | belirtili | 20 (checkout hata oranı 0 → 1,0) | checkout ✓ / ✓ |
+  | productCatalogFailure | belirtili | 1,67 (hata oranı +0,084) | frontend ✗ / ✓ |
+  | productCatalogLockContention | belirtili | 1418 (p99 19 ms → 28 sn) | recommendation ✗ / ✓ |
+  | recommendationCacheFailure (geçersiz) | belirtili | 112 (p99) | recommendation ✓ / ✓ |
+  | intlShippingSlowdown 10sec | belirtili | 500 (p95 3,9 ms → 10,0 sn) | shipping ✓ / ✓ |
+
+  - Geçerli 12 senaryo koşusunda basit kural top-1 7, top-3 9; belirtili 9 koşuda top-1 7, top-3 9/9. Belirtisiz/sınırda 4 koşunun (cart ×2, email 100x, payment %10) hiçbirinde kök neden ilk 3'te değil.
+  - **Zor denemeyle çelişki:** intlShippingSlowdown zor denemede (aynı `10sec`) p95'te belirtisizdi; burada p95 10 sn (gecikme shipping isteklerinin %5'inden fazlasında). Neden (istek karışımı, tek koşu) bakılmadı.
+- **Kalibrasyon önerisi** (karar Eren'de; INCIDENT_CATALOG'a onaydan sonra yazılır):
+  - İki seviyeliler: paymentFailure %50 (%10 sınırın altında: 0,77); emailMemoryLeak 1000x (100x belirtisiz); cartFailure ikisi de belirtisiz/sınırda (cart'ta hata oranı ≤ %0,5; belirti cart'ın kendi telemetrisinde zayıf) → seçenek: %100 varyantı, daha uzun pencere ya da katalogdan çıkarma.
+  - intlShippingSlowdown: 10sec bu koşuda p95'te de belirtili; p99 de 500 kat. Zor denemeyle çelişki tek koşu, vaka üretiminde tekrar görülür.
+  - Zorluk: belirtili senaryoların çoğunda basit kural top-1'de çözüyor (tavan etkisine yakın); modelleri ayırt edecek olanlar zincirleme senaryolar (productCatalogFailure, LockContention: kural top-1'i kaçırıyor) ve belirtisi zayıf olanlar.
+- Kalan işler (kart): kural testi betiği ve örnekleri (Eren'e satırlar gösterilir; `samples/` makine bilgisi taşıyabilir), sonra `telemetry/raw/` silinir (c2_runs kopyaları planlama doğrulamasından sonra), PR.
+- Onay bekleyen kod düzeltmeleri (koşucu): (a) uyku algılama: duvar saati ile monotonik saat arasında pencerede > 1 dk fark → koşu geçersiz; (b) GNOME uyku engeli (`gnome-session-inhibit`, makinede kurulu) koşucunun kendi engeline eklenir; (c) kök neden servisinin yeniden başlaması beklenen sayılır (kartın "hedef dışı" ifadesi), kayda yazılır; bu düzeltmeyle `recommendationCacheFailure_on_1` geçerli sayılır mı (Eren).
+
+## 2026-10-24 · Uygulama → Planlama (C2, koşucu düzeltmesi ve recommendation yeniden koşusu)
+- Koşucu düzeltmeleri (Eren onayı, 2026-10-24; `5449029`):
+  - (a) Uyku tespiti: normal başlangıcı ile flag kapanışı arasında `CLOCK_BOOTTIME − CLOCK_MONOTONIC` artışı (uykuda geçen süre) `run.json` `suspended_s`'e yazılır; > 60 sn → geçersiz. Duvar saati yerine BOOTTIME: NTP düzeltmelerinden etkilenmez.
+  - (b) `run` kendini `gnome-session-inhibit --inhibit suspend:idle` + `systemd-inhibit` altında yeniden çalıştırır; korumalara `gnome_inhibited` eklendi (`gnome-session-inhibit --list`'te koşucunun suspend engeli var mı). Not: `--inhibit` listesi iki nokta üst üsteyle ayrılır; yardım metni virgül diyor ama virgüllü liste yok sayılıyor (denendi).
+  - (c) Senaryonun kök neden servisinin yeniden başlaması / durması beklenen (`expected_restarts`); başka konteyner → geçersiz. `EXPECTED_RESTART` kaldırıldı (email zaten emailMemoryLeak'in kök nedeni).
+  - Kontrol: sahte durumlarla recommendation yeniden başlaması → geçerli; cart yeniden başlaması ya da durması → geçersiz; kök nedensiz flood'da email yeniden başlaması → geçersiz. Korumalar engelsiz iki sorun, iki engel altında sorunsuz. pytest 190/190.
+- `recommendationCacheFailure_on_2`, 13:07–13:29 UTC (16:07–16:29 yerel): **geçerli.** recommendation yine flag penceresinde 3 kez yeniden başladı (OOM bayrağı yok), beklenen sayıldı; başka yeniden başlama yok. `suspended_s` 0, 22 konteyner (collector yeniden başlatılmadı), en yüksek 68 °C, kapsama tuttu. Koşudan sonra engel kalmadı.
+  - `positive_control` PASS (raw flag penceresinde 920 bulgu), filtered `clean`.
+  - Belirti: raw ve filtered aynı, belirtili, güç 4,18 (p95 78 → 241 ms; p99 3,9; bellek 62 → 96 MB, 2,8). Kural top-1 recommendation.
+  - Collector PASS (6 dosya çıkışı sent > 0, failed 0; `receiver_refused` 0). opensearch sent 23.936 / failed 9.913 (kayıt).
+  - **Gece koşusundan fark:** (1) güç 4,18, gecenin geçersiz koşusunda 112 (p99). Aynı yön, büyüklük çok farklı; tek koşu, sebebine bakılmadı. (2) Collector belleği koşu boyunca 280–307 MiB, düz (gece 96–128). Bu koşuda collector yeniden başlatılmadı; gece başlatılan koşularda ~110. Gözetimli ilk denemedeki 311 de büyük ihtimalle aynı durum. Büyüme yok; bellek sınırına göre önemi planlamanın kararı.
+- Tablo güncellemesi: `recommendationCacheFailure` geçerli koşu = `_2` (belirtili, 4,18, kural ✓ / ✓). Böylece tablodaki geçerli 14 senaryo koşusu (gece 12 + gözetimli productCatalogFailure_on_1 + bu koşu): belirtili 10, kural top-1 8, top-3 10/10. Düzeltme: gece raporundaki "Geçerli 12 senaryo koşusunda" tablodaki 13 satırı sayıyor, 13 olmalıydı (top-1 7 ve top-3 9 sayıları doğru).
+
+## 2026-10-24 · Uygulama → Planlama (C2, kural testi betiği)
+- `tools/test_collector_rules.sh` ve `tests/fixtures/collector_rules/` (adlar Eren onaylı; plan ve ölçütler ölçmeden önce, 2026-10-24). Sonuç: **PASS**, ~25 sn.
+- Yöntem: geçici collector (demonun imajı, `.env` `COLLECTOR_CONTRIB_IMAGE`, şu an 0.159.0) gerçek `otelcol-config-extras.yml` + testin katmanı (otlp/http 127.0.0.1 boş port, dosya çıkışı, hatlarda yalnız `filter/sim_world` ve `transform/scrub`; girdi raw olduğu için upstream işlemcileri yok). Kayıtlar tek tek gönderilir; sızıntı = sızıntı CLI'ının bulgusu ya da yeniden yazımın orijinal metni (`c2_measure.REWRITES`).
+- Örnek seçimi (scratch, repoya girmedi): 19 koşunun `samples/` + `window/raw`'dan kelime süzgeçli tek kayıtlar (423 aday) + normal pencereden temiz adaylar; her kural için silme / tek başına koşuları (collector'la, gerçek ayar).
+  - 53 kural: **tek sorumlu 18** (silinince kendi örneği sızıyor), **yedekli 23** (gerçek kaydı başka kural da düşürüyor; ör. flagd istemci span'ini ad, `server.address` ve `rpc.service` kuralının üçü de yakalıyor). Plandaki "örnekli her kural silinince kırmızı" ölçütü yedeklilerde tutamazdı; Eren kararı (seçenek A): yedekliler `alone` testi (hiç kural yokken örnek sızıntılı, yalnız o kural varken düşer ya da temiz). Bu kontrolle 18 yedekli kural sınandı.
+  - **Örneksiz 17** (`rules.tsv` `none`, gerekçeli): gerçek kaydı yok 12 (DI ×6, `lock_failed`, product-catalog mesajının log gövdesi hali, `url.path`/`http.route` ×4; `window/raw`'da doğrudan da arandı, 0); eşleşen kayıt bulgu taşımıyor 2 (collector'ın kendi logu, OpenFeature logu); eşleşen kayıtta başka sızıntı da var, kural tek başına temizlemiyor 3 (`feature_flag` anahtar silme kuralları: span, span olayı, log).
+  - Fixture: 23 örnek + 9 temiz kontrol (32 satır; Eren satırları gördü ve onayladı). Temiz kontroller kurallara yakın ve düşmemeli: Envoy span ve erişim logu (normal yol), flagd dışı gRPC span ve RPC metriği, tarayıcı resourceFetch, flag dışı konteynerin docker metriği, normal span metriği, shipping ve ad logu. Temizlenen alanlar: `host.name`, `os.description`, `host.cpu.model.name`, `container.id`, `container.hostname`.
+- Sonuç (ölçütler):
+  - Kapsam: 53 kuralın hepsi `rules.tsv`'de bir kez (delete 18, alone 18, none 17).
+  - Girdi: CLI 77 bulgu; her örnek sızıntılı, temiz kontroller temiz.
+  - Tam ayar: 17 kayıt çıktı (9 temiz kontrol + 8 yeniden yazılan örnek), sızıntılı 0; 9 temiz kontrol girdiyle aynı.
+  - `delete` 18/18 kırmızı; `alone` 18/18 (kuralsız kırmızı, tek başına yeşil). Collector logunda hata yok.
+  - Kasıtlı kırmızı, betik düzeyinde: adManualGc yeniden yazımı silinmiş ayar → FAIL (kapsam + çıktıda 1 sızıntılı kayıt); logs `service.name` kuralı `".*"` yapılmış ayar (aşırı süzme) → FAIL (kapsam + 3 temiz log kontrolü düştü + 4 yeniden yazım testi kırmızı vermedi). Kullanım hatası → çıkış 2.
+  - pytest 190/190.
+- Bulunan ve düzeltilen hatalar (uygulamanın): aynı kural metni birden fazla bölümde geçiyor (`service.name`, OpenFeature kapsamı, `rpc.service`, `server.address`, `url.path`); kuralı yalnız metinle tanımlayan ilk kontrol yanlış satırı sildi → kural kimliği (section, rule), `rules.tsv`'de `section` sütunu. Sızıntı CLI'ı klasördeki bütün dosyaları okuyor → girdi taraması yalnız `.jsonl` kopyasında.
+- Not (karar planlamanın): yedekli kurallar savunma katmanı; 23'ünden biri bozulursa gerçek hatta sızıntı olmaz ama bu test yakalar. `none` olan 3 anahtar silme kuralı için gevşek bir kontrol ("kuralın hedeflediği bulgu kaybolur") eklenebilir; bu kartta yapılmadı.

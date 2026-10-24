@@ -75,3 +75,16 @@ Sadece Eren'in onayladığı isimler.
 | `--view`, `--answers`, `--alias`, `--probe` | `trial_ask_models.py` seçenekleri: özetin okunduğu klasör / cevapların yazıldığı klasör / puanlamada takma adları gerçek ada çevir / bilgi yoklaması kipi (cevaplar verilen klasöre) |
 | `feature_flag_scenarios` | Bilgi yoklamasının JSON şemasının adı: `scenarios` listesi, öğeleri `{flag, service}` |
 | `~/cerebrum2/quality_trial_probe/` | Bilgi yoklaması cevapları (OTel Demo flag senaryoları; cevap içerir, `quality_trial` dışında); repo dışı |
+| `tools/scenario_runner.py` | Senaryo koşucusu (C2, vaka üretiminde de): korumalar → `up --raw` → 10 dk normal + 10 dk flag → kayıt ve telemetri penceresinin kopyası; `list`, `guards`, `run <id>… \| all` |
+| `tools/c2_measure.py` | C2 ölçümü: koşu klasöründen sızıntı (`positive_control`), belirti ve güç (raw/filtered), yeniden yazımlar, basit kural, collector sayaçları; model yok |
+| `~/cerebrum2/c2_runs/` | Koşucu çıktıları, koşu başına `<senaryo>_<varyant>_<deneme>/` (`%` → `pct`); cevap ve süzülmemiş veri içerir, repo dışı; süzülmemiş kısmı planlama doğrulamasından sonra Eren onayıyla silinir |
+| `run.json` | Koşu kaydı: senaryo, flag, varyant, kök neden, zamanlar (UTC), konteyner sayıları, zamanlayıcı, pencerede yeniden başlama/OOM, korumalar, en yüksek sıcaklık, collector en yüksek bellek, pencere kapsaması (sinyal başına en eski kayıt, MB/dk), geçerli/geçersiz ve sebep |
+| `measure.json` | `c2_measure.py`'nin koşu başına sonucu (koşu klasöründe) |
+| `samples/` | Koşu klasöründe kural testi için aday kayıtlar (raw bulgularından tek kayda indirilmiş OTLP satırları ve `index.tsv`); repoya girmeden önce Eren görür |
+| `samples/index.tsv` | `samples/` dizini: satır başına örnek konumu (`<sinyal>.jsonl:<n>`), sinyal, CLI kuralı, servis, eşleşen metin, senaryoya özgü mü (`specific`/`routine`), pencere |
+| `window/raw/`, `window/filtered/` | Koşu klasöründe telemetri penceresinin kopyası (normal − 2 dk … flag kapanışı + 1 dk), sinyal başına `traces.jsonl`, `metrics.jsonl`, `logs.jsonl`; `raw/` cevap içerir, planlama doğrulamasından sonra Eren onayıyla silinir |
+| `collector_mem.tsv` | Koşu klasöründe collector belleği, dakikada bir (UTC zaman, MiB) |
+| `containers_start.txt`, `containers_end.txt` | Koşu klasöründe normal başında ve flag kapanışında konteyner durumu (yeniden başlama sayısı, OOM, çalışıyor mu, başlama zamanı) |
+| `tools/test_collector_rules.sh` | Collector kural testi: geçici collector'a (demonun imajı) bizim ayarımız ve fixture kayıtları; kapsam, girdi sızıntılı, tam ayarda çıktı temiz ve temiz kontroller aynı, kural başına `delete`/`alone` testi (kasıtlı kırmızı). Docker ister, CI'da koşmaz |
+| `tests/fixtures/collector_rules/` | Kural testi girdisi: `traces.jsonl`, `metrics.jsonl`, `logs.jsonl` (C2 raw verisinden tek kayıtlık, elle gözden geçirilmiş, makine bilgisi temizlenmiş OTLP istekleri; Eren onaylı, 2026-10-24) ve `rules.tsv` |
+| `rules.tsv` | Kural testi listesi: `section` (ayardaki bölüm yolu), `rule` (kural metni), `test` (`delete`: tek sorumlu, silinince kırmızı; `alone`: yedekli, kuralsız kırmızı / tek başına yeşil; `none`: örneksiz, `note`'ta gerekçe; `clean`: temiz kontrol), `sample` (`<dosya>:<satır>`), `note` |
