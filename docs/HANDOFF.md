@@ -966,3 +966,12 @@
   - pytest 190/190.
 - Bulunan ve düzeltilen hatalar (uygulamanın): aynı kural metni birden fazla bölümde geçiyor (`service.name`, OpenFeature kapsamı, `rpc.service`, `server.address`, `url.path`); kuralı yalnız metinle tanımlayan ilk kontrol yanlış satırı sildi → kural kimliği (section, rule), `rules.tsv`'de `section` sütunu. Sızıntı CLI'ı klasördeki bütün dosyaları okuyor → girdi taraması yalnız `.jsonl` kopyasında.
 - Not (karar planlamanın): yedekli kurallar savunma katmanı; 23'ünden biri bozulursa gerçek hatta sızıntı olmaz ama bu test yakalar. `none` olan 3 anahtar silme kuralı için gevşek bir kontrol ("kuralın hedeflediği bulgu kaybolur") eklenebilir; bu kartta yapılmadı.
+
+## 2026-10-24 · Uygulama → Planlama (C2 oturum sonu)
+- Yapılan: C2 kartı bitti, PR #16 merge edildi (main `9cf8e6e`). Koşucu düzeltmeleri (uyku tespiti, GNOME engeli, kök neden servisinin yeniden başlaması beklenen), `recommendationCacheFailure_on_2` geçerli, kural testi betiği ve fixture'lar (Eren satırları onayladı), `telemetry/raw/` boşaltıldı (~2,4 GB, Eren onayı). Ayrıntılar bu dosyada 2026-10-24 tarihli dört Uygulama → Planlama kaydında.
+- Beklenen (planlama): C2 sonuçlarının doğrulanması (`~/cerebrum2/c2_runs/*/run.json`, `measure.json`); kalibrasyon kararı → INCIDENT_CATALOG (payment %50, email 1000x, cartFailure için %100 / uzun pencere / çıkarma, intlShippingSlowdown çelişkisi); doğrulamadan sonra `c2_runs/*/window/raw/` ve `samples/` silme onayı (Eren).
+- Dikkat:
+  - recommendation belirti gücü iki koşuda çok farklı (112 → 4,18, aynı yön); intlShipping zor denemede belirtisiz, C2'de belirtili. Tek koşuluk sonuçlar.
+  - Collector belleği normal öncesi yeniden başlatılmayan koşuda ~300 MiB, başlatılanlarda ~110 MiB (sınır ölçütü < 400 tuttu). 16 gece koşusunun 12'sinde normal öncesi 21 konteyner (collector yeniden başlatıldı; hangi konteynerin metriği eksik, bakılmadı).
+  - Kural testi: yedekli 23 kural savunma katmanı; örneksiz 17 kuralın 12'sinin gerçek kaydı yok (DI, `lock_failed`, `url.path`/`http.route`, PC log gövdesi). Collector sürümü değişince `tools/test_collector_rules.sh` elle koşulur.
+  - `gnome-session-inhibit --inhibit` listesi iki nokta üst üsteyle (`suspend:idle`); yardım metnindeki virgüllü biçim yok sayılıyor.
