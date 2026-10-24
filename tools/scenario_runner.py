@@ -6,7 +6,8 @@ C2 kartı (HANDOFF 2026-10-23 "Planlama → Uygulama (collector C2)", 2026-10-24
 Kullanım:
   python tools/scenario_runner.py list                 senaryoları basar
   python tools/scenario_runner.py guards               makine korumalarını basar (koşmaz)
-  python tools/scenario_runner.py run <id>... | all    koşuları sırayla yürütür (systemd-inhibit altında)
+  python tools/scenario_runner.py run <id>... | all    koşuları sırayla yürütür (gnome-session-inhibit ve
+                                                       systemd-inhibit altında)
 
 Koşu başına (`~/cerebrum2/c2_runs/<senaryo>_<varyant>_<deneme>/`, repo dışı, cevap içerir):
   korumalar → `otel_demo.sh up --raw` → 22 konteyner (6 dk içinde olmazsa collector yeniden başlatılır, 4 dk daha)
@@ -19,8 +20,10 @@ Koşu başına (`~/cerebrum2/c2_runs/<senaryo>_<varyant>_<deneme>/`, repo dış�
 Kayıt: `run.json` (alanlar aşağıda `record`), `runner.log`, `collector_mem.tsv`, `containers_start.txt`,
 `containers_end.txt`, `window/`.
 
-Geçersiz koşu: flag doğrulanamadı, 22 konteyner yok, pencerede hedef dışı bir konteyner yeniden başladı ya da
-durdu, ısınma (95 °C üstünde 1 dk'dan fazla), pencere döndürmeyle kısaldı (bir {raw, filtered} × {traces, metrics,
+Geçersiz koşu: flag doğrulanamadı, 22 konteyner yok, pencerede kök neden servisi dışında bir konteyner yeniden
+başladı ya da durdu (kök neden servisinin yeniden başlaması beklenir, `expected_restarts`'a yazılır; Eren,
+2026-10-24), makine normal başlangıcı ile flag kapanışı arasında 1 dk'dan uzun uyudu (`suspended_s`: CLOCK_BOOTTIME
+uykuda ilerler, CLOCK_MONOTONIC ilerlemez; farkın artışı uyku süresidir), ısınma (95 °C üstünde 1 dk'dan fazla), pencere döndürmeyle kısaldı (bir {raw, filtered} × {traces, metrics,
 logs} için kaynak dosyalardaki en eski kaydın kendi zamanı normal başlangıcından sonra).
 Isınmada koşu kesilir, soğuyunca (90 °C altında 2 dk) baştan; döndürmede baştan. İkinci kez de olursa üçüncü kez
 koşulmaz, kayda (Eren, 2026-10-24). Korumalardan biri koşu öncesi tutmazsa sıra durur.
@@ -61,6 +64,10 @@ POWER_PROFILE = "balanced"
 HOT_C, HOT_S = 95, 60
 COOL_C, COOL_S = 90, 120
 TEMP_EVERY_S, MEM_EVERY_S = 10, 60
+SUSPEND_MAX_S = 60
+# GNOME boşta uyutması systemd-inhibit'i dinlemiyor (gece koşusu 2026-10-24: 2 saat uyudu). `--inhibit` listesi
+# iki nokta üst üsteyle ayrılır (yardım metni virgül diyor ama virgüllü liste yok sayılıyor).
+GNOME_INHIBIT = ["gnome-session-inhibit", "--inhibit", "suspend:idle", "--reason", "aiops_rca scenario_runner"]
 
 # C2 (DECISIONS 2026-10-23): 11 katalog senaryosu, üçü iki seviyede, + loadGeneratorFloodHomepage = 15 koşu.
 # kind: flagd Resolve<kind>; context: doğrulamada flagd'ye giden bağlam; target: defaultVariant yerine yazılan
@@ -85,8 +92,6 @@ SCENARIOS = [
     # Sadece sızıntı kontrolü (vaka değil, noise_layer); kök neden servisi yok.
     {"flag": "loadGeneratorFloodHomepage", "variant": "on", "kind": "Int", "root": None},
 ]
-# Pencerede yeniden başlaması beklenen konteyner (INCIDENT_CATALOG: 100 MB limitte OOM ve yeniden başlama)
-EXPECTED_RESTART = {"emailMemoryLeak": {"email"}}
 
 
 def scenario_id(s: dict) -> str:
@@ -98,6 +103,11 @@ BY_ID = {scenario_id(s): s for s in SCENARIOS}
 
 def utc_ns() -> int:
     return time.time_ns()
+
+
+def sleep_offset_s() -> float:
+    """Açılıştan beri uykuda geçen toplam süre (sn): CLOCK_BOOTTIME − CLOCK_MONOTONIC."""
+    return time.clock_gettime(time.CLOCK_BOOTTIME) - time.monotonic()
 
 
 def iso(ns: int | None) -> str | None:
@@ -131,6 +141,15 @@ def pkg_temp_c() -> float | None:
     return None
 
 
+def gnome_inhibited() -> bool:
+    """Koşucunun GNOME engeli (suspend dahil) şu an listede mi."""
+    try:
+        out = subprocess.run(["gnome-session-inhibit", "--list"], capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return any(GNOME_INHIBIT[4] in line and "suspend" in line for line in out.splitlines())
+
+
 def guards() -> dict:
     ac = [read(str(p / "online")) for p in Path("/sys/class/power_supply").glob("AC*")]
     try:
@@ -146,6 +165,7 @@ def guards() -> dict:
         "free_disk_gb": round(free_gb, 1),
         "power_profile": profile,
         "inhibited": os.environ.get("SCENARIO_RUNNER_INHIBITED") == "1",
+        "gnome_inhibited": gnome_inhibited(),
     }
     problems = []
     if g["ac_online"] != "1":
@@ -160,6 +180,8 @@ def guards() -> dict:
         problems.append(f"power profile {profile}, want {POWER_PROFILE}")
     if not g["inhibited"]:
         problems.append("not under systemd-inhibit")
+    if not g["gnome_inhibited"]:
+        problems.append("no gnome-session-inhibit suspend inhibitor")
     g["problems"] = problems
     return g
 
@@ -266,6 +288,18 @@ def set_flag(s: dict, variant: str) -> tuple[int, int | None, dict | None]:
     return written, None, answer
 
 
+def split_restarts(start: dict, end: dict, expected: set) -> tuple[list, list]:
+    """Başlangıç ve bitiş konteyner durumlarından (beklenmeyen, beklenen) yeniden başlama / durma listeleri."""
+    unexpected, seen = [], []
+    for name, st in end.items():
+        old = start.get(name)
+        changed = old is None or st["restarts"] != old["restarts"] or st["started"] != old["started"] \
+            or (old["running"] and not st["running"]) or (st["oom"] and not old["oom"])
+        if changed:
+            (seen if name in expected else unexpected).append({"container": name, "start": old, "end": st})
+    return unexpected, seen
+
+
 def containers() -> dict[str, dict]:
     ids = subprocess.run(["docker", "ps", "-aq"], capture_output=True, text=True).stdout.split()
     if not ids:
@@ -365,7 +399,7 @@ def run_one(s: dict, attempt: int) -> dict:
         "attempt": attempt, "valid": False, "invalid_reasons": [],
         "times_utc": {}, "container_count": {}, "collector_restarted_before_normal": False,
         "scheduler": None, "flag_on": None, "flag_off": None, "restarts_in_window": [], "expected_restarts": [],
-        "guards_before": guards(), "max_pkg_temp_c": None, "overheat": False,
+        "suspended_s": None, "guards_before": guards(), "max_pkg_temp_c": None, "overheat": False,
         "collector_mem_peak_mib": None, "collector_mem_samples": 0, "window": {}, "coverage_short": False,
     }
     times = record["times_utc"]
@@ -425,6 +459,7 @@ def run_one(s: dict, attempt: int) -> dict:
                 raise Overheat(f"x86_pkg_temp above {HOT_C} °C for more than {HOT_S} s")
 
         normal_ns = mark("normal_start")
+        slept_before = sleep_offset_s()
         wait(NORMAL_S)
         record["container_count"]["at_flag_on"] = container_count()
         flag_on_set = True
@@ -439,6 +474,7 @@ def run_one(s: dict, attempt: int) -> dict:
         written, verified, answer = set_flag(s, "off")
         flag_on_set = False
         flag_off_ns = written
+        record["suspended_s"] = round(sleep_offset_s() - slept_before, 1)
         times["flag_off_write"], times["flag_off_verified"] = iso(written), iso(verified)
         record["flag_off"] = answer
         log(f"flag off: verified {iso(verified)} {json.dumps(answer)}")
@@ -447,17 +483,16 @@ def run_one(s: dict, attempt: int) -> dict:
 
         end_state = containers()
         (d / "containers_end.txt").write_text(json.dumps(end_state, indent=1) + "\n")
-        expected = EXPECTED_RESTART.get(s["flag"], set())
-        for name, st in end_state.items():
-            old = start_state.get(name)
-            changed = old is None or st["restarts"] != old["restarts"] or st["started"] != old["started"] \
-                or (old["running"] and not st["running"]) or (st["oom"] and not old["oom"])
-            if changed:
-                entry = {"container": name, "start": old, "end": st}
-                (record["expected_restarts"] if name in expected else record["restarts_in_window"]).append(entry)
+        expected = {s["root"]} if s["root"] else set()
+        record["restarts_in_window"], record["expected_restarts"] = split_restarts(start_state, end_state, expected)
+        reasons = []
+        if record["suspended_s"] > SUSPEND_MAX_S:
+            reasons.append(f"machine slept {record['suspended_s']} s between normal start and flag off")
         if record["restarts_in_window"]:
-            raise Invalid("unexpected restart/stop in window: "
-                          + ", ".join(e["container"] for e in record["restarts_in_window"]))
+            reasons.append("unexpected restart/stop in window: "
+                           + ", ".join(e["container"] for e in record["restarts_in_window"]))
+        if reasons:
+            raise Invalid("; ".join(reasons))
         record["valid"] = True
     except Overheat as e:
         record["overheat"] = True
@@ -527,8 +562,8 @@ def wait_cool() -> None:
 def cmd_run(ids: list[str]) -> int:
     if os.environ.get("SCENARIO_RUNNER_INHIBITED") != "1":
         env = dict(os.environ, SCENARIO_RUNNER_INHIBITED="1")
-        cmd = ["systemd-inhibit", "--what=sleep:idle:handle-lid-switch", "--who=aiops_rca scenario_runner",
-               "--why=C2 scenario runs", sys.executable, *sys.argv]
+        cmd = [*GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
+               "--who=aiops_rca scenario_runner", "--why=C2 scenario runs", sys.executable, *sys.argv]
         return subprocess.run(cmd, env=env).returncode
     if ids == ["all"]:
         ids = list(BY_ID)
