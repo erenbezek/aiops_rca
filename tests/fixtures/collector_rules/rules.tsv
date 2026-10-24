@@ -1,0 +1,63 @@
+section	rule	test	sample	note
+filter/sim_world/traces/span	IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")	delete	traces.jsonl:5	C2 adFailure_on_1
+filter/sim_world/traces/span	IsMatch(instrumentation_scope.name, "(?i)openfeature")	delete	traces.jsonl:8	C2 adFailure_on_1
+filter/sim_world/traces/span	IsMatch(name, "(?i)flagd|flagservice|ofrep")	alone	traces.jsonl:1	C2 adFailure_on_1
+filter/sim_world/traces/span	attributes["server.address"] == "flagd"	alone	traces.jsonl:4	C2 adFailure_on_1
+filter/sim_world/traces/span	attributes["net.peer.name"] == "flagd"	alone	traces.jsonl:1	C2 adFailure_on_1
+filter/sim_world/traces/span	IsMatch(attributes["rpc.service"], "(?i)flagd")	alone	traces.jsonl:1	C2 adFailure_on_1
+filter/sim_world/traces/span	IsMatch(attributes["original_span_name"], "(?i)flagd|ofrep")	alone	traces.jsonl:1	C2 adFailure_on_1
+filter/sim_world/traces/span	IsMatch(attributes["thread.name"], "(?i)flagd")	alone	traces.jsonl:4	C2 adFailure_on_1
+filter/sim_world/traces/span	IsMatch(attributes["url.full"], "(?i)flagd|/flagservice/|ofrep|/feature(/|$)|/loadgen(/|$)")	delete	traces.jsonl:6	C2 adFailure_on_1
+filter/sim_world/traces/span	IsMatch(attributes["http.url"], "(?i)flagd|/flagservice/|ofrep|/feature(/|$)|/loadgen(/|$)")	alone	traces.jsonl:2	C2 adHighCpu_on_1
+filter/sim_world/traces/span	IsMatch(attributes["url.path"], "^/(flagservice|feature|loadgen)(/|$)")	none	-	C2 ham verisinde eşleşen kayıt yok (bu alanda flag yolu görülmedi)
+filter/sim_world/traces/span	IsMatch(attributes["upstream_cluster"], "^(flagservice|flagd-ui|loadgen)$")	alone	traces.jsonl:2	C2 adHighCpu_on_1
+filter/sim_world/traces/span	IsMatch(attributes["upstream_cluster.name"], "^(flagservice|flagd-ui|loadgen)$")	alone	traces.jsonl:2	C2 adHighCpu_on_1
+filter/sim_world/traces/spanevent	name == "feature_flag.evaluation"	delete	traces.jsonl:3	C2 productCatalogFailure_on_1
+filter/sim_world/metrics/metric	IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")	delete	metrics.jsonl:3	C2 adFailure_on_1
+filter/sim_world/metrics/metric	IsMatch(resource.attributes["container.name"], "^(flagd|flagd-ui|load-generator)$")	delete	metrics.jsonl:5	C2 adFailure_on_1
+filter/sim_world/metrics/metric	IsMatch(name, "^feature_flag\\.")	alone	metrics.jsonl:1	C2 adFailure_on_1
+filter/sim_world/metrics/metric	IsMatch(instrumentation_scope.name, "(?i)openfeature")	alone	metrics.jsonl:1	C2 adFailure_on_1
+filter/sim_world/metrics/metric	IsMatch(instrumentation_scope.name, "processscraper")	delete	metrics.jsonl:4	C2 adFailure_on_1
+filter/sim_world/metrics/datapoint	IsMatch(attributes["rpc.service"], "(?i)flagd")	alone	metrics.jsonl:2	C2 intlShippingSlowdown_10sec_1
+filter/sim_world/metrics/datapoint	attributes["server.address"] == "flagd"	alone	metrics.jsonl:2	C2 intlShippingSlowdown_10sec_1
+filter/sim_world/metrics/datapoint	IsMatch(attributes["span.name"], "(?i)flagd|flagservice|ofrep")	delete	metrics.jsonl:6	C2 adFailure_on_1
+filter/sim_world/metrics/datapoint	IsMatch(attributes["http.route"], "^/(flagservice|feature|loadgen)(/|$)")	none	-	C2 ham verisinde eşleşen kayıt yok (bu alanda flag yolu görülmedi)
+filter/sim_world/metrics/datapoint	IsMatch(attributes["url.path"], "^/(flagservice|feature|loadgen)(/|$)")	none	-	C2 ham verisinde eşleşen kayıt yok (bu alanda flag yolu görülmedi)
+filter/sim_world/logs/log_record	IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")	delete	logs.jsonl:4	C2 adFailure_on_1
+filter/sim_world/logs/log_record	resource.attributes["service.name"] == "otelcol-contrib"	none	-	eşleşen gerçek kayıt (collector'ın kendi logu) bulgu taşımıyor
+filter/sim_world/logs/log_record	IsMatch(instrumentation_scope.name, "(?i)openfeature")	none	-	eşleşen gerçek log kaydı bulgu taşımıyor
+filter/sim_world/logs/log_record	IsMatch(event_name, "feature_flag")	alone	logs.jsonl:2	C2 adFailure_on_1
+filter/sim_world/logs/log_record	attributes["feature_flag_key"] != nil	alone	logs.jsonl:2	C2 adFailure_on_1
+filter/sim_world/logs/log_record	IsMatch(attributes["upstream.cluster"], "^(flagservice|flagd-ui|loadgen)$")	alone	logs.jsonl:1	C2 adFailure_on_1
+filter/sim_world/logs/log_record	IsMatch(attributes["url.path"], "^/(flagservice|feature|loadgen)(/|$)")	none	-	C2 ham verisinde eşleşen kayıt yok (bu alanda flag yolu görülmedi)
+filter/sim_world/logs/log_record	IsMatch(attributes["url.full"], "(?i)flagd|/flagservice/|ofrep")	alone	logs.jsonl:1	C2 adFailure_on_1
+filter/sim_world/logs/log_record	IsMatch(body, "^\\[[^\\]]*\\] \"[A-Z]+ /(flagservice|feature|loadgen)(/|[ ?])")	alone	logs.jsonl:1	C2 adFailure_on_1
+transform/scrub/trace_statements/context:span/statements	delete_key(span.attributes, "demo.feature_flag.recommendation_cache")	delete	traces.jsonl:7	C2 adHighCpu_on_1
+transform/scrub/trace_statements/context:span/statements	delete_matching_keys(span.attributes, "^feature_flag\\.")	none	-	eşleşen gerçek kayıtlarda başka sızıntı da var; kural tek başına temizlemiyor
+transform/scrub/trace_statements/context:span/statements	set(span.attributes["response_flags"], "-") where span.attributes["response_flags"] == "DI"	none	-	DI yalnız imageSlowLoad'da (katalog dışı), C2'de yok (HANDOFF C2 kartı)
+transform/scrub/trace_statements/context:span/statements	replace_pattern(span.attributes["response_flags"], "^DI,", "")	none	-	DI yalnız imageSlowLoad'da (katalog dışı), C2'de yok (HANDOFF C2 kartı)
+transform/scrub/trace_statements/context:span/statements	replace_pattern(span.attributes["response_flags"], ",DI(,|$)", "$$1")	none	-	DI yalnız imageSlowLoad'da (katalog dışı), C2'de yok (HANDOFF C2 kartı)
+transform/scrub/trace_statements/context:span/statements	replace_pattern(span.status.message, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")	delete	traces.jsonl:3	C2 productCatalogFailure_on_1
+transform/scrub/trace_statements/context:span/statements	replace_all_patterns(span.attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")	delete	traces.jsonl:9	C2 productCatalogFailure_on_1
+transform/scrub/trace_statements/context:spanevent/statements	replace_pattern(spanevent.name, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")	delete	traces.jsonl:3	C2 productCatalogFailure_on_1
+transform/scrub/trace_statements/context:spanevent/statements	replace_all_patterns(spanevent.attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")	delete	traces.jsonl:10	C2 productCatalogFailure_on_1
+transform/scrub/trace_statements/context:spanevent/statements	delete_matching_keys(spanevent.attributes, "^feature_flag\\.")	none	-	eşleşen gerçek kayıtlarda başka sızıntı da var; kural tek başına temizlemiyor
+transform/scrub/log_statements/context:log/statements	delete_matching_keys(log.attributes, "^feature_flag")	none	-	eşleşen gerçek kayıtlarda başka sızıntı da var; kural tek başına temizlemiyor
+transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ )DI ", "$$1- ")	none	-	DI yalnız imageSlowLoad'da (katalog dışı), C2'de yok (HANDOFF C2 kartı)
+transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ )DI,", "$$1")	none	-	DI yalnız imageSlowLoad'da (katalog dışı), C2'de yok (HANDOFF C2 kartı)
+transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, "^(\\[[^\\]]*\\] \"[^\"]*\" \\d+ [A-Z,]*),DI([ ,])", "$$1$$2")	none	-	DI yalnız imageSlowLoad'da (katalog dışı), C2'de yok (HANDOFF C2 kartı)
+transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")	none	-	C2'de bu metin log gövdesinde görülmedi (yalnız özniteliklerde)
+transform/scrub/log_statements/context:log/statements	replace_all_patterns(log.attributes, "value", "Product Catalog Fail Feature Flag Enabled", "failed to load product from catalog")	delete	logs.jsonl:7	C2 productCatalogFailure_on_1
+transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, "^Feature Flag adManualGc enabled, performing a manual gc now$", "Performing a full garbage collection now")	delete	logs.jsonl:6	C2 adManualGc_on_2
+transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, "^Delaying international shipment due to intlShippingSlowdown feature flag$", "Delaying international shipment")	delete	logs.jsonl:5	C2 intlShippingSlowdown_10sec_1
+transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, "^lock contention scenario active: holding ACCESS EXCLUSIVE lock on catalog\\.products$", "holding ACCESS EXCLUSIVE lock on catalog.products")	delete	logs.jsonl:3	C2 productCatalogLockContention_on_1
+transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, "^failed to acquire lock for lock contention scenario$", "failed to acquire ACCESS EXCLUSIVE lock on catalog.products")	none	-	C2'de hiç görülmedi (lock_failed)
+-	-	clean	traces.jsonl:11	envoy span, normal upstream_cluster; C2 paymentFailure_50pct_1
+-	-	clean	traces.jsonl:12	grpc span, non-flagd rpc.service; C2 paymentFailure_50pct_1
+-	-	clean	traces.jsonl:13	browser resourceFetch; C2 paymentFailure_50pct_1
+-	-	clean	metrics.jsonl:7	docker_stats, non-flag container; C2 paymentFailure_50pct_1
+-	-	clean	metrics.jsonl:8	span metric, normal span; C2 paymentFailure_50pct_1
+-	-	clean	metrics.jsonl:9	rpc metric, non-flagd; C2 paymentFailure_50pct_1
+-	-	clean	logs.jsonl:8	envoy access log, normal path; C2 paymentFailure_50pct_1
+-	-	clean	logs.jsonl:9	shipping log; C2 paymentFailure_50pct_1
+-	-	clean	logs.jsonl:10	ad log; C2 paymentFailure_50pct_1
