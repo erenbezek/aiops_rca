@@ -1012,3 +1012,9 @@
   - Sipariş yolu senaryolarında olay az (10 dk'da 25–30 PlaceOrder). Düşük seviyeli varyantlarda pencere olaysız kalabilir; vaka başına "olay var mı" kontrolü gerekir.
   - 16 koşunun 12'sinde bir konteynerin metriği (count(container_uptime_seconds) = 21) collector yeniden başlatılana kadar gelmedi; koşu başına +6 dk. Hangi konteyner olduğuna bakılmadı.
   - Collector belleği en çok 311 MiB oldu, sınır 400 MiB; yavaş taban koşularında pay az. Kayda alınır.
+
+## 2026-10-25 · Uygulama → Planlama (C2 doğrulama ve kalibrasyon, sonuç)
+- Yapılan (dal `task/c2-dogrulama`): planlamanın kaydı (yapıştırmada iki kez giren "paymentFailure %10" satırı bir kez, Eren onayı), DECISIONS iki satır, INCIDENT_CATALOG dört satır. intlShippingSlowdown belirtisinde "Siparişlerin ~%11'inde gecikme" kaldı, parantezin içi yeni metin; yeni metindeki iç parantezler kaldırıldı (Eren onayı).
+- `productCatalogFailure_on_2/run.json`: `valid` true → false, `invalid_reasons` [] → kartın metni. Önce/sonra JSON farkı yalnız bu iki alan, anahtar sırası aynı; dosya koşucunun biçimiyle (`indent=1`) yazıldı.
+- Silme (Eren onayı): `c2_runs/*/window/raw/` 19 klasör 5,50 GB ve `*/samples/` 17 klasör 5,8 MB (önce ölçüldü, planlamanın ölçümüyle aynı). Sonra: ikisi de 0; 19 `window/filtered/` 4,39 GB, 57 dosyanın sha256'sı silmeden öncekiyle aynı; 17 `measure.json`, 19 `run.json`, `window_manual_copy.json` duruyor. Boş disk 287,96 → 293,47 GB (+5,51 GB, `df -B1`). `c2_runs/` toplam 4,39 GB.
+- Dikkat: `measure.json`'daki `samples/` yolları artık yok (kart: düzeltme gerekmiyor). `c2_measure.py` değişmedi.
