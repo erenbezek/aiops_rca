@@ -1018,3 +1018,57 @@
 - `productCatalogFailure_on_2/run.json`: `valid` true → false, `invalid_reasons` [] → kartın metni. Önce/sonra JSON farkı yalnız bu iki alan, anahtar sırası aynı; dosya koşucunun biçimiyle (`indent=1`) yazıldı.
 - Silme (Eren onayı): `c2_runs/*/window/raw/` 19 klasör 5,50 GB ve `*/samples/` 17 klasör 5,8 MB (önce ölçüldü, planlamanın ölçümüyle aynı). Sonra: ikisi de 0; 19 `window/filtered/` 4,39 GB, 57 dosyanın sha256'sı silmeden öncekiyle aynı; 17 `measure.json`, 19 `run.json`, `window_manual_copy.json` duruyor. Boş disk 287,96 → 293,47 GB (+5,51 GB, `df -B1`). `c2_runs/` toplam 4,39 GB.
 - Dikkat: `measure.json`'daki `samples/` yolları artık yok (kart: düzeltme gerekmiyor). `c2_measure.py` değişmedi.
+
+## 2026-10-25 · Planlama → Uygulama (depolama kartı)
+- Önce 3-5 maddelik plan, Eren onaylar. Her bölümden (D1, D2, D3) sonra rapor ver ve dur. Yeni ad (volume adı, betik adı) koymadan önce öner. Yeni paket yok: badger Jaeger imajında var; collector-contrib alıcıları kendi imajında var. Upstream dosyalarına dokunma; değişiklik bizim katmanda (`compose.extras.yaml`, `otelcol-config-extras.yml`, `tools/`). `~/cerebrum2/c2_runs/*/window/filtered/` D3 bitene kadar silinmez.
+- Kayıt (ilk commit): DECISIONS 2026-10-25 iki satır (canlı taraf yeniden oynatmayla; collector dosya döndürmesi kalıcı), GLOSSARY `yeniden oynatma`, bu kart.
+- Amaç: canlı izleme sistemi kalıcı ve sınırlı olsun, OpenSearch log kaybetmesin, canlı taraf dosyayla aynı veriyi tutsun. Yeniden oynatmanın çalıştığı vaka üretiminden önce gösterilsin.
+- Kapsam dışı: yeniden oynatma aracının kendisi (Proje 2), snapshot biçimi ve sınırı (vaka üretimi kartı).
+- **D1 · Ölçüm (değişiklik yok).** 1 saatlik normal koşu (up, raw kapalı). Koşudan önce şarj sınırı 80 mi, kontrol et.
+  - OpenSearch kaybı:
+    - opensearch çıkışının sent, send_failed ve enqueue_failed sayaçları.
+    - Collector logundaki opensearch hata mesajları (farklı mesajlar ve sayıları).
+    - OpenSearch tarafında reddedilen bulk istekleri (thread pool ve node stats).
+    - Neden yazılır; düzeltme önerisi seçeneklerle sunulur (ör. bellek/heap, kuyruk/batch, eşleme). Seçimi Eren yapar.
+  - Büyüme: Prometheus ve OpenSearch veri klasörlerinin saatlik artışı (ondalık GB). Jaeger şu an bellekte; onun disk büyümesi D2'de ölçülür.
+  - Jaeger, Prometheus, OpenSearch ve collector için tepe bellek, yeniden başlama ve OOM.
+  - Rapor ver ve dur.
+- **D2 · Kalıcı ayarlar.**
+  - İsimli volume'ler: Prometheus, Jaeger (badger, diske), OpenSearch.
+  - Saklama: süre 7 gün; boyut sınırı D1–D2 ölçümünden önerilir (ör. saatlik büyüme × gece başına 8 saat × 7 × 1,5). Yöntemi (Prometheus retention.size, badger TTL, OpenSearch eski indeks silme) uygulama önerir, Eren onaylar.
+  - OpenSearch düzeltmesi: D1'de seçilen.
+  - Koşucu koruması: izleme volume'lerinin toplamı sınırı aşarsa koşu başlamaz.
+  - Ölçütler (ölçmeden önce yazılı, sonuca göre değişmez):
+    - 1 saatlik koşuda opensearch send_failed ve enqueue_failed artışı 0.
+    - Canlı = dosya, kapalı bir aralıkta (pencere kenarlarından 2 dk içeride, sorgudan önce 2 dk bekleme):
+      - Jaeger'deki span sayısı = file/traces'teki span sayısı (servis başına; arama sınırına takılmamak için dilimlerle).
+      - OpenSearch'teki log sayısı = file/logs'taki log kaydı sayısı.
+      - Prometheus'ta seçili 3 metrik (gauge, sum, histogram _count) için örnek sayısı ve değerler dosyayla aynı.
+    - down + up sonrası önceki aralığın sayıları üç sistemde de aynı.
+    - Bellek: OOM yok, beklenmeyen yeniden başlama yok; tepe değerler kayda.
+    - Volume boyutları kayda.
+    - Kasıtlı kırmızı: düşük bir sahte sınırla koşucu koşuyu başlatmıyor.
+    - pytest yeşil.
+  - Rapor ver ve dur.
+- **D3 · Yeniden oynatma denemesi.**
+  - Girdi: iki C2 süzülmüş penceresi, ~8,7 saat arayla. Aralık, Prometheus'ta blok sıkıştırmasını tetiklesin diye seçildi.
+    - `~/cerebrum2/c2_runs/productCatalogFailure_on_1/window/filtered/` (2026-10-23 23:31–23:51 UTC, 0,24 GB)
+    - `~/cerebrum2/c2_runs/intlShippingSlowdown_10sec_1/window/filtered/` (2026-10-24 08:14–08:35 UTC, 0,23 GB)
+  - Hedef: boş ve ayrı volume'lü bir Jaeger, Prometheus ve OpenSearch. Canlı demonun volume'lerine yazılmaz. Prometheus'un saklama süresi en eski verinin yaşından uzun olmalı.
+  - Yöntem uygulamanın önerisi (ör. collector-contrib'in dosya okuyan OTLP alıcısı ya da standart kütüphaneyle OTLP/HTTP gönderimi).
+  - Ölçütler:
+    - Her pencere için Jaeger span sayısı ve OpenSearch log sayısı dosyayla aynı.
+    - Prometheus'ta seçili 3 metrikte örnek sayısı ve değerler dosyayla aynı.
+    - Prometheus'ta blok oluştuktan (sıkıştırma) sonra iki pencerenin verisi de sorgulanabilir.
+    - Canlı demonun volume boyutları değişmedi.
+  - Güç kontrolü:
+    - Hepsi tutarsa B kesinleşir.
+    - Prometheus eski örnekleri reddederse önce sıra dışı yazma ayarı (out_of_order_time_window) denenir; yine reddederse dur, planlamaya dön (karar değişebilir).
+    - Jaeger ya da OpenSearch sayısı tutmazsa fark ve nedeni yazılır.
+  - Rapor ver ve dur.
+- **Bitince:**
+  - ARCHITECTURE: mon artık kalıcı (kesik çizgi kalkar); Proje 2 notu: mon snapshot'lardan yeniden oynatmayla dolar.
+  - OTEL_DEMO: kalıcılık bölümü güncellenir.
+  - Disk bütçesi tablosu HANDOFF'a: döndürme 5,4 / 2,7 GB; izleme sınırı; snapshot tahmini ~0,23 GB/vaka (sıkıştırmasız; sınırı vaka üretimi kartında).
+  - PROJECT "Şu an"; DevOps listesindeki "Kalıcı depolama, saklama süresi" satırının işaretlenmesini öner.
+  - PR açıklaması sade; push'tan önce PR durumuna bak.
