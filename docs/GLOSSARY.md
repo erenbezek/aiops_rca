@@ -114,7 +114,7 @@ Sadece Eren'in onayladığı isimler.
 | `otel-replay` | Yeniden oynatma yığınının compose proje adı; konteynerler `otel-replay-<servis>-1`, volume'ler `otel-replay_*` (canlı demonunkilerden ayrı) |
 | `REPLAY_WINDOW` | Yeniden oynatılan pencerenin klasörü (`traces/metrics/logs.jsonl`); collector'a `/replay` olarak salt okunur bağlanır |
 | `replay` | `storage_check.py` komutu: C2 pencerelerini boş ve ayrı izleme sistemine zaman sırasıyla yeniden oynatıp dosyayla karşılaştırır |
-| `replay.json` | `replay` koşusunun sonuç kaydı (`<UTC zaman>-replay/` klasöründe): pencereler, sayaçlar, karşılaştırmalar, bloklar, ölçütler |
+| `replay.json`, `replay.log` | `replay` koşusunun sonuç kaydı (`<UTC zaman>-replay/` klasöründe): pencereler, sayaçlar, karşılaştırmalar, bloklar, ölçütler / günlüğü |
 | `tests/test_replay_config.py` | `otelcol-replay.yml`'daki kopyaların kaynaklarıyla aynı olduğu (upstream exporter'ları `REPLAY_ONLY` dışında) ve alıcıların yalnız dosya olduğu testi |
 | `REPLAY_ONLY` | `test_replay_config.py`'de yeniden oynatma ayarının upstream'den bilerek farklı satırları; her biri ayarda olmalı, listede olmayan fark kırmızı |
 | `collector_<koşu>.log` | `replay` koşu klasöründe, o pencereyi oynatan collector'ın logu (collector durdurulmadan önce yazılır) |

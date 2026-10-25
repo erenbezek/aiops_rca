@@ -1148,3 +1148,21 @@
   - `replay.log` (koşu günlüğü) GLOSSARY'de yok; `watch.log`'un karşılığı, onay bekliyor.
   - `storage_check.py`'deki replay sabitleri ve fonksiyonları (`REPLAY_COMPOSE`, `wait_replayed` vb.) iç adlar, GLOSSARY'de değil.
   - pytest 195/195.
+
+## 2026-10-25 · Uygulama → Planlama (depolama kartı bitti, disk bütçesi)
+- Yapılan ("Bitince" işleri): ARCHITECTURE (`mon` kalıcı, kesik çizgi kalktı; Proje 2'de ajanın canlı araçları yeniden oynatma hedefine bakar, `snap` → `replay`), OTEL_DEMO kalıcılık bölümü, PROJECT "Şu an", bu tablo. `replay.log` GLOSSARY'ye eklendi (Eren onayı).
+- Disk bütçesi (ondalık GB; 2026-10-25 ölçümü, boş disk 292,20 GB):
+
+| Kalem | Boyut | Not |
+|---|---|---|
+| Collector dosya döndürmesi, süzülmüş | en çok 2,83 GB | 3 sinyal × 3 dosya × 300 MiB (`max_megabytes` MiB; kartta 2,7) |
+| Collector dosya döndürmesi, süzülmüş + süzülmemiş (`--raw`) | en çok 5,66 GB | kartta 5,4 |
+| İzleme sistemi volume'leri (canlı) | ≤ 40 GB | koruma (`MAX_MONITORING_GB`); büyüme ~0,85 GB/saat demo (D2); Prometheus ayrıca ≤ 2GiB |
+| Snapshot (vaka penceresi, süzülmüş, sıkıştırmasız) | ~0,23 GB/vaka | 19 C2 penceresi: ortalama 0,231, en çok 0,278 GB (~25 dk); 30 vaka ≈ 6,9 GB. Sınır vaka üretimi kartında |
+| Yeniden oynatma hedefi (Proje 2) | ~0,25 GB/vaka | D3: 2 pencere 0,49 GB (Jaeger 0,44); hedef kalıcı olursa sınır gerekir |
+| Docker imajları | 19,29 GB | şu an |
+| `~/cerebrum2/c2_runs/` | 4,39 GB | süzülmemiş kopyalar silinmiş; `window/filtered/` duruyor |
+| `~/cerebrum2/telemetry/` | 2,28 GB | döndürmenin şu anki doluluğu |
+
+- Öneri: PROJECT DevOps listesinde "Kalıcı depolama, saklama süresi" satırı işaretlenebilir (Jaeger diske, Prometheus/OpenSearch saklama, boyut koruması, yeniden başlatma sonrası doğrulama). Karar planlamanın / Eren'in; işaretlemedim.
+- Dikkat: 40 GB her gece 8 saat koşuda 6. günde dolar (D2 notu); gece planı netleşince yeniden bakılmalı.

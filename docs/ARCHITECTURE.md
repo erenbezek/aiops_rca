@@ -16,7 +16,7 @@ flowchart LR
     inj["Hata enjeksiyonu<br/>(flagd API, tc netem, CPU/bellek, kill)"]
     raw[("OTLP dosyası (süzülmüş)<br/>~/cerebrum2/telemetry/filtered/")]
     rawu[("süzülmemiş kopya<br/>telemetry/raw/ (sadece --raw)")]
-    mon[("Kalıcı izleme sistemi<br/>Prometheus, Jaeger, OpenSearch")]
+    mon[("Kalıcı izleme sistemi<br/>Prometheus, Jaeger, OpenSearch<br/>isimli volume, 7 gün, ≤ 40 GB")]
     cut["Snapshot kesici<br/>(dosyadan, zaman aralığına göre)"]
     snap[("snapshot'lar<br/>snapshots/ — git dışı")]
     fix[("CI alt kümesi<br/>tests/fixtures/snapshots/")]
@@ -49,7 +49,6 @@ flowchart LR
     view --> nar --> llm
     view -->|ham log| llm
     view -->|dosya araçları| agent
-    mon -->|canlı araçlar| agent
     llm --> cache
     llm --> evr
     agent --> evr
@@ -68,15 +67,16 @@ flowchart LR
     rtest["tools/test_collector_rules.sh<br/>+ tests/fixtures/collector_rules/"] -.->|"kural testi (geçici collector, Docker)"| col
     c2runs -->|"window/filtered/<br/>(REPLAY_WINDOW)"| replay["tools/storage_check.py replay<br/>+ deploy/replay/ (otel-replay;<br/>collector: yalnız dosya alıcısı)"]
     replay -->|"orijinal zaman damgası,<br/>zaman sırasıyla"| rmon[("Yeniden oynatma hedefi<br/>Jaeger, Prometheus, OpenSearch<br/>otel-replay_* volume'leri, boş başlar")]
-    rmon -.->|"Proje 2: canlı araçlar"| agent
+    snap -.->|"Proje 2: vaka snapshot'ları"| replay
+    rmon -->|canlı araçlar| agent
 
     classDef yok stroke-dasharray: 5 5
-    class own,inj,mon,cut,snap,fix,view,base,nar,llm,agent,cache,evr,ev,tab yok
+    class own,inj,cut,snap,fix,view,base,nar,llm,agent,cache,evr,ev,tab yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
-- OTel Demo çalışıyor (minimal mod, 2026-10-18). Collector süzüyor ve dosyaya yazıyor (C1, 2026-10-20); 15 gerçek senaryoyla doğrulandı (C2, 2026-10-24). Prometheus, Jaeger, OpenSearch açık ama kalıcı değil, bu yüzden `mon` hâlâ kesik çizgili.
-- Yeniden oynatma (depolama D3, 2026-10-25) iki C2 penceresinde sınandı: izler, loglar ve metrikler canlı demodan ayrı, boş bir izleme sistemine kayıpsız gitti; Prometheus eski zamanlı örnekleri kabul ediyor ve diske yazdıktan sonra da sorgulanabiliyor. Proje 2'de ajanın canlı araçları bu yolla doldurulan sisteme bakar (DECISIONS 2026-10-25).
+- OTel Demo çalışıyor (minimal mod, 2026-10-18). Collector süzüyor ve dosyaya yazıyor (C1, 2026-10-20); 15 gerçek senaryoyla doğrulandı (C2, 2026-10-24). İzleme sistemi kalıcı (depolama kartı, 2026-10-25): isimli volume'ler (`down` silmez), Jaeger diske (badger), saklama 7 gün (Prometheus ayrıca 2GB, OpenSearch ISM), volume toplamı ≤ 40 GB koşucu korumasında; canlı = dosya doğrulandı (D2).
+- Yeniden oynatma (depolama D3, 2026-10-25) iki C2 penceresinde sınandı: izler, loglar ve metrikler canlı demodan ayrı, boş bir izleme sistemine kayıpsız gitti; Prometheus eski zamanlı örnekleri kabul ediyor ve diske yazdıktan sonra da sorgulanabiliyor. Proje 2'de `mon` vakaları tutmaz (~7 gün); ajanın canlı araçları vakaların snapshot'larından bu yolla doldurulan sisteme bakar (DECISIONS 2026-10-25).
 - Sızıntı testi gerçek veride sınandı (C2 `positive_control`: her senaryoda raw'da bulgu, filtered temiz). Senaryo koşucusu (`scenario_runner.py`) vaka üretiminin temeli; `inj` kesik çizgili, çünkü flag dışı enjeksiyonlar (tc netem, CPU/bellek, kill) yok.
 
 ## Dosyalar
