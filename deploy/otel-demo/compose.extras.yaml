@@ -9,7 +9,8 @@
 #   başka servis yazılırsa Compose imajsız yarım servis yaratır. opamp-server port yayınlamıyor, burada yok.
 # - Kalıcı izleme sistemi (depolama kartı, DECISIONS 2026-10-25): Prometheus, Jaeger ve OpenSearch isimli
 #   volume'lerde; `down` volume silmez. Saklama 7 gün: Prometheus upstream'in retention.time'ı, Jaeger badger TTL
-#   (jaeger-config-extras.yml), OpenSearch ISM kuralı (tools/otel_demo.sh up yükler).
+#   (jaeger-config-extras.yml), OpenSearch ISM kuralı (tools/otel_demo.sh up yükler). Boyut: Prometheus
+#   retention.size 2GB; üçünün toplamı koşucunun korumasında (scenario_runner.py MAX_MONITORING_GB).
 
 x-default-logging: &logging
   driver: json-file
@@ -23,7 +24,21 @@ services:
     logging: *logging
     ports: !override
       - "127.0.0.1:8080:${ENVOY_PORT}"
+  # Komut upstream'in listesi + boyut sınırı (ek dosyada command listesi değiştirilir; upstream'deki sıra korunur,
+  # demo güncellenince listeyi upstream'le karşılaştır). 2GB: ölçülen büyüme 0,004 GB/saat (depolama D2, Eren
+  # onayı 2026-10-25); hangisi önce dolarsa (7 gün ya da 2GB) eski bloklar silinir.
   prometheus:
+    command:
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--storage.tsdb.retention.time=7d"
+      - "--storage.tsdb.retention.size=2GB"
+      - "--config.file=/etc/prometheus/prometheus-config.yaml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+      - "--web.route-prefix=/"
+      - "--web.enable-otlp-receiver"
+      - "--enable-feature=exemplar-storage"
     ports: !override
       - "127.0.0.1:9090:${PROMETHEUS_PORT}"
     volumes:
@@ -93,7 +108,13 @@ services:
     ports: !reset []
   # Komut upstream'inkine ikinci ayar dosyası eklenerek yeniden yazılır (ek dosyada command listesi değiştirilir).
   # Volume /tmp'de: gerekçe jaeger-config-extras.yml'da.
+  # Bellek sınırı upstream'in 1200M'i yerine 2000M: badger'la Jaeger'in kendi belleği (anon) dakikalarca
+  # 1064 MiB'e çıktı, 1200M'de tampon yalnız dosya önbelleğiydi (depolama D2 ölçümü, Eren onayı 2026-10-25).
   jaeger:
+    deploy:
+      resources:
+        limits:
+          memory: 2000M
     ports: !reset []
     command:
       - "--config=file:/etc/jaeger/config.yml"

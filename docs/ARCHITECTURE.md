@@ -99,7 +99,7 @@ flowchart LR
 | `docs/INCIDENT_CATALOG.md` | Enjekte edilecek hatalar, doğru cevap kuralı, beklenen belirti ve yayılım yolları |
 | `tools/api_smoke_test.py` | Aday API modellerinin teknik uygunluk testi (basit cevap, tool calling, uzun girdi) |
 | `tools/otel_demo.sh` | OTel Demo 3.1.0'ı repo dışına (`~/cerebrum2/otel-demo`) klonlar ve doğrular (`fetch`); minimal modda başlatır, durdurur, birleşik compose ayarını basar (`up`, `down`, `config`); `up` sonunda OpenSearch ISM saklama kuralını yükler |
-| `deploy/otel-demo/compose.extras.yaml` | Demonun boş `compose.extras.yaml`'ının yerine en son yüklenen katmanımız: log sınırı, sadece 3 host portu (`127.0.0.1`), flag dosyası ve telemetri klasörü bağlamaları, collector kullanıcısı, izleme sisteminin isimli volume'leri ve Jaeger katmanı |
+| `deploy/otel-demo/compose.extras.yaml` | Demonun boş `compose.extras.yaml`'ının yerine en son yüklenen katmanımız: log sınırı, sadece 3 host portu (`127.0.0.1`), flag dosyası ve telemetri klasörü bağlamaları, collector kullanıcısı, izleme sisteminin isimli volume'leri ve Jaeger katmanı, Prometheus boyut sınırı (2GB), Jaeger bellek sınırı (2000M) |
 | `deploy/otel-demo/otelcol-config-extras.yml` | Collector katmanımız: süzme (`filter/sim_world`, `transform/scrub`), OpenSearch uyumu (`transform/backend_compat`) ve dosya çıkışı (`filtered/`), upstream pipeline listeleri korunarak |
 | `deploy/otel-demo/otelcol-config-raw.yml` | Süzülmemiş paralel pipeline'lar (`raw/`), sadece `--raw` ile |
 | `deploy/otel-demo/compose.raw.yaml` | Collector komutuna `otelcol-config-raw.yml`'ı ekleyen compose katmanı, sadece `--raw` ile |
@@ -107,7 +107,7 @@ flowchart LR
 | `tools/local_model_bench.sh` | Lokal model hız ölçümü: `matrix` (model × iş parçacığı tablosu, turlar halinde), `sustained` (30 dk bütçe döngüsü); llama.cpp sabit imajda, 10 sn izleme, priz kopmasında bekle-tekrarla, `--resume`; ham çıktılar `~/cerebrum2/bench_runs/` |
 | `tools/bench_summary.py` | `local_model_bench.sh` koşularından özet: geçerli hücreleri birleştirir, soğuk/ısınmış bütçe, GEÇER/KALIR |
 | `docs/LOCAL_MODEL_BENCH.md` | Lokal model hız ölçümünün kurulumu, yöntemi ve sonuç tablosu |
-| `tools/scenario_runner.py` | Senaryo koşucusu: korumalar (priz, şarj 80, sıcaklık, disk, güç profili, GNOME + systemd uyku engeli), demo `up --raw`, 10 dk normal + 10 dk flag, uyku ve yeniden başlama kontrolü, pencere kopyası `~/cerebrum2/c2_runs/` |
+| `tools/scenario_runner.py` | Senaryo koşucusu: korumalar (priz, şarj 80, sıcaklık, disk, izleme volume'leri ≤ 40 GB, güç profili, GNOME + systemd uyku engeli), demo `up --raw`, 10 dk normal + 10 dk flag, uyku ve yeniden başlama kontrolü, pencere kopyası `~/cerebrum2/c2_runs/` |
 | `tools/c2_measure.py` | C2 ölçümü: koşu klasöründen sızıntı (`positive_control`), belirti gücü (raw/filtered), yeniden yazımlar, basit kural, collector sayaçları; `measure.json`, `samples/` |
 | `tools/test_collector_rules.sh` | Collector kural testi: geçici collector'a ayarımız + fixture kayıtları; kapsam, tam ayarda çıktı temiz, kural başına `delete`/`alone` (kasıtlı kırmızı). Docker ister, CI'da koşmaz |
 | `tests/fixtures/collector_rules/` | Kural testi girdisi: C2 raw verisinden tek kayıtlık örnekler ve temiz kontroller (`traces/metrics/logs.jsonl`), kural listesi `rules.tsv` |

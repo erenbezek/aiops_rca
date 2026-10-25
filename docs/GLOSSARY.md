@@ -105,3 +105,6 @@ Sadece Eren'in onayladığı isimler.
 | `compare`, `--run`, `--tag` | `storage_check.py` komutu: canlı = dosya karşılaştırması / aralığın alındığı `watch` klasörü / ikinci karşılaştırmanın adı |
 | `compare.json`, `compare_<tag>.json` | `compare` sonucu (`watch` klasöründe) |
 | `NOT_LEAK` | `test_collector_rules.sh`'te testin hatlarına girmeyen (sızıntı kuralı taşımayan) processor'lar |
+| `monitoring_gb`, `MAX_MONITORING_GB` | Koşucu korumasında izleme volume'lerinin toplamı (GB, ondalık; `guards()` çıktısında alan) / üst sınırı (40 GB); aşılırsa koşu başlamaz |
+| `AIOPS_MAX_MONITORING_GB` | `MAX_MONITORING_GB`'yi ezen ortam değişkeni; yalnız kasıtlı kırmızı için (düşük sahte sınır) |
+| `MONITORING_VOLUMES` | Korumanın topladığı üç Docker volume adı (`otel-demo_prometheus-data`, `otel-demo_jaeger-data`, `otel-demo_opensearch-data`) |

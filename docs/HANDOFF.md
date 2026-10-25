@@ -1090,3 +1090,30 @@
   - Dosyada: düz `http` özniteliği yalnız cart'ta (3 kayıt, açılışta, değer `"8080"`); `http.*` frontend'de (51.498 kayıt). OpenSearch boş günlük indekste türü ilk kayda göre sabitliyor; cart'ın açılış logu önce gelirse frontend'in HTTP loglarının hepsi reddediliyor.
   - Koşudan koşuya fark: her `up` OpenSearch'ü boş açıyor (C2 ~%30). Koşu 1'de çakışma yalnız 2026-10-24 indeksinde (23:49–00:00); gece yarısı açılan indekse frontend önce yazdı: %26,6 × 11/60 ≈ %4,9 (ölçülen %5,3). Kalıcı volume'le de her yeni gün şansa kalır.
 - Karar (Eren, 2026-10-25; DECISIONS): seçenek E, collector'da iki çıkıştan önce cart'ın `http` özniteliğini çakışmayan ada çevirmek. Elenenler: indeks şablonu (cart kayıtları düşer, canlı ≠ dosya), `flat_object` (öznitelik sorguları değişir), exporter eşleme kipleri (noktalı alan açılımını OpenSearch yapıyor; çözmüyor), heap artırma (kapasite sorunu yok).
+
+## 2026-10-25 · Uygulama → Planlama (depolama D2, kalıcı ayarlar)
+- Değişiklikler (upstream dosyalarına dokunulmadı; adlar Eren onaylı, GLOSSARY'de):
+  - `compose.extras.yaml`: isimli volume'ler (`prometheus-data`, `jaeger-data`, `opensearch-data`); Jaeger ikinci ayar dosyasıyla diske (`jaeger-config-extras.yml`, badger, TTL 168 saat; volume `/tmp`'de, imajda 10001'in yazabildiği tek klasör); Prometheus komutu upstream listesi + `--storage.tsdb.retention.size=2GB`; Jaeger bellek sınırı 2000M.
+  - `otelcol-config-extras.yml`: `transform/backend_compat` (logs, iki çıkıştan önce): `http` → `http_ports` (seçenek E), kayıt zamanı 0 ise alınma zamanı (seçenek A; currency ve shipping logları OpenSearch'te 1970'e yazılıyordu).
+  - `otel_demo.sh up`: OpenSearch ISM kuralı `otel-logs-retention` (7 gün → sil), yoksa yüklenir ve mevcut indekslere bağlanır.
+  - `scenario_runner.py guards()`: `monitoring_gb` (`docker system df -v`; geçici konteynerde `du` ile aynı) ≤ `MAX_MONITORING_GB` (40). `storage_check.py watch` aynı korumayı kullanır.
+  - `storage_check.py compare`: canlı = dosya (Jaeger v3 API 1 dk dilimlerle, OpenSearch `_refresh` + sayım, Prometheus 3 metrik örnek sayısı ve değerleri).
+  - Kural testi: `NOT_LEAK` (backend_compat testin hatlarına girmez), 3 `none` satırı; PASS 56 kural. Plandan sapma: cart logu kural testine örnek olarak eklenemedi, doğrulama `compare` ile.
+- 1 saatlik koşu (`~/cerebrum2/storage_runs/20261025T0154Z-watch`, 02:00–03:00 UTC): geçerli; 22 konteyner, uyku 0, en yüksek 60 °C.
+  - opensearch: sent 109.453, send_failed 0, enqueue_failed 0; diğer exporter'larda da 0. `collector_errors.json` boş.
+  - Canlı = dosya (02:02–02:58 UTC): span 338.578 = 338.578 (servis başına fark yok, 855 Jaeger sorgusu), log 102.114 = 102.114, `container.memory.percent` 7.392, `container.network.io.usage.rx_bytes` 7.392, `traces.span.metrics.duration` count 4.704; değerler aynı. EŞİT.
+  - `down` + `up` + 2 dk sonra aynı aralık: aynı sayılar, EŞİT (`compare_after_restart.json`).
+  - Büyüme: Jaeger 0,587, OpenSearch 0,255 (D1'de 0,176; artık reddedilen log yok), Prometheus 0,004 GB/saat. Pencere sonu boyutlar: Jaeger 0,91, OpenSearch 0,30, Prometheus 0,006 GB.
+  - Tepe bellek / sınır: Jaeger 1200,1 / 1200 MiB, OpenSearch 915 / 1024, collector 127 / 400, Prometheus 79 / 200. OOM ve yeniden başlama yok.
+- Jaeger belleği (ek ölçüm, 10 dk, 5 sn'de bir `memory.stat`; ölçüt önceden: anon tepe < sınırın %80'i, oom_kill 0):
+  - 1200M (03:10–03:20 UTC): anon çoğunlukla 120–470 MiB; açılıştan ~4,5 dk sonra 15 sn'de 316 → 967 MiB, ~2 dk 960–1064 MiB. Toplam 1200 MiB (anon 1064 + dosya 108); `memory.events max` 5.076, oom 0. KALDI (< 960 değil).
+  - 2000M (03:26–03:36 UTC): aynı sıçrama, anon tepe 1248 MiB (< 1600), `memory.events max` 0, oom 0. GEÇTİ.
+  - Neden doğrulanmadı (tahmin: badger'ın 5 dk'lık bakımı/sıkıştırması). Yer açılınca sıçrama büyüdü; veri arttıkça büyüyebilir, D3'te Jaeger belleği yine kayda.
+- Prometheus canlıda: `retention.size` 2GiB, `retention.time` 1w ("1w or 2GiB"). Jaeger `HostConfig.Memory` 2.097.152.000.
+- Koruma: `monitoring_gb` 1,3. Kasıtlı kırmızı: `AIOPS_MAX_MONITORING_GB=0.5 scenario_runner.py run adFailure_on` → "STOP before adFailure_on: guards: monitoring volumes 1.3 GB > 0.5", çıkış 1, demo açılmadı; diğer korumalar geçti. Docker okunamazsa da kırmızı.
+- pytest 190/190.
+- Eski anonim volume'ler silindi (Eren onayı; `docker volume prune`, yalnız anonim ve bağlı olmayanlar): 117 adet, 2,85 GB; boş disk 292,24 → 295,09 GB. İsimli üç volume yerinde.
+- Dikkat:
+  - Kart örneğindeki formül (saatlik büyüme × 8 saat × 7 × 1,5) ~71 GB verir; onaylanan 40 GB her gece 8 saat koşuda (~48 GB/hafta) 6. günde koşucuyu durdurur. Gece koşu planı netleşince sınır yeniden bakılmalı.
+  - `astronomy-db` imajı `/var/lib/postgresql`'i anonim volume olarak tanımlıyor; her `down` + `up` bir anonim volume bırakır (kapsam dışı, not). `down -v` isimli volume'leri de siler, kullanılmamalı.
+  - OpenSearch belleği 915 / 1024 MiB (dosya önbelleği dahil), heap en çok %70.

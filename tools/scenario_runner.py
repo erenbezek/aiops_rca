@@ -59,6 +59,11 @@ WINDOW_MARGIN_NS = (120 * 10**9, 60 * 10**9)  # normal başlangıcından önce, 
 
 # Makine sınırları (DECISIONS 2026-10-20)
 MIN_FREE_GB = 30
+# İzleme volume'lerinin toplamı (depolama D2, Eren onayı 2026-10-25): ölçülen büyüme ~0,85 GB/saat, 40 GB ≈ 7 günlük
+# saklamada haftada ~47 saat demo. Aşılırsa koşu başlamaz; saklama süresi eskiyi silene kadar bekle ya da volume'leri
+# elle sil. AIOPS_MAX_MONITORING_GB yalnız kasıtlı kırmızı için (düşük sahte sınır).
+MAX_MONITORING_GB = float(os.environ.get("AIOPS_MAX_MONITORING_GB", "40"))
+MONITORING_VOLUMES = ("otel-demo_prometheus-data", "otel-demo_jaeger-data", "otel-demo_opensearch-data")
 CHARGE_LIMIT = 80
 POWER_PROFILE = "balanced"
 HOT_C, HOT_S = 95, 60
@@ -150,6 +155,30 @@ def gnome_inhibited() -> bool:
     return any(GNOME_INHIBIT[4] in line and "suspend" in line for line in out.splitlines())
 
 
+def monitoring_gb() -> float | None:
+    """İzleme volume'lerinin toplamı (GB, ondalık); henüz yaratılmamış volume 0. Docker okunamazsa None.
+
+    `docker system df -v` boyutu ondalık birimle yazar (ör. "1.171GB"); geçici konteynerde `du` ile aynı çıktı
+    (depolama D2)."""
+    try:
+        p = subprocess.run(["docker", "system", "df", "-v", "--format", "json"],
+                           capture_output=True, text=True, timeout=120)
+        volumes = json.loads(p.stdout)["Volumes"] if p.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
+        volumes = None
+    if volumes is None:
+        return None
+    units = {"B": 1, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12}
+    total = 0.0
+    for v in volumes:
+        if v.get("Name") in MONITORING_VOLUMES:
+            m = re.fullmatch(r"([\d.]+)\s*([kMGT]?B)", v.get("Size", ""))
+            if not m:
+                return None
+            total += float(m.group(1)) * units[m.group(2)]
+    return total / 1e9
+
+
 def guards() -> dict:
     ac = [read(str(p / "online")) for p in Path("/sys/class/power_supply").glob("AC*")]
     try:
@@ -157,12 +186,14 @@ def guards() -> dict:
     except (OSError, subprocess.TimeoutExpired):
         profile = None
     free_gb = shutil.disk_usage(Path.home()).free / 1e9
+    mon_gb = monitoring_gb()
     g = {
         "ac_online": ac[0] if ac else None,
         "charge_limit": read("/sys/class/power_supply/BAT0/charge_control_end_threshold"),
         "battery_pct": read("/sys/class/power_supply/BAT0/capacity"),
         "pkg_temp_c": pkg_temp_c(),
         "free_disk_gb": round(free_gb, 1),
+        "monitoring_gb": round(mon_gb, 2) if mon_gb is not None else None,
         "power_profile": profile,
         "inhibited": os.environ.get("SCENARIO_RUNNER_INHIBITED") == "1",
         "gnome_inhibited": gnome_inhibited(),
@@ -176,6 +207,10 @@ def guards() -> dict:
         problems.append(f"x86_pkg_temp {g['pkg_temp_c']} (want < {COOL_C})")
     if free_gb < MIN_FREE_GB:
         problems.append(f"free disk {g['free_disk_gb']} GB < {MIN_FREE_GB}")
+    if mon_gb is None:
+        problems.append("monitoring volume size unknown (docker system df)")
+    elif mon_gb > MAX_MONITORING_GB:
+        problems.append(f"monitoring volumes {g['monitoring_gb']} GB > {MAX_MONITORING_GB:g}")
     if profile != POWER_PROFILE:
         problems.append(f"power profile {profile}, want {POWER_PROFILE}")
     if not g["inhibited"]:
