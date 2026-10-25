@@ -113,10 +113,26 @@ processors:
           - 'replace_pattern(log.body, "^lock contention scenario active: holding ACCESS EXCLUSIVE lock on catalog\\.products$", "holding ACCESS EXCLUSIVE lock on catalog.products")'
           - 'replace_pattern(log.body, "^failed to acquire lock for lock contention scenario$", "failed to acquire ACCESS EXCLUSIVE lock on catalog.products")'
 
+  # Depolama D1 (DECISIONS 2026-10-25, seçenek E): OpenSearch günlük indekste bir alanın türünü ilk kayda göre
+  # sabitliyor. .NET'in açılış uyarısındaki ("Overriding HTTP_PORTS '{http}' …", cart) düz `http` özniteliği
+  # ("8080") önce gelirse `attributes.http` metin olur ve frontend'in `http.*` öznitelikli logları reddedilir.
+  # Düz `http` noktasız bir ada taşınır.
+  # Depolama D2 (DECISIONS 2026-10-25, seçenek A): currency ve shipping loglarında kayıt zamanı yok (yalnız
+  # observed); exporter @timestamp'i 1970-01-01 yazıyor, zaman aralığı sorgusu bu logları bulmuyor. Kayıt zamanı
+  # yoksa alınma zamanı yazılır (OTel'in tarifi; bizim betikler zaten böyle okuyor).
+  # Süzmeden sonra, iki çıkıştan önce: dosya ve canlı aynı veriyi tutar. Sızıntı kuralı değil (rules.tsv'de `none`).
+  transform/backend_compat:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - 'set(log.attributes["http_ports"], log.attributes["http"]) where IsString(log.attributes["http"])'
+          - 'delete_key(log.attributes, "http") where IsString(log.attributes["http"])'
+          - 'set(log.time_unix_nano, log.observed_time_unix_nano) where log.time_unix_nano == 0'
+
 # Dosya çıkışı: OTLP JSON, satır başına bir istek (sızıntı testinin okuduğu biçim), sinyal başına bir dosya.
-# Sınır (DECISIONS 2026-10-24, C2 için geçici; 2026-10-20 "2 GB" satırının yerine): dosya 300 MB'ta döner,
-# 2 yedek → sinyal başına ≤ 900 MB, süzülmüş toplam ≤ 2,7 GB (süzülmemiş katmanla birlikte ≤ 5,4 GB).
-# Kalıcı dağılım depolama kartında.
+# Sınır (DECISIONS 2026-10-25, kalıcı): dosya 300 MB'ta döner, 2 yedek → sinyal başına ≤ 900 MB, süzülmüş
+# toplam ≤ 2,7 GB (süzülmemiş katmanla birlikte ≤ 5,4 GB).
 exporters:
   file/traces:
     path: /telemetry/filtered/traces.jsonl
@@ -146,5 +162,5 @@ service:
       processors: [resource_detection, memory_limiter, filter/sim_world]
       exporters: [debug, otlp_http/prometheus, file/metrics]
     logs:
-      processors: [resource_detection, memory_limiter, transform/sanitize_logs, filter/sim_world, transform/scrub]
+      processors: [resource_detection, memory_limiter, transform/sanitize_logs, filter/sim_world, transform/scrub, transform/backend_compat]
       exporters: [debug, opensearch, file/logs]

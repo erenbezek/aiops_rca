@@ -15,6 +15,7 @@ EXTRAS_FILE="${DEPLOY_DIR}/compose.extras.yaml"
 RAW_FILE="${DEPLOY_DIR}/compose.raw.yaml"
 COLLECTOR_EXTRAS="${DEPLOY_DIR}/otelcol-config-extras.yml"
 COLLECTOR_RAW="${DEPLOY_DIR}/otelcol-config-raw.yml"
+JAEGER_EXTRAS="${DEPLOY_DIR}/jaeger-config-extras.yml"
 # flagd ve flagd-ui bu klasörü bağlar (compose.extras.yaml'da aynı yol).
 FLAGD_RUNTIME_DIR="${HOME}/cerebrum2/runtime/flagd"
 # Collector dosya çıkışı (compose.extras.yaml'da aynı yol): filtered/ her zaman, raw/ sadece --raw ile.
@@ -60,11 +61,12 @@ verify_clone() {
 # - OTEL_COLLECTOR_CONFIG_EXTRAS: demonun boş collector extras'ı yerine bizimki.
 # - OTEL_COLLECTOR_USER: eren + docker grubu (dosyalar eren'in olsun, Docker soketi okunabilsin).
 # - OTEL_COLLECTOR_CONFIG_RAW: sadece compose.raw.yaml kullanır.
+# - JAEGER_CONFIG_EXTRAS: Jaeger'in ikinci ayar dosyası (diske yazma; depolama kartı).
 RAW=0
 compose() {
     local f files=(-f compose.yaml -f compose.observability.yaml -f "$EXTRAS_FILE")
     (( RAW )) && files+=(-f "$RAW_FILE")
-    for f in "$EXTRAS_FILE" "$RAW_FILE" "$COLLECTOR_EXTRAS" "$COLLECTOR_RAW"; do
+    for f in "$EXTRAS_FILE" "$RAW_FILE" "$COLLECTOR_EXTRAS" "$COLLECTOR_RAW" "$JAEGER_EXTRAS"; do
         [[ -f "$f" ]] || die "$f not found"
     done
     local docker_gid
@@ -74,6 +76,7 @@ compose() {
         DEMO_VERSION="$DEMO_TAG" \
         OTEL_COLLECTOR_CONFIG_EXTRAS="$COLLECTOR_EXTRAS" \
         OTEL_COLLECTOR_CONFIG_RAW="$COLLECTOR_RAW" \
+        JAEGER_CONFIG_EXTRAS="$JAEGER_EXTRAS" \
         OTEL_COLLECTOR_USER="$(id -u):${docker_gid}" \
             docker compose --env-file .env --env-file .env.override "${files[@]}" "$@"
     )
@@ -117,6 +120,45 @@ cmd_up() {
     (( RAW )) && echo "warning: unfiltered output on; ${TELEMETRY_DIR}/raw holds answer-revealing data, delete it after use" >&2
     # Bayraklar demonun Makefile'ındaki start-minimal ile aynı.
     compose up --force-recreate --remove-orphans --detach
+    opensearch_retention
+}
+
+# OpenSearch saklaması (depolama kartı, DECISIONS 2026-10-25): ISM kuralı 7 günden eski otel-logs-* indeksini
+# siler. Kural volume'de kalıcı; yoksa yüklenir, varsa dokunulmaz. ism_template yalnız kuraldan sonra açılan
+# indekslere uyar; açılışta kuraldan önce açılmış indeks olabileceği için kurala bağlanmamış otel-logs-* indeksleri
+# ayrıca bağlanır (zaten bağlı olanlar için OpenSearch "failed" der; zararsız). ISM 5 dk'da bir kontrol eder;
+# günlük indeks açılışından ~7 gün sonra silinir.
+OPENSEARCH_URL="http://127.0.0.1:9200"
+ISM_POLICY="otel-logs-retention"
+opensearch_retention() {
+    local i
+    for (( i = 0; i < 60; i++ )); do
+        curl -fsS "${OPENSEARCH_URL}/_cluster/health" 2>/dev/null | grep -qE '"status":"(green|yellow)"' && break
+        sleep 3
+    done
+    (( i < 60 )) || die "OpenSearch not healthy after 180 s; ISM policy not applied"
+    local code
+    code="$(curl -s -o /dev/null -w '%{http_code}' "${OPENSEARCH_URL}/_plugins/_ism/policies/${ISM_POLICY}")"
+    if [[ "$code" == "404" ]]; then
+        curl -fsS -X PUT -H 'Content-Type: application/json' "${OPENSEARCH_URL}/_plugins/_ism/policies/${ISM_POLICY}" -d '{
+          "policy": {
+            "description": "otel-logs-*: delete indices older than 7 days (aiops_rca storage card)",
+            "default_state": "hot",
+            "states": [
+              {"name": "hot", "actions": [], "transitions": [{"state_name": "delete", "conditions": {"min_index_age": "7d"}}]},
+              {"name": "delete", "actions": [{"delete": {}}], "transitions": []}
+            ],
+            "ism_template": [{"index_patterns": ["otel-logs-*"], "priority": 100}]
+          }
+        }' >/dev/null || die "ISM policy upload failed"
+        echo "ok: ISM policy ${ISM_POLICY} created"
+    elif [[ "$code" == "200" ]]; then
+        echo "ok: ISM policy ${ISM_POLICY} present"
+    else
+        die "ISM policy check returned HTTP $code"
+    fi
+    curl -fsS -X POST -H 'Content-Type: application/json' "${OPENSEARCH_URL}/_plugins/_ism/add/otel-logs-*" \
+        -d "{\"policy_id\": \"${ISM_POLICY}\"}" >/dev/null || die "ISM add to existing indices failed"
 }
 
 # Durdurur; volume silmez. Klon kirli olsa da çalışır (durdurmak hiçbir zaman engellenmesin).

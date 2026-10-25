@@ -1,0 +1,88 @@
+# Yeniden oynatma (depolama kartı D3, DECISIONS 2026-10-25 "canlı taraf yeniden oynatmayla"): kayıtlı bir pencerenin
+# süzülmüş dosyaları boş ve ayrı bir Jaeger, Prometheus ve OpenSearch'e, orijinal zaman damgalarıyla yazılır.
+# Canlı demodan ayrı compose projesi (`otel-replay`): kendi ağı, kendi volume'leri (`otel-replay_*`); canlı demonun
+# volume'lerine yazmaz. `tools/storage_check.py replay` açar ve kapatır.
+#
+# Kopya ayar yok (planlama, 2026-10-25): üç izleme servisi upstream'in tanımından `extends` ile gelir (imaj
+# upstream .env'den, ayar dosyaları upstream'inkiler). Jaeger canlıdaki gibi bizim katmanımızı da yükler
+# (../otel-demo/jaeger-config-extras.yml, 2000M). Farklı olan yalnız portlar (127.0.0.1, canlıdan ayrı), volume'ler
+# ve konteyner adları (upstream adları sabitliyor; burada Compose'un adları: otel-replay-<servis>-1).
+# Prometheus komutu upstream'in (7 gün); canlıdaki 2GB boyut sınırı burada yok (boyut küçük, D3 kısa).
+#
+# Collector: tek alıcısı dosya (otlpjsonfile, otelcol-replay.yml); kendi sayaçları yalnız çekme ucunda (:8888,
+# host 18888), Prometheus'a gitmez. Jaeger kendi metriklerini OTEL_COLLECTOR_HOST'a (burada bu collector) itiyor;
+# collector'da OTLP alıcısı olmadığı için hiçbir yoldan Prometheus'a ulaşmaz (planlama ek 1: Prometheus'a
+# şimdiki zamanlı örnek girmesin). REPLAY_WINDOW: oynatılan pencerenin klasörü (traces/metrics/logs.jsonl).
+# Collector yeniden başlamaz: dosya alıcısı kayıt tutmadan baştan okur, yeniden başlarsa pencere iki kez gider.
+#
+# Çalıştırma: demonun klonundaki .env ve .env.override ile (imaj değişkenleri), bu dosyanın klasöründen.
+
+name: otel-replay
+
+x-default-logging: &logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  jaeger:
+    extends:
+      file: ${HOME}/cerebrum2/otel-demo/compose.observability.yaml
+      service: jaeger
+    container_name: !reset null
+    command:
+      - "--config=file:/etc/jaeger/config.yml"
+      - "--config=file:/etc/jaeger/config-extras.yml"
+    deploy:
+      resources:
+        limits:
+          memory: 2000M
+    ports: !override
+      - "127.0.0.1:16686:16686"
+    volumes:
+      - ../otel-demo/jaeger-config-extras.yml:/etc/jaeger/config-extras.yml:ro
+      - jaeger-data:/tmp
+
+  prometheus:
+    extends:
+      file: ${HOME}/cerebrum2/otel-demo/compose.observability.yaml
+      service: prometheus
+    container_name: !reset null
+    ports: !override
+      - "127.0.0.1:19090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+
+  opensearch:
+    extends:
+      file: ${HOME}/cerebrum2/otel-demo/compose.observability.yaml
+      service: opensearch
+    container_name: !reset null
+    ports: !override
+      - "127.0.0.1:19200:9200"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+
+  otel-collector:
+    image: ${COLLECTOR_CONTRIB_IMAGE}
+    command: ["--config=/etc/otelcol-replay.yml"]
+    restart: "no"
+    logging: *logging
+    ports:
+      - "127.0.0.1:18888:8888"
+    volumes:
+      - ./otelcol-replay.yml:/etc/otelcol-replay.yml:ro
+      - ${REPLAY_WINDOW:?REPLAY_WINDOW must be set}:/replay:ro
+    depends_on:
+      jaeger:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
+
+volumes:
+  prometheus-data:
+  jaeger-data:
+  opensearch-data:

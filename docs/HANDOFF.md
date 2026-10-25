@@ -1018,3 +1018,151 @@
 - `productCatalogFailure_on_2/run.json`: `valid` true → false, `invalid_reasons` [] → kartın metni. Önce/sonra JSON farkı yalnız bu iki alan, anahtar sırası aynı; dosya koşucunun biçimiyle (`indent=1`) yazıldı.
 - Silme (Eren onayı): `c2_runs/*/window/raw/` 19 klasör 5,50 GB ve `*/samples/` 17 klasör 5,8 MB (önce ölçüldü, planlamanın ölçümüyle aynı). Sonra: ikisi de 0; 19 `window/filtered/` 4,39 GB, 57 dosyanın sha256'sı silmeden öncekiyle aynı; 17 `measure.json`, 19 `run.json`, `window_manual_copy.json` duruyor. Boş disk 287,96 → 293,47 GB (+5,51 GB, `df -B1`). `c2_runs/` toplam 4,39 GB.
 - Dikkat: `measure.json`'daki `samples/` yolları artık yok (kart: düzeltme gerekmiyor). `c2_measure.py` değişmedi.
+
+## 2026-10-25 · Planlama → Uygulama (depolama kartı)
+- Önce 3-5 maddelik plan, Eren onaylar. Her bölümden (D1, D2, D3) sonra rapor ver ve dur. Yeni ad (volume adı, betik adı) koymadan önce öner. Yeni paket yok: badger Jaeger imajında var; collector-contrib alıcıları kendi imajında var. Upstream dosyalarına dokunma; değişiklik bizim katmanda (`compose.extras.yaml`, `otelcol-config-extras.yml`, `tools/`). `~/cerebrum2/c2_runs/*/window/filtered/` D3 bitene kadar silinmez.
+- Kayıt (ilk commit): DECISIONS 2026-10-25 iki satır (canlı taraf yeniden oynatmayla; collector dosya döndürmesi kalıcı), GLOSSARY `yeniden oynatma`, bu kart.
+- Amaç: canlı izleme sistemi kalıcı ve sınırlı olsun, OpenSearch log kaybetmesin, canlı taraf dosyayla aynı veriyi tutsun. Yeniden oynatmanın çalıştığı vaka üretiminden önce gösterilsin.
+- Kapsam dışı: yeniden oynatma aracının kendisi (Proje 2), snapshot biçimi ve sınırı (vaka üretimi kartı).
+- **D1 · Ölçüm (değişiklik yok).** 1 saatlik normal koşu (up, raw kapalı). Koşudan önce şarj sınırı 80 mi, kontrol et.
+  - OpenSearch kaybı:
+    - opensearch çıkışının sent, send_failed ve enqueue_failed sayaçları.
+    - Collector logundaki opensearch hata mesajları (farklı mesajlar ve sayıları).
+    - OpenSearch tarafında reddedilen bulk istekleri (thread pool ve node stats).
+    - Neden yazılır; düzeltme önerisi seçeneklerle sunulur (ör. bellek/heap, kuyruk/batch, eşleme). Seçimi Eren yapar.
+  - Büyüme: Prometheus ve OpenSearch veri klasörlerinin saatlik artışı (ondalık GB). Jaeger şu an bellekte; onun disk büyümesi D2'de ölçülür.
+  - Jaeger, Prometheus, OpenSearch ve collector için tepe bellek, yeniden başlama ve OOM.
+  - Rapor ver ve dur.
+- **D2 · Kalıcı ayarlar.**
+  - İsimli volume'ler: Prometheus, Jaeger (badger, diske), OpenSearch.
+  - Saklama: süre 7 gün; boyut sınırı D1–D2 ölçümünden önerilir (ör. saatlik büyüme × gece başına 8 saat × 7 × 1,5). Yöntemi (Prometheus retention.size, badger TTL, OpenSearch eski indeks silme) uygulama önerir, Eren onaylar.
+  - OpenSearch düzeltmesi: D1'de seçilen.
+  - Koşucu koruması: izleme volume'lerinin toplamı sınırı aşarsa koşu başlamaz.
+  - Ölçütler (ölçmeden önce yazılı, sonuca göre değişmez):
+    - 1 saatlik koşuda opensearch send_failed ve enqueue_failed artışı 0.
+    - Canlı = dosya, kapalı bir aralıkta (pencere kenarlarından 2 dk içeride, sorgudan önce 2 dk bekleme):
+      - Jaeger'deki span sayısı = file/traces'teki span sayısı (servis başına; arama sınırına takılmamak için dilimlerle).
+      - OpenSearch'teki log sayısı = file/logs'taki log kaydı sayısı.
+      - Prometheus'ta seçili 3 metrik (gauge, sum, histogram _count) için örnek sayısı ve değerler dosyayla aynı.
+    - down + up sonrası önceki aralığın sayıları üç sistemde de aynı.
+    - Bellek: OOM yok, beklenmeyen yeniden başlama yok; tepe değerler kayda.
+    - Volume boyutları kayda.
+    - Kasıtlı kırmızı: düşük bir sahte sınırla koşucu koşuyu başlatmıyor.
+    - pytest yeşil.
+  - Rapor ver ve dur.
+- **D3 · Yeniden oynatma denemesi.**
+  - Girdi: iki C2 süzülmüş penceresi, ~8,7 saat arayla. Aralık, Prometheus'ta blok sıkıştırmasını tetiklesin diye seçildi.
+    - `~/cerebrum2/c2_runs/productCatalogFailure_on_1/window/filtered/` (2026-10-23 23:31–23:51 UTC, 0,24 GB)
+    - `~/cerebrum2/c2_runs/intlShippingSlowdown_10sec_1/window/filtered/` (2026-10-24 08:14–08:35 UTC, 0,23 GB)
+  - Hedef: boş ve ayrı volume'lü bir Jaeger, Prometheus ve OpenSearch. Canlı demonun volume'lerine yazılmaz. Prometheus'un saklama süresi en eski verinin yaşından uzun olmalı.
+  - Yöntem uygulamanın önerisi (ör. collector-contrib'in dosya okuyan OTLP alıcısı ya da standart kütüphaneyle OTLP/HTTP gönderimi).
+  - Ölçütler:
+    - Her pencere için Jaeger span sayısı ve OpenSearch log sayısı dosyayla aynı.
+    - Prometheus'ta seçili 3 metrikte örnek sayısı ve değerler dosyayla aynı.
+    - Prometheus'ta blok oluştuktan (sıkıştırma) sonra iki pencerenin verisi de sorgulanabilir.
+    - Canlı demonun volume boyutları değişmedi.
+  - Güç kontrolü:
+    - Hepsi tutarsa B kesinleşir.
+    - Prometheus eski örnekleri reddederse önce sıra dışı yazma ayarı (out_of_order_time_window) denenir; yine reddederse dur, planlamaya dön (karar değişebilir).
+    - Jaeger ya da OpenSearch sayısı tutmazsa fark ve nedeni yazılır.
+  - Rapor ver ve dur.
+- **Bitince:**
+  - ARCHITECTURE: mon artık kalıcı (kesik çizgi kalkar); Proje 2 notu: mon snapshot'lardan yeniden oynatmayla dolar.
+  - OTEL_DEMO: kalıcılık bölümü güncellenir.
+  - Disk bütçesi tablosu HANDOFF'a: döndürme 5,4 / 2,7 GB; izleme sınırı; snapshot tahmini ~0,23 GB/vaka (sıkıştırmasız; sınırı vaka üretimi kartında).
+  - PROJECT "Şu an"; DevOps listesindeki "Kalıcı depolama, saklama süresi" satırının işaretlenmesini öner.
+  - PR açıklaması sade; push'tan önce PR durumuna bak.
+
+## 2026-10-25 · Uygulama → Planlama (depolama D1, ölçüm)
+- Betik: `tools/storage_check.py watch` (adlar Eren onaylı). Korumalar (koşucunun `guards`, GNOME + systemd engeli) → `otel_demo.sh up` (raw kapalı) → 22 konteyner → 5 dk ısınma → pencere → 90 sn bekleme → sayaçlar → `down`. Çıktı `~/cerebrum2/storage_runs/<UTC>-watch/`.
+- Ölçmeden önce tanımlar: dakikada bir bellek (`docker stats`, dört servis); 5 dk'da bir veri klasörü (`du -sk` konteyner içinde), OpenSearch heap, collector logunun son 5 dk'sı (Docker logu 5 MB × 2 döndüğü için parça parça); başta ve sonda OpenSearch node stats ve indeksler, konteyner yeniden başlama/OOM; exporter sayaçları süzülmüş metrik dosyalarından, C2'nin artış tanımıyla. Saatlik büyüme = (son − ilk) / pencere saati, ondalık GB. Sınırlama: Prometheus ilk 2 saatte WAL'a yazar, 1 saatlik büyüme kalıcı büyümeyi göstermez.
+- Kontrol (demo açmadan): sayaçlar eski verinin son 20 dk'sında `recommendationCacheFailure_on_2` kaydıyla aynı (opensearch sent 23.936 / failed 9.913).
+- Koşu 1 (`20261024T2343Z-watch`, 23:49–00:49 UTC, 60 dk): geçerli; 22 konteyner, collector yeniden başlatılmadı, uyku 0, en yüksek 60 °C, yeniden başlama/OOM yok.
+  - opensearch: sent 100.920, send_failed 5.623 (%5,3), enqueue_failed 0 (seri yok). `file/logs` sent 106.541 (≈ sent + failed).
+  - OpenSearch tarafı: write pool rejected 0, indexing pressure rejections 0, breaker 0, index_failed 0; heap (400 MiB) en çok %77, old GC 0. Kapasite sorunu yok.
+  - Collector logu: tek tür, 314 satır: `Permanent error … mapper_parsing_exception` (yeniden denenmez, satır başına ~18 kayıt düşer). Betik mesajı 400 karakterde kesti, `down` logu sildi; alan adı görülemedi.
+  - Büyüme: Prometheus 0,48 → 4,26 MB (0,004 GB/saat), OpenSearch 16 → 192 MB (0,176 GB/saat; `du`, translog dahil).
+  - Tepe bellek / sınır: Jaeger 394 / 1200 MiB, Prometheus 94 / 200 MiB, OpenSearch 1022 / 1024 MiB (bütün koşu 1018–1022; dosya önbelleği dahil, OOM yok), collector 137 / 400 MiB.
+  - `_cat/indices` bugünkü indekste 1.038 kayıt gösterdi (indekslenen 104 bin): sorgulanmayan indeks yenilenmiyor (search idle). Betik düzeltildi: sonda `_refresh`.
+- Betik düzeltmesi (Eren onayı): `reason` metinleri olduğu gibi ve mesaj grubunun ilk tam satırı `collector_errors.json`'a; sonda `_refresh` ve `otel-logs-*` eşlemesi `opensearch_mapping.json`'a.
+- Koşu 2 (`20261025T0053Z-watch`, 00:59–01:14 UTC, 15 dk): geçerli. opensearch sent 20.060, send_failed 7.256 (**%26,6**). Kapasite yine sorunsuz (rejected 0, heap en çok %57, bellek 894 MiB).
+  - Neden: `Could not dynamically add mapping for field [http.request.method]. Existing mapping for [attributes.http] must be of type object but found [text].` (3.265 kez). İndekste `attributes.http` = `text`.
+  - Dosyada: düz `http` özniteliği yalnız cart'ta (3 kayıt, açılışta, değer `"8080"`); `http.*` frontend'de (51.498 kayıt). OpenSearch boş günlük indekste türü ilk kayda göre sabitliyor; cart'ın açılış logu önce gelirse frontend'in HTTP loglarının hepsi reddediliyor.
+  - Koşudan koşuya fark: her `up` OpenSearch'ü boş açıyor (C2 ~%30). Koşu 1'de çakışma yalnız 2026-10-24 indeksinde (23:49–00:00); gece yarısı açılan indekse frontend önce yazdı: %26,6 × 11/60 ≈ %4,9 (ölçülen %5,3). Kalıcı volume'le de her yeni gün şansa kalır.
+- Karar (Eren, 2026-10-25; DECISIONS): seçenek E, collector'da iki çıkıştan önce cart'ın `http` özniteliğini çakışmayan ada çevirmek. Elenenler: indeks şablonu (cart kayıtları düşer, canlı ≠ dosya), `flat_object` (öznitelik sorguları değişir), exporter eşleme kipleri (noktalı alan açılımını OpenSearch yapıyor; çözmüyor), heap artırma (kapasite sorunu yok).
+
+## 2026-10-25 · Uygulama → Planlama (depolama D2, kalıcı ayarlar)
+- Değişiklikler (upstream dosyalarına dokunulmadı; adlar Eren onaylı, GLOSSARY'de):
+  - `compose.extras.yaml`: isimli volume'ler (`prometheus-data`, `jaeger-data`, `opensearch-data`); Jaeger ikinci ayar dosyasıyla diske (`jaeger-config-extras.yml`, badger, TTL 168 saat; volume `/tmp`'de, imajda 10001'in yazabildiği tek klasör); Prometheus komutu upstream listesi + `--storage.tsdb.retention.size=2GB`; Jaeger bellek sınırı 2000M.
+  - `otelcol-config-extras.yml`: `transform/backend_compat` (logs, iki çıkıştan önce): `http` → `http_ports` (seçenek E), kayıt zamanı 0 ise alınma zamanı (seçenek A; currency ve shipping logları OpenSearch'te 1970'e yazılıyordu).
+  - `otel_demo.sh up`: OpenSearch ISM kuralı `otel-logs-retention` (7 gün → sil), yoksa yüklenir ve mevcut indekslere bağlanır.
+  - `scenario_runner.py guards()`: `monitoring_gb` (`docker system df -v`; geçici konteynerde `du` ile aynı) ≤ `MAX_MONITORING_GB` (40). `storage_check.py watch` aynı korumayı kullanır.
+  - `storage_check.py compare`: canlı = dosya (Jaeger v3 API 1 dk dilimlerle, OpenSearch `_refresh` + sayım, Prometheus 3 metrik örnek sayısı ve değerleri).
+  - Kural testi: `NOT_LEAK` (backend_compat testin hatlarına girmez), 3 `none` satırı; PASS 56 kural. Plandan sapma: cart logu kural testine örnek olarak eklenemedi, doğrulama `compare` ile.
+- 1 saatlik koşu (`~/cerebrum2/storage_runs/20261025T0154Z-watch`, 02:00–03:00 UTC): geçerli; 22 konteyner, uyku 0, en yüksek 60 °C.
+  - opensearch: sent 109.453, send_failed 0, enqueue_failed 0; diğer exporter'larda da 0. `collector_errors.json` boş.
+  - Canlı = dosya (02:02–02:58 UTC): span 338.578 = 338.578 (servis başına fark yok, 855 Jaeger sorgusu), log 102.114 = 102.114, `container.memory.percent` 7.392, `container.network.io.usage.rx_bytes` 7.392, `traces.span.metrics.duration` count 4.704; değerler aynı. EŞİT.
+  - `down` + `up` + 2 dk sonra aynı aralık: aynı sayılar, EŞİT (`compare_after_restart.json`).
+  - Büyüme: Jaeger 0,587, OpenSearch 0,255 (D1'de 0,176; artık reddedilen log yok), Prometheus 0,004 GB/saat. Pencere sonu boyutlar: Jaeger 0,91, OpenSearch 0,30, Prometheus 0,006 GB.
+  - Tepe bellek / sınır: Jaeger 1200,1 / 1200 MiB, OpenSearch 915 / 1024, collector 127 / 400, Prometheus 79 / 200. OOM ve yeniden başlama yok.
+- Jaeger belleği (ek ölçüm, 10 dk, 5 sn'de bir `memory.stat`; ölçüt önceden: anon tepe < sınırın %80'i, oom_kill 0):
+  - 1200M (03:10–03:20 UTC): anon çoğunlukla 120–470 MiB; açılıştan ~4,5 dk sonra 15 sn'de 316 → 967 MiB, ~2 dk 960–1064 MiB. Toplam 1200 MiB (anon 1064 + dosya 108); `memory.events max` 5.076, oom 0. KALDI (< 960 değil).
+  - 2000M (03:26–03:36 UTC): aynı sıçrama, anon tepe 1248 MiB (< 1600), `memory.events max` 0, oom 0. GEÇTİ.
+  - Neden doğrulanmadı (tahmin: badger'ın 5 dk'lık bakımı/sıkıştırması). Yer açılınca sıçrama büyüdü; veri arttıkça büyüyebilir, D3'te Jaeger belleği yine kayda.
+- Prometheus canlıda: `retention.size` 2GiB, `retention.time` 1w ("1w or 2GiB"). Jaeger `HostConfig.Memory` 2.097.152.000.
+- Koruma: `monitoring_gb` 1,3. Kasıtlı kırmızı: `AIOPS_MAX_MONITORING_GB=0.5 scenario_runner.py run adFailure_on` → "STOP before adFailure_on: guards: monitoring volumes 1.3 GB > 0.5", çıkış 1, demo açılmadı; diğer korumalar geçti. Docker okunamazsa da kırmızı.
+- pytest 190/190.
+- Eski anonim volume'ler silindi (Eren onayı; `docker volume prune`, yalnız anonim ve bağlı olmayanlar): 117 adet, 2,85 GB; boş disk 292,24 → 295,09 GB. İsimli üç volume yerinde.
+- Dikkat:
+  - Kart örneğindeki formül (saatlik büyüme × 8 saat × 7 × 1,5) ~71 GB verir; onaylanan 40 GB her gece 8 saat koşuda (~48 GB/hafta) 6. günde koşucuyu durdurur. Gece koşu planı netleşince sınır yeniden bakılmalı.
+  - `astronomy-db` imajı `/var/lib/postgresql`'i anonim volume olarak tanımlıyor; her `down` + `up` bir anonim volume bırakır (kapsam dışı, not). `down -v` isimli volume'leri de siler, kullanılmamalı.
+  - OpenSearch belleği 915 / 1024 MiB (dosya önbelleği dahil), heap en çok %70.
+
+## 2026-10-25 · Uygulama → Planlama (depolama D3, yeniden oynatma)
+- Yapılan (adlar planlama ve Eren onaylı, GLOSSARY'de; planlamanın dört eki uygulandı):
+  - `deploy/replay/compose.yaml` (`otel-replay`): Jaeger, Prometheus, OpenSearch upstream tanımından `extends` (imaj upstream .env'den, ayar dosyaları aynı; Jaeger bizim katmanla, 2000M); portlar 127.0.0.1 (16686, 19090, 19200), ayrı volume'ler. Collector: tek alıcı `otlpjsonfile` (`REPLAY_WINDOW` → `/replay`), sayaçlar yalnız çekme ucunda (127.0.0.1:18888), yeniden başlamaz. Prometheus komutu upstream'inki (7 gün, boyut sınırı yok).
+  - `deploy/replay/otelcol-replay.yml`: `transform/backend_compat` kopyası, upstream'in üç exporter kopyası; `span_metrics` yok (metrik dosyasında zaten var).
+  - `tests/test_replay_config.py`: kopyalar kaynaklarıyla aynı (`REPLAY_ONLY` dışında), alıcılar yalnız dosya. Upstream klonu yoksa (CI) exporter testi atlanır. Kasıtlı kırmızılar: liste dışı fark, eksik izinli satır.
+  - `storage_check.py replay`: korumalar, canlı demo kapalı ve `otel-replay_*` yoksa başlar; Prometheus boş mu (numSeries 0, Jaeger'in ittiği metrik ulaşmıyor); pencereler zaman sırasıyla; bitiş sent = dosya, send_failed = 0 (zaman aşımı 20 dk, dolarsa rapor); her pencereden sonra head maxTime ≤ pencere sonu + 1 dk, reddetme sayaçları; `compare` sayımı (2. pencereden önce kasıtlı kırmızı); ilk pencere diskteki bloğa girince yeniden sayım; collector logu durdurulmadan önce `collector_<koşu>.log`.
+- Pencereler: `productCatalogFailure_on_1` (2026-10-23 23:29–23:52 UTC; span 133.793, metrik noktası 106.869, log 40.326), `intlShippingSlowdown_10sec_1` (2026-10-24 08:12–08:36 UTC; 126.418 / 104.748 / 38.014).
+- Koşu 1 (`20261025T0402Z-replay`): FAIL. Metrikler tam ve eşit; izler ve loglar çoğu kayıp (pencere 1: span sent 4.811, send_failed 57.449, enqueue_failed 71.533; log sent 5.461, enqueue_failed 34.865).
+- Teşhis (18:36 yerel, elle, pencere 1): collector logunda "sending queue is full" (141) ve Jaeger'den "received message after decompression larger than max 4194304" (~8.200 span'lık paketler). Alınan 68.195 span'ın 65.870'i boyuttan, 65.598'i kuyruk dolu diye düştü.
+- Düzeltme (Eren, seçenek 1; DECISIONS): `block_on_overflow: true` (üç exporter), Jaeger paketi `min_size`/`max_size` 2048. Canlı collector değişmedi.
+- Koşu 2 (`20261025T1540Z-replay`): veri tam ve eşit, ama `block_covers_first` False. Betik hatası: kontrol bloğun başını pencere başıyla (kenar paylı, 23:29:06) karşılaştırıyordu; promtool blok başı olarak ilk örneğin zamanını (23:29:07,989) gösteriyor. Koşu 1'de tesadüfen geçmişti: sıra dışı örneklerle oluşan blok 2 saatlik sınıra hizalı (22:00). Ölçüt sonuca bakılarak geçti sayılmadı; kontrol düzeltildi (blok dosyadaki en eski ve en yeni metrik zamanını kapsamalı; kayıtlı iki blokta doğru, 1 ms kaydırılmış iki kasıtlı kırmızıda False), koşu tekrarlandı (Eren).
+- Koşu 3 (`~/cerebrum2/storage_runs/20261025T1601Z-replay`, 16:01–16:05 UTC): **PASS**, 11 ölçütün hepsi.
+  - Gönderilen = dosya, send_failed 0, enqueue_failed 0, collector hata satırı 0, zaman aşımı yok (pencere başına < 1 dk).
+  - Karşılaştırma eşit: pencere 1 span 133.652, log 40.326, metrikler 2.944 / 2.944 / 1.958; pencere 2 span 126.392, log 38.009, metrikler 2.910 / 2.910 / 1.758. Bloktan sonra da eşit (head 07:35'ten başlıyor, pencere 1 yalnız blokta).
+  - Prometheus: önce boş; reddedilen örnek 0 (out_of_order, out_of_bound); sıra dışı kabul 654 (koşu 2'de 0, koşu 1'de 13.290: paket sırası koşudan koşuya değişiyor); exemplar sıra dışı 21 (yalnız exemplar). Blok 2026-10-23 22:00–00:00, 179.043 örnek.
+  - Canlı volume'ler değişmedi. OOM ve yeniden başlama yok.
+  - Tepe bellek: Jaeger 1972,2 / 2000 MiB, OpenSearch 865, Prometheus 122, collector 186 MiB.
+  - Hedef volume'ler: Jaeger 439,3 MB, OpenSearch 42,6 MB, Prometheus 5,3 MB; Eren onayıyla silindi (üç koşunun ve teşhisin hepsi).
+- Sonuç: Prometheus eski zaman damgasını kabul ediyor, diske yazdıktan sonra da sorgulanabiliyor; DECISIONS 2026-10-25 "yeniden oynatma" kararının D3 riski çıkmadı.
+- Proje 2 notları (karar değil):
+  - Yeniden oynatma zaman sırasıyla ve boş hedefe: Prometheus'un sıra dışı penceresi 30 dk (upstream `out_of_order_time_window`); daha eski bir pencere sonradan gelirse reddedilir (denenmedi).
+  - Prometheus süre saklaması en yeni bloğun zamanından sayılıyor, duvar saatinden değil (v3.13.1 kaynağında doğrulandı); en yeni blok süre yüzünden silinmez.
+  - OpenSearch exporter indeks adını oynatma tarihinden alıyor (`otel-logs-2026-10-25`), logun zamanından değil; ISM 7 günü oynatma gününden sayar. Sayım `@timestamp` ile, sonucu etkilemedi.
+  - Jaeger belleği yeniden oynatmada sınırın %99'u (260 bin span ~2 dk'da); toplam bellek, dosya önbelleği dahil olabilir, `memory.stat` ile ayrıştırılmadı. Daha uzun ya da çok pencereli oynatmada sınır aşılabilir.
+  - Hedef volume'ler kalıcı olursa onlara da boyut sınırı gerekir (iki pencere ~0,49 GB).
+- Dikkat:
+  - Collector `otlpjsonfile` adının eskidiğini yazıyor (yeni ad `otlp_json_file`); hâlâ çalışıyor. Ad değişikliği onay ister.
+  - `replay.log` (koşu günlüğü) GLOSSARY'de yok; `watch.log`'un karşılığı, onay bekliyor.
+  - `storage_check.py`'deki replay sabitleri ve fonksiyonları (`REPLAY_COMPOSE`, `wait_replayed` vb.) iç adlar, GLOSSARY'de değil.
+  - pytest 195/195.
+
+## 2026-10-25 · Uygulama → Planlama (depolama kartı bitti, disk bütçesi)
+- Yapılan ("Bitince" işleri): ARCHITECTURE (`mon` kalıcı, kesik çizgi kalktı; Proje 2'de ajanın canlı araçları yeniden oynatma hedefine bakar, `snap` → `replay`), OTEL_DEMO kalıcılık bölümü, PROJECT "Şu an", bu tablo. `replay.log` GLOSSARY'ye eklendi (Eren onayı).
+- Disk bütçesi (ondalık GB; 2026-10-25 ölçümü, boş disk 292,20 GB):
+
+| Kalem | Boyut | Not |
+|---|---|---|
+| Collector dosya döndürmesi, süzülmüş | en çok 2,83 GB | 3 sinyal × 3 dosya × 300 MiB (`max_megabytes` MiB; kartta 2,7) |
+| Collector dosya döndürmesi, süzülmüş + süzülmemiş (`--raw`) | en çok 5,66 GB | kartta 5,4 |
+| İzleme sistemi volume'leri (canlı) | ≤ 40 GB | koruma (`MAX_MONITORING_GB`); büyüme ~0,85 GB/saat demo (D2); Prometheus ayrıca ≤ 2GiB |
+| Snapshot (vaka penceresi, süzülmüş, sıkıştırmasız) | ~0,23 GB/vaka | 19 C2 penceresi: ortalama 0,231, en çok 0,278 GB (~25 dk); 30 vaka ≈ 6,9 GB. Sınır vaka üretimi kartında |
+| Yeniden oynatma hedefi (Proje 2) | ~0,25 GB/vaka | D3: 2 pencere 0,49 GB (Jaeger 0,44); hedef kalıcı olursa sınır gerekir |
+| Docker imajları | 19,29 GB | şu an |
+| `~/cerebrum2/c2_runs/` | 4,39 GB | süzülmemiş kopyalar silinmiş; `window/filtered/` duruyor |
+| `~/cerebrum2/telemetry/` | 2,28 GB | döndürmenin şu anki doluluğu |
+
+- Öneri: PROJECT DevOps listesinde "Kalıcı depolama, saklama süresi" satırı işaretlenebilir (Jaeger diske, Prometheus/OpenSearch saklama, boyut koruması, yeniden başlatma sonrası doğrulama). Karar planlamanın / Eren'in; işaretlemedim.
+- Dikkat: 40 GB her gece 8 saat koşuda 6. günde dolar (D2 notu); gece planı netleşince yeniden bakılmalı.

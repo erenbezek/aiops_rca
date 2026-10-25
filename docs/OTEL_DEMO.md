@@ -116,7 +116,7 @@ Bazı sızıntılar silinerek değil yeniden yazılarak giderilmeli (ör. produc
 - `.env`'deki `IMAGE_VERSION=3.0.0`, etiket 3.1.0 olmasına rağmen. 3.1.0 imajları ghcr'de var. İmaj sürümü bizim tarafta açıkça sabitlenmeli.
 - Upstream `.gitattributes` sadece `* text=auto`: Windows'ta `core.autocrlf=true` ile klonlanırsa betikler CRLF gelir. Klon `core.autocrlf=false` ile alınmalı.
 - Collector `docker.sock` ve host dosya sistemini (`/hostfs`) okuyor (`docker_stats`, `host_metrics`); Ubuntu'da doğrudan kurulu Docker Engine'de varsayılan yollar uyar (Docker Desktop kendi sanal makinesinde çalıştığı için yollar farklı olabilir).
-- Jaeger depolaması bellekte, en fazla 25.000 trace (`MEMORY_MAX_TRACES`); konteyner yeniden başlarsa trace'ler kaybolur.
+- Jaeger depolaması bellekte, en fazla 25.000 trace (`MEMORY_MAX_TRACES`); konteyner yeniden başlarsa trace'ler kaybolur (upstream; bizim katmanla diske, aşağıda Kalıcılık).
 - Prometheus OTLP alıcısı açık, saklama 7 gün. Loglar OpenSearch'e gidiyor.
 - Tarayıcı trafiği varsayılan açık (`LOCUST_BROWSER_TRAFFIC_ENABLED=true`). `imageSlowLoad` sadece tarayıcı kullanıcılarında etki eder.
 - load-generator'ın `ask_agent` görevi minimal modda da çalışır; agent servisi olmadığı için sürekli bağlantı hatası üretir (sadece load-generator telemetrisinde).
@@ -145,9 +145,17 @@ tools/otel_demo.sh down     # durdurur, volume silmez; klon kirli olsa da çalı
 - 25 konteyner; 19'unda healthcheck var (cart, flagd, grafana, jaeger, otel-collector, prometheus'ta yok).
 - Bellek (açılıştan ~2 dk sonra, `docker stats`): toplam 2,87 GiB. En büyükler: opensearch 860 MiB / 1 GiB, load-generator 583 MiB / 1,47 GiB, ad 223 MiB / 300 MiB, otel-collector 195 MiB / 400 MiB, flagd-ui 175 MiB / 200 MiB. `free -h`: kullanılan 4,7 → 7,4 GiB, kullanılabilir 7,9 GiB.
 - Disk: imajlar 12,2 GB, isimsiz volume'ler 66 MB (prometheus `/prometheus`, jaeger `/tmp`, astronomy-db).
-- Kalıcılık (`up` her seferinde `--force-recreate`): Prometheus verisi imajın isimsiz volume'ü sayesinde yeniden kurulumda kalıyor; OpenSearch verisi siliniyor (volume yok); Jaeger zaten bellekte. `down`/`up` sonrası ölçülmedi.
-- OpenSearch'te zaman damgası 0 (1970) olan loglar var (ilk ~4 dk'da 53 belge).
-- Collector (C1, 2026-10-20): dosya çıkışı `~/cerebrum2/telemetry/filtered/{traces,metrics,logs}.jsonl` (100 MB'ta döner, 2 yedek). `tools/otel_demo.sh up --raw` ayrıca süzülmemiş kopyayı `raw/`'a yazar (iş bitince silinir). Collector `eren:docker` kullanıcısıyla. Flag dosyası `~/cerebrum2/runtime/flagd/demo.flagd.json`, her `up`'ta klondan sıfırlanır.
+- Kalıcılık (ilk kurulumda, 2026-10-18): Prometheus verisi imajın isimsiz volume'ünde; OpenSearch verisi her `up`'ta siliniyordu (volume yok); Jaeger bellekte.
+- Kalıcılık (depolama kartı, 2026-10-25; `compose.extras.yaml`, DECISIONS):
+  - İsimli volume'ler `otel-demo_prometheus-data`, `otel-demo_jaeger-data`, `otel-demo_opensearch-data`; `down` silmez. `down -v` isimli volume'leri de siler, kullanılmaz.
+  - Jaeger diske (badger, `jaeger-config-extras.yml`; volume imajda 10001'in yazabildiği tek klasör `/tmp`'de), 7 gün; bellek sınırı 2000M (upstream 1200M; badger bakımında anon tepe 1248 MiB).
+  - Prometheus 7 gün ya da 2GB, hangisi önce dolarsa (Prometheus GB'yi ikili okur: 2GiB, 2,15 GB). Süre saklaması en yeni bloğun zamanından sayılır, duvar saatinden değil.
+  - OpenSearch: ISM kuralı `otel-logs-retention`, 7 günden eski `otel-logs-*` indeksini siler (`otel_demo.sh up` yükler). Yaş indeksin oluşturulma zamanından sayılır.
+  - Koruma: üç volume'ün toplamı > 40 GB ise koşucu başlamaz (`MAX_MONITORING_GB`).
+  - Doğrulama (D2, 1 saat): canlı = dosya (span 338.578, log 102.114, 3 metrik); `down` + `up` sonrası da eşit. Büyüme: Jaeger 0,587, OpenSearch 0,255, Prometheus 0,004 GB/saat.
+  - `astronomy-db` imajı her `down` + `up`'ta bir anonim volume bırakır (`/var/lib/postgresql`).
+- OpenSearch'te zaman damgası 0 (1970) olan loglar var (ilk ~4 dk'da 53 belge). D2'de düzeltildi (`transform/backend_compat`, kayıt zamanı yoksa alınma zamanı).
+- Collector (C1, 2026-10-20): dosya çıkışı `~/cerebrum2/telemetry/filtered/{traces,metrics,logs}.jsonl` (100 MB'ta döner, 2 yedek; kalıcı ayar 2026-10-25'ten beri 300 MB, DECISIONS). `tools/otel_demo.sh up --raw` ayrıca süzülmemiş kopyayı `raw/`'a yazar (iş bitince silinir). Collector `eren:docker` kullanıcısıyla. Flag dosyası `~/cerebrum2/runtime/flagd/demo.flagd.json`, her `up`'ta klondan sıfırlanır.
 - Hacim (30 dk, süzme açık): traces ~389 MB/saat, logs ~131, metrics ~108 → ~630 MB/saat. Süzülmemiş kopya açıkken toplam ~1,5 GB/saat. Şimdiki döndürmeyle dosyalar traces'te ~46 dk, logs'ta ~2,3 saat, metrics'te ~2,8 saat geriye gidiyor.
 - Zaman damgası 0 (dosya çıkışı, 30 dk): logların 2.716 / 55.965'i (currency 1.973, shipping 743); span ve metrik veri noktalarında 0.
 - Collector belleği: süzme açık ~107 MiB, süzülmemiş kopya da açıkken ~239 MiB (limit 400M).
