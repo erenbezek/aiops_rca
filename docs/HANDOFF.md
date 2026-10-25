@@ -1223,3 +1223,12 @@ Kapsam dışı: altyapı hataları (V2), kendi servis, resmî set bileşimi ve d
 - ARCHITECTURE: snapshot kesici, snapshot'lar ve `model_view` kesik çizgiden çıkar; etiket kökü eklenir.
 - GLOSSARY, DECISIONS (snapshot biçimi, sınır, M, taban eşiği).
 - PR açıklaması sade; push'tan önce PR durumuna bak.
+
+## 2026-10-25 · Planlama → Uygulama (V1 netleştirmeler)
+Uygulamanın V1 kartına dört sorusunun cevabı (Eren onayı). Kartın ölçütlerine eklenir; ölçmeden önce yazıldı.
+1. Taban sağlık kontrolü normal dönemin verisiyle, normal dönem bitince ve enjeksiyondan hemen önce yapılır. Geçmezse enjeksiyon yapılmaz, vaka geçersiz, bir kez tekrarlanır. Koşudaki kontrol C2 analiziyle aynı veri kaynağını ve aynı p95 hesabını kullanır. (Kart akışındaki "ısınma → taban sağlık kontrolü → 10 dk normal" sırası bununla düzelir.)
+2. "Olay var mı": belirti kararı kaynak sinyalinden (CPU, bellek) geldiyse, enjeksiyon döneminde kök neden servisinin toplam isteği en az M olmalı (emailMemoryLeak gibi kaynak hataları da istekle tetikleniyor). Hiç izi olmayan servislerde (ör. astronomy-db) olay kontrolü uygulanmaz; kayda "uygulanmadı" yazılır.
+3. M seçiminde yalnız "belirtili" çıkan servis-koşu çifti yanlış alarm sayılır; "sınırda" sayılmaz (vaka kontrolünde de sınırda vaka belirtili sayılmıyor, yalnız işaretleniyor). Her M için sınırda oranı da rapora.
+4. Taban kuralının sınanması: referans, geçerli 16 koşudan `recommendationCacheFailure_on_2` çıkarılarak 15 koşunun normal dönemlerinden (frontend p95 medyanı). Kural bu 16 koşuya ve `adManualGc_on_1`'e (geçersiz ama süzülmüş verisi sağlam) uygulanır. Geçme şartı: iki yavaş koşu geçersiz çıkar, diğer 15'ten en fazla biri geçersiz çıkar. `productCatalogFailure_on_2` (uyku) ve `recommendationCacheFailure_on_1` (yeniden başlama) hesaba girmez.
+- Küçük düzeltmeler: kartta "Snapshot toplamı ≤ 20 GB (DECISIONS 2026-10-18)" — 2026-10-18 satırı yalnız "her bileşene sınır" kuralını koyuyor, 20 GB bu kartın kararı ("Bitince"de DECISIONS'a). Collector yeniden başlatma sayısı kayıtta geçerli 16 koşunun 11'i, 19 koşunun 13'ü (kartta "16'nın 12'si" yanlış); V1a'da incelenir.
+- Uygulamanın V1a planı (5 adım, her adım sonunda rapor) uygun; 1. adımla (biçim önerisi) başlanabilir.
