@@ -5,7 +5,8 @@
 #
 # Geçici bir collector'a (demonun imajı, ~/cerebrum2/otel-demo/.env COLLECTOR_CONTRIB_IMAGE) bizim ayar dosyamız ve
 # üstüne testin küçük katmanı verilir: otlp/http girişi (127.0.0.1, boş port), dosya çıkışı, hatlarda yalnız bu
-# dosyada tanımlı işlemciler (filter/sim_world, transform/scrub; sıra gerçek hatlardan). Upstream'in işlemcileri
+# dosyada tanımlı süzme işlemcileri (filter/sim_world, transform/scrub; sıra gerçek hatlardan; sızıntı kuralı
+# taşımayan transform/backend_compat hariç, kuralları rules.tsv'de `none`). Upstream'in işlemcileri
 # çalışmaz: girdi süzülmemiş (raw) kayıtlardır, onlardan zaten geçmiştir.
 #
 # Girdi: tests/fixtures/collector_rules/{traces,metrics,logs}.jsonl (C2'nin raw verisinden tek kayıtlık, elle
@@ -96,8 +97,13 @@ def parse_rules(text):
     return out
 
 
+# Sızıntı kuralı taşımayan işlemciler testin hatlarına girmez (rules.tsv'de `none`): transform/backend_compat
+# kayıt zamanını ve öznitelik adını değiştirir; temiz kontroller ve örnekler tanınmaz olur (depolama kartı D2).
+NOT_LEAK = {"transform/backend_compat"}
+
+
 def our_processors(text):
-    """Gerçek hatlardaki işlemcilerden bu dosyada tanımlı olanlar, sırasıyla."""
+    """Gerçek hatlardaki işlemcilerden bu dosyada tanımlı olanlar (NOT_LEAK hariç), sırasıyla."""
     defined, inside = set(), False
     for line in text.splitlines():
         if re.match(r"^\S", line):
@@ -109,7 +115,7 @@ def our_processors(text):
         m = re.search(rf"^    {sig}:\n      processors: \[([^\]]*)\]", text, re.M)
         if not m:
             raise SystemExit(f"error: {CONFIG}: pipeline {sig} processors not found")
-        pipes[sig] = [p.strip() for p in m.group(1).split(",") if p.strip() in defined]
+        pipes[sig] = [p.strip() for p in m.group(1).split(",") if p.strip() in defined - NOT_LEAK]
     return pipes
 
 

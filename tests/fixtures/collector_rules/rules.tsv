@@ -61,3 +61,6 @@ transform/scrub/log_statements/context:log/statements	replace_pattern(log.body, 
 -	-	clean	logs.jsonl:8	envoy access log, normal path; C2 paymentFailure_50pct_1
 -	-	clean	logs.jsonl:9	shipping log; C2 paymentFailure_50pct_1
 -	-	clean	logs.jsonl:10	ad log; C2 paymentFailure_50pct_1
+transform/backend_compat/log_statements/context:log/statements	set(log.attributes["http_ports"], log.attributes["http"]) where IsString(log.attributes["http"])	none	-	sızıntı kuralı değil: OpenSearch eşleme uyumu (DECISIONS 2026-10-25, depolama D1 seçenek E); doğrulama storage_check.py (eşleme, send_failed)
+transform/backend_compat/log_statements/context:log/statements	delete_key(log.attributes, "http") where IsString(log.attributes["http"])	none	-	sızıntı kuralı değil: OpenSearch eşleme uyumu (DECISIONS 2026-10-25, depolama D1 seçenek E); doğrulama storage_check.py (eşleme, send_failed)
+transform/backend_compat/log_statements/context:log/statements	set(log.time_unix_nano, log.observed_time_unix_nano) where log.time_unix_nano == 0	none	-	sızıntı kuralı değil: kayıt zamanı yoksa alınma zamanı (DECISIONS 2026-10-25, depolama D2 seçenek A); doğrulama storage_check.py compare (loglar)

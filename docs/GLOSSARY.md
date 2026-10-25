@@ -96,3 +96,12 @@ Sadece Eren'in onayladığı isimler.
 | `mem.tsv`, `sizes.tsv` | `watch` koşusunda dakikalık bellek (jaeger, prometheus, opensearch, otel-collector) / 5 dakikalık veri klasörü boyutları |
 | `opensearch_start.json`, `opensearch_end.json`, `opensearch_mapping.json` | `watch` koşusunda OpenSearch'ün ham istatistikleri (başta, sonda) / sonda `otel-logs-*` indekslerinin eşlemesi |
 | `collector_errors.json` | `watch` koşusunda collector logundaki opensearch satırları: OpenSearch'ün `reason` metinleri ve sayıları, mesaj grupları |
+| `prometheus-data`, `jaeger-data`, `opensearch-data` | İzleme sisteminin isimli Docker volume'leri (compose adı; Docker'da `otel-demo_` önekiyle); `down` silmez |
+| `deploy/otel-demo/jaeger-config-extras.yml`, `JAEGER_CONFIG_EXTRAS` | Jaeger katmanımız (diske yazma, 7 gün) / `otel_demo.sh`'in onun yolunu compose'a geçirdiği değişken |
+| `badger_main` | Jaeger ayarında diskteki (badger) izleme deposunun adı |
+| `otel-logs-retention` | OpenSearch ISM kuralı: 7 günden eski `otel-logs-*` indeksini siler; `otel_demo.sh up` yükler |
+| `transform/backend_compat` | Collector processor'ı (süzmeden sonra, iki çıkıştan önce): izleme sistemi uyumu; sızıntı kuralı değil |
+| `http_ports` | cart'ın .NET açılış uyarısındaki düz `http` özniteliğinin `transform/backend_compat` sonrası adı |
+| `compare`, `--run`, `--tag` | `storage_check.py` komutu: canlı = dosya karşılaştırması / aralığın alındığı `watch` klasörü / ikinci karşılaştırmanın adı |
+| `compare.json`, `compare_<tag>.json` | `compare` sonucu (`watch` klasöründe) |
+| `NOT_LEAK` | `test_collector_rules.sh`'te testin hatlarına girmeyen (sızıntı kuralı taşımayan) processor'lar |

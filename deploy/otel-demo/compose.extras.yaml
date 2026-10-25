@@ -7,6 +7,9 @@
 #   !override listeyi değiştirir; !reset listeyi boşaltır (ek dosyada ports normalde eklenir). Compose ≥ 2.24.4.
 # - !reset yalnızca minimal modda (compose.yaml + compose.observability.yaml) tanımlı servislere yazılır;
 #   başka servis yazılırsa Compose imajsız yarım servis yaratır. opamp-server port yayınlamıyor, burada yok.
+# - Kalıcı izleme sistemi (depolama kartı, DECISIONS 2026-10-25): Prometheus, Jaeger ve OpenSearch isimli
+#   volume'lerde; `down` volume silmez. Saklama 7 gün: Prometheus upstream'in retention.time'ı, Jaeger badger TTL
+#   (jaeger-config-extras.yml), OpenSearch ISM kuralı (tools/otel_demo.sh up yükler).
 
 x-default-logging: &logging
   driver: json-file
@@ -23,9 +26,13 @@ services:
   prometheus:
     ports: !override
       - "127.0.0.1:9090:${PROMETHEUS_PORT}"
+    volumes:
+      - prometheus-data:/prometheus
   opensearch:
     ports: !override
       - "127.0.0.1:9200:${OPENSEARCH_PORT}"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
 
   # Flag dosyası repo ve klon dışında (DECISIONS 2026-10-20): tools/otel_demo.sh up her seferinde
   # klondaki demo.flagd.json'u buraya kopyalar; flagd-ui yazınca klon kirlenmez.
@@ -84,5 +91,18 @@ services:
   # compose.observability.yaml
   grafana:
     ports: !reset []
+  # Komut upstream'inkine ikinci ayar dosyası eklenerek yeniden yazılır (ek dosyada command listesi değiştirilir).
+  # Volume /tmp'de: gerekçe jaeger-config-extras.yml'da.
   jaeger:
     ports: !reset []
+    command:
+      - "--config=file:/etc/jaeger/config.yml"
+      - "--config=file:/etc/jaeger/config-extras.yml"
+    volumes:
+      - ${JAEGER_CONFIG_EXTRAS}:/etc/jaeger/config-extras.yml:ro
+      - jaeger-data:/tmp
+
+volumes:
+  prometheus-data:
+  jaeger-data:
+  opensearch-data:

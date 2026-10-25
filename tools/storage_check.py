@@ -22,7 +22,23 @@ Sonuç `watch.json` ve kısa özet. Collector logundan opensearch'le ilgili sat�
 OpenSearch'ün `reason` metinleri olduğu gibi ve sayıları; mesaj grupları (sayılar `#`) sayı ve ilk tam satırla.
 Sonda `_refresh` (saymadan önce) ve `otel-logs-*` indekslerinin eşlemesi `opensearch_mapping.json`'a.
 Saatlik büyüme = (son boyut − ilk boyut) / pencere saati, ondalık GB.
-Çıkış kodu: 0 ölçüm tamam, 1 koruma tutmadı / demo açılmadı / makine uyudu, 2 kullanım hatası.
+
+  python tools/storage_check.py compare --run <watch klasörü> [--tag <ad>]
+      Canlı = dosya (D2 ölçütü): aralık `watch.json`'daki pencerenin kenarlarından 2 dk içeride; aralık sonundan en
+      az 2 dk geçmeden sorgulamaz. Demo açık olmalı (`watch --keep-up`). Sonuç `compare.json` (`--tag x` ile
+      `compare_x.json`).
+      - İzler: `telemetry/filtered/traces*.jsonl`'daki span'ler (başlangıcı aralıkta) servis başına; Jaeger v3 API
+        (`raw_traces`, 8080 üzerinden) servis × 1 dk dilim, dilim `search_depth`'e takılırsa ikiye bölünür; span'ler
+        (traceId, spanId) ile tekilleştirilir, başlangıcı aralıkta olanlar servis başına sayılır.
+      - Loglar: `logs*.jsonl`'daki kayıtlar (zaman `timeUnixNano`, 0 ise `observedTimeUnixNano`; ms) servis başına;
+        OpenSearch `_refresh` sonrası `otel-logs-*`'ta `@timestamp` aralıkta, servis başına.
+      - Metrikler (`METRICS`: gauge, sum, histogram sayısı): dosyadaki veri noktaları (zaman ms, değer) çoklu kümesi;
+        Prometheus'ta aynı aralığın ham örnekleri (`ad[<süre>ms]`), bütün seriler.
+      - Dosya kapsaması: her sinyalde dosyalardaki en eski kayıt aralık başından önce olmalı (döndürme).
+
+Çıkış kodu (watch): 0 ölçüm tamam, 1 koruma tutmadı / demo açılmadı / makine uyudu, 2 kullanım hatası.
+Çıkış kodu (compare): 0 üç sistemde de eşit (ve dosyada kayıt var), 1 fark var, boş ya da kapsama eksik,
+2 kullanım hatası.
 """
 from __future__ import annotations
 
@@ -33,7 +49,11 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -44,8 +64,8 @@ from c2_measure import increase, read_otelcol, SENT, SEND_FAILED, ENQUEUE_FAILED
 OUT = Path.home() / "cerebrum2" / "storage_runs"
 OPENSEARCH = "http://127.0.0.1:9200"
 WATCHED = ["jaeger", "prometheus", "opensearch", "otel-collector"]
-# Konteyner → veri klasörü (D1: Jaeger bellekte, diski yok)
-DATA_DIRS = {"prometheus": "/prometheus", "opensearch": "/usr/share/opensearch/data"}
+# Konteyner → veri klasörü = isimli volume'ün bağlandığı yer (D2; D1'de Jaeger bellekteydi)
+DATA_DIRS = {"prometheus": "/prometheus", "opensearch": "/usr/share/opensearch/data", "jaeger": "/tmp"}
 WARMUP_S = 300
 SIZE_EVERY_S = 300
 SETTLE_S = 90
@@ -305,13 +325,222 @@ def watch(minutes: int, keep_up: bool) -> int:
     return 0 if rec["valid"] else 1
 
 
+# --- compare -------------------------------------------------------------------------------------------------
+
+JAEGER_V3 = "http://127.0.0.1:8080/jaeger/ui/api/v3"
+EDGE_NS = 120 * 10**9
+SETTLE_NS = 120 * 10**9
+SLICE_NS = 60 * 10**9
+SEARCH_DEPTH = 1000
+# (dosyadaki ad, OTLP türü, Prometheus'taki ad); histogramda karşılaştırılan veri noktasının sayısı (_count)
+METRICS = [
+    ("container.memory.percent", "gauge", "container_memory_percent_ratio"),
+    ("container.network.io.usage.rx_bytes", "sum", "container_network_io_usage_rx_bytes_total"),
+    ("traces.span.metrics.duration", "histogram", "traces_span_metrics_duration_milliseconds_count"),
+]
+NS_FIELDS = re.compile(rb'"(?:startTimeUnixNano|timeUnixNano|observedTimeUnixNano)":"(\d+)"')
+
+
+def service_of(resource: dict) -> str:
+    for a in resource.get("attributes", []):
+        if a["key"] == "service.name":
+            return next(iter(a["value"].values()), "-")
+    return "-"
+
+
+def file_docs(signal: str, a: int, b: int, oldest: dict):
+    """Süzülmüş dosyalardan [a, b) aralığına değebilecek satırlar (JSON); en eski kayıt zamanı `oldest`'a."""
+    for f in sorted((sr.TELEMETRY / "filtered").glob(f"{signal}*.jsonl")):
+        with f.open("rb") as fh:
+            for line in fh:
+                ts = [int(x) for x in NS_FIELDS.findall(line) if x != b"0"]
+                if not ts:
+                    continue
+                oldest[signal] = min(oldest.get(signal, ts[0]), min(ts))
+                if max(ts) >= a and min(ts) < b:
+                    yield json.loads(line)
+
+
+def file_spans(a: int, b: int, oldest: dict) -> Counter:
+    c = Counter()
+    for d in file_docs("traces", a, b, oldest):
+        for rs in d.get("resourceSpans", []):
+            svc = service_of(rs.get("resource", {}))
+            for ss in rs.get("scopeSpans", []):
+                for sp in ss.get("spans", []):
+                    if a <= int(sp["startTimeUnixNano"]) < b:
+                        c[svc] += 1
+    return c
+
+
+def file_logs(a: int, b: int, oldest: dict) -> Counter:
+    a_ms, b_ms, c = a // 10**6, b // 10**6, Counter()
+    for d in file_docs("logs", a, b, oldest):
+        for rl in d.get("resourceLogs", []):
+            svc = service_of(rl.get("resource", {}))
+            for sl in rl.get("scopeLogs", []):
+                for r in sl.get("logRecords", []):
+                    t = int(r.get("timeUnixNano") or 0) or int(r.get("observedTimeUnixNano") or 0)
+                    if a_ms <= t // 10**6 < b_ms:
+                        c[svc] += 1
+    return c
+
+
+def file_metrics(a: int, b: int, oldest: dict) -> dict[str, Counter]:
+    wanted = {name: kind for name, kind, _ in METRICS}
+    out = {name: Counter() for name in wanted}
+    a_ms, b_ms = a // 10**6, b // 10**6
+    for d in file_docs("metrics", a, b, oldest):
+        for rm in d.get("resourceMetrics", []):
+            for sm in rm.get("scopeMetrics", []):
+                for m in sm.get("metrics", []):
+                    kind = wanted.get(m.get("name"))
+                    if kind is None or kind not in m:
+                        continue
+                    for dp in m[kind].get("dataPoints", []):
+                        t = int(dp.get("timeUnixNano", 0)) // 10**6
+                        if not a_ms <= t < b_ms:
+                            continue
+                        v = float(dp["count"]) if kind == "histogram" else float(dp.get("asDouble", dp.get("asInt", 0)))
+                        out[m["name"]][(t, v)] += 1
+    return out
+
+
+def rfc3339(ns: int) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(ns // 10**9)) + f".{ns % 10**9:09d}Z"
+
+
+def jaeger_slice(service: str, lo: int, hi: int) -> dict:
+    """Bir servis ve zaman dilimindeki izlerin span'leri {(traceId, spanId): (servis, başlangıç)}; derinliğe
+    takılan dilim ikiye bölünür."""
+    q = urllib.parse.urlencode({"query.service_name": service, "query.start_time_min": rfc3339(lo),
+                                "query.start_time_max": rfc3339(hi), "query.search_depth": SEARCH_DEPTH,
+                                "query.raw_traces": "true"})
+    try:
+        d = sr.http("GET", f"{JAEGER_V3}/traces?{q}", timeout=300)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return {}
+        raise
+    spans, traces = {}, set()
+    for rs in (d.get("result") or {}).get("resourceSpans", []):
+        svc = service_of(rs.get("resource", {}))
+        for ss in rs.get("scopeSpans", []):
+            for sp in ss.get("spans", []):
+                traces.add(sp["traceId"])
+                spans[(sp["traceId"], sp["spanId"])] = (svc, int(sp["startTimeUnixNano"]))
+    if len(traces) >= SEARCH_DEPTH:
+        if hi - lo <= 10**9:
+            raise SystemExit(f"error: jaeger search depth hit in a 1 s slice ({service} {rfc3339(lo)})")
+        mid = (lo + hi) // 2
+        return {**jaeger_slice(service, lo, mid), **jaeger_slice(service, mid, hi)}
+    return spans
+
+
+def jaeger_spans(a: int, b: int) -> tuple[Counter, int]:
+    services = sr.http("GET", f"{JAEGER_V3}/services", timeout=60).get("services", [])
+    tasks = [(svc, lo, min(lo + SLICE_NS, b)) for svc in services for lo in range(a, b, SLICE_NS)]
+    spans = {}
+    with ThreadPoolExecutor(4) as pool:
+        for part in pool.map(lambda t: jaeger_slice(*t), tasks):
+            spans.update(part)
+    c = Counter(svc for svc, start in spans.values() if a <= start < b)
+    return c, len(tasks)
+
+
+def opensearch_logs(a: int, b: int) -> Counter:
+    sr.http("POST", OPENSEARCH + "/_refresh", timeout=120)
+    body = {"size": 0, "track_total_hits": True,
+            "query": {"range": {"@timestamp": {"gte": a // 10**6, "lt": b // 10**6, "format": "epoch_millis"}}},
+            "aggs": {"svc": {"terms": {"field": "resource.service.name.keyword", "size": 200, "missing": "-"}}}}
+    d = sr.http("POST", OPENSEARCH + "/otel-logs-*/_search", body, timeout=120)
+    c = Counter({x["key"]: x["doc_count"] for x in d["aggregations"]["svc"]["buckets"]})
+    total = d["hits"]["total"]["value"]
+    if total != sum(c.values()):
+        c["(not in service buckets)"] = total - sum(c.values())
+    return c
+
+
+def prometheus_samples(name: str, a: int, b: int) -> Counter:
+    a_ms, b_ms = a // 10**6, b // 10**6
+    q = urllib.parse.urlencode({"query": f"{name}[{b_ms - a_ms}ms]", "time": f"{(b_ms - 1) / 1000:.3f}"})
+    d = sr.http("GET", f"{sr.PROMETHEUS}/api/v1/query?{q}", timeout=120)
+    c = Counter()
+    for series in d["data"]["result"]:
+        for ts, v in series["values"]:
+            c[(round(float(ts) * 1000), float(v))] += 1
+    return c
+
+
+def diff_counts(file_c: Counter, live_c: Counter) -> dict:
+    keys = sorted(set(file_c) | set(live_c), key=str)
+    rows = {str(k): {"file": file_c.get(k, 0), "live": live_c.get(k, 0)} for k in keys
+            if file_c.get(k, 0) != live_c.get(k, 0)}
+    # Boş aralık eşit sayılmaz: dosyada en az bir kayıt olmalı.
+    return {"file": sum(file_c.values()), "live": sum(live_c.values()),
+            "equal": not rows and sum(file_c.values()) > 0, "differences": rows}
+
+
+def compare(run: Path, tag: str | None) -> int:
+    w = json.loads((run / "watch.json").read_text(encoding="utf-8"))
+    start = int(datetime_ns(w["times_utc"]["window_start"]))
+    end = int(datetime_ns(w["times_utc"]["window_end"]))
+    a, b = start + EDGE_NS, end - EDGE_NS
+    if b <= a:
+        print("error: window too short for 2 min edges", file=sys.stderr)
+        return 2
+    wait_s = (b + SETTLE_NS - sr.utc_ns()) / 1e9
+    if wait_s > 0:
+        print(f"waiting {wait_s:.0f} s (2 min after interval end)", flush=True)
+        time.sleep(wait_s)
+    rec = {"run": str(run), "tag": tag, "interval_utc": [sr.iso(a), sr.iso(b)], "queried_utc": sr.iso(sr.utc_ns())}
+    oldest = {}
+    t0 = time.monotonic()
+    fs = file_spans(a, b, oldest)
+    js, n_queries = jaeger_spans(a, b)
+    rec["traces"] = {**diff_counts(fs, js), "jaeger_queries": n_queries}
+    rec["logs"] = diff_counts(file_logs(a, b, oldest), opensearch_logs(a, b))
+    fm = file_metrics(a, b, oldest)
+    rec["metrics"] = {}
+    for name, kind, prom in METRICS:
+        dc = diff_counts(fm[name], prometheus_samples(prom, a, b))
+        dc["differences"] = dict(list(dc["differences"].items())[:20])  # örnek; tamamı büyük olabilir
+        rec["metrics"][name] = {"kind": kind, "prometheus": prom, **dc}
+    rec["file_oldest_utc"] = {k: sr.iso(v) for k, v in oldest.items()}
+    rec["coverage_ok"] = all(oldest.get(s, a + 1) <= a for s in ("traces", "logs", "metrics"))
+    rec["seconds"] = round(time.monotonic() - t0)
+    rec["equal"] = rec["coverage_ok"] and rec["traces"]["equal"] and rec["logs"]["equal"] \
+        and all(m["equal"] for m in rec["metrics"].values())
+    out = run / (f"compare_{tag}.json" if tag else "compare.json")
+    out.write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n")
+    print(f"interval {rec['interval_utc']}; coverage {rec['coverage_ok']}")
+    print(f"traces: file {rec['traces']['file']} jaeger {rec['traces']['live']} equal {rec['traces']['equal']}")
+    print(f"logs: file {rec['logs']['file']} opensearch {rec['logs']['live']} equal {rec['logs']['equal']}")
+    for name, m in rec["metrics"].items():
+        print(f"{m['kind']} {name}: file {m['file']} prometheus {m['live']} equal {m['equal']}")
+    print(f"{'EQUAL' if rec['equal'] else 'DIFFERENT'} -> {out} ({rec['seconds']} s)")
+    return 0 if rec["equal"] else 1
+
+
+def datetime_ns(iso_z: str) -> int:
+    return int(datetime.fromisoformat(iso_z.replace("Z", "+00:00")).timestamp()) * 10**9
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="storage_check.py", description="storage card measurements")
     sub = ap.add_subparsers(dest="cmd", required=True)
     w = sub.add_parser("watch", help="bring the demo up and watch the monitoring stack")
     w.add_argument("--minutes", type=int, default=60)
     w.add_argument("--keep-up", action="store_true", help="leave the demo running afterwards")
+    c = sub.add_parser("compare", help="compare live backends with the file output over a watch window")
+    c.add_argument("--run", type=Path, required=True, help="watch run folder (watch.json)")
+    c.add_argument("--tag", help="write compare_<tag>.json instead of compare.json")
     args = ap.parse_args(argv)
+    if args.cmd == "compare":
+        if not (args.run / "watch.json").is_file():
+            print(f"error: {args.run}/watch.json not found", file=sys.stderr)
+            return 2
+        return compare(args.run, args.tag)
     if os.environ.get("SCENARIO_RUNNER_INHIBITED") != "1":
         env = dict(os.environ, SCENARIO_RUNNER_INHIBITED="1")
         cmd = [*sr.GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
