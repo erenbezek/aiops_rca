@@ -1166,3 +1166,60 @@
 
 - Öneri: PROJECT DevOps listesinde "Kalıcı depolama, saklama süresi" satırı işaretlenebilir (Jaeger diske, Prometheus/OpenSearch saklama, boyut koruması, yeniden başlatma sonrası doğrulama). Karar planlamanın / Eren'in; işaretlemedim.
 - Dikkat: 40 GB her gece 8 saat koşuda 6. günde dolar (D2 notu); gece planı netleşince yeniden bakılmalı.
+
+## 2026-10-25 · Planlama → Uygulama (vaka üretimi V1)
+- Yeni usul (DECISIONS 2026-10-25): planlama kartları ve kararları docs'a kendi dalında yazar; uygulama kartı buradan okur. Bu kartın kayıtları (DECISIONS dört satır, PROJECT DevOps satırı) planlamanın commit'inde. İşe `task/vaka-hatti` dalında devam et.
+- Vaka üretimi planı: V1 vaka hattı ve pilot gece (bu kart) → V2 altyapı hataları (kill, CPU, bellek, ağ; enjeksiyon yönteminin izi sızıntı mı, ağ aracı kararı) → kendi Python servisi kartı (DECISIONS 2026-10-25, seçenek A) → V3 resmî set (~40 vaka; bileşim ve dev/test bölümü kayıttan önce yazılır, test vakalarına yalnız otomatik kontroller bakar).
+- Not: bu sırayla tablo ~4 Kasım'a dolmaz; PROJECT'teki kurala göre Kubernetes yapılmaz.
+- Önce 3-5 maddelik planını yaz, Eren onaylasın. Yeni ad (klasör, dosya, alan, komut) koymadan önce öner. Yeni paket yok. Upstream'e dokunma. V1a ve V1b sonunda rapor ver ve dur.
+
+### Amaç
+Koşucu bir vakayı gözetimsiz, uçtan uca üretsin: enjekte et → kaydet → temizle → snapshot + etiket → otomatik geçerlilik kontrolleri. Pilot gece hattı sınar. Pilot vakalar resmî sete girmez (geliştirmede bakılacaklar; resmî set V3'te, kendi servisle).
+Kapsam dışı: altyapı hataları (V2), kendi servis, resmî set bileşimi ve dev/test bölümü (V3), değerlendirme (modele ne verileceği, alarm zamanı dahil).
+
+### V1a · Biçim ve kontroller (gece koşusu yok; mevcut C2 verisiyle)
+1. Snapshot biçimi (öner, Eren onaylar):
+   - Vaka kimliği opak: senaryo, servis, varyant, tarih geçmez (sızıntı testi klasör ve dosya adlarını da tarar).
+   - `model_view`: pencerenin süzülmüş izleri, metrikleri, logları; meta olarak yalnız pencere sınırları.
+   - Etiket: INCIDENT_CATALOG "Doğru cevap kaydı" alanları + koşu kaydı (korumalar, sürümler, kontrol sonuçları). Snapshot klasörünün dışında, ayrı kökte. Pilot vakaların set alanı ayrı bir değer (ad öner).
+   - Konum repo dışı; sıkıştırma yok (Releases'te proje sonunda).
+   - Sınır (DECISIONS 2026-10-18): snapshot toplamı ≤ 20 GB (~85 vaka); aşılırsa koşucu başlamaz.
+2. Koşu akışı: korumalar → up → 5 dk ısınma → taban sağlık kontrolü → 10 dk normal → 10 dk enjeksiyon → temizleme (flag API'den geri okunur) → kesim → kontroller → down.
+   - Senaryo listesi dosyadan okunur (komut satırında senaryo adı yok).
+   - `down` sonrası bu koşunun anonim volume'leri silinir (astronomy-db her `up`'ta ~24 MB bırakıyor); yöntemi öner.
+   - C2'de 16 koşunun 12'sinde bir konteynerin metriği gelmedi, collector yeniden başlatıldı (+6 dk). Hangi konteyner ve neden: bak, ucuz düzeltme varsa öner.
+3. Kontroller (ölçütler ölçmeden önce yazılı; sonuca göre değişmez):
+   - Kapsama: C2'deki gibi; eksikse vaka geçersiz.
+   - Sızıntı: `model_view` üzerinde `leakage.py` 0 bulgu. Bulgu çıkarsa vaka geçersiz ve gece durur (sistematik olabilir).
+   - Taban sağlık: normal dönemde frontend p95 ≤ 2 × referans. Referans: C2'nin geçerli koşularının normal dönemlerinde frontend p95 medyanı, iki yavaş taban koşusu (`adManualGc_on_1`, `recommendationCacheFailure_on_2`) hariç. Geçme şartı: bu kural iki yavaş koşuyu geçersiz sayar, diğer C2 koşularından en fazla birini geçersiz sayar. Tutmazsa dur, planlamaya dön. Koşuda geçmezse vaka geçersiz, bir kez tekrar.
+   - Belirti (DECISIONS 2026-10-24): C2'nin servis düzeyi kuralı (`c2_measure.py` eşikleri) + işlem düzeyi: kök neden servisinin her span adı için aynı eşikler (hata oranı +0,05; p95 ve p99 ×1,5 ve +20 ms), iki dönemde de en az M istek. Karar en güçlü sinyalle.
+     - M seçimi (yöntem veriye bakmadan önce): adaylar 10, 20, 30. C2'nin geçerli koşularında (flood hariç), kök neden ve katalogdaki yayılım yolu dışındaki her servis için normal ↔ enjeksiyon dönemi işlem düzeyi kuralla karşılaştırılır; "belirtili" çıkan servis-koşu çifti yanlış alarmdır. Yanlış alarm oranı ≤ %5 olan en küçük M seçilir. Hiçbiri tutmazsa dur, planlamaya dön. Aynı çiftlerde servis düzeyi kuralın yanlış alarm oranı da rapora.
+     - Seçilen M ile C2'nin belirtili koşuları yeniden değerlendirilir; cartFailure %50 belirtili çıkmalı. Çıkmazsa rapora, kural değişmez.
+   - Olay var mı: enjeksiyon döneminde, belirti kararını veren işlemde en az M istek; yoksa "olaysız", vaka geçersiz.
+   - Belirtisiz ya da sınırda vaka geçersiz sayılmaz, işaretlenir; set kararı V3'te.
+   - İzleme sağlığı (kayda; dosya asıl kaynak olduğu için vakayı geçersiz kılmaz): opensearch send_failed ve enqueue_failed artışı, Jaeger bellek tepesi ve `memory.events` max, collector bellek tepesi, OOM ve yeniden başlamalar. Collector'ın OOM'u ya da yeniden başlaması vakayı geçersiz kılar.
+   - ISM (bir kez): `up` sonrası `GET _plugins/_ism/explain/otel-logs-*` her otel-logs indeksinde policy_id = `otel-logs-retention`; çıktı rapora.
+- Rapor ver ve dur (biçim önerisi, referans, M ve yanlış alarm oranları).
+
+### V1b · Pilot gece
+- Şarj sınırı 80 mi, kontrol et. Gece, gözetimsiz.
+- Liste: 11 katalog senaryosu, kalibre varyantlarla + `noise_layer`'lı 2 vaka (`loadGeneratorFloodHomepage` + paymentFailure %50; `loadGeneratorFloodHomepage` + productCatalogLockContention). ~13 vaka.
+- Ölçütler:
+  - Gece yarıda kalmadı; her vaka geçerli/geçersiz ve nedeniyle kayıtlı.
+  - Geçerli vaka oranı ≥ %80.
+  - Sızıntı 0.
+  - C2'de belirtili çıkan senaryoların hepsi (kalibre varyantla; liste C2 kaydından, rapora) belirtili ya da sınırda.
+  - Vaka başına süre ve snapshot boyutu kayda.
+  - Kasıtlı kırmızı: düşük sahte snapshot sınırıyla koşucu başlamıyor.
+  - pytest yeşil.
+- Güç kontrolü:
+  - Geçerli oran < %80 → V3'ten önce düzeltilir.
+  - C2'de belirtili bir senaryo burada belirtisiz → rapora; kural değişmez, planlama karar verir.
+  - Sızıntı > 0 → dur.
+  - Vaka başına süre → V3'ün kaç gece süreceği bundan hesaplanır.
+- Rapor ver ve dur.
+
+### Bitince
+- ARCHITECTURE: snapshot kesici, snapshot'lar ve `model_view` kesik çizgiden çıkar; etiket kökü eklenir.
+- GLOSSARY, DECISIONS (snapshot biçimi, sınır, M, taban eşiği).
+- PR açıklaması sade; push'tan önce PR durumuna bak.

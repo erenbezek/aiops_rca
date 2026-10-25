@@ -43,7 +43,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 | OTel instrumentation | Kendi Python servisim | [ ] |
 | Docker Compose, kaynak limitleri | OTel Demo yığını | [ ] |
 | Telemetri hattı (collector) | Sızıntı süzmesi, dosyaya ve izleme sistemine çift çıkış | [ ] |
-| Kalıcı depolama, saklama süresi | Jaeger diske, Prometheus/OpenSearch saklama | [ ] |
+| Kalıcı depolama, saklama süresi | Jaeger diske, Prometheus/OpenSearch saklama | [ ] kısmen: isimli volume, Jaeger diske, 7 gün + boyut sınırları, canlı = dosya doğrulandı; saklamanın silmesi henüz gözlenmedi |
 | PromQL, Jaeger ve log sorguları | Snapshot kaydedici, ajan araçları | [ ] |
 | Linux ağ/kaynak hataları (tc netem, CPU/bellek, kill) | Hata enjeksiyonu | [ ] |
 | Otomasyon betikleri | Gece boyu vaka üretim hattı | [ ] |
