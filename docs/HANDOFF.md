@@ -1232,3 +1232,29 @@ Uygulamanın V1 kartına dört sorusunun cevabı (Eren onayı). Kartın ölçüt
 4. Taban kuralının sınanması: referans, geçerli 16 koşudan `recommendationCacheFailure_on_2` çıkarılarak 15 koşunun normal dönemlerinden (frontend p95 medyanı). Kural bu 16 koşuya ve `adManualGc_on_1`'e (geçersiz ama süzülmüş verisi sağlam) uygulanır. Geçme şartı: iki yavaş koşu geçersiz çıkar, diğer 15'ten en fazla biri geçersiz çıkar. `productCatalogFailure_on_2` (uyku) ve `recommendationCacheFailure_on_1` (yeniden başlama) hesaba girmez.
 - Küçük düzeltmeler: kartta "Snapshot toplamı ≤ 20 GB (DECISIONS 2026-10-18)" — 2026-10-18 satırı yalnız "her bileşene sınır" kuralını koyuyor, 20 GB bu kartın kararı ("Bitince"de DECISIONS'a). Collector yeniden başlatma sayısı kayıtta geçerli 16 koşunun 11'i, 19 koşunun 13'ü (kartta "16'nın 12'si" yanlış); V1a'da incelenir.
 - Uygulamanın V1a planı (5 adım, her adım sonunda rapor) uygun; 1. adımla (biçim önerisi) başlanabilir.
+
+## 2026-10-25 · Uygulama → Planlama (vaka üretimi V1a)
+- Yapılan (adlar Eren onaylı, GLOSSARY'de; DECISIONS üç satır):
+  - Snapshot biçimi: `~/cerebrum2/snapshots/inc-<8 hex>/` = `model_view` (süzülmüş `traces/metrics/logs.jsonl` + `window.json`); etiket repoda `incidents/<incident_id>.json` (`answer`, `window`, `checks`, `valid`, `invalid_reasons`, `marks`, `run`); pilot etiketleri commit edilir (`set: pilot`).
+  - `SCENARIOS`'a doğru cevap alanları (`fault_type`, `propagation_path` kenar listesi, `categories`); `tests/test_catalog.py` INCIDENT_CATALOG tablosuyla aynı olduğunu kontrol eder (kasıtlı kırmızı: hata tipi ve yol değişince).
+  - `tools/incident_checks.py`: işlem düzeyi belirti, olay, taban sağlık, izleme sağlığı; ölçü C2'ninki. Kabul: C2 verisinde 2. adımın sayılarını aynen üretti (taban geçersizleri, M = 10'da 7 yanlış alarm / 5 sınırda, 15 kök neden kararının 15'i). `tests/test_incident_checks.py` 13 test; üç kasıtlı bozmanın üçünü yakaladı.
+  - `scenario_runner.py incidents <liste>` (C2'nin `run`'ı değişmedi): korumalar (+ snapshot ≤ 20 GB) → `up` (raw kapalı) → ISM (gecede bir) → collector yeniden başlatma → 22 konteyner → ısınma (up'tan 5 dk) → flag'ler kapalı, zamanlayıcı durmuş → 10 dk normal → taban sağlık (geçmezse enjeksiyon yok, bir kez tekrar) → flag (+ noise_layer) 10 dk → kapat, doğrula → anonim volume'ler kaydedilir → `down` → silinir → kesim → kontroller → etiket. Sızıntıda gece durur; geçersiz vakanın snapshot'ı gece klasörüne taşınır.
+  - `incident_lists/pilot.json`: 13 vaka.
+- C2 analizi (netleştirmelerle; betik ve sonuç repo dışında, sonuç DECISIONS'ta):
+  - Taban: referans 25,3 ms, eşik 50,6 ms; geçersiz `adManualGc_on_1` (223,5) ve `recommendationCacheFailure_on_2` (82,7), diğer 15'ten hiçbiri. GEÇTİ.
+  - M: 201 servis-koşu çifti; işlem düzeyi yanlış alarm M = 10/20/30'da aynı: 7 (%3,48), sınırda 5 (%2,49); payda ölçülebilir çiftler olursa %4,19 / %4,29 / %4,96. Servis düzeyi kural: 8 (%3,98), sınırda 12. M = 10.
+  - Seçilen M ile 15 koşu: cartFailure %50 belirtili (EmptyCart p99, istek 30 / 23); kalibre varyantların hepsi belirtili; paymentFailure %10 ve emailMemoryLeak 100x belirtisiz; cartFailure %10 belirtili (C2'de belirtisizdi); olay 15/15.
+- İncelemeler:
+  - Collector açılış yarışı: 4 açılışın 1'inde (`currency`, collector'dan 0,49 sn sonra başlamış) konteyner metriği 6 dk boyunca gelmedi; diğer 3'ünde 60. sn'de 22. Süzülmemiş kopyaya bağlı değil. Neden tahmini: alıcı açılışta listeyi alıp sonra olayları dinliyor (kaynakta doğrulanmadı). Düzeltme: her vakada yeniden başlatma (Eren).
+  - Anonim volume: yalnız `postgres:18.4` (astronomy-db), açılış başına 66,08 MB (kartta 24 MB).
+- Uçtan uca tek vaka (`inc-8ceb7ae5`, paymentFailure %50, 18:28–18:56 UTC, gece klasörü `~/cerebrum2/incident_runs/20261025T1828Z-one/`): GEÇERLİ.
+  - ISM: `otel-logs-2026-10-25` → `otel-logs-retention`, geçti. Collector yeniden başlatıldıktan sonra 22.
+  - Taban: frontend p95 24,7 ms. Kapsama tam, sızıntı 0 (CLI da "clean"), belirti belirtili (payment hata oranı, güç 9,6), olay 25 istek ≥ 10, opensearch send_failed 0, beklenmeyen yeniden başlama 0, uyku 0, en çok 71 °C.
+  - Süre 1.640 sn (~27,5 dk; 13 vaka ~6 saat), snapshot 0,239 GB (13 vaka ~3,1 GB). Anonim volume silindi.
+  - Kasıtlı kırmızı: `AIOPS_MAX_SNAPSHOT_GB=0.1` → "STOP … guards: snapshots 0.24 GB > 0.1", demo açılmadı.
+- pytest 226/226.
+- Dikkat:
+  - Jaeger: bellek tepesi 2000 / 2000 MiB (dosya önbelleği dahil), `memory.events max` 10.695, OOM 0 (D2'de 10 dk'da max 0). Kayıt, vakayı geçersiz kılmaz. Koşucu artık dakikada bir Jaeger'in anon belleğini de ölçüyor (`run.memory.jaeger_anon_peak_mib`; tek vakada henüz ölçülmedi). Pilot gecede ilk izlenecek risk.
+  - `window.json` + sabit normal dönem enjeksiyon anını verir (DECISIONS satırında not).
+  - Katalog yollarında frontend-proxy yok; yanlış alarmların hepsi orada.
+  - Pilot gece (V1b) Eren'in başlatmasıyla; liste `incident_lists/pilot.json`.
