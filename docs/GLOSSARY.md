@@ -91,7 +91,7 @@ Sadece Eren'in onayladığı isimler.
 | `yeniden oynatma` | Snapshot dosyalarını boş bir izleme sistemine (Jaeger, Prometheus, OpenSearch) orijinal zaman damgalarıyla gönderip canlı tarafı doldurma; Proje 2'de kullanılır |
 | `tools/storage_check.py` | Depolama kartı ölçüm betiği: canlı izleme sisteminin (Jaeger, Prometheus, OpenSearch) kaybı, büyümesi, belleği |
 | `watch`, `--minutes`, `--keep-up` | `storage_check.py` komutu: demoyu açıp izleme sistemini bir pencere boyunca izler / pencere uzunluğu (dk) / iş bitince demoyu açık bırak |
-| `~/cerebrum2/storage_runs/` | `storage_check.py` çıktıları, koşu başına `<UTC zaman>-watch/`; repo dışı |
+| `~/cerebrum2/storage_runs/` | `storage_check.py` çıktıları, koşu başına `<UTC zaman>-watch/` ya da `<UTC zaman>-replay/`; repo dışı |
 | `watch.json`, `watch.log` | `watch` koşusunun sonuç kaydı / günlüğü |
 | `mem.tsv`, `sizes.tsv` | `watch` koşusunda dakikalık bellek (jaeger, prometheus, opensearch, otel-collector) / 5 dakikalık veri klasörü boyutları |
 | `opensearch_start.json`, `opensearch_end.json`, `opensearch_mapping.json` | `watch` koşusunda OpenSearch'ün ham istatistikleri (başta, sonda) / sonda `otel-logs-*` indekslerinin eşlemesi |
@@ -108,3 +108,15 @@ Sadece Eren'in onayladığı isimler.
 | `monitoring_gb`, `MAX_MONITORING_GB` | Koşucu korumasında izleme volume'lerinin toplamı (GB, ondalık; `guards()` çıktısında alan) / üst sınırı (40 GB); aşılırsa koşu başlamaz |
 | `AIOPS_MAX_MONITORING_GB` | `MAX_MONITORING_GB`'yi ezen ortam değişkeni; yalnız kasıtlı kırmızı için (düşük sahte sınır) |
 | `MONITORING_VOLUMES` | Korumanın topladığı üç Docker volume adı (`otel-demo_prometheus-data`, `otel-demo_jaeger-data`, `otel-demo_opensearch-data`) |
+| `deploy/replay/` | Yeniden oynatma denemesinin (depolama D3) ayar klasörü: `compose.yaml`, `otelcol-replay.yml` |
+| `deploy/replay/compose.yaml` | Yeniden oynatma yığını: Jaeger, Prometheus, OpenSearch (upstream tanımından `extends`) ve tek alıcısı dosya olan collector; canlı demodan ayrı compose projesi |
+| `otelcol-replay.yml` | Yeniden oynatma collector'ının ayarı: `otlpjsonfile` alıcıları, `transform/backend_compat` kopyası, upstream'in üç exporter'ının kopyası (izinli farklarla) |
+| `otel-replay` | Yeniden oynatma yığınının compose proje adı; konteynerler `otel-replay-<servis>-1`, volume'ler `otel-replay_*` (canlı demonunkilerden ayrı) |
+| `REPLAY_WINDOW` | Yeniden oynatılan pencerenin klasörü (`traces/metrics/logs.jsonl`); collector'a `/replay` olarak salt okunur bağlanır |
+| `replay` | `storage_check.py` komutu: C2 pencerelerini boş ve ayrı izleme sistemine zaman sırasıyla yeniden oynatıp dosyayla karşılaştırır |
+| `replay.json` | `replay` koşusunun sonuç kaydı (`<UTC zaman>-replay/` klasöründe): pencereler, sayaçlar, karşılaştırmalar, bloklar, ölçütler |
+| `tests/test_replay_config.py` | `otelcol-replay.yml`'daki kopyaların kaynaklarıyla aynı olduğu (upstream exporter'ları `REPLAY_ONLY` dışında) ve alıcıların yalnız dosya olduğu testi |
+| `REPLAY_ONLY` | `test_replay_config.py`'de yeniden oynatma ayarının upstream'den bilerek farklı satırları; her biri ayarda olmalı, listede olmayan fark kırmızı |
+| `collector_<koşu>.log` | `replay` koşu klasöründe, o pencereyi oynatan collector'ın logu (collector durdurulmadan önce yazılır) |
+| `collector_error_lines` | `replay.json`'da pencere başına collector logundaki hata satırı sayısı |
+| `metrics_oldest_ms`, `metrics_newest_ms` | `replay.json`'da pencere dosyasındaki en eski / en yeni metrik zamanı (ms); blok kontrolünün ölçüsü |

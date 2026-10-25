@@ -1,0 +1,90 @@
+# Yeniden oynatma collector'ı (depolama D3; compose.yaml'daki açıklama). Tek alıcı dosya: pencerenin süzülmüş
+# OTLP JSON dosyaları (/replay = REPLAY_WINDOW) baştan okunur; dosyadan sonrası canlı tarafla aynı yol.
+#
+# Kopyalar (tests/test_replay_config.py aynı olduklarını kontrol eder):
+# - transform/backend_compat: deploy/otel-demo/otelcol-config-extras.yml'dakiyle aynı. C2 pencereleri bu
+#   processor'dan önce kaydedildi (cart'ın `http` özniteliği, kayıt zamanı 0 loglar); canlıda iki çıkıştan önce
+#   uygulandığı için burada da uygulanır. Kayıt sayısını değiştirmez.
+# - Üç exporter: upstream'in otelcol-config-observability.yml'ındakilerle aynı, aşağıdaki izinli farklar dışında
+#   (adresler bu projenin ağında aynı servis adları). Upstream dosyası ikinci ayar olarak yüklenemiyor: profiles
+#   hattını ve tanımsız debug / span_metrics'i getiriyor, birleştirmede silinemiyor.
+# span_metrics yok: span metrikleri zaten metrik dosyasında; burada üretilse çift sayılır.
+# Kendi sayaçları yalnız çekme ucunda (:8888); Prometheus'a gitmez (planlama ek 1).
+#
+# Upstream'den bilerek farklı anahtarlar (test bunları izinli fark olarak bilir, başka fark kırmızı):
+# - sending_queue.block_on_overflow: true (üç exporter): dosya alıcısı pencereyi bir anda okuyor; kuyruk dolunca
+#   upstream ayarı veriyi reddediyor ve alıcı tekrar denemiyor (D3 ilk koşu: span ve logların çoğu kayıp). Bununla
+#   alıcı kuyrukta yer açılana kadar bekler. Canlıda veri yavaş geldiği için kuyruk dolmuyor.
+# - otlp_grpc/jaeger sending_queue.batch min_size ve max_size: 2048 (span): Jaeger'in gRPC alıcısı 4 MiB'tan büyük
+#   mesajı reddediyor; upstream'in varsayılan paketi (min 8192, ~8200 span) bunu aşıyordu (teşhis 2026-10-25).
+#   max_size, min_size'dan küçük olamıyor; ikisi birlikte.
+
+receivers:
+  otlpjsonfile/traces:
+    include: [/replay/traces.jsonl]
+    start_at: beginning
+  otlpjsonfile/metrics:
+    include: [/replay/metrics.jsonl]
+    start_at: beginning
+  otlpjsonfile/logs:
+    include: [/replay/logs.jsonl]
+    start_at: beginning
+
+processors:
+  transform/backend_compat:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - 'set(log.attributes["http_ports"], log.attributes["http"]) where IsString(log.attributes["http"])'
+          - 'delete_key(log.attributes, "http") where IsString(log.attributes["http"])'
+          - 'set(log.time_unix_nano, log.observed_time_unix_nano) where log.time_unix_nano == 0'
+
+exporters:
+  otlp_grpc/jaeger:
+    endpoint: "jaeger:4317"
+    tls:
+      insecure: true
+    sending_queue:
+      block_on_overflow: true
+      batch:
+        min_size: 2048
+        max_size: 2048
+  otlp_http/prometheus:
+    endpoint: "http://prometheus:9090/api/v1/otlp"
+    tls:
+      insecure: true
+    sending_queue:
+      block_on_overflow: true
+      batch:
+  opensearch:
+    logs_index: otel-logs
+    logs_index_time_format: "yyyy-MM-dd"
+    http:
+      endpoint: "http://opensearch:9200"
+      tls:
+        insecure: true
+    sending_queue:
+      block_on_overflow: true
+      batch:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlpjsonfile/traces]
+      exporters: [otlp_grpc/jaeger]
+    metrics:
+      receivers: [otlpjsonfile/metrics]
+      exporters: [otlp_http/prometheus]
+    logs:
+      receivers: [otlpjsonfile/logs]
+      processors: [transform/backend_compat]
+      exporters: [opensearch]
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
