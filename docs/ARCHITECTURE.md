@@ -112,3 +112,4 @@ flowchart LR
 | `tools/test_collector_rules.sh` | Collector kural testi: geçici collector'a ayarımız + fixture kayıtları; kapsam, tam ayarda çıktı temiz, kural başına `delete`/`alone` (kasıtlı kırmızı). Docker ister, CI'da koşmaz |
 | `tests/fixtures/collector_rules/` | Kural testi girdisi: C2 raw verisinden tek kayıtlık örnekler ve temiz kontroller (`traces/metrics/logs.jsonl`), kural listesi `rules.tsv` |
 | `tools/gen_leakage_fixtures.py` | `tests/fixtures/leakage/` sahte dosyalarını üretir; dosyalar elle değil bu betikle değiştirilir |
+| `tools/storage_check.py` | Depolama kartı ölçümleri: `watch` (demoyu açar, izleme sistemi ve collector'ın kaybı, büyümesi ve belleği; çıktı `~/cerebrum2/storage_runs/`) |

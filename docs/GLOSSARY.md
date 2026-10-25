@@ -89,3 +89,10 @@ Sadece Eren'in onayladığı isimler.
 | `tests/fixtures/collector_rules/` | Kural testi girdisi: `traces.jsonl`, `metrics.jsonl`, `logs.jsonl` (C2 raw verisinden tek kayıtlık, elle gözden geçirilmiş, makine bilgisi temizlenmiş OTLP istekleri; Eren onaylı, 2026-10-24) ve `rules.tsv` |
 | `rules.tsv` | Kural testi listesi: `section` (ayardaki bölüm yolu), `rule` (kural metni), `test` (`delete`: tek sorumlu, silinince kırmızı; `alone`: yedekli, kuralsız kırmızı / tek başına yeşil; `none`: örneksiz, `note`'ta gerekçe; `clean`: temiz kontrol), `sample` (`<dosya>:<satır>`), `note` |
 | `yeniden oynatma` | Snapshot dosyalarını boş bir izleme sistemine (Jaeger, Prometheus, OpenSearch) orijinal zaman damgalarıyla gönderip canlı tarafı doldurma; Proje 2'de kullanılır |
+| `tools/storage_check.py` | Depolama kartı ölçüm betiği: canlı izleme sisteminin (Jaeger, Prometheus, OpenSearch) kaybı, büyümesi, belleği |
+| `watch`, `--minutes`, `--keep-up` | `storage_check.py` komutu: demoyu açıp izleme sistemini bir pencere boyunca izler / pencere uzunluğu (dk) / iş bitince demoyu açık bırak |
+| `~/cerebrum2/storage_runs/` | `storage_check.py` çıktıları, koşu başına `<UTC zaman>-watch/`; repo dışı |
+| `watch.json`, `watch.log` | `watch` koşusunun sonuç kaydı / günlüğü |
+| `mem.tsv`, `sizes.tsv` | `watch` koşusunda dakikalık bellek (jaeger, prometheus, opensearch, otel-collector) / 5 dakikalık veri klasörü boyutları |
+| `opensearch_start.json`, `opensearch_end.json`, `opensearch_mapping.json` | `watch` koşusunda OpenSearch'ün ham istatistikleri (başta, sonda) / sonda `otel-logs-*` indekslerinin eşlemesi |
+| `collector_errors.json` | `watch` koşusunda collector logundaki opensearch satırları: OpenSearch'ün `reason` metinleri ve sayıları, mesaj grupları |

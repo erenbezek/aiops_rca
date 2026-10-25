@@ -1072,3 +1072,21 @@
   - Disk bütçesi tablosu HANDOFF'a: döndürme 5,4 / 2,7 GB; izleme sınırı; snapshot tahmini ~0,23 GB/vaka (sıkıştırmasız; sınırı vaka üretimi kartında).
   - PROJECT "Şu an"; DevOps listesindeki "Kalıcı depolama, saklama süresi" satırının işaretlenmesini öner.
   - PR açıklaması sade; push'tan önce PR durumuna bak.
+
+## 2026-10-25 · Uygulama → Planlama (depolama D1, ölçüm)
+- Betik: `tools/storage_check.py watch` (adlar Eren onaylı). Korumalar (koşucunun `guards`, GNOME + systemd engeli) → `otel_demo.sh up` (raw kapalı) → 22 konteyner → 5 dk ısınma → pencere → 90 sn bekleme → sayaçlar → `down`. Çıktı `~/cerebrum2/storage_runs/<UTC>-watch/`.
+- Ölçmeden önce tanımlar: dakikada bir bellek (`docker stats`, dört servis); 5 dk'da bir veri klasörü (`du -sk` konteyner içinde), OpenSearch heap, collector logunun son 5 dk'sı (Docker logu 5 MB × 2 döndüğü için parça parça); başta ve sonda OpenSearch node stats ve indeksler, konteyner yeniden başlama/OOM; exporter sayaçları süzülmüş metrik dosyalarından, C2'nin artış tanımıyla. Saatlik büyüme = (son − ilk) / pencere saati, ondalık GB. Sınırlama: Prometheus ilk 2 saatte WAL'a yazar, 1 saatlik büyüme kalıcı büyümeyi göstermez.
+- Kontrol (demo açmadan): sayaçlar eski verinin son 20 dk'sında `recommendationCacheFailure_on_2` kaydıyla aynı (opensearch sent 23.936 / failed 9.913).
+- Koşu 1 (`20261024T2343Z-watch`, 23:49–00:49 UTC, 60 dk): geçerli; 22 konteyner, collector yeniden başlatılmadı, uyku 0, en yüksek 60 °C, yeniden başlama/OOM yok.
+  - opensearch: sent 100.920, send_failed 5.623 (%5,3), enqueue_failed 0 (seri yok). `file/logs` sent 106.541 (≈ sent + failed).
+  - OpenSearch tarafı: write pool rejected 0, indexing pressure rejections 0, breaker 0, index_failed 0; heap (400 MiB) en çok %77, old GC 0. Kapasite sorunu yok.
+  - Collector logu: tek tür, 314 satır: `Permanent error … mapper_parsing_exception` (yeniden denenmez, satır başına ~18 kayıt düşer). Betik mesajı 400 karakterde kesti, `down` logu sildi; alan adı görülemedi.
+  - Büyüme: Prometheus 0,48 → 4,26 MB (0,004 GB/saat), OpenSearch 16 → 192 MB (0,176 GB/saat; `du`, translog dahil).
+  - Tepe bellek / sınır: Jaeger 394 / 1200 MiB, Prometheus 94 / 200 MiB, OpenSearch 1022 / 1024 MiB (bütün koşu 1018–1022; dosya önbelleği dahil, OOM yok), collector 137 / 400 MiB.
+  - `_cat/indices` bugünkü indekste 1.038 kayıt gösterdi (indekslenen 104 bin): sorgulanmayan indeks yenilenmiyor (search idle). Betik düzeltildi: sonda `_refresh`.
+- Betik düzeltmesi (Eren onayı): `reason` metinleri olduğu gibi ve mesaj grubunun ilk tam satırı `collector_errors.json`'a; sonda `_refresh` ve `otel-logs-*` eşlemesi `opensearch_mapping.json`'a.
+- Koşu 2 (`20261025T0053Z-watch`, 00:59–01:14 UTC, 15 dk): geçerli. opensearch sent 20.060, send_failed 7.256 (**%26,6**). Kapasite yine sorunsuz (rejected 0, heap en çok %57, bellek 894 MiB).
+  - Neden: `Could not dynamically add mapping for field [http.request.method]. Existing mapping for [attributes.http] must be of type object but found [text].` (3.265 kez). İndekste `attributes.http` = `text`.
+  - Dosyada: düz `http` özniteliği yalnız cart'ta (3 kayıt, açılışta, değer `"8080"`); `http.*` frontend'de (51.498 kayıt). OpenSearch boş günlük indekste türü ilk kayda göre sabitliyor; cart'ın açılış logu önce gelirse frontend'in HTTP loglarının hepsi reddediliyor.
+  - Koşudan koşuya fark: her `up` OpenSearch'ü boş açıyor (C2 ~%30). Koşu 1'de çakışma yalnız 2026-10-24 indeksinde (23:49–00:00); gece yarısı açılan indekse frontend önce yazdı: %26,6 × 11/60 ≈ %4,9 (ölçülen %5,3). Kalıcı volume'le de her yeni gün şansa kalır.
+- Karar (Eren, 2026-10-25; DECISIONS): seçenek E, collector'da iki çıkıştan önce cart'ın `http` özniteliğini çakışmayan ada çevirmek. Elenenler: indeks şablonu (cart kayıtları düşer, canlı ≠ dosya), `flat_object` (öznitelik sorguları değişir), exporter eşleme kipleri (noktalı alan açılımını OpenSearch yapıyor; çözmüyor), heap artırma (kapasite sorunu yok).
