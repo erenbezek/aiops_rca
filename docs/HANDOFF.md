@@ -1258,3 +1258,23 @@ Uygulamanın V1 kartına dört sorusunun cevabı (Eren onayı). Kartın ölçüt
   - `window.json` + sabit normal dönem enjeksiyon anını verir (DECISIONS satırında not).
   - Katalog yollarında frontend-proxy yok; yanlış alarmların hepsi orada.
   - Pilot gece (V1b) Eren'in başlatmasıyla; liste `incident_lists/pilot.json`.
+
+## 2026-10-26 · Uygulama → Planlama (vaka üretimi V1b, pilot gece; V1 bitti)
+- Koşu: `scenario_runner.py incidents incident_lists/pilot.json`, 2026-10-25 19:07 – 2026-10-26 01:09 UTC (6 sa 2 dk), gece klasörü `~/cerebrum2/incident_runs/20261025T1913Z-pilot/`. Önce: şarj sınırı 80, priz, 48 °C, boş disk 291 GB, izleme 1,81 GB, snapshot 0,24 GB.
+- Ölçütler (kart V1b):
+  - Gece yarıda kalmadı: 13 deneme, 13 kayıt, tekrar yok. ✓
+  - Geçerli oran: 13/13 (%100). ✓
+  - Sızıntı: 13 vakada 0. ✓
+  - C2'de belirtili çıkan senaryolar (kalibre varyant; C2 `measure.json` servis düzeyi kararı: adFailure, adHighCpu, adManualGc, emailMemoryLeak 1000x, paymentFailure %50, paymentUnreachable, productCatalogFailure, productCatalogLockContention, recommendationCacheFailure, intlShippingSlowdown 10sec): 10/10 belirtili. cartFailure %50 (C2'de sınırda) de belirtili (EmptyCart p95). ✓
+  - Süre 1.632–1.658 sn (~27,4 dk/vaka); snapshot 0,191–0,287 GB (pilot toplamı 3,09 GB; kök 3,33 GB, tek vaka dahil). ✓
+  - Kasıtlı kırmızı (snapshot sınırı) V1a'da. ✓ pytest 226/226. ✓
+- Vaka başına: taban frontend p95 23,3–27,7 ms; ISM geçti (`ism.json`); OpenSearch send_failed / enqueue_failed 0; beklenmeyen yeniden başlama 0 (recommendation yeniden başlaması beklenen); en çok 79 °C; anonim volume her vakada silindi; `marks` hepsinde boş.
+- Kararı veren sinyaller: adFailure yeni uyarı logu; adHighCpu CPU; adManualGc p99; cartFailure EmptyCart p95 (işlem); emailMemoryLeak p95; paymentFailure ve paymentUnreachable hata oranı; productCatalogFailure GetProduct hata oranı (işlem); productCatalogLockContention ListProducts p99 (işlem); recommendationCacheFailure p99; intlShippingSlowdown ship-order p99 (işlem); flood'lu iki vaka aynı sinyallerle.
+- Güç kontrolü: V3 ~40 vaka ≈ 18,3 saat (6 saatlik 3 gece ya da 9 saatlik 2 gece).
+- Planlamaya (karar değil):
+  - Jaeger: anon tepe 1.677–1.826 MiB (2000M sınırın %84–91'i; en yüksek flood'lu vakada), `memory.events max` vaka başına 12–38 bin, OOM 0. D2'nin "anon < %80" ölçütünü her vakada aşıyor. OOM olursa vaka "beklenmeyen yeniden başlama" ile geçersiz olur (V2'de ve uzun pencerede risk).
+  - cartFailure olay payı ince: EmptyCart enjeksiyon döneminde 13 istek (M = 10).
+  - Hiçbir vaka belirtisiz ya da sınırda değil: pilot set kolay; V3 bileşimi için bilgi.
+  - Collector cgroup tepesi flood'lu paymentFailure'da 400 / 400 MiB, ama anon ~90 MiB (dosya önbelleği), `max` 18; bellek sorunu değil.
+- "Bitince": ARCHITECTURE diyagramı (kesici, snapshot'lar ve `model_view` kesik çizgiden çıktı; `incidents/` ve `incident_checks.py` eklendi), PROJECT "Şu an". GLOSSARY ve DECISIONS (snapshot biçimi, sınır, M, taban eşiği) V1a commit'inde.
+- Repoda 13 pilot etiketi (`incidents/`); tek vaka denemesinin etiketi (`inc-8ceb7ae5`) V1a'da.

@@ -17,10 +17,12 @@ flowchart LR
     raw[("OTLP dosyası (süzülmüş)<br/>~/cerebrum2/telemetry/filtered/")]
     rawu[("süzülmemiş kopya<br/>telemetry/raw/ (sadece --raw)")]
     mon[("Kalıcı izleme sistemi<br/>Prometheus, Jaeger, OpenSearch<br/>isimli volume, 7 gün, ≤ 40 GB")]
-    cut["Snapshot kesici<br/>(dosyadan, zaman aralığına göre)"]
-    snap[("snapshot'lar<br/>snapshots/ — git dışı")]
+    cut["Snapshot kesici<br/>scenario_runner.py incidents<br/>(dosyadan, vaka penceresi)"]
+    snap[("snapshot'lar<br/>~/cerebrum2/snapshots/inc-…/<br/>— git dışı, ≤ 20 GB")]
+    labels[("etiketler<br/>incidents/inc-….json — repoda")]
+    ichk["tools/incident_checks.py<br/>(belirti, olay, taban sağlık)"]
     fix[("CI alt kümesi<br/>tests/fixtures/snapshots/")]
-    view["model_view<br/>(etiketler hariç)"]
+    view["model_view<br/>(= snapshot klasörü: süzülmüş<br/>pencere + window.json; etiketler hariç)"]
     leak["Sızıntı testi<br/>src/aiops_rca/leakage.py"]
     ci["CI (GitHub Actions)<br/>.github/workflows/ci.yml"]
 
@@ -40,6 +42,8 @@ flowchart LR
     col -.->|positive_control| rawu
     col --> mon
     raw --> cut --> snap
+    snap --> ichk --> labels
+    cut --> labels
     snap -.-> fix
     snap --> view
     view -->|"0 bulgu şartı"| leak
@@ -61,6 +65,7 @@ flowchart LR
     demo_sh["tools/otel_demo.sh<br/>fetch / up / down / config"] -->|"repo dışı klon 3.1.0,<br/>minimal mod"| otel
     extras["deploy/otel-demo/compose.extras.yaml<br/>(log 5 MB × 2, 3 port 127.0.0.1)"] -->|son compose katmanı| otel
     runner["tools/scenario_runner.py<br/>(10 dk normal + 10 dk flag, korumalar)"] -->|"flag aç/kapat (flagd-ui API)"| otel
+    runner -->|"incidents (V1): kesim"| cut
     runner -->|"pencere kopyası (raw + filtered)"| c2runs[("~/cerebrum2/c2_runs/<br/>repo dışı, cevap içerir")]
     c2runs --> meas["tools/c2_measure.py<br/>(sızıntı, belirti, collector)"]
     meas -->|positive_control| leak
@@ -71,12 +76,13 @@ flowchart LR
     rmon -->|canlı araçlar| agent
 
     classDef yok stroke-dasharray: 5 5
-    class own,inj,cut,snap,fix,view,base,nar,llm,agent,cache,evr,ev,tab yok
+    class own,inj,fix,base,nar,llm,agent,cache,evr,ev,tab yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
 - OTel Demo çalışıyor (minimal mod, 2026-10-18). Collector süzüyor ve dosyaya yazıyor (C1, 2026-10-20); 15 gerçek senaryoyla doğrulandı (C2, 2026-10-24). İzleme sistemi kalıcı (depolama kartı, 2026-10-25): isimli volume'ler (`down` silmez), Jaeger diske (badger), saklama 7 gün (Prometheus ayrıca 2GB, OpenSearch ISM), volume toplamı ≤ 40 GB koşucu korumasında; canlı = dosya doğrulandı (D2).
 - Yeniden oynatma (depolama D3, 2026-10-25) iki C2 penceresinde sınandı: izler, loglar ve metrikler canlı demodan ayrı, boş bir izleme sistemine kayıpsız gitti; Prometheus eski zamanlı örnekleri kabul ediyor ve diske yazdıktan sonra da sorgulanabiliyor. Proje 2'de `mon` vakaları tutmaz (~7 gün); ajanın canlı araçları vakaların snapshot'larından bu yolla doldurulan sisteme bakar (DECISIONS 2026-10-25).
+- Vaka üretimi V1 (2026-10-25/26): `scenario_runner.py incidents` bir listedeki vakaları uçtan uca üretir (enjekte et → kaydet → temizle → snapshot + etiket → kontroller). Pilot gece 13/13 geçerli, sızıntı 0, ~27,4 dk/vaka. `inj` hâlâ kesik çizgili: flag dışı enjeksiyonlar V2'de.
 - Sızıntı testi gerçek veride sınandı (C2 `positive_control`: her senaryoda raw'da bulgu, filtered temiz). Senaryo koşucusu (`scenario_runner.py`) vaka üretiminin temeli; `inj` kesik çizgili, çünkü flag dışı enjeksiyonlar (tc netem, CPU/bellek, kill) yok.
 
 ## Dosyalar
