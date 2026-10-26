@@ -13,6 +13,12 @@ referansı 25,3 ms (15 geçerli koşunun normal dönem frontend p95 medyanı).
   (kaynak dahil) geldiyse servisin toplamında en az M istek. Servisin hiç izi yoksa uygulanmaz.
 - `baseline_check`: normal dönem frontend p95 ≤ `BASELINE_FACTOR` × `BASELINE_P95_MS`.
 - `monitoring_health`: collector'ın kendi exporter sayaçları (pencerede artış), kayıt için; vakayı geçersiz kılmaz.
+- `caller_rows`, `caller_symptom_check` (V2, durdurma ve dondurma): hedefin kendi span'leri kesilir ya da azalır;
+  belirti ve olay hedefi çağıranların hedefe giden istemci span'lerinde ölçülür (çağıran + span adı başına, aynı
+  eşikler, en az M istek). Hedefe giden span: `server.address` ya da `net.peer.name` hedefin adı ya da o vakadaki IP'si
+  (enjeksiyondan önce ve geri almadan sonra kaydedilen ikisi de), ya da gRPC servis adı (`rpc.service`; yoksa
+  `rpc.method`'un "/" öncesi, ör. checkout'un Go istemcisi) hedefin kendi gelen span'lerinde görülen adlardan biri
+  (sabit tablo yok).
 """
 from __future__ import annotations
 
@@ -28,6 +34,7 @@ MIN_OP_REQUESTS = 10
 BASELINE_P95_MS = 25.3
 BASELINE_FACTOR = 2
 RESOURCE_SIGNALS = ("cpu_pct", "mem_mb")
+SPAN_KIND_CLIENT = 3
 
 
 def operation_rows(paths: list[Path], window: Window) -> dict:
@@ -48,6 +55,73 @@ def operation_rows(paths: list[Path], window: Window) -> dict:
                         row[1] += 1
                     row[2].append(int(sp.get("endTimeUnixNano", t)) - t)
     return dict(ops)
+
+
+def _span_attrs(sp: dict, keys: tuple[str, ...]) -> dict:
+    return {a["key"]: next(iter(a["value"].values()), None) for a in sp.get("attributes", []) if a["key"] in keys}
+
+
+def _rpc_service(a: dict) -> str | None:
+    method = a.get("rpc.method") or ""
+    return a.get("rpc.service") or (method.rsplit("/", 1)[0] if "/" in method else None)
+
+
+def caller_rows(paths: list[Path], window: Window, target: str, ips: tuple[str, ...] = ()) -> tuple[dict, list]:
+    """(çağıran, span adı) → {"before"|"after": [istek, hata, süreler]}: çağıranların hedefe giden istemci span'leri.
+    Döner: (satırlar, hedefin gRPC servis adları)."""
+    rpc_services, groups = set(), defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})
+    keys = ("server.address", "net.peer.name", "rpc.service", "rpc.method")
+    for doc in iter_lines(paths):
+        for rs in doc.get("resourceSpans", []):
+            svc = resource_attr(rs.get("resource", {}), "service.name")
+            for ss in rs.get("scopeSpans", []):
+                for sp in ss.get("spans", []):
+                    kind = sp.get("kind")
+                    if svc == target and kind in INCOMING_KINDS:
+                        rpc = _rpc_service(_span_attrs(sp, ("rpc.service", "rpc.method")))
+                        if rpc:
+                            rpc_services.add(rpc)
+                        continue
+                    if kind != SPAN_KIND_CLIENT or svc is None:
+                        continue
+                    t = int(sp.get("startTimeUnixNano", 0))
+                    side = window.side(t)
+                    if side is None:
+                        continue
+                    a = _span_attrs(sp, keys)
+                    row = groups[(svc, sp.get("name", ""), a.get("server.address") or a.get("net.peer.name"),
+                                  _rpc_service(a))][side]
+                    row[0] += 1
+                    if sp.get("status", {}).get("code") == STATUS_ERROR:
+                        row[1] += 1
+                    row[2].append(int(sp.get("endTimeUnixNano", t)) - t)
+    names = {target, *ips}
+    out = defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})
+    for (svc, name, peer, rpc), r in groups.items():
+        if peer in names or (rpc and rpc in rpc_services):
+            for side in ("before", "after"):
+                o = out[(svc, name)][side]
+                o[0] += r[side][0]
+                o[1] += r[side][1]
+                o[2].extend(r[side][2])
+    return dict(out), sorted(rpc_services)
+
+
+def caller_symptom_check(callers: dict, target: str, m: int = MIN_OP_REQUESTS) -> dict:
+    """Hedefi çağıranların istemci span'lerinde en güçlü işlem sinyali (iki dönemde de en az m istek)."""
+    best, measured = None, 0
+    for (caller, name), r in callers.items():
+        if r["before"][0] < m or r["after"][0] < m:
+            continue
+        measured += 1
+        for sig, v in _op_signals(r).items():
+            if best is None or v["strength"] > best["strength"]:
+                best = {"level": "caller", "caller": caller, "operation": name, "signal": sig,
+                        "strength": v["strength"], "requests": [r["before"][0], r["after"][0]],
+                        "values": [v["before"], v["after"]]}
+    return {"service": target, "min_requests": m, "callers_measured": measured,
+            "verdict": cm.classify(best["strength"]) if best else "not_measurable", "deciding": best,
+            "service_level": None, "operation_level": None}
 
 
 def _op_signals(r: dict) -> dict:
@@ -99,6 +173,8 @@ def event_check(symptom: dict, rows: dict, m: int = MIN_OP_REQUESTS) -> dict:
         return {"applied": False, "pass": None, "reason": "no spans for the service" if top else "no signal"}
     if top["level"] == "operation":
         n, basis = top["requests"][1], f"operation {top['operation']}"
+    elif top["level"] == "caller":
+        n, basis = top["requests"][1], f"caller {top['caller']} {top['operation']}"
     else:
         n, basis = total, "service total" + (" (resource signal)" if top["signal"] in RESOURCE_SIGNALS else "")
     return {"applied": True, "pass": n >= m, "requests_after": n, "basis": basis, "min_requests": m}

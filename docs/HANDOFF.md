@@ -1339,3 +1339,34 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - INCIDENT_CATALOG: senaryo adları, hedefler, parametreler, beklenen yayılım; `test_catalog.py` kapsamı.
 - GLOSSARY (onaylı adlar), ARCHITECTURE (yardımcı imaj, enjeksiyon), OTEL_DEMO (Jaeger 2500M), PROJECT "Şu an". DevOps tablosundaki "Linux ağ/kaynak hataları" satırını planlama kontrolden sonra işaretler.
 - PR açıklaması sade; push'tan önce PR durumuna bak.
+
+## 2026-10-26 · Uygulama → Planlama (vaka üretimi V2a, mekanizma)
+- Yapılan:
+  - Altı altyapı hatası koşucuda (`INFRA_FAULTS`, `apply_fault`, `revert_fault`). Hedefin durumu önce okunur, hata uygulanıp geri okunur, temizlikte önceki değer geri yazılıp doğrulanır. Doğrulanamazsa vaka geçersiz sayılır ve gece durur (`cleanup_failed`). `frontend` hedef seçilemez.
+  - Ağ hataları için yardımcı imaj `deploy/netem/Dockerfile` (`aiops-netem:1`; sabit alpine 3.24.3 ve iproute2 7.0.0-r0). Konteyner `--network container:<hedef>` ile koşar ve yalnız NET_ADMIN yetkisi alır. Gece öncesinde imaj yoksa koşucu hata verir ve derleme komutunu yazar.
+  - CPU sınırının geri alınması: `docker update --cpus 0` çıkış 0 verdiği hâlde sınırı kaldırmıyor. Bu yüzden önceki değer 0 ise çekirdek sayısı yazılıyor.
+  - Durdurma ve dondurmada belirti ve olay, çağıranların hedefe giden istemci span'lerinde ölçülür (`caller_rows`, `caller_symptom_check`). Hedefe giden span şu yollarla eşleşir: hedefin adı, o vakadaki IP'leri (enjeksiyondan önce ve geri almadan sonra kaydedilen) ya da hedefin kendi gelen span'lerinde görülen gRPC servis adı.
+  - `split_restarts` artık `paused` değişimini de görüyor. Stop, pause ve memory hatalarında hedef `expected_restarts`'a giriyor; dondurmanın kanıtı ayrıca `fault_state`'te.
+  - Zaman kalıbı tohumla belirleniyor (`schedule`): normal dönem 10–14 dk, kuyruk 1–3 dk. Pencere `fault_off + kuyruk`'ta biter.
+  - İz kuralı: collector süzgecinde `aiops-netem` için kural var, sızıntı tarayıcısında `infra_term` (netem, qdisc) deseni var. OTEL_DEMO tablosuna satır eklendi; 14 snapshot yeniden tarandı, hepsi temiz. Jaeger sınırı 2500M.
+  - DECISIONS 46ed6b6 eklendi:
+    - Bellek sınırı toplam kullanıma (`memory.current`, `usage_mib`) göre hesaplanıyor.
+    - Temizlik doğrulaması: hedef çalışıyor, dondurulmamış ve IP'si var olmalı; `STABLE_S` (30 sn) boyunca yeniden başlama sayısı sabit kalmalı (`fault_state.stable`).
+    - Jaeger için kayda swap tepesi (dakikalık `memory.swap.current` ve `memory.swap.peak`) ile Go yığını tepesi (`prom_max`, Prometheus `job="jaeger"`) giriyor.
+- Kuru deneme `incident_runs/20261026T0327Z-v2_dry/` (`incident_lists/v2_dry.json`, 6 hata, her biri 3 dk). Dört ölçüt geçti:
+  - 6/6 uygulandı, 6/6 temizlik doğrulandı.
+  - Sızıntı 0; netem/qdisc düz metin araması da 0.
+  - Snapshot kökü ve `incidents/` değişmedi.
+  
+  Beş vaka belirtili. `memoryLimit` cart "no event" ile geçersiz: sınır 16,9 MB kaldı, cart 12 kez yeniden başladı. Bu sonuç kararın (46ed6b6) kaynağı. Eski temizlik kuralı bu vakada IP boşken "doğrulandı" demişti; yeni kural bu durumu düşürür (testte kasıtlı kırmızısı var).
+- Karar eklerinin canlı kontrolü (19:35–19:43 yerel saat, demo açık ~5 dk):
+  - `cgroup_memory("jaeger")` değerleri: current 1.290, anon 802, file 481 MiB; swap 0 ve swap tepesi 0 (okunabiliyor).
+  - Prometheus'tan Jaeger yığın tepesi 795,6 MiB.
+  - quote pause → geri alma: `verified` true, IP var, 30 sn'de yeniden başlama 0→0.
+  - Demo kapandı, anonim volume silindi.
+- Testler: pytest 266/266. Kasıtlı kırmızılar paused, hata tipi, tohum, aralık, gRPC eşleşmesi, IP eşleşmesi, `infra_term`, IP'siz temizlik, 30 sn içinde yeniden başlama ve anon tabanlı bellek sınırı için koşuldu; hepsinde ilgili test kırmızı verdi.
+- Beklenen (planlama): V2b aday listesi. Bellekte iki aday olacak, ikisi de sürecin açılış ihtiyacının üstünde. Listeyi Eren onaylayınca kalibrasyon gecesi koşulacak.
+- Dikkat:
+  - Kuru denemede taban sağlık 27,6–30,7 ms çıktı; ölçüm penceresi ısınmaya taşıyordu. Gerçek gecede normal dönem 10–14 dk olduğu için taşma olmaz.
+  - Monitor'deki dakikalık swap örneklemesi canlıda yalnız `cgroup_memory` okuması üzerinden sınandı (Monitor bu kontrolde çalışmadı); ilk gerçek kaydı V2b gecesi verecek.
+  - Altyapı vakalarında `propagation_path` boş; V2b'den sonra katalogdan gelecek.

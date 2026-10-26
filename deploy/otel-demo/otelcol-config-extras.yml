@@ -48,6 +48,8 @@ processors:
         - 'IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")'
         # docker_stats: bu konteynerlerin metrikleri
         - 'IsMatch(resource.attributes["container.name"], "^(flagd|flagd-ui|load-generator)$")'
+        # docker_stats: altyapı hatası yardımcı konteyneri (V2; DECISIONS 2026-10-26 "Enjeksiyon izi kuralı")
+        - 'IsMatch(resource.attributes["container.name"], "^/?aiops-netem$")'
         # OpenFeature MetricsHook (cart)
         - 'IsMatch(name, "^feature_flag\\.")'
         - 'IsMatch(instrumentation_scope.name, "(?i)openfeature")'

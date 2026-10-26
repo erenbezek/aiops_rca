@@ -1,0 +1,8 @@
+[
+ {"fault": "containerStop", "target": "currency", "param": "on", "noise_layer": null, "dry": true},
+ {"fault": "containerPause", "target": "quote", "param": "on", "noise_layer": null, "dry": true},
+ {"fault": "cpuThrottle", "target": "product-catalog", "param": "0.05", "noise_layer": null, "dry": true},
+ {"fault": "memoryLimit", "target": "cart", "param": "0.8", "noise_layer": null, "dry": true},
+ {"fault": "networkDelay", "target": "shipping", "param": "200ms", "noise_layer": null, "dry": true},
+ {"fault": "packetLoss", "target": "payment", "param": "20%", "noise_layer": null, "dry": true}
+]

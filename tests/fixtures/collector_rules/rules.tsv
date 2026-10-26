@@ -15,6 +15,7 @@ filter/sim_world/traces/span	IsMatch(attributes["upstream_cluster.name"], "^(fla
 filter/sim_world/traces/spanevent	name == "feature_flag.evaluation"	delete	traces.jsonl:3	C2 productCatalogFailure_on_1
 filter/sim_world/metrics/metric	IsMatch(resource.attributes["service.name"], "^(flagd|flagd-ui|load-generator)$")	delete	metrics.jsonl:3	C2 adFailure_on_1
 filter/sim_world/metrics/metric	IsMatch(resource.attributes["container.name"], "^(flagd|flagd-ui|load-generator)$")	delete	metrics.jsonl:5	C2 adFailure_on_1
+filter/sim_world/metrics/metric	IsMatch(resource.attributes["container.name"], "^/?aiops-netem$")	none	-	V2 yardımcı konteyneri: --rm ile saniyeler yaşıyor, gerçek örnek yok (süzülmemiş kopya kapalı); ikinci ağ sızıntı tarayıcısının infra_term kuralı
 filter/sim_world/metrics/metric	IsMatch(name, "^feature_flag\\.")	alone	metrics.jsonl:1	C2 adFailure_on_1
 filter/sim_world/metrics/metric	IsMatch(instrumentation_scope.name, "(?i)openfeature")	alone	metrics.jsonl:1	C2 adFailure_on_1
 filter/sim_world/metrics/metric	IsMatch(instrumentation_scope.name, "processscraper")	delete	metrics.jsonl:4	C2 adFailure_on_1

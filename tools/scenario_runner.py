@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
 import secrets
 import shutil
@@ -269,7 +270,8 @@ def guards() -> dict:
 
 class Monitor(threading.Thread):
     """10 sn'de bir sıcaklık, dakikada bir collector belleği ve Jaeger'in kendi belleği (cgroup anon; dosya önbelleği
-    hariç, depolama D2 ölçüsü); 95 °C üstü 1 dk'dan uzun sürerse `hot` kurulur."""
+    hariç, depolama D2 ölçüsü) ile swap'i (`memory.swap.current`; DECISIONS 2026-10-26 Jaeger ölçütü düzeltmesi);
+    95 °C üstü 1 dk'dan uzun sürerse `hot` kurulur."""
 
     def __init__(self, mem_file: Path):
         super().__init__(daemon=True)
@@ -280,6 +282,7 @@ class Monitor(threading.Thread):
         self.peak_mem_mib = None
         self.mem_samples = 0
         self.jaeger_anon_peak_mib = None
+        self.jaeger_swap_peak_mib = None
 
     def run(self) -> None:
         hot_since = None
@@ -304,6 +307,9 @@ class Monitor(threading.Thread):
         if jaeger and jaeger["anon_mib"] is not None:
             a = jaeger["anon_mib"]
             self.jaeger_anon_peak_mib = a if self.jaeger_anon_peak_mib is None else max(self.jaeger_anon_peak_mib, a)
+        if jaeger and jaeger["swap_mib"] is not None:
+            w = jaeger["swap_mib"]
+            self.jaeger_swap_peak_mib = w if self.jaeger_swap_peak_mib is None else max(self.jaeger_swap_peak_mib, w)
         try:
             out = subprocess.run(["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}", "otel-collector"],
                                  capture_output=True, text=True, timeout=30).stdout.strip()
@@ -337,6 +343,16 @@ def container_count() -> int | None:
         q = urllib.parse.quote("count(container_uptime_seconds)")
         r = http("GET", f"{PROMETHEUS}/api/v1/query?query={q}")
         return int(float(r["data"]["result"][0]["value"][1])) if r["data"]["result"] else None
+    except (OSError, ValueError, KeyError, IndexError):
+        return None
+
+
+def prom_max(query_metric: str, seconds: int) -> float | None:
+    """Prometheus'ta son `seconds` saniyedeki tepe değer (`max_over_time`); okunamazsa None."""
+    try:
+        q = urllib.parse.quote(f"max(max_over_time({query_metric}[{max(int(seconds), 60)}s]))")
+        r = http("GET", f"{PROMETHEUS}/api/v1/query?query={q}")
+        return float(r["data"]["result"][0]["value"][1]) if r["data"]["result"] else None
     except (OSError, ValueError, KeyError, IndexError):
         return None
 
@@ -381,7 +397,8 @@ def split_restarts(start: dict, end: dict, expected: set) -> tuple[list, list]:
     for name, st in end.items():
         old = start.get(name)
         changed = old is None or st["restarts"] != old["restarts"] or st["started"] != old["started"] \
-            or (old["running"] and not st["running"]) or (st["oom"] and not old["oom"])
+            or (old["running"] and not st["running"]) or (st["oom"] and not old["oom"]) \
+            or st.get("paused", False) != old.get("paused", False)
         if changed:
             (seen if name in expected else unexpected).append({"container": name, "start": old, "end": st})
     return unexpected, seen
@@ -391,13 +408,13 @@ def containers() -> dict[str, dict]:
     ids = subprocess.run(["docker", "ps", "-aq"], capture_output=True, text=True).stdout.split()
     if not ids:
         return {}
-    fmt = "{{.Name}}\t{{.RestartCount}}\t{{.State.OOMKilled}}\t{{.State.Running}}\t{{.State.StartedAt}}"
+    fmt = "{{.Name}}\t{{.RestartCount}}\t{{.State.OOMKilled}}\t{{.State.Running}}\t{{.State.StartedAt}}\t{{.State.Paused}}"
     out = subprocess.run(["docker", "inspect", "--format", fmt, *ids], capture_output=True, text=True).stdout
     result = {}
     for line in out.splitlines():
-        name, restarts, oom, running, started = line.split("\t")
+        name, restarts, oom, running, started, paused = line.split("\t")
         result[name.lstrip("/")] = {"restarts": int(restarts), "oom": oom == "true", "running": running == "true",
-                                    "started": started}
+                                    "started": started, "paused": paused == "true"}
     return result
 
 
@@ -693,6 +710,22 @@ def cmd_run(ids: list[str]) -> int:
 # (ve noise_layer) açık 10 dk → kapat, doğrula → anonim volume'ler kaydedilir → `down` → silinir → kesim
 # (snapshot = model_view: süzülmüş pencere + window.json) → kontroller → etiket.
 
+# Zaman kalıbı yok (DECISIONS 2026-10-26, düzeltme b5740e8): normal dönem 10–14 dk, flag/hata kapandıktan sonraki
+# kuyruk 1–3 dk, saniye çözünürlüğünde düzgün; tohum ve süreler etikette (`run.schedule`). Kuyruk boyunca demo açık
+# kalır: veri pencere sonuna kadar sürer (kapanıştan hemen sonra biterse bitiş anı okunurdu). Kontrol pencereleri
+# 10 dk kalır (C2 ölçüsü).
+NORMAL_RANGE_S = (600, 840)
+TAIL_RANGE_S = (60, 180)
+# Kuru deneme (liste öğesinde "dry": true; V2a): kısa sabit süreler; snapshot gece klasöründe (`<id>/model_view/`),
+# etiket `incidents/`'a girmez; taban sağlık kaydedilir ama enjeksiyonu durdurmaz. Sete girmez.
+DRY_NORMAL_S, DRY_FAULT_S, DRY_TAIL_S = 180, 180, 60
+
+
+def schedule(seed: int) -> dict:
+    rnd = random.Random(seed)
+    return {"seed": seed, "normal_s": rnd.randint(*NORMAL_RANGE_S), "tail_s": rnd.randint(*TAIL_RANGE_S)}
+
+
 INCIDENTS = REPO / "incidents"
 INCIDENT_RUNS = Path.home() / "cerebrum2" / "incident_runs"
 WARMUP_S = 300
@@ -756,18 +789,25 @@ def cut_snapshot(lo: int, hi: int, work: Path, snap: Path, start: int) -> dict:
 
 
 def cgroup_memory(container: str) -> dict | None:
-    """Konteynerin cgroup v2 bellek tepesi (MiB, dosya önbelleği dahil), şu anki anon bellek (MiB) ve memory.events
-    (max, oom, oom_kill). Konteyner yoksa None."""
+    """Konteynerin cgroup v2 belleği (MiB): tepe (`memory.peak`, dosya önbelleği dahil), şu anki toplam
+    (`memory.current`; bellek sınırının saydığı, cgroup v2'de `container.memory.usage.total`), anon, dosya, swap
+    (`memory.swap.current`) ve swap tepesi (`memory.swap.peak`), memory.events (max, oom, oom_kill). Konteyner
+    yoksa None."""
     cid = subprocess.run(["docker", "inspect", "--format", "{{.Id}}", container],
                          capture_output=True, text=True).stdout.strip()
     base = Path(f"/sys/fs/cgroup/system.slice/docker-{cid}.scope")
-    peak, events, stat = (read(str(base / f)) for f in ("memory.peak", "memory.events", "memory.stat"))
+    peak, events, stat, current, swap, swap_peak = (
+        read(str(base / f)) for f in ("memory.peak", "memory.events", "memory.stat", "memory.current",
+                                      "memory.swap.current", "memory.swap.peak"))
     if not cid or peak is None or events is None:
         return None
     ev = dict(line.split() for line in events.splitlines())
     st = dict(line.split() for line in (stat or "").splitlines())
-    return {"peak_mib": round(int(peak) / 2**20, 1),
-            "anon_mib": round(int(st["anon"]) / 2**20, 1) if "anon" in st else None,
+
+    def mib(v: str | None) -> float | None:
+        return round(int(v) / 2**20, 1) if v is not None else None
+    return {"peak_mib": mib(peak), "current_mib": mib(current), "anon_mib": mib(st.get("anon")),
+            "file_mib": mib(st.get("file")), "swap_mib": mib(swap), "swap_peak_mib": mib(swap_peak),
             "max": int(ev.get("max", 0)), "oom": int(ev.get("oom", 0)), "oom_kill": int(ev.get("oom_kill", 0))}
 
 
@@ -784,6 +824,151 @@ def versions() -> dict:
     return {"repo_commit": git(REPO), "demo_commit": git(demo_dir), "demo_env": env}
 
 
+# Altyapı hataları (V2; DECISIONS 2026-10-26 "Altyapı hata yöntemleri", "Ağ hatası aracı", "Enjeksiyon izi kuralı";
+# adlar Eren onaylı). Her hata: önce hedefin durumu okunur, uygulanır ve geri okunur; temizlikte önceki değer geri
+# yazılır, geri okunur; hedef çalışıyor, dondurulmamış, IP'si var ve `STABLE_S` boyunca yeniden başlama sayısı sabit
+# olmalı (DECISIONS 2026-10-26 "Bellek hatası"). Temizlik doğrulanamazsa vaka geçersiz, gece durur.
+# param: cpuThrottle CPU sayısı ("0.1"); memoryLimit toplam kullanıma (`memory.current`: anon + dosya + çekirdek payı;
+# sınırın saydığı) oran ("0.8"; --memory-swap = --memory);
+# networkDelay "200ms"; packetLoss "20%"; containerStop ve containerPause "on".
+# CPU'nun geri alınması: `docker update --cpus 0` sınırı kaldırmıyor (V2a denemesi: çıkış 0, NanoCpus değişmedi);
+# önceki değer 0 (sınırsız) ise makinenin çekirdek sayısı yazılır. Konteynerler her vakanın sonunda `down` ile
+# silindiği için bir sonraki vakaya taşınmaz.
+INFRA_FAULTS = {
+    "containerStop": {"fault_type": "unavailable", "method": "docker stop"},
+    "containerPause": {"fault_type": "unavailable", "method": "docker pause"},
+    "cpuThrottle": {"fault_type": "resource", "method": "docker update --cpus"},
+    "memoryLimit": {"fault_type": "resource", "method": "docker update --memory --memory-swap"},
+    "networkDelay": {"fault_type": "latency", "method": "tc netem delay"},
+    "packetLoss": {"fault_type": "error", "method": "tc netem loss"},
+}
+NETEM_IMAGE = "aiops-netem:1"  # deploy/netem/Dockerfile; docker build -t aiops-netem:1 deploy/netem
+NETEM_WORD = {"networkDelay": "delay", "packetLoss": "loss"}
+STABLE_S = 30
+PARAM_RE = {"containerStop": r"on", "containerPause": r"on", "cpuThrottle": r"\d+(\.\d+)?",
+            "memoryLimit": r"0\.\d+", "networkDelay": r"\d+ms", "packetLoss": r"\d+(\.\d+)?%"}
+
+
+def _inspect(target: str) -> dict | None:
+    """Hedefin hata için gereken durumu; konteyner yoksa None."""
+    p = subprocess.run(["docker", "inspect", target], capture_output=True, text=True)
+    if p.returncode != 0:
+        return None
+    d = json.loads(p.stdout)[0]
+    st, hc = d["State"], d["HostConfig"]
+    return {"running": st["Running"], "paused": st["Paused"], "restarts": d["RestartCount"],
+            "oom_killed": st["OOMKilled"], "nano_cpus": hc["NanoCpus"], "memory": hc["Memory"],
+            "memory_swap": hc["MemorySwap"],
+            "ips": sorted(n["IPAddress"] for n in d["NetworkSettings"]["Networks"].values() if n.get("IPAddress"))}
+
+
+def _tc(target: str, *args: str) -> subprocess.CompletedProcess:
+    """Yardımcı imajla hedefin ağ ad alanında `tc`; yalnız NET_ADMIN, iş bitince konteyner silinir."""
+    return subprocess.run(["docker", "run", "--rm", "--name", "aiops-netem", "--network", f"container:{target}",
+                           "--cap-add", "NET_ADMIN", NETEM_IMAGE, *args], capture_output=True, text=True, timeout=120)
+
+
+def apply_fault(fault: str, target: str, param: str) -> dict:
+    """Hatayı uygular. Döner: durum kaydı (`run.fault_state`); `applied_ok` False ise vaka geçersiz sayılmalı."""
+    before = _inspect(target)
+    state = {"fault": fault, "target": target, "param": param, "before": before, "applied": None,
+             "applied_ok": False, "reverted": None, "after": None, "stable": None, "verified": False}
+    if before is None or not before["running"] or before["paused"]:
+        state["applied"] = {"error": "target not running before fault"}
+        return state
+    if fault in NETEM_WORD:
+        word = NETEM_WORD[fault]
+        shown = _tc(target, "qdisc", "show", "dev", "eth0").stdout.strip()
+        before["qdisc"] = shown
+        if "netem" in shown:
+            state["applied"] = {"error": "netem already present", "qdisc": shown}
+            return state
+        p = _tc(target, "qdisc", "add", "dev", "eth0", "root", "netem", word, param)
+        shown = _tc(target, "qdisc", "show", "dev", "eth0").stdout.strip()
+        state["applied"] = {"exit": p.returncode, "stderr": p.stderr.strip()[-300:], "qdisc": shown}
+        state["applied_ok"] = p.returncode == 0 and f"{word} {param}" in shown
+        return state
+    if fault == "containerStop":
+        cmd = ["docker", "stop", target]
+    elif fault == "containerPause":
+        cmd = ["docker", "pause", target]
+    elif fault == "cpuThrottle":
+        cmd = ["docker", "update", "--cpus", param, target]
+    else:  # memoryLimit
+        mem = cgroup_memory(target) or {}
+        usage = mem.get("current_mib")
+        if usage is None:
+            state["applied"] = {"error": "memory usage unreadable"}
+            return state
+        limit = max(int(float(param) * usage * 2**20), 6 * 2**20)  # Docker'ın alt sınırı 6 MiB
+        state["applied"] = {"usage_mib": usage, "anon_mib": mem.get("anon_mib"), "file_mib": mem.get("file_mib"),
+                            "limit_bytes": limit}
+        cmd = ["docker", "update", "--memory", str(limit), "--memory-swap", str(limit), target]
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    a = _inspect(target) or {}
+    state["applied"] = {**(state["applied"] or {}), "exit": p.returncode, "stderr": p.stderr.strip()[-300:],
+                        "state": a}
+    state["applied_ok"] = p.returncode == 0 and {
+        "containerStop": lambda: not a.get("running"),
+        "containerPause": lambda: bool(a.get("paused")),
+        "cpuThrottle": lambda: a.get("nano_cpus") == round(float(param) * 1e9),
+        "memoryLimit": lambda: a.get("memory") == state["applied"]["limit_bytes"]
+        and a.get("memory_swap") == state["applied"]["limit_bytes"],
+    }[fault]()
+    return state
+
+
+def revert_fault(state: dict) -> dict:
+    """Hatayı geri alır, geri okur; `verified`: önceki değer geri geldi, hedef çalışıyor, dondurulmamış, IP'si var ve
+    `STABLE_S` boyunca yeniden başlama sayısı değişmedi (`stable`; `after` bu sürenin sonundaki okuma)."""
+    fault, target, before = state["fault"], state["target"], state["before"]
+    spec_ok, extra = False, {}
+    if fault in NETEM_WORD:
+        p = _tc(target, "qdisc", "del", "dev", "eth0", "root")
+        shown = _tc(target, "qdisc", "show", "dev", "eth0").stdout.strip()
+        extra, spec_ok = {"qdisc": shown}, "netem" not in shown
+    else:
+        if fault == "containerStop":
+            cmd = ["docker", "start", target]
+        elif fault == "containerPause":
+            cmd = ["docker", "unpause", target]
+        elif fault == "cpuThrottle":
+            value = before["nano_cpus"] or (os.cpu_count() or 1) * 10**9
+            extra = {"nano_cpus_written": value}
+            cmd = ["docker", "update", "--cpus", f"{value / 1e9:g}", target]
+        else:  # memoryLimit: bellek ve swap birlikte
+            cmd = ["docker", "update", "--memory", str(before["memory"]), "--memory-swap",
+                   str(before["memory_swap"]), target]
+        for _ in range(3):  # OOM döngüsünde konteyner o an yeniden başlıyor olabilir
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if p.returncode == 0:
+                break
+            time.sleep(5)
+    def up(x: dict | None) -> bool:
+        return bool(x and x["running"] and not x["paused"] and x["ips"])
+    deadline, a = time.monotonic() + 90, _inspect(target)
+    while time.monotonic() < deadline and not up(a):
+        time.sleep(2)
+        a = _inspect(target)
+    if up(a):
+        r0 = a["restarts"]
+        time.sleep(STABLE_S)
+        a = _inspect(target)
+        state["stable"] = {"restarts_start": r0, "restarts_end": a["restarts"] if a else None, "seconds": STABLE_S}
+    if fault not in NETEM_WORD and a:
+        spec_ok = p.returncode == 0 and {
+            "containerStop": True, "containerPause": True,
+            "cpuThrottle": a["nano_cpus"] == extra.get("nano_cpus_written"),
+            "memoryLimit": a["memory"] == before["memory"] and a["memory_swap"] == before["memory_swap"],
+        }[fault]
+    state["reverted"] = {"exit": p.returncode, "stderr": p.stderr.strip()[-300:], **extra}
+    state["after"] = a
+    stable = state["stable"] or {}
+    steady = stable.get("restarts_end") is not None and stable["restarts_end"] == stable["restarts_start"]
+    state["verified"] = bool(spec_ok and up(a) and steady)
+    return state
+
+
 def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
     """Tek vaka. Döner: etiket (geçerli ya da değil); geçerliyse snapshot SNAPSHOTS'ta, etiket INCIDENTS'ta."""
     sys.path.insert(0, str(REPO / "src"))
@@ -792,24 +977,34 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
     from aiops_rca.leakage import LeakageInputError, scan_model_view  # noqa: PLC0415
     from trial_summary import Window, summarize  # noqa: PLC0415
 
-    s = BY_ID[entry["scenario"]]
+    infra = "fault" in entry
+    dry = bool(entry.get("dry"))
+    s = None if infra else BY_ID[entry["scenario"]]
+    root = entry["target"] if infra else s["root"]
     noise = BY_ID[entry["noise_layer"]] if entry.get("noise_layer") else None
     iid = new_incident_id()
-    work, snap = night / iid, SNAPSHOTS / iid
+    work = night / iid
+    snap = work / "model_view" if dry else SNAPSHOTS / iid
     work.mkdir(parents=True)
     t0 = time.monotonic()
     label = {
         "incident_id": iid, "set": entry.get("set", "pilot"),
-        "answer": {"scenario": s["flag"], "variant": s["variant"], "noise_layer": noise["flag"] if noise else None,
-                   "injection_start": None, "injection_end": None, "root_cause_service": s["root"],
-                   "fault_type": s["fault_type"], "propagation_path": s["propagation_path"],
-                   "categories": s["categories"]},
+        "answer": {"scenario": entry["fault"] if infra else s["flag"],
+                   "variant": entry["param"] if infra else s["variant"],
+                   "noise_layer": noise["flag"] if noise else None,
+                   "injection_start": None, "injection_end": None, "root_cause_service": root,
+                   "fault_type": INFRA_FAULTS[entry["fault"]]["fault_type"] if infra else s["fault_type"],
+                   # Altyapı vakalarında yol V2b kalibrasyonundan sonra katalogdan gelir.
+                   "propagation_path": [] if infra else s["propagation_path"],
+                   "categories": [] if infra else s["categories"]},
         "window": None, "checks": {}, "valid": False, "invalid_reasons": [], "marks": [],
         "run": {"list_entry": entry, "versions": versions(), "guards": guards(), "times": {}, "containers": {},
                 "collector_restarted": False, "restarts_in_window": [], "expected_restarts": [],
                 "suspended_s": None, "max_pkg_temp_c": None, "memory": {}, "anonymous_volumes_removed": {},
                 "duration_s": None, "snapshot_bytes": None, "overheat": False, "baseline_failed": False,
-                "coverage_short": False, "leakage_found": False},
+                "coverage_short": False, "leakage_found": False, "fault_state": None, "target_ips": None,
+                "schedule": {"seed": None, "normal_s": DRY_NORMAL_S, "tail_s": DRY_TAIL_S, "dry": True} if dry
+                else schedule(secrets.randbits(32))},
     }
     run, times, checks = label["run"], label["run"]["times"], label["checks"]
 
@@ -825,7 +1020,8 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
 
     monitor = Monitor(work / "collector_mem.tsv")
     flags_on: list[dict] = []
-    normal_ns = flag_on_ns = flag_off_ns = None
+    fault_state = None
+    normal_ns = flag_on_ns = flag_off_ns = up_ns = None
     try:
         log(f"{iid} {entry}; guards {run['guards']}")
         if run["guards"]["problems"]:
@@ -855,7 +1051,7 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
         run["scheduler"] = scheduler_state()
         if run["scheduler"] != "stopped":
             raise Invalid(f"flagd-ui scheduler {run['scheduler']}")
-        for f in [s] + ([noise] if noise else []):
+        for f in ([] if infra else [s]) + ([noise] if noise else []):
             before = resolve(f)
             if not isinstance(before, dict) or before.get("variant") != "off":
                 raise Invalid(f"flag {f['flag']} not off before normal: {before}")
@@ -863,7 +1059,7 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
         (work / "containers_start.txt").write_text(json.dumps(start_state, indent=1) + "\n")
         normal_ns = mark("normal_start")
         slept_before = sleep_offset_s()
-        wait(NORMAL_S)
+        wait(run["schedule"]["normal_s"])
 
         # Taban sağlık: normal dönemin verisi (dosya), C2 analiziyle aynı ölçü; alarm = şimdi.
         alarm = utc_ns()
@@ -872,13 +1068,21 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
         rows_now = cm.service_rows(summarize(recent, Window(alarm))[0])
         checks["baseline_health"] = {**ic.baseline_check(rows_now), "measured_at": iso(alarm)}
         log(f"{iid} baseline {checks['baseline_health']}")
-        if not checks["baseline_health"]["pass"]:
+        if not checks["baseline_health"]["pass"] and not dry:
             run["baseline_failed"] = True
             raise Invalid(f"baseline health: frontend p95 {checks['baseline_health']['frontend_p95_ms']} ms > "
                           f"{checks['baseline_health']['threshold_ms']} ms")
 
         run["containers"]["at_flag_on"] = container_count()
-        for f in [s] + ([noise] if noise else []):
+        if infra:
+            run["target_ips"] = {"before": (_inspect(root) or {}).get("ips"), "after": None}
+            flag_on_ns = mark(f"fault_on_{entry['fault']}")
+            fault_state = run["fault_state"] = apply_fault(entry["fault"], root, entry["param"])
+            log(f"{iid} fault {entry['fault']} on {root} ({entry['param']}): applied {fault_state['applied_ok']} "
+                f"{json.dumps(fault_state['applied'])}")
+            if not fault_state["applied_ok"]:
+                raise Invalid(f"fault not applied: {fault_state['applied']}")
+        for f in ([] if infra else [s]) + ([noise] if noise else []):
             flags_on.append(f)
             written, verified, answer = set_flag(f, f["variant"])
             times[f"flag_on_write_{f['flag']}"], times[f"flag_on_verified_{f['flag']}"] = iso(written), iso(verified)
@@ -888,7 +1092,7 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
             if f is s:
                 flag_on_ns = written
         label["answer"]["injection_start"] = iso(flag_on_ns)
-        wait(FLAG_S)
+        wait(DRY_FAULT_S if dry else FLAG_S)
         run["containers"]["at_flag_off"] = container_count()
         for f in list(flags_on):
             written, verified, answer = set_flag(f, "off")
@@ -899,16 +1103,26 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
                 flag_off_ns = written
             if verified is None:
                 raise Invalid(f"flag off {f['flag']} not verified")
+        if infra:
+            flag_off_ns = mark(f"fault_off_{entry['fault']}")
+            revert_fault(fault_state)
+            run["target_ips"]["after"] = (fault_state["after"] or {}).get("ips")
+            log(f"{iid} fault reverted: verified {fault_state['verified']} {json.dumps(fault_state['reverted'])}")
+            if not fault_state["verified"]:
+                raise Invalid(f"cleanup not verified: {fault_state['reverted']} {fault_state['after']}")
         label["answer"]["injection_end"] = iso(flag_off_ns)
+        wait(run["schedule"]["tail_s"] - (utc_ns() - flag_off_ns) / 1e9)
+        mark("tail_end")
         run["suspended_s"] = round(sleep_offset_s() - slept_before, 1)
 
         end_state = containers()
         (work / "containers_end.txt").write_text(json.dumps(end_state, indent=1) + "\n")
-        expected = {s["root"]} if s["root"] else set()
+        target_restarts = not infra or entry["fault"] in ("containerStop", "containerPause", "memoryLimit")
+        expected = {root} if root and target_restarts else set()
         run["restarts_in_window"], run["expected_restarts"] = split_restarts(start_state, end_state, expected)
         reasons = []
         if run["suspended_s"] > SUSPEND_MAX_S:
-            reasons.append(f"machine slept {run['suspended_s']} s between normal start and flag off")
+            reasons.append(f"machine slept {run['suspended_s']} s between normal start and tail end")
         if run["restarts_in_window"]:
             reasons.append("unexpected restart/stop in window: "
                            + ", ".join(e["container"] for e in run["restarts_in_window"]))
@@ -935,8 +1149,18 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
                     flag_off_ns = written
             except Exception as e:
                 log(f"{iid} flag off {f['flag']} after abort failed: {e}")
+        if fault_state and "exit" in (fault_state["applied"] or {}) and fault_state["reverted"] is None:
+            try:
+                flag_off_ns = flag_off_ns or utc_ns()
+                revert_fault(fault_state)
+                log(f"{iid} fault reverted after abort: verified {fault_state['verified']}")
+            except Exception as e:
+                log(f"{iid} fault revert after abort failed: {e}")
         if "start" in times:
             run["memory"] = {c: cgroup_memory(c) for c in ("jaeger", "otel-collector")}
+            if up_ns:  # Jaeger'in kendi Go yığını (collector üzerinden Prometheus'a gelir), demo açık kaldığı süre
+                heap = prom_max('otelcol_process_runtime_heap_alloc_bytes{job="jaeger"}', (utc_ns() - up_ns) / 1e9)
+                run["memory"]["jaeger_heap_peak_mib"] = round(heap / 2**20, 1) if heap is not None else None
             anon = anonymous_volumes()
             if demo("down", log) == 0:
                 run["anonymous_volumes_removed"] = remove_volumes(anon)
@@ -948,9 +1172,10 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
         run["max_pkg_temp_c"] = monitor.max_temp
         run["memory"]["collector_sampled_peak_mib"] = monitor.peak_mem_mib
         run["memory"]["jaeger_anon_peak_mib"] = monitor.jaeger_anon_peak_mib
+        run["memory"]["jaeger_swap_peak_mib"] = monitor.jaeger_swap_peak_mib
 
     if label["valid"]:
-        lo, hi = normal_ns - WINDOW_MARGIN_NS[0], flag_off_ns + WINDOW_MARGIN_NS[1]
+        lo, hi = normal_ns - WINDOW_MARGIN_NS[0], flag_off_ns + run["schedule"]["tail_s"] * 10**9
         label["window"] = {"start": iso(lo), "end": iso(hi)}
         checks["coverage"] = cut_snapshot(lo, hi, work, snap, normal_ns)
         mark("snapshot_cut")
@@ -970,8 +1195,20 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
         paths = sorted(snap.glob("*.jsonl"))
         rows = cm.service_rows(summarize(paths, w)[0])
         ops = ic.operation_rows([snap / "traces.jsonl"], w)
-        if s["root"]:
-            checks["symptom"] = ic.symptom_check(rows, ops, s["root"])
+        if root and infra and entry["fault"] in ("containerStop", "containerPause"):
+            # Hedefin kendi span'leri kesilir: belirti ve olay çağıranların hedefe giden istemci span'lerinde.
+            ips = tuple(sorted(set((run["target_ips"] or {}).get("before") or [])
+                               | set((run["target_ips"] or {}).get("after") or [])))
+            callers, rpcs = ic.caller_rows([snap / "traces.jsonl"], w, root, ips)
+            checks["symptom"] = {**ic.caller_symptom_check(callers, root), "matched_ips": list(ips),
+                                 "matched_rpc_services": rpcs}
+            checks["event"] = ic.event_check(checks["symptom"], rows)
+            if checks["event"]["applied"] and not checks["event"]["pass"]:
+                label["invalid_reasons"].append(f"no event: {checks['event']}")
+            if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
+                label["marks"].append(checks["symptom"]["verdict"])
+        elif root:
+            checks["symptom"] = ic.symptom_check(rows, ops, root)
             checks["event"] = ic.event_check(checks["symptom"], rows)
             if checks["event"]["applied"] and not checks["event"]["pass"]:
                 label["invalid_reasons"].append(f"no event: {checks['event']}")
@@ -980,18 +1217,25 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
         checks["monitoring_health"] = ic.monitoring_health(snap / "metrics.jsonl", normal_ns, flag_off_ns)
         run["snapshot_bytes"] = sum(f.stat().st_size for f in snap.iterdir())
         label["valid"] = not label["invalid_reasons"]
-        if not label["valid"]:
+        if not label["valid"] and not dry:
             shutil.move(snap, work / "model_view")  # geçersiz snapshot kökte kalmaz (sızıntılı olabilir)
             log(f"{iid} INVALID after cut: {label['invalid_reasons']}; snapshot moved to {work / 'model_view'}")
     run["duration_s"] = round(time.monotonic() - t0)
     text = json.dumps(label, ensure_ascii=False, indent=1) + "\n"
     (night / f"{iid}.json").write_text(text)
-    if label["valid"]:
+    if label["valid"] and not dry:
         INCIDENTS.mkdir(exist_ok=True)
         (INCIDENTS / f"{iid}.json").write_text(text)
-    log(f"{iid} {entry['scenario']}: {'VALID' if label['valid'] else 'INVALID'} marks {label['marks']} "
+    what = f"{entry['fault']}:{root}:{entry['param']}" if infra else entry["scenario"]
+    log(f"{iid} {what}: {'VALID' if label['valid'] else 'INVALID'} marks {label['marks']} "
         f"symptom {checks.get('symptom', {}).get('verdict')} duration {run['duration_s']} s")
     return label
+
+
+def cleanup_failed(label: dict) -> bool:
+    """Bir hata komutu çalıştı ama temizlik doğrulanamadı."""
+    fs = label["run"]["fault_state"]
+    return bool(fs and "exit" in (fs["applied"] or {}) and not fs["verified"])
 
 
 def cmd_incidents(list_path: Path) -> int:
@@ -1001,10 +1245,21 @@ def cmd_incidents(list_path: Path) -> int:
                "--who=aiops_rca scenario_runner", "--why=incident runs", sys.executable, *sys.argv]
         return subprocess.run(cmd, env=env).returncode
     entries = json.loads(list_path.read_text(encoding="utf-8"))
-    unknown = [e for e in entries if e["scenario"] not in BY_ID or BY_ID[e["scenario"]]["root"] is None
-               or (e.get("noise_layer") and e["noise_layer"] not in BY_ID)]
+    def bad(e: dict) -> bool:
+        if e.get("noise_layer") and e["noise_layer"] not in BY_ID:
+            return True
+        if "fault" in e:  # frontend hedef seçilmez: frontend-proxy span'lerinde hedef alanı yok (Eren)
+            return e["fault"] not in INFRA_FAULTS or not e.get("target") or e["target"] == "frontend" \
+                or not re.fullmatch(PARAM_RE[e["fault"]], str(e.get("param", "")))
+        return e.get("scenario") not in BY_ID or BY_ID[e["scenario"]]["root"] is None
+
+    unknown = [e for e in entries if bad(e)]
     if unknown:
         print(f"error: unknown or non-incident entries {unknown}", file=sys.stderr)
+        return 2
+    if any(e.get("fault") in NETEM_WORD for e in entries) and subprocess.run(
+            ["docker", "image", "inspect", NETEM_IMAGE], capture_output=True).returncode != 0:
+        print(f"error: {NETEM_IMAGE} missing; build: docker build -t {NETEM_IMAGE} deploy/netem", file=sys.stderr)
         return 2
     night = INCIDENT_RUNS / f"{time.strftime('%Y%m%dT%H%MZ', time.gmtime())}-{list_path.stem}"
     night.mkdir(parents=True)
@@ -1028,6 +1283,9 @@ def cmd_incidents(list_path: Path) -> int:
         if label["run"]["leakage_found"]:
             log("STOP: leakage found (may be systematic); night stopped")
             return 1
+        if cleanup_failed(label):
+            log("STOP: fault cleanup not verified (may affect the next incident); night stopped")
+            return 1
         # Taban sağlık, ısınma ya da döndürme: bir kez daha (kart; C2 kuralı).
         if label["run"]["baseline_failed"] or label["run"]["overheat"] or label["run"]["coverage_short"]:
             if label["run"]["overheat"]:
@@ -1040,6 +1298,9 @@ def cmd_incidents(list_path: Path) -> int:
             label = run_incident(entry, night, log, False)
             if label["run"]["leakage_found"]:
                 log("STOP: leakage found (may be systematic); night stopped")
+                return 1
+            if cleanup_failed(label):
+                log("STOP: fault cleanup not verified (may affect the next incident); night stopped")
                 return 1
         if not label["valid"]:
             status = 1
