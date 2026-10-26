@@ -1278,3 +1278,64 @@ Uygulamanın V1 kartına dört sorusunun cevabı (Eren onayı). Kartın ölçüt
   - Collector cgroup tepesi flood'lu paymentFailure'da 400 / 400 MiB, ama anon ~90 MiB (dosya önbelleği), `max` 18; bellek sorunu değil.
 - "Bitince": ARCHITECTURE diyagramı (kesici, snapshot'lar ve `model_view` kesik çizgiden çıktı; `incidents/` ve `incident_checks.py` eklendi), PROJECT "Şu an". GLOSSARY ve DECISIONS (snapshot biçimi, sınır, M, taban eşiği) V1a commit'inde.
 - Repoda 13 pilot etiketi (`incidents/`); tek vaka denemesinin etiketi (`inc-8ceb7ae5`) V1a'da.
+
+## 2026-10-26 · Planlama → Uygulama (vaka üretimi V2, altyapı hataları)
+- V1 planlama kontrolü: rapor doğrulandı. 14 etiket (13 pilot + tek vaka) geçerli ve belirtili; 14 snapshot sızıntı tarayıcısından bağımsız geçirildi, bulgu 0; snapshot pencereleri etiketlerle aynı; pytest 226/226.
+- Kararlar DECISIONS 2026-10-26 (yedi satır: Jaeger 2500M, ağ aracı, hata yöntemleri, iz kuralı, zaman kalıbı, systemd-run, V3 notu) ve INCIDENT_CATALOG "Kendi altyapı hatalarımız" tablosu. Bu kartın kayıtları planlamanın commit'inde. İşe `task/vaka-v2` dalında devam et.
+- Önce 3-5 maddelik planını yaz, Eren onaylasın. Yeni ad (senaryo, imaj, konteyner, dosya, alan) koymadan önce öner. Yardımcı imajın tabanı (sabit sürümlü alpine) ve içindeki iproute2 kararla onaylı; başka imaj ya da paket sorulur. Upstream'e dokunma. V2a ve V2b sonunda rapor ver ve dur.
+
+### Amaç
+Altı altyapı hatasını (durdurma, dondurma, CPU kısıtlama, bellek sınırı, ağ gecikmesi, paket kaybı) koşucuya eklemek, kalibre etmek ve bir gece koşusunda sınamak. Vakalar `set: pilot`, resmî sete girmez.
+Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test bölümü, repoda systemd birimi ve zamanlayıcı (V3'ten önce ayrı kart), değerlendirme.
+
+### V2a · Mekanizma (gözetimli, gece koşusu yok)
+1. Öner (Eren onaylar): senaryo adları, yardımcı imajın adı ve Dockerfile'ın yeri (`deploy/` altında), yardımcı konteyner ad deseni, liste dosyasında altyapı hatasının biçimi (tip, hedef, parametre).
+2. Enjeksiyon ve temizleme:
+   - Enjeksiyondan önce hedefin mevcut değeri okunur (CPU ve bellek sınırı), temizlemede geri yazılır ve geri okunarak doğrulanır (flag'lerdeki gibi). netem: kural silinir, `tc qdisc show` ile doğrulanır. Dondurma: `unpause`, durum running. Durdurma: `start`, durum running.
+   - Temizleme doğrulanamazsa vaka geçersiz ve gece durur (sonraki vakayı kirletebilir).
+   - Bellek: yeni sınır ölçülen kullanımın altında; oranı öner.
+3. Kontrollerin uyarlanması:
+   - Durdurma ve dondurmada hedefin kendi span'ları kesilir ya da azalır: belirti ve olay kontrolü hedefi çağıran servisin hedefe giden istemci span'larında yapılır (paymentUnreachable'daki checkout gibi). Yöntemi öner.
+   - Bellek, durdurma ve dondurmada hedef `expected_restarts`'a girer. `split_restarts`'ın `paused` durumunu nasıl gördüğüne bak.
+   - Koşucunun konteyner sayısı (22) ve izleme sağlığı kontrolleriyle çakışan yerleri listele.
+   - İz kuralı (DECISIONS): yardımcı konteyner `otelcol-config-extras.yml`'deki süzgece eklenir (flagd satırının yanına). Sızıntı tarayıcısına desenler eklenir: yardımcı konteynerin adı ve imajı, `netem`, `qdisc`. Test: desenli sahte satır yakalanıyor (kasıtlı kırmızı).
+4. Zaman kalıbı: normal dönem rastgele 8–12 dk, kuyruk rastgele 1–3 dk; tohum ve süreler etikette. Testler: süreler aralıkta, aynı tohum aynı süreleri verir.
+5. Jaeger sınırı 2500M (`compose.extras.yaml`, yorum satırıyla). Etiketteki boş `run.snapshot_gb` alanı düzeltilir.
+6. Kuru deneme (gözetimli): her hata tipi bir hedefte, kısa enjeksiyonla (yöntemi öner). Bakılanlar:
+   - Mekanizma çalışıyor ve hedefte etki gözleniyor.
+   - Temizlik doğrulanıyor.
+   - Yardımcı konteyner `model_view`'da yok, sızıntı 0.
+   - Bu denemelerin çıktısı sete girmez.
+- Rapor ver ve dur.
+
+### V2b · Kalibrasyon gecesi
+- Aday listesi ölçmeden önce yazılır, Eren onaylar:
+  - Hedefler: her hata tipi için 2 servis. Ölçütler:
+    - Katalogdaki bir yayılım yolunda olsun, yayılım görünsün.
+    - Pilot verisinde 10 dakikada en az M istek alsın.
+    - Mümkünse farklı diller.
+    - En az biri hiçbir flag'in hedefi olmayan bir servis (ör. currency, quote, shipping).
+  - Parametre: CPU, gecikme ve kayıpta hafiften güçlüye 2 aday; durdurma, dondurma ve bellekte tek değer.
+  - Toplam süre ≤ 9 saat.
+- Başlatma: Eren `systemd-run --user` ile başlatır (DECISIONS); komutu raporda ver. Önce şarj sınırının 80 olduğu kontrol edilir.
+- Ölçütler:
+  - Gece yarıda kalmadı.
+  - Geçerli vaka oranı ≥ %80.
+  - Sızıntı 0.
+  - Temizlik her vakada doğrulandı.
+  - Her (tip, hedef) çifti için belirtili çıkan en hafif aday seçilir ve INCIDENT_CATALOG'a yazılır. Hiçbir aday belirtili değilse o çift rapora girer; kural değişmez, karar planlamanın.
+  - Jaeger: anon tepe < 2.000 MiB, OOM 0.
+  - Collector'ın OOM'u ya da yeniden başlaması 0 (mevcut kural: vakayı geçersiz kılar).
+  - Belirtinin hedefi çağıranlarda görünüp görünmediği kayda geçer (geçme şartı değil; katalogdaki yayılım yollarını bu doldurur).
+  - pytest yeşil.
+- Güç kontrolü:
+  - Bir hata tipinde iki hedefte de belirti yoksa o tip V3'e girmez ya da parametresi yeniden seçilir; karar planlamanın.
+  - Jaeger ölçütü tutmazsa V3'ten önce Jaeger kararı yeniden açılır.
+  - Temizliği doğrulanamayan bir vaka çıkarsa mekanizma düzeltilir ve gece tekrarlanır.
+  - Vaka başına süre V3'ün kaç gece süreceğini belirler.
+- Rapor ver ve dur.
+
+### Bitince
+- INCIDENT_CATALOG: senaryo adları, hedefler, parametreler, beklenen yayılım; `test_catalog.py` kapsamı.
+- GLOSSARY (onaylı adlar), ARCHITECTURE (yardımcı imaj, enjeksiyon), OTEL_DEMO (Jaeger 2500M), PROJECT "Şu an". DevOps tablosundaki "Linux ağ/kaynak hataları" satırını planlama kontrolden sonra işaretler.
+- PR açıklaması sade; push'tan önce PR durumuna bak.
