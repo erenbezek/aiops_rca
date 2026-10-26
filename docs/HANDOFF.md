@@ -1410,3 +1410,19 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - Bellek hatasında olay kuralı hedefin kendi isteği (≥ M).
 - **Seçim:** her (hata, hedef) çifti için belirtili çıkan en hafif aday INCIDENT_CATALOG'a girer. Hiçbir aday belirtili değilse o çift rapora girer; kural değişmez, karar planlamanın.
 - Rapor ver ve dur.
+
+## 2026-10-26 · Uygulama → Planlama (V2b gece hazırlığı)
+- Liste `incident_lists/v2b.json` (Eren onayı): kartın sırasıyla 16 vaka. Bellek çifti yok (Eren seçenek A).
+- Bellek tabanı (19:55–20:03 yerel saat, kısa açılış; açılıştan sonraki ilk 60 sn'de `memory.peak`, 60. sn'de okundu; ısınmış kullanım `memory.current`, up'tan 300 sn sonra) ve **düşen adaylar** (kart kuralı):
+
+  | Hedef | Taban | Isınmış kullanım (6. dk) | 0,9× | 0,75× |
+  |---|---|---|---|---|
+  | ad | 220,7 MiB | 210,2 MiB (210,7) | 189,2 MiB, düştü | 157,6 MiB, düştü |
+  | quote | 24,0 MiB | 18,6 MiB (18,6) | 16,7 MiB, düştü | 14,0 MiB, düştü |
+
+  İki serviste de açılış tepesi ısınmış kullanımdan yüksek. Bu yüzden kullanımın 1'den küçük her katı tabanın altında kalıyor. Bellek adayları yeniden seçilecek; karar planlamanın.
+- Hazırlık kontrolleri:
+  - `aiops-netem:1` mevcut, şarj sınırı 80, pytest 266/266.
+  - Disk 281 GB boş; izleme volume'leri 6,15 GB, snapshot kökü 3,33 GB.
+  - Kullanıcı biriminden `gnome-session-inhibit`, `systemd-inhibit`, Docker ve venv çalışıyor (1 sn'lik test birimi).
+- Başlatma (Eren): `systemd-run --user --unit=aiops-incidents -p WorkingDirectory=/home/eren/cerebrum2/aiops_rca /home/eren/cerebrum2/aiops_rca/.venv/bin/python tools/scenario_runner.py incidents incident_lists/v2b.json`. Makine prize bağlı olmalı; koruma prize bağlı değilken başlatmaz.

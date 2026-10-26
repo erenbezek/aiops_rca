@@ -131,6 +131,7 @@ Sadece Eren'in onayladığı isimler.
 | `run` | Etiketin koşu kaydı: `versions`, `guards`, `times`, `containers`, `duration_s`, `snapshot_bytes`, `list_entry`, `collector_restarted`, `scheduler`, `memory`, `anonymous_volumes_removed`, `overheat`, `baseline_failed`, `coverage_short`, `leakage_found` ve C2'den `restarts_in_window`, `expected_restarts`, `suspended_s`, `max_pkg_temp_c` |
 | `incident_lists/`, `pilot.json` | Repoda koşulacak vaka listeleri (öğe: `scenario` = koşucu senaryo kimliği, `noise_layer`) / pilot gece listesi (13 vaka) |
 | `incident_lists/v2_dry.json` | V2a kuru deneme listesi (altı hata, her biri bir hedefte, `"dry": true`) |
+| `incident_lists/v2b.json` | V2b kalibrasyon gecesi listesi (16 vaka; bellek adayları taban altında kaldığı için yok) |
 | `~/cerebrum2/incident_runs/` | Vaka üretimi çalışma dosyaları, gece başına `<UTC>-<liste>/`: `runner.log`, `ism.json`, her denemenin etiketi `<incident_id>.json`, vaka klasöründe bellek ve konteyner dökümleri; geçersiz vakanın snapshot'ı `<incident_id>/model_view/`'a taşınır; repo dışı |
 | `ism.json` | Gece klasöründe OpenSearch ISM kontrolü (her `otel-logs` indeksinde `otel-logs-retention` mı) |
 | `fault_type`, `propagation_path`, `categories` | `SCENARIOS`'taki doğru cevap alanları (INCIDENT_CATALOG tablosunun aynısı) |
