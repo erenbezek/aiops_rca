@@ -1370,3 +1370,43 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - Kuru denemede taban sağlık 27,6–30,7 ms çıktı; ölçüm penceresi ısınmaya taşıyordu. Gerçek gecede normal dönem 10–14 dk olduğu için taşma olmaz.
   - Monitor'deki dakikalık swap örneklemesi canlıda yalnız `cgroup_memory` okuması üzerinden sınandı (Monitor bu kontrolde çalışmadı); ilk gerçek kaydı V2b gecesi verecek.
   - Altyapı vakalarında `propagation_path` boş; V2b'den sonra katalogdan gelecek.
+
+## 2026-10-26 · Planlama → Uygulama (V2b aday listesi)
+- V2a kontrolü: rapor ve commit (`844d1d5`) uygun; pytest 266/266.
+- Liste aşağıda, ölçmeden önce yazıldı (Eren onayı). Veri: pilot `inc-07533a0a`'nın normal dönemi (10 dk); istek sayısı = servisin gelen span'leri, bellek = `container.memory.usage.total` medyanı, CPU = `container.cpu.usage.total` artış hızının ortalaması.
+- Kartın hedef ölçütlerinde iki düzeltme:
+  - "Katalogdaki bir yayılım yolunda" ölçütü yayılımın görünmesi anlamında uygulandı. Katalogdaki yollar flag'lerden çıkıyor; flag dışı servisler (currency, quote) o yollarda yok. Bu iki servisin izlerde çağıranları var: currency ← frontend, checkout; quote ← shipping ← frontend, checkout.
+  - Kartta flag dışı örneklerden biri olarak geçen shipping yanlış: shipping, intlShippingSlowdown'ın hedefi.
+- checkout, email ve payment aday değil: normal dönemde 10 dk'da 24 istek alıyorlar, M = 10'a göre pay ince.
+
+### Liste (20 vaka)
+| Hata | Hedef 1 | Hedef 2 | Adaylar (hafif → güçlü) |
+|---|---|---|---|
+| networkDelay | cart (.NET; çağıranlar frontend, checkout) | quote (PHP; çağıran shipping) | 50 ms, 200 ms |
+| packetLoss | shipping (Rust) | currency (C++) | %10, %30 |
+| cpuThrottle | product-catalog (Go) | recommendation (Python) | Ortalama kullanımın 1×'i ve 0,5×'i: product-catalog 0,09 / 0,045; recommendation 0,03 / 0,015 çekirdek |
+| containerPause | cart | quote | tek değer |
+| containerStop | recommendation | currency | tek değer |
+| memoryLimit | ad (Java) | quote (PHP) | Toplam kullanımın 0,9×'i ve 0,75×'i (enjeksiyon anında ölçülen) |
+
+- **CPU'da flag dışı hedef yok (istisna):** currency ve quote ortalama 0,01 çekirdek kullanıyor; bu, Docker'ın en düşük sınırı.
+- **Bellek tabanı:** gece öncesinde kısa bir açılışla her bellek hedefinin açılış ihtiyacı ölçülür (açılıştan sonraki ilk 60 sn'de `memory.current` tepesi). Bu tabanın altında kalan aday düşer ve kayda yazılır; o çift tek adayla kalır.
+- **Kuru deneme bilgisi:**
+  - product-catalog 0,05 çekirdekte p99 23 → 4.099 ms.
+  - shipping 200 ms gecikmede p95 3,7 → 405 ms.
+  - payment %20 kayıpta belirti zayıftı (servis düzeyi p95, güç 21).
+- **Sıra:** networkDelay → packetLoss → cpuThrottle → containerPause → containerStop → memoryLimit. Temizliği en riskli olanlar sonda: temizlik doğrulanamazsa gece durur, önceki vakalar kayıtta kalır. Her çiftte hafif aday önce.
+- **Süre:** vaka başına ~30 dk, toplam ~10 saat. Eren onayıyla kartın 9 saatlik bütçesinin yerine tek gece (ör. 21:00 → ~07:00).
+
+### Gece
+- Liste dosyasının adını öner (ör. `incident_lists/v2b.json`). Gece öncesinde yapılacaklar:
+  - Bellek tabanı ölçümü.
+  - `aiops-netem:1` imajının var olduğu kontrol edilir.
+  - Şarj sınırının 80 olduğu kontrol edilir.
+  - pytest yeşil.
+  - Eren'e `systemd-run --user` komutu verilir.
+- **Ölçütler:** kart V2b, DECISIONS 2026-10-26 düzeltmeleriyle:
+  - Jaeger: OOM 0 ve yeniden başlama 0; anon, swap ve Go yığını tepesi kayda.
+  - Bellek hatasında olay kuralı hedefin kendi isteği (≥ M).
+- **Seçim:** her (hata, hedef) çifti için belirtili çıkan en hafif aday INCIDENT_CATALOG'a girer. Hiçbir aday belirtili değilse o çift rapora girer; kural değişmez, karar planlamanın.
+- Rapor ver ve dur.
