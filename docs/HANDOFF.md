@@ -1166,3 +1166,115 @@
 
 - Öneri: PROJECT DevOps listesinde "Kalıcı depolama, saklama süresi" satırı işaretlenebilir (Jaeger diske, Prometheus/OpenSearch saklama, boyut koruması, yeniden başlatma sonrası doğrulama). Karar planlamanın / Eren'in; işaretlemedim.
 - Dikkat: 40 GB her gece 8 saat koşuda 6. günde dolar (D2 notu); gece planı netleşince yeniden bakılmalı.
+
+## 2026-10-25 · Planlama → Uygulama (vaka üretimi V1)
+- Yeni usul (DECISIONS 2026-10-25): planlama kartları ve kararları docs'a kendi dalında yazar; uygulama kartı buradan okur. Bu kartın kayıtları (DECISIONS dört satır, PROJECT DevOps satırı) planlamanın commit'inde. İşe `task/vaka-hatti` dalında devam et.
+- Vaka üretimi planı: V1 vaka hattı ve pilot gece (bu kart) → V2 altyapı hataları (kill, CPU, bellek, ağ; enjeksiyon yönteminin izi sızıntı mı, ağ aracı kararı) → kendi Python servisi kartı (DECISIONS 2026-10-25, seçenek A) → V3 resmî set (~40 vaka; bileşim ve dev/test bölümü kayıttan önce yazılır, test vakalarına yalnız otomatik kontroller bakar).
+- Not: bu sırayla tablo ~4 Kasım'a dolmaz; PROJECT'teki kurala göre Kubernetes yapılmaz.
+- Önce 3-5 maddelik planını yaz, Eren onaylasın. Yeni ad (klasör, dosya, alan, komut) koymadan önce öner. Yeni paket yok. Upstream'e dokunma. V1a ve V1b sonunda rapor ver ve dur.
+
+### Amaç
+Koşucu bir vakayı gözetimsiz, uçtan uca üretsin: enjekte et → kaydet → temizle → snapshot + etiket → otomatik geçerlilik kontrolleri. Pilot gece hattı sınar. Pilot vakalar resmî sete girmez (geliştirmede bakılacaklar; resmî set V3'te, kendi servisle).
+Kapsam dışı: altyapı hataları (V2), kendi servis, resmî set bileşimi ve dev/test bölümü (V3), değerlendirme (modele ne verileceği, alarm zamanı dahil).
+
+### V1a · Biçim ve kontroller (gece koşusu yok; mevcut C2 verisiyle)
+1. Snapshot biçimi (öner, Eren onaylar):
+   - Vaka kimliği opak: senaryo, servis, varyant, tarih geçmez (sızıntı testi klasör ve dosya adlarını da tarar).
+   - `model_view`: pencerenin süzülmüş izleri, metrikleri, logları; meta olarak yalnız pencere sınırları.
+   - Etiket: INCIDENT_CATALOG "Doğru cevap kaydı" alanları + koşu kaydı (korumalar, sürümler, kontrol sonuçları). Snapshot klasörünün dışında, ayrı kökte. Pilot vakaların set alanı ayrı bir değer (ad öner).
+   - Konum repo dışı; sıkıştırma yok (Releases'te proje sonunda).
+   - Sınır (DECISIONS 2026-10-18): snapshot toplamı ≤ 20 GB (~85 vaka); aşılırsa koşucu başlamaz.
+2. Koşu akışı: korumalar → up → 5 dk ısınma → taban sağlık kontrolü → 10 dk normal → 10 dk enjeksiyon → temizleme (flag API'den geri okunur) → kesim → kontroller → down.
+   - Senaryo listesi dosyadan okunur (komut satırında senaryo adı yok).
+   - `down` sonrası bu koşunun anonim volume'leri silinir (astronomy-db her `up`'ta ~24 MB bırakıyor); yöntemi öner.
+   - C2'de 16 koşunun 12'sinde bir konteynerin metriği gelmedi, collector yeniden başlatıldı (+6 dk). Hangi konteyner ve neden: bak, ucuz düzeltme varsa öner.
+3. Kontroller (ölçütler ölçmeden önce yazılı; sonuca göre değişmez):
+   - Kapsama: C2'deki gibi; eksikse vaka geçersiz.
+   - Sızıntı: `model_view` üzerinde `leakage.py` 0 bulgu. Bulgu çıkarsa vaka geçersiz ve gece durur (sistematik olabilir).
+   - Taban sağlık: normal dönemde frontend p95 ≤ 2 × referans. Referans: C2'nin geçerli koşularının normal dönemlerinde frontend p95 medyanı, iki yavaş taban koşusu (`adManualGc_on_1`, `recommendationCacheFailure_on_2`) hariç. Geçme şartı: bu kural iki yavaş koşuyu geçersiz sayar, diğer C2 koşularından en fazla birini geçersiz sayar. Tutmazsa dur, planlamaya dön. Koşuda geçmezse vaka geçersiz, bir kez tekrar.
+   - Belirti (DECISIONS 2026-10-24): C2'nin servis düzeyi kuralı (`c2_measure.py` eşikleri) + işlem düzeyi: kök neden servisinin her span adı için aynı eşikler (hata oranı +0,05; p95 ve p99 ×1,5 ve +20 ms), iki dönemde de en az M istek. Karar en güçlü sinyalle.
+     - M seçimi (yöntem veriye bakmadan önce): adaylar 10, 20, 30. C2'nin geçerli koşularında (flood hariç), kök neden ve katalogdaki yayılım yolu dışındaki her servis için normal ↔ enjeksiyon dönemi işlem düzeyi kuralla karşılaştırılır; "belirtili" çıkan servis-koşu çifti yanlış alarmdır. Yanlış alarm oranı ≤ %5 olan en küçük M seçilir. Hiçbiri tutmazsa dur, planlamaya dön. Aynı çiftlerde servis düzeyi kuralın yanlış alarm oranı da rapora.
+     - Seçilen M ile C2'nin belirtili koşuları yeniden değerlendirilir; cartFailure %50 belirtili çıkmalı. Çıkmazsa rapora, kural değişmez.
+   - Olay var mı: enjeksiyon döneminde, belirti kararını veren işlemde en az M istek; yoksa "olaysız", vaka geçersiz.
+   - Belirtisiz ya da sınırda vaka geçersiz sayılmaz, işaretlenir; set kararı V3'te.
+   - İzleme sağlığı (kayda; dosya asıl kaynak olduğu için vakayı geçersiz kılmaz): opensearch send_failed ve enqueue_failed artışı, Jaeger bellek tepesi ve `memory.events` max, collector bellek tepesi, OOM ve yeniden başlamalar. Collector'ın OOM'u ya da yeniden başlaması vakayı geçersiz kılar.
+   - ISM (bir kez): `up` sonrası `GET _plugins/_ism/explain/otel-logs-*` her otel-logs indeksinde policy_id = `otel-logs-retention`; çıktı rapora.
+- Rapor ver ve dur (biçim önerisi, referans, M ve yanlış alarm oranları).
+
+### V1b · Pilot gece
+- Şarj sınırı 80 mi, kontrol et. Gece, gözetimsiz.
+- Liste: 11 katalog senaryosu, kalibre varyantlarla + `noise_layer`'lı 2 vaka (`loadGeneratorFloodHomepage` + paymentFailure %50; `loadGeneratorFloodHomepage` + productCatalogLockContention). ~13 vaka.
+- Ölçütler:
+  - Gece yarıda kalmadı; her vaka geçerli/geçersiz ve nedeniyle kayıtlı.
+  - Geçerli vaka oranı ≥ %80.
+  - Sızıntı 0.
+  - C2'de belirtili çıkan senaryoların hepsi (kalibre varyantla; liste C2 kaydından, rapora) belirtili ya da sınırda.
+  - Vaka başına süre ve snapshot boyutu kayda.
+  - Kasıtlı kırmızı: düşük sahte snapshot sınırıyla koşucu başlamıyor.
+  - pytest yeşil.
+- Güç kontrolü:
+  - Geçerli oran < %80 → V3'ten önce düzeltilir.
+  - C2'de belirtili bir senaryo burada belirtisiz → rapora; kural değişmez, planlama karar verir.
+  - Sızıntı > 0 → dur.
+  - Vaka başına süre → V3'ün kaç gece süreceği bundan hesaplanır.
+- Rapor ver ve dur.
+
+### Bitince
+- ARCHITECTURE: snapshot kesici, snapshot'lar ve `model_view` kesik çizgiden çıkar; etiket kökü eklenir.
+- GLOSSARY, DECISIONS (snapshot biçimi, sınır, M, taban eşiği).
+- PR açıklaması sade; push'tan önce PR durumuna bak.
+
+## 2026-10-25 · Planlama → Uygulama (V1 netleştirmeler)
+Uygulamanın V1 kartına dört sorusunun cevabı (Eren onayı). Kartın ölçütlerine eklenir; ölçmeden önce yazıldı.
+1. Taban sağlık kontrolü normal dönemin verisiyle, normal dönem bitince ve enjeksiyondan hemen önce yapılır. Geçmezse enjeksiyon yapılmaz, vaka geçersiz, bir kez tekrarlanır. Koşudaki kontrol C2 analiziyle aynı veri kaynağını ve aynı p95 hesabını kullanır. (Kart akışındaki "ısınma → taban sağlık kontrolü → 10 dk normal" sırası bununla düzelir.)
+2. "Olay var mı": belirti kararı kaynak sinyalinden (CPU, bellek) geldiyse, enjeksiyon döneminde kök neden servisinin toplam isteği en az M olmalı (emailMemoryLeak gibi kaynak hataları da istekle tetikleniyor). Hiç izi olmayan servislerde (ör. astronomy-db) olay kontrolü uygulanmaz; kayda "uygulanmadı" yazılır.
+3. M seçiminde yalnız "belirtili" çıkan servis-koşu çifti yanlış alarm sayılır; "sınırda" sayılmaz (vaka kontrolünde de sınırda vaka belirtili sayılmıyor, yalnız işaretleniyor). Her M için sınırda oranı da rapora.
+4. Taban kuralının sınanması: referans, geçerli 16 koşudan `recommendationCacheFailure_on_2` çıkarılarak 15 koşunun normal dönemlerinden (frontend p95 medyanı). Kural bu 16 koşuya ve `adManualGc_on_1`'e (geçersiz ama süzülmüş verisi sağlam) uygulanır. Geçme şartı: iki yavaş koşu geçersiz çıkar, diğer 15'ten en fazla biri geçersiz çıkar. `productCatalogFailure_on_2` (uyku) ve `recommendationCacheFailure_on_1` (yeniden başlama) hesaba girmez.
+- Küçük düzeltmeler: kartta "Snapshot toplamı ≤ 20 GB (DECISIONS 2026-10-18)" — 2026-10-18 satırı yalnız "her bileşene sınır" kuralını koyuyor, 20 GB bu kartın kararı ("Bitince"de DECISIONS'a). Collector yeniden başlatma sayısı kayıtta geçerli 16 koşunun 11'i, 19 koşunun 13'ü (kartta "16'nın 12'si" yanlış); V1a'da incelenir.
+- Uygulamanın V1a planı (5 adım, her adım sonunda rapor) uygun; 1. adımla (biçim önerisi) başlanabilir.
+
+## 2026-10-25 · Uygulama → Planlama (vaka üretimi V1a)
+- Yapılan (adlar Eren onaylı, GLOSSARY'de; DECISIONS üç satır):
+  - Snapshot biçimi: `~/cerebrum2/snapshots/inc-<8 hex>/` = `model_view` (süzülmüş `traces/metrics/logs.jsonl` + `window.json`); etiket repoda `incidents/<incident_id>.json` (`answer`, `window`, `checks`, `valid`, `invalid_reasons`, `marks`, `run`); pilot etiketleri commit edilir (`set: pilot`).
+  - `SCENARIOS`'a doğru cevap alanları (`fault_type`, `propagation_path` kenar listesi, `categories`); `tests/test_catalog.py` INCIDENT_CATALOG tablosuyla aynı olduğunu kontrol eder (kasıtlı kırmızı: hata tipi ve yol değişince).
+  - `tools/incident_checks.py`: işlem düzeyi belirti, olay, taban sağlık, izleme sağlığı; ölçü C2'ninki. Kabul: C2 verisinde 2. adımın sayılarını aynen üretti (taban geçersizleri, M = 10'da 7 yanlış alarm / 5 sınırda, 15 kök neden kararının 15'i). `tests/test_incident_checks.py` 13 test; üç kasıtlı bozmanın üçünü yakaladı.
+  - `scenario_runner.py incidents <liste>` (C2'nin `run`'ı değişmedi): korumalar (+ snapshot ≤ 20 GB) → `up` (raw kapalı) → ISM (gecede bir) → collector yeniden başlatma → 22 konteyner → ısınma (up'tan 5 dk) → flag'ler kapalı, zamanlayıcı durmuş → 10 dk normal → taban sağlık (geçmezse enjeksiyon yok, bir kez tekrar) → flag (+ noise_layer) 10 dk → kapat, doğrula → anonim volume'ler kaydedilir → `down` → silinir → kesim → kontroller → etiket. Sızıntıda gece durur; geçersiz vakanın snapshot'ı gece klasörüne taşınır.
+  - `incident_lists/pilot.json`: 13 vaka.
+- C2 analizi (netleştirmelerle; betik ve sonuç repo dışında, sonuç DECISIONS'ta):
+  - Taban: referans 25,3 ms, eşik 50,6 ms; geçersiz `adManualGc_on_1` (223,5) ve `recommendationCacheFailure_on_2` (82,7), diğer 15'ten hiçbiri. GEÇTİ.
+  - M: 201 servis-koşu çifti; işlem düzeyi yanlış alarm M = 10/20/30'da aynı: 7 (%3,48), sınırda 5 (%2,49); payda ölçülebilir çiftler olursa %4,19 / %4,29 / %4,96. Servis düzeyi kural: 8 (%3,98), sınırda 12. M = 10.
+  - Seçilen M ile 15 koşu: cartFailure %50 belirtili (EmptyCart p99, istek 30 / 23); kalibre varyantların hepsi belirtili; paymentFailure %10 ve emailMemoryLeak 100x belirtisiz; cartFailure %10 belirtili (C2'de belirtisizdi); olay 15/15.
+- İncelemeler:
+  - Collector açılış yarışı: 4 açılışın 1'inde (`currency`, collector'dan 0,49 sn sonra başlamış) konteyner metriği 6 dk boyunca gelmedi; diğer 3'ünde 60. sn'de 22. Süzülmemiş kopyaya bağlı değil. Neden tahmini: alıcı açılışta listeyi alıp sonra olayları dinliyor (kaynakta doğrulanmadı). Düzeltme: her vakada yeniden başlatma (Eren).
+  - Anonim volume: yalnız `postgres:18.4` (astronomy-db), açılış başına 66,08 MB (kartta 24 MB).
+- Uçtan uca tek vaka (`inc-8ceb7ae5`, paymentFailure %50, 18:28–18:56 UTC, gece klasörü `~/cerebrum2/incident_runs/20261025T1828Z-one/`): GEÇERLİ.
+  - ISM: `otel-logs-2026-10-25` → `otel-logs-retention`, geçti. Collector yeniden başlatıldıktan sonra 22.
+  - Taban: frontend p95 24,7 ms. Kapsama tam, sızıntı 0 (CLI da "clean"), belirti belirtili (payment hata oranı, güç 9,6), olay 25 istek ≥ 10, opensearch send_failed 0, beklenmeyen yeniden başlama 0, uyku 0, en çok 71 °C.
+  - Süre 1.640 sn (~27,5 dk; 13 vaka ~6 saat), snapshot 0,239 GB (13 vaka ~3,1 GB). Anonim volume silindi.
+  - Kasıtlı kırmızı: `AIOPS_MAX_SNAPSHOT_GB=0.1` → "STOP … guards: snapshots 0.24 GB > 0.1", demo açılmadı.
+- pytest 226/226.
+- Dikkat:
+  - Jaeger: bellek tepesi 2000 / 2000 MiB (dosya önbelleği dahil), `memory.events max` 10.695, OOM 0 (D2'de 10 dk'da max 0). Kayıt, vakayı geçersiz kılmaz. Koşucu artık dakikada bir Jaeger'in anon belleğini de ölçüyor (`run.memory.jaeger_anon_peak_mib`; tek vakada henüz ölçülmedi). Pilot gecede ilk izlenecek risk.
+  - `window.json` + sabit normal dönem enjeksiyon anını verir (DECISIONS satırında not).
+  - Katalog yollarında frontend-proxy yok; yanlış alarmların hepsi orada.
+  - Pilot gece (V1b) Eren'in başlatmasıyla; liste `incident_lists/pilot.json`.
+
+## 2026-10-26 · Uygulama → Planlama (vaka üretimi V1b, pilot gece; V1 bitti)
+- Koşu: `scenario_runner.py incidents incident_lists/pilot.json`, 2026-10-25 19:07 – 2026-10-26 01:09 UTC (6 sa 2 dk), gece klasörü `~/cerebrum2/incident_runs/20261025T1913Z-pilot/`. Önce: şarj sınırı 80, priz, 48 °C, boş disk 291 GB, izleme 1,81 GB, snapshot 0,24 GB.
+- Ölçütler (kart V1b):
+  - Gece yarıda kalmadı: 13 deneme, 13 kayıt, tekrar yok. ✓
+  - Geçerli oran: 13/13 (%100). ✓
+  - Sızıntı: 13 vakada 0. ✓
+  - C2'de belirtili çıkan senaryolar (kalibre varyant; C2 `measure.json` servis düzeyi kararı: adFailure, adHighCpu, adManualGc, emailMemoryLeak 1000x, paymentFailure %50, paymentUnreachable, productCatalogFailure, productCatalogLockContention, recommendationCacheFailure, intlShippingSlowdown 10sec): 10/10 belirtili. cartFailure %50 (C2'de sınırda) de belirtili (EmptyCart p95). ✓
+  - Süre 1.632–1.658 sn (~27,4 dk/vaka); snapshot 0,191–0,287 GB (pilot toplamı 3,09 GB; kök 3,33 GB, tek vaka dahil). ✓
+  - Kasıtlı kırmızı (snapshot sınırı) V1a'da. ✓ pytest 226/226. ✓
+- Vaka başına: taban frontend p95 23,3–27,7 ms; ISM geçti (`ism.json`); OpenSearch send_failed / enqueue_failed 0; beklenmeyen yeniden başlama 0 (recommendation yeniden başlaması beklenen); en çok 79 °C; anonim volume her vakada silindi; `marks` hepsinde boş.
+- Kararı veren sinyaller: adFailure yeni uyarı logu; adHighCpu CPU; adManualGc p99; cartFailure EmptyCart p95 (işlem); emailMemoryLeak p95; paymentFailure ve paymentUnreachable hata oranı; productCatalogFailure GetProduct hata oranı (işlem); productCatalogLockContention ListProducts p99 (işlem); recommendationCacheFailure p99; intlShippingSlowdown ship-order p99 (işlem); flood'lu iki vaka aynı sinyallerle.
+- Güç kontrolü: V3 ~40 vaka ≈ 18,3 saat (6 saatlik 3 gece ya da 9 saatlik 2 gece).
+- Planlamaya (karar değil):
+  - Jaeger: anon tepe 1.677–1.826 MiB (2000M sınırın %84–91'i; en yüksek flood'lu vakada), `memory.events max` vaka başına 12–38 bin, OOM 0. D2'nin "anon < %80" ölçütünü her vakada aşıyor. OOM olursa vaka "beklenmeyen yeniden başlama" ile geçersiz olur (V2'de ve uzun pencerede risk).
+  - cartFailure olay payı ince: EmptyCart enjeksiyon döneminde 13 istek (M = 10).
+  - Hiçbir vaka belirtisiz ya da sınırda değil: pilot set kolay; V3 bileşimi için bilgi.
+  - Collector cgroup tepesi flood'lu paymentFailure'da 400 / 400 MiB, ama anon ~90 MiB (dosya önbelleği), `max` 18; bellek sorunu değil.
+- "Bitince": ARCHITECTURE diyagramı (kesici, snapshot'lar ve `model_view` kesik çizgiden çıktı; `incidents/` ve `incident_checks.py` eklendi), PROJECT "Şu an". GLOSSARY ve DECISIONS (snapshot biçimi, sınır, M, taban eşiği) V1a commit'inde.
+- Repoda 13 pilot etiketi (`incidents/`); tek vaka denemesinin etiketi (`inc-8ceb7ae5`) V1a'da.

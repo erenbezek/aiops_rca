@@ -120,3 +120,27 @@ Sadece Eren'in onayladığı isimler.
 | `collector_<koşu>.log` | `replay` koşu klasöründe, o pencereyi oynatan collector'ın logu (collector durdurulmadan önce yazılır) |
 | `collector_error_lines` | `replay.json`'da pencere başına collector logundaki hata satırı sayısı |
 | `metrics_oldest_ms`, `metrics_newest_ms` | `replay.json`'da pencere dosyasındaki en eski / en yeni metrik zamanı (ms); blok kontrolünün ölçüsü |
+| `~/cerebrum2/snapshots/` | Snapshot kökü (repo dışı, sıkıştırmasız); vaka başına `<incident_id>/` = o vakanın `model_view`'ı |
+| `inc-<8 hex>` | `incident_id` biçimi: rastgele (`secrets`), senaryo, sıra ve tarih içermez |
+| `window.json` | `model_view` içinde pencere sınırları (`start`, `end`, UTC); başka bilgi yok |
+| `incidents/<incident_id>.json` | Repoda etiket ve koşu kaydı (yalnız geçerli vakalar): `answer`, `window`, `checks`, `valid`, `invalid_reasons`, `marks`, `run` |
+| `answer` | Etiketin doğru cevap bölümü: `scenario`, `variant`, `noise_layer`, `injection_start`, `injection_end`, `root_cause_service`, `fault_type`, `propagation_path` (kenar listesi), `categories` |
+| `set`, `pilot` | Etiketin set alanı (`dev` / `test` / `pilot`) / resmî sete girmeyen pilot vakaların değeri |
+| `checks` | Etiketin kontrol sonuçları: `coverage`, `leakage`, `baseline_health`, `symptom`, `event`, `monitoring_health` |
+| `marks` | Geçerli ama işaretli vaka: `no_symptom`, `borderline`, `not_measurable` (set kararı V3'te) |
+| `run` | Etiketin koşu kaydı: `versions`, `guards`, `times`, `containers`, `duration_s`, `snapshot_bytes`, `list_entry`, `collector_restarted`, `scheduler`, `memory`, `anonymous_volumes_removed`, `overheat`, `baseline_failed`, `coverage_short`, `leakage_found` ve C2'den `restarts_in_window`, `expected_restarts`, `suspended_s`, `max_pkg_temp_c` |
+| `incident_lists/`, `pilot.json` | Repoda koşulacak vaka listeleri (öğe: `scenario` = koşucu senaryo kimliği, `noise_layer`) / pilot gece listesi (13 vaka) |
+| `~/cerebrum2/incident_runs/` | Vaka üretimi çalışma dosyaları, gece başına `<UTC>-<liste>/`: `runner.log`, `ism.json`, her denemenin etiketi `<incident_id>.json`, vaka klasöründe bellek ve konteyner dökümleri; geçersiz vakanın snapshot'ı `<incident_id>/model_view/`'a taşınır; repo dışı |
+| `ism.json` | Gece klasöründe OpenSearch ISM kontrolü (her `otel-logs` indeksinde `otel-logs-retention` mı) |
+| `fault_type`, `propagation_path`, `categories` | `SCENARIOS`'taki doğru cevap alanları (INCIDENT_CATALOG tablosunun aynısı) |
+| `MAX_SNAPSHOT_GB`, `AIOPS_MAX_SNAPSHOT_GB` | Snapshot kökünün üst sınırı (20 GB; korumada `snapshot_gb`) / yalnız kasıtlı kırmızı için ezen ortam değişkeni |
+| `incidents` | `scenario_runner.py` komutu: bir listedeki vakaları sırayla üretir (V1 akışı) |
+| `tools/incident_checks.py` | Vaka kontrolleri: `operation_rows`, `symptom_check`, `baseline_check`, `event_check`, `monitoring_health` |
+| `operation_rows`, `symptom_check`, `event_check` | Servis + span adı başına istek/hata/süre / servis ve işlem düzeyinde belirti (en güçlü sinyal) / enjeksiyon döneminde olay var mı (en az M istek) |
+| `baseline_check`, `monitoring_health` | Normal dönem frontend p95 ≤ 2 × referans / collector exporter sayaçları (kayıt) |
+| `MIN_OP_REQUESTS`, `BASELINE_P95_MS`, `BASELINE_FACTOR` | M (10) / taban referansı (25,3 ms) / taban eşiğinin çarpanı (2) |
+| `RESOURCE_SIGNALS`, `_op_signals`, `_operation_best`, `_service_best` | `incident_checks.py` iç adları: kaynak sinyalleri (`cpu_pct`, `mem_mb`) / işlem sinyalleri / servisin en güçlü işlem sinyali / servis düzeyi en güçlü sinyal |
+| `WARMUP_S`, `SNAPSHOTS`, `INCIDENTS`, `INCIDENT_RUNS`, `OPENSEARCH` | Koşucu sabitleri: ısınma (300 sn, `up`'tan) / snapshot kökü / etiket klasörü / gece klasörlerinin kökü / OpenSearch adresi |
+| `snapshot_gb`, `anonymous_volumes`, `remove_volumes`, `ism_explain`, `new_incident_id`, `cut_snapshot` | Koşucu fonksiyonları: snapshot kökünün boyutu / projenin konteynerlerine bağlı anonim volume'ler / onları silme / ISM kontrolü / rastgele kimlik / pencereyi snapshot'a yazma |
+| `run_incident`, `cmd_incidents`, `cgroup_memory`, `versions` | Tek vaka / liste koşusu / cgroup bellek tepesi, anon ve `memory.events` / repo ve demo commit'i, imaj sürümleri |
+| `tests/test_catalog.py`, `tests/test_incident_checks.py` | `SCENARIOS` ↔ INCIDENT_CATALOG senkron testi / kontrol modülünün testleri |

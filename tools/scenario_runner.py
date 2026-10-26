@@ -8,6 +8,8 @@ Kullanım:
   python tools/scenario_runner.py guards               makine korumalarını basar (koşmaz)
   python tools/scenario_runner.py run <id>... | all    koşuları sırayla yürütür (gnome-session-inhibit ve
                                                        systemd-inhibit altında)
+  python tools/scenario_runner.py incidents <liste>    vaka üretimi (V1): listedeki vakaları sırayla üretir
+                                                       (`incident_lists/*.json`; aynı engeller altında)
 
 Koşu başına (`~/cerebrum2/c2_runs/<senaryo>_<varyant>_<deneme>/`, repo dışı, cevap içerir):
   korumalar → `otel_demo.sh up --raw` → 22 konteyner (6 dk içinde olmazsa collector yeniden başlatılır, 4 dk daha)
@@ -27,6 +29,15 @@ uykuda ilerler, CLOCK_MONOTONIC ilerlemez; farkın artışı uyku süresidir), �
 logs} için kaynak dosyalardaki en eski kaydın kendi zamanı normal başlangıcından sonra).
 Isınmada koşu kesilir, soğuyunca (90 °C altında 2 dk) baştan; döndürmede baştan. İkinci kez de olursa üçüncü kez
 koşulmaz, kayda (Eren, 2026-10-24). Korumalardan biri koşu öncesi tutmazsa sıra durur.
+
+Vaka üretimi (`incidents`, V1): akış aşağıda "vaka üretimi" bölümünde. Vaka başına snapshot
+`~/cerebrum2/snapshots/<incident_id>/` (= model_view: süzülmüş `traces/metrics/logs.jsonl` + `window.json`), etiket
+repoda `incidents/<incident_id>.json` (yalnız geçerli vakalar), gece klasörü `~/cerebrum2/incident_runs/<UTC>-<liste>/`
+(`runner.log`, `ism.json`, her denemenin etiketi `<incident_id>.json` ve çalışma dosyaları). Geçersiz: korumalar,
+22 konteyner yok, taban sağlık (enjeksiyon yapılmaz), flag doğrulanamadı, pencerede beklenmeyen yeniden başlama, uyku,
+döndürme, sızıntı (gece durur), olay yok. Belirtisiz / sınırda vaka geçerli, `marks`'ta işaretli.
+Taban sağlık, ısınma ve döndürmede bir kez daha.
+
 Çıkış kodu: 0 bütün koşular geçerli, 1 en az biri geçersiz ya da sıra durdu, 2 kullanım hatası.
 """
 from __future__ import annotations
@@ -34,6 +45,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -64,6 +76,10 @@ MIN_FREE_GB = 30
 # elle sil. AIOPS_MAX_MONITORING_GB yalnız kasıtlı kırmızı için (düşük sahte sınır).
 MAX_MONITORING_GB = float(os.environ.get("AIOPS_MAX_MONITORING_GB", "40"))
 MONITORING_VOLUMES = ("otel-demo_prometheus-data", "otel-demo_jaeger-data", "otel-demo_opensearch-data")
+# Snapshot kökü (V1, Eren onayı 2026-10-25): toplam ≤ 20 GB (~85 vaka, ~0,23 GB/vaka); aşılırsa koşu başlamaz.
+# AIOPS_MAX_SNAPSHOT_GB yalnız kasıtlı kırmızı için.
+SNAPSHOTS = Path.home() / "cerebrum2" / "snapshots"
+MAX_SNAPSHOT_GB = float(os.environ.get("AIOPS_MAX_SNAPSHOT_GB", "20"))
 CHARGE_LIMIT = 80
 POWER_PROFILE = "balanced"
 HOT_C, HOT_S = 95, 60
@@ -77,23 +93,44 @@ GNOME_INHIBIT = ["gnome-session-inhibit", "--inhibit", "suspend:idle", "--reason
 # C2 (DECISIONS 2026-10-23): 11 katalog senaryosu, üçü iki seviyede, + loadGeneratorFloodHomepage = 15 koşu.
 # kind: flagd Resolve<kind>; context: doğrulamada flagd'ye giden bağlam; target: defaultVariant yerine yazılan
 # targeting dalı (productCatalogFailure tek üründe: OTEL_DEMO "Flag'i açıp kapatma").
+# Doğru cevap alanları (V1; INCIDENT_CATALOG "Flag senaryoları" tablosunun aynısı, tests/test_catalog.py kontrol
+# eder): fault_type, propagation_path (kenar listesi [kaynak, hedef]; dallanan yollar için), categories.
 PCF_CONTEXT = {"product_id": "OLJCESPC7Z"}
 SCENARIOS = [
-    {"flag": "adFailure", "variant": "on", "kind": "Boolean", "root": "ad"},
-    {"flag": "adHighCpu", "variant": "on", "kind": "Boolean", "root": "ad"},
-    {"flag": "adManualGc", "variant": "on", "kind": "Boolean", "root": "ad"},
-    {"flag": "cartFailure", "variant": "10%", "kind": "Float", "root": "cart"},
-    {"flag": "cartFailure", "variant": "50%", "kind": "Float", "root": "cart"},
-    {"flag": "emailMemoryLeak", "variant": "100x", "kind": "Int", "root": "email"},
-    {"flag": "emailMemoryLeak", "variant": "1000x", "kind": "Int", "root": "email"},
-    {"flag": "paymentFailure", "variant": "10%", "kind": "Float", "root": "payment"},
-    {"flag": "paymentFailure", "variant": "50%", "kind": "Float", "root": "payment"},
-    {"flag": "paymentUnreachable", "variant": "on", "kind": "Boolean", "root": "checkout"},
+    {"flag": "adFailure", "variant": "on", "kind": "Boolean", "root": "ad", "fault_type": "error",
+     "propagation_path": [["ad", "frontend"]], "categories": []},
+    {"flag": "adHighCpu", "variant": "on", "kind": "Boolean", "root": "ad", "fault_type": "resource",
+     "propagation_path": [["ad", "frontend"]], "categories": ["silent"]},
+    {"flag": "adManualGc", "variant": "on", "kind": "Boolean", "root": "ad", "fault_type": "resource",
+     "propagation_path": [["ad", "frontend"]], "categories": ["silent"]},
+    {"flag": "cartFailure", "variant": "10%", "kind": "Float", "root": "cart", "fault_type": "misconfig",
+     "propagation_path": [["cart", "checkout"], ["checkout", "frontend"]], "categories": ["cascading", "partial"]},
+    {"flag": "cartFailure", "variant": "50%", "kind": "Float", "root": "cart", "fault_type": "misconfig",
+     "propagation_path": [["cart", "checkout"], ["checkout", "frontend"]], "categories": ["cascading", "partial"]},
+    {"flag": "emailMemoryLeak", "variant": "100x", "kind": "Int", "root": "email", "fault_type": "resource",
+     "propagation_path": [["email", "checkout"]], "categories": ["silent"]},
+    {"flag": "emailMemoryLeak", "variant": "1000x", "kind": "Int", "root": "email", "fault_type": "resource",
+     "propagation_path": [["email", "checkout"]], "categories": ["silent"]},
+    {"flag": "paymentFailure", "variant": "10%", "kind": "Float", "root": "payment", "fault_type": "error",
+     "propagation_path": [["payment", "checkout"], ["checkout", "frontend"]], "categories": ["cascading", "noisy"]},
+    {"flag": "paymentFailure", "variant": "50%", "kind": "Float", "root": "payment", "fault_type": "error",
+     "propagation_path": [["payment", "checkout"], ["checkout", "frontend"]], "categories": ["cascading", "noisy"]},
+    {"flag": "paymentUnreachable", "variant": "on", "kind": "Boolean", "root": "checkout", "fault_type": "misconfig",
+     "propagation_path": [["checkout", "frontend"]], "categories": ["cascading"]},
     {"flag": "productCatalogFailure", "variant": "on", "kind": "Boolean", "root": "product-catalog",
-     "context": PCF_CONTEXT, "target": 1},
-    {"flag": "productCatalogLockContention", "variant": "on", "kind": "Boolean", "root": "product-catalog"},
-    {"flag": "recommendationCacheFailure", "variant": "on", "kind": "Boolean", "root": "recommendation"},
-    {"flag": "intlShippingSlowdown", "variant": "10sec", "kind": "Int", "root": "shipping"},
+     "context": PCF_CONTEXT, "target": 1, "fault_type": "error",
+     "propagation_path": [["product-catalog", "frontend"], ["product-catalog", "checkout"],
+                          ["product-catalog", "recommendation"]],
+     "categories": ["cascading", "partial"]},
+    {"flag": "productCatalogLockContention", "variant": "on", "kind": "Boolean", "root": "product-catalog",
+     "fault_type": "latency",
+     "propagation_path": [["product-catalog", "frontend"], ["product-catalog", "recommendation"],
+                          ["product-catalog", "checkout"]],
+     "categories": ["cascading"]},
+    {"flag": "recommendationCacheFailure", "variant": "on", "kind": "Boolean", "root": "recommendation",
+     "fault_type": "resource", "propagation_path": [["recommendation", "frontend"]], "categories": ["silent"]},
+    {"flag": "intlShippingSlowdown", "variant": "10sec", "kind": "Int", "root": "shipping", "fault_type": "latency",
+     "propagation_path": [["shipping", "checkout"], ["checkout", "frontend"]], "categories": ["partial"]},
     # Sadece sızıntı kontrolü (vaka değil, noise_layer); kök neden servisi yok.
     {"flag": "loadGeneratorFloodHomepage", "variant": "on", "kind": "Int", "root": None},
 ]
@@ -179,6 +216,11 @@ def monitoring_gb() -> float | None:
     return total / 1e9
 
 
+def snapshot_gb() -> float:
+    """Snapshot kökündeki dosyaların toplamı (GB, ondalık); kök yoksa 0."""
+    return sum(f.stat().st_size for f in SNAPSHOTS.rglob("*") if f.is_file()) / 1e9 if SNAPSHOTS.exists() else 0.0
+
+
 def guards() -> dict:
     ac = [read(str(p / "online")) for p in Path("/sys/class/power_supply").glob("AC*")]
     try:
@@ -187,6 +229,7 @@ def guards() -> dict:
         profile = None
     free_gb = shutil.disk_usage(Path.home()).free / 1e9
     mon_gb = monitoring_gb()
+    snap_gb = snapshot_gb()
     g = {
         "ac_online": ac[0] if ac else None,
         "charge_limit": read("/sys/class/power_supply/BAT0/charge_control_end_threshold"),
@@ -194,6 +237,7 @@ def guards() -> dict:
         "pkg_temp_c": pkg_temp_c(),
         "free_disk_gb": round(free_gb, 1),
         "monitoring_gb": round(mon_gb, 2) if mon_gb is not None else None,
+        "snapshot_gb": round(snap_gb, 2),
         "power_profile": profile,
         "inhibited": os.environ.get("SCENARIO_RUNNER_INHIBITED") == "1",
         "gnome_inhibited": gnome_inhibited(),
@@ -211,6 +255,8 @@ def guards() -> dict:
         problems.append("monitoring volume size unknown (docker system df)")
     elif mon_gb > MAX_MONITORING_GB:
         problems.append(f"monitoring volumes {g['monitoring_gb']} GB > {MAX_MONITORING_GB:g}")
+    if snap_gb > MAX_SNAPSHOT_GB:
+        problems.append(f"snapshots {g['snapshot_gb']} GB > {MAX_SNAPSHOT_GB:g}")
     if profile != POWER_PROFILE:
         problems.append(f"power profile {profile}, want {POWER_PROFILE}")
     if not g["inhibited"]:
@@ -222,7 +268,8 @@ def guards() -> dict:
 
 
 class Monitor(threading.Thread):
-    """10 sn'de bir sıcaklık, dakikada bir collector belleği; 95 °C üstü 1 dk'dan uzun sürerse `hot` kurulur."""
+    """10 sn'de bir sıcaklık, dakikada bir collector belleği ve Jaeger'in kendi belleği (cgroup anon; dosya önbelleği
+    hariç, depolama D2 ölçüsü); 95 °C üstü 1 dk'dan uzun sürerse `hot` kurulur."""
 
     def __init__(self, mem_file: Path):
         super().__init__(daemon=True)
@@ -232,6 +279,7 @@ class Monitor(threading.Thread):
         self.max_temp = None
         self.peak_mem_mib = None
         self.mem_samples = 0
+        self.jaeger_anon_peak_mib = None
 
     def run(self) -> None:
         hot_since = None
@@ -252,6 +300,10 @@ class Monitor(threading.Thread):
             self.stop_event.wait(TEMP_EVERY_S)
 
     def sample_mem(self) -> None:
+        jaeger = cgroup_memory("jaeger")
+        if jaeger and jaeger["anon_mib"] is not None:
+            a = jaeger["anon_mib"]
+            self.jaeger_anon_peak_mib = a if self.jaeger_anon_peak_mib is None else max(self.jaeger_anon_peak_mib, a)
         try:
             out = subprocess.run(["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}", "otel-collector"],
                                  capture_output=True, text=True, timeout=30).stdout.strip()
@@ -349,8 +401,8 @@ def containers() -> dict[str, dict]:
     return result
 
 
-def demo(cmd: str, log) -> int:
-    args = [str(OTEL_DEMO), cmd] + (["--raw"] if cmd == "up" else [])
+def demo(cmd: str, log, raw: bool = True) -> int:
+    args = [str(OTEL_DEMO), cmd] + (["--raw"] if cmd == "up" and raw else [])
     p = subprocess.run(args, capture_output=True, text=True)
     log(f"otel_demo.sh {cmd}: exit {p.returncode}")
     for line in (p.stdout + p.stderr).splitlines()[-15:]:
@@ -378,7 +430,7 @@ def log_times(line: bytes) -> list[int]:
     return times
 
 
-def copy_window(lo: int, hi: int, dest: Path, start: int) -> dict:
+def copy_window(lo: int, hi: int, dest: Path, start: int, bases: tuple[str, ...] = ("raw", "filtered")) -> dict:
     """telemetry/{raw,filtered}/*.jsonl'dan zamanlarından biri [lo, hi] içinde olan satırları kopyalar.
 
     Döner: {"<base>/<sinyal>": {bytes, mb_per_min, oldest_utc, covered}}. covered: kaynak dosyalardaki en eski
@@ -387,7 +439,7 @@ def copy_window(lo: int, hi: int, dest: Path, start: int) -> dict:
     """
     info = {}
     minutes = (hi - lo) / 60e9
-    for base in ("raw", "filtered"):
+    for base in bases:
         (dest / base).mkdir(parents=True, exist_ok=True)
         outs, oldest = {}, {}
         for path in sorted((TELEMETRY / base).glob("*.jsonl")):
@@ -633,10 +685,376 @@ def cmd_run(ids: list[str]) -> int:
     return status
 
 
+# --- vaka üretimi (V1) -----------------------------------------------------------------------------------------
+# HANDOFF 2026-10-25 "Planlama → Uygulama (vaka üretimi V1)" ve "V1 netleştirmeler"; adlar Eren onaylı.
+# Akış: korumalar → `up` (süzülmemiş kopya yok) → collector yeniden başlatılır (açılış yarışı: konteyner metrik
+# alıcısı collector'dan hemen sonra başlayan konteyneri kaçırabiliyor; V1a 3. adım) → 22 konteyner → ısınma (up'tan
+# WARMUP_S) → flag'ler kapalı, zamanlayıcı durmuş → 10 dk normal → taban sağlık (geçmezse enjeksiyon yok) → flag
+# (ve noise_layer) açık 10 dk → kapat, doğrula → anonim volume'ler kaydedilir → `down` → silinir → kesim
+# (snapshot = model_view: süzülmüş pencere + window.json) → kontroller → etiket.
+
+INCIDENTS = REPO / "incidents"
+INCIDENT_RUNS = Path.home() / "cerebrum2" / "incident_runs"
+WARMUP_S = 300
+OPENSEARCH = "http://127.0.0.1:9200"
+
+
+def anonymous_volumes() -> list[str]:
+    """otel-demo konteynerlerine bağlı, Docker'ın anonim diye etiketlediği volume'ler (isimli volume'ler hariç)."""
+    ids = subprocess.run(["docker", "ps", "-aq", "--filter", "label=com.docker.compose.project=otel-demo"],
+                         capture_output=True, text=True).stdout.split()
+    if not ids:
+        return []
+    out = subprocess.run(["docker", "inspect", "--format",
+                          '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}} {{end}}{{end}}', *ids],
+                         capture_output=True, text=True).stdout.split()
+    anon = []
+    for name in sorted(set(out)):
+        labels = subprocess.run(["docker", "volume", "inspect", "--format", "{{json .Labels}}", name],
+                                capture_output=True, text=True).stdout.strip()
+        if labels and labels != "null" and "com.docker.volume.anonymous" in json.loads(labels):
+            anon.append(name)
+    return anon
+
+
+def remove_volumes(names: list[str]) -> dict[str, int]:
+    """Volume'leri tek tek siler; ad → `docker volume rm` çıkış kodu."""
+    return {n: subprocess.run(["docker", "volume", "rm", n], capture_output=True).returncode for n in names}
+
+
+def ism_explain() -> dict:
+    """OpenSearch ISM: her otel-logs indeksine bağlı kural (gecede bir, ilk `up`'tan sonra)."""
+    try:
+        r = http("GET", f"{OPENSEARCH}/_plugins/_ism/explain/otel-logs-*", timeout=30)
+    except OSError as e:
+        return {"error": str(e), "pass": False}
+    indices = {k: v.get("index.plugins.index_state_management.policy_id") or v.get("policy_id")
+               for k, v in r.items() if isinstance(v, dict)}
+    return {"indices": indices, "pass": bool(indices) and all(v == "otel-logs-retention" for v in indices.values()),
+            "raw": r}
+
+
+def new_incident_id() -> str:
+    while True:
+        iid = "inc-" + secrets.token_hex(4)
+        if not (SNAPSHOTS / iid).exists() and not (INCIDENTS / f"{iid}.json").exists():
+            return iid
+
+
+def cut_snapshot(lo: int, hi: int, work: Path, snap: Path, start: int) -> dict:
+    """Süzülmüş pencereyi kopyalar (work/filtered/), sonra snapshot klasörüne taşır; window.json yazar.
+    Döner: sinyal başına kopya bilgisi (copy_window), kapsama dahil."""
+    info = copy_window(lo, hi, work, start, bases=("filtered",))
+    snap.mkdir(parents=True)
+    for signal in ("traces", "metrics", "logs"):
+        src = work / "filtered" / f"{signal}.jsonl"
+        if src.exists():
+            shutil.move(src, snap / f"{signal}.jsonl")
+    (work / "filtered").rmdir()
+    (snap / "window.json").write_text(json.dumps({"start": iso(lo), "end": iso(hi)}) + "\n")
+    return {k.split("/", 1)[1]: v for k, v in info.items()}
+
+
+def cgroup_memory(container: str) -> dict | None:
+    """Konteynerin cgroup v2 bellek tepesi (MiB, dosya önbelleği dahil), şu anki anon bellek (MiB) ve memory.events
+    (max, oom, oom_kill). Konteyner yoksa None."""
+    cid = subprocess.run(["docker", "inspect", "--format", "{{.Id}}", container],
+                         capture_output=True, text=True).stdout.strip()
+    base = Path(f"/sys/fs/cgroup/system.slice/docker-{cid}.scope")
+    peak, events, stat = (read(str(base / f)) for f in ("memory.peak", "memory.events", "memory.stat"))
+    if not cid or peak is None or events is None:
+        return None
+    ev = dict(line.split() for line in events.splitlines())
+    st = dict(line.split() for line in (stat or "").splitlines())
+    return {"peak_mib": round(int(peak) / 2**20, 1),
+            "anon_mib": round(int(st["anon"]) / 2**20, 1) if "anon" in st else None,
+            "max": int(ev.get("max", 0)), "oom": int(ev.get("oom", 0)), "oom_kill": int(ev.get("oom_kill", 0))}
+
+
+def versions() -> dict:
+    def git(path: Path) -> str | None:
+        p = subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"], capture_output=True, text=True)
+        return p.stdout.strip() or None
+    demo_dir = Path.home() / "cerebrum2" / "otel-demo"
+    env = {}
+    for line in (demo_dir / ".env").read_text().splitlines():
+        m = re.match(r"^(\w+_IMAGE|IMAGE_VERSION|DEMO_VERSION)=(.*)$", line)
+        if m:
+            env[m.group(1)] = m.group(2)
+    return {"repo_commit": git(REPO), "demo_commit": git(demo_dir), "demo_env": env}
+
+
+def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
+    """Tek vaka. Döner: etiket (geçerli ya da değil); geçerliyse snapshot SNAPSHOTS'ta, etiket INCIDENTS'ta."""
+    sys.path.insert(0, str(REPO / "src"))
+    import c2_measure as cm  # noqa: PLC0415
+    import incident_checks as ic  # noqa: PLC0415
+    from aiops_rca.leakage import LeakageInputError, scan_model_view  # noqa: PLC0415
+    from trial_summary import Window, summarize  # noqa: PLC0415
+
+    s = BY_ID[entry["scenario"]]
+    noise = BY_ID[entry["noise_layer"]] if entry.get("noise_layer") else None
+    iid = new_incident_id()
+    work, snap = night / iid, SNAPSHOTS / iid
+    work.mkdir(parents=True)
+    t0 = time.monotonic()
+    label = {
+        "incident_id": iid, "set": entry.get("set", "pilot"),
+        "answer": {"scenario": s["flag"], "variant": s["variant"], "noise_layer": noise["flag"] if noise else None,
+                   "injection_start": None, "injection_end": None, "root_cause_service": s["root"],
+                   "fault_type": s["fault_type"], "propagation_path": s["propagation_path"],
+                   "categories": s["categories"]},
+        "window": None, "checks": {}, "valid": False, "invalid_reasons": [], "marks": [],
+        "run": {"list_entry": entry, "versions": versions(), "guards": guards(), "times": {}, "containers": {},
+                "collector_restarted": False, "restarts_in_window": [], "expected_restarts": [],
+                "suspended_s": None, "max_pkg_temp_c": None, "memory": {}, "anonymous_volumes_removed": {},
+                "duration_s": None, "snapshot_bytes": None, "overheat": False, "baseline_failed": False,
+                "coverage_short": False, "leakage_found": False},
+    }
+    run, times, checks = label["run"], label["run"]["times"], label["checks"]
+
+    def mark(key: str) -> int:
+        ns = utc_ns()
+        times[key] = iso(ns)
+        log(f"{iid} {key}")
+        return ns
+
+    def wait(seconds: float) -> None:
+        if monitor.hot.wait(max(0.0, seconds)):
+            raise Overheat(f"x86_pkg_temp above {HOT_C} °C for more than {HOT_S} s")
+
+    monitor = Monitor(work / "collector_mem.tsv")
+    flags_on: list[dict] = []
+    normal_ns = flag_on_ns = flag_off_ns = None
+    try:
+        log(f"{iid} {entry}; guards {run['guards']}")
+        if run["guards"]["problems"]:
+            raise Invalid("guards: " + "; ".join(run["guards"]["problems"]))
+        mark("start")
+        monitor.start()
+        if demo("up", log, raw=False) != 0:
+            raise Invalid("otel_demo.sh up failed")
+        up_ns = mark("demo_up")
+        if first:
+            time.sleep(10)
+            ism = ism_explain()
+            (night / "ism.json").write_text(json.dumps(ism, ensure_ascii=False, indent=1) + "\n")
+            log(f"ISM {ism.get('indices')} pass {ism.get('pass')}")
+        subprocess.run(["docker", "restart", "otel-collector"], capture_output=True)
+        run["collector_restarted"] = True
+        mark("collector_restarted")
+        end = time.monotonic() + WAIT_CONTAINERS_S[1]
+        n = container_count()
+        while n != CONTAINERS and time.monotonic() < end:
+            time.sleep(10)
+            n = container_count()
+        run["containers"]["after_collector_restart"] = n
+        if n != CONTAINERS:
+            raise Invalid(f"container count {n}, want {CONTAINERS}")
+        wait(WARMUP_S - (utc_ns() - up_ns) / 1e9)
+        run["scheduler"] = scheduler_state()
+        if run["scheduler"] != "stopped":
+            raise Invalid(f"flagd-ui scheduler {run['scheduler']}")
+        for f in [s] + ([noise] if noise else []):
+            before = resolve(f)
+            if not isinstance(before, dict) or before.get("variant") != "off":
+                raise Invalid(f"flag {f['flag']} not off before normal: {before}")
+        start_state = containers()
+        (work / "containers_start.txt").write_text(json.dumps(start_state, indent=1) + "\n")
+        normal_ns = mark("normal_start")
+        slept_before = sleep_offset_s()
+        wait(NORMAL_S)
+
+        # Taban sağlık: normal dönemin verisi (dosya), C2 analiziyle aynı ölçü; alarm = şimdi.
+        alarm = utc_ns()
+        recent = [f for f in sorted((TELEMETRY / "filtered").glob("*.jsonl"))
+                  if f.stat().st_mtime_ns >= normal_ns - 60 * 10**9]
+        rows_now = cm.service_rows(summarize(recent, Window(alarm))[0])
+        checks["baseline_health"] = {**ic.baseline_check(rows_now), "measured_at": iso(alarm)}
+        log(f"{iid} baseline {checks['baseline_health']}")
+        if not checks["baseline_health"]["pass"]:
+            run["baseline_failed"] = True
+            raise Invalid(f"baseline health: frontend p95 {checks['baseline_health']['frontend_p95_ms']} ms > "
+                          f"{checks['baseline_health']['threshold_ms']} ms")
+
+        run["containers"]["at_flag_on"] = container_count()
+        for f in [s] + ([noise] if noise else []):
+            flags_on.append(f)
+            written, verified, answer = set_flag(f, f["variant"])
+            times[f"flag_on_write_{f['flag']}"], times[f"flag_on_verified_{f['flag']}"] = iso(written), iso(verified)
+            log(f"{iid} flag on {f['flag']}={f['variant']}: verified {iso(verified)} {json.dumps(answer)}")
+            if verified is None:
+                raise Invalid(f"flag on {f['flag']} not verified")
+            if f is s:
+                flag_on_ns = written
+        label["answer"]["injection_start"] = iso(flag_on_ns)
+        wait(FLAG_S)
+        run["containers"]["at_flag_off"] = container_count()
+        for f in list(flags_on):
+            written, verified, answer = set_flag(f, "off")
+            flags_on.remove(f)
+            times[f"flag_off_write_{f['flag']}"], times[f"flag_off_verified_{f['flag']}"] = iso(written), iso(verified)
+            log(f"{iid} flag off {f['flag']}: verified {iso(verified)} {json.dumps(answer)}")
+            if f is s:
+                flag_off_ns = written
+            if verified is None:
+                raise Invalid(f"flag off {f['flag']} not verified")
+        label["answer"]["injection_end"] = iso(flag_off_ns)
+        run["suspended_s"] = round(sleep_offset_s() - slept_before, 1)
+
+        end_state = containers()
+        (work / "containers_end.txt").write_text(json.dumps(end_state, indent=1) + "\n")
+        expected = {s["root"]} if s["root"] else set()
+        run["restarts_in_window"], run["expected_restarts"] = split_restarts(start_state, end_state, expected)
+        reasons = []
+        if run["suspended_s"] > SUSPEND_MAX_S:
+            reasons.append(f"machine slept {run['suspended_s']} s between normal start and flag off")
+        if run["restarts_in_window"]:
+            reasons.append("unexpected restart/stop in window: "
+                           + ", ".join(e["container"] for e in run["restarts_in_window"]))
+        if reasons:
+            raise Invalid("; ".join(reasons))
+        label["valid"] = True
+    except Overheat as e:
+        run["overheat"] = True
+        label["invalid_reasons"].append(str(e))
+        log(f"{iid} INVALID: {e}")
+    except Invalid as e:
+        label["invalid_reasons"].append(str(e))
+        log(f"{iid} INVALID: {e}")
+    except Exception as e:  # beklenmeyen hata da kayda girer, demo kapatılır
+        label["invalid_reasons"].append(f"error: {type(e).__name__}: {e}")
+        log(f"{iid} ERROR: {type(e).__name__}: {e}")
+    finally:
+        for f in list(flags_on):
+            try:
+                written, verified, _ = set_flag(f, "off")
+                times[f"flag_off_write_{f['flag']}"] = iso(written)
+                log(f"{iid} flag off {f['flag']} after abort: verified {iso(verified)}")
+                if f is s:
+                    flag_off_ns = written
+            except Exception as e:
+                log(f"{iid} flag off {f['flag']} after abort failed: {e}")
+        if "start" in times:
+            run["memory"] = {c: cgroup_memory(c) for c in ("jaeger", "otel-collector")}
+            anon = anonymous_volumes()
+            if demo("down", log) == 0:
+                run["anonymous_volumes_removed"] = remove_volumes(anon)
+                log(f"{iid} anonymous volumes removed {run['anonymous_volumes_removed']}")
+            mark("demo_down")
+        monitor.stop_event.set()
+        if monitor.is_alive():
+            monitor.join(timeout=60)
+        run["max_pkg_temp_c"] = monitor.max_temp
+        run["memory"]["collector_sampled_peak_mib"] = monitor.peak_mem_mib
+        run["memory"]["jaeger_anon_peak_mib"] = monitor.jaeger_anon_peak_mib
+
+    if label["valid"]:
+        lo, hi = normal_ns - WINDOW_MARGIN_NS[0], flag_off_ns + WINDOW_MARGIN_NS[1]
+        label["window"] = {"start": iso(lo), "end": iso(hi)}
+        checks["coverage"] = cut_snapshot(lo, hi, work, snap, normal_ns)
+        mark("snapshot_cut")
+        short = [k for k, v in checks["coverage"].items() if not v["covered"]]
+        if short:
+            run["coverage_short"] = True
+            label["invalid_reasons"].append(f"window shortened by rotation: {short}")
+        try:
+            findings = scan_model_view(snap)
+            checks["leakage"] = {"findings": len(findings), "first": [str(f) for f in findings[:5]]}
+        except LeakageInputError as e:
+            checks["leakage"] = {"findings": None, "error": str(e)}
+        if checks["leakage"]["findings"] != 0:
+            run["leakage_found"] = True
+            label["invalid_reasons"].append(f"leakage: {checks['leakage']}")
+        w = Window(flag_on_ns)
+        paths = sorted(snap.glob("*.jsonl"))
+        rows = cm.service_rows(summarize(paths, w)[0])
+        ops = ic.operation_rows([snap / "traces.jsonl"], w)
+        if s["root"]:
+            checks["symptom"] = ic.symptom_check(rows, ops, s["root"])
+            checks["event"] = ic.event_check(checks["symptom"], rows)
+            if checks["event"]["applied"] and not checks["event"]["pass"]:
+                label["invalid_reasons"].append(f"no event: {checks['event']}")
+            if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
+                label["marks"].append(checks["symptom"]["verdict"])
+        checks["monitoring_health"] = ic.monitoring_health(snap / "metrics.jsonl", normal_ns, flag_off_ns)
+        run["snapshot_bytes"] = sum(f.stat().st_size for f in snap.iterdir())
+        label["valid"] = not label["invalid_reasons"]
+        if not label["valid"]:
+            shutil.move(snap, work / "model_view")  # geçersiz snapshot kökte kalmaz (sızıntılı olabilir)
+            log(f"{iid} INVALID after cut: {label['invalid_reasons']}; snapshot moved to {work / 'model_view'}")
+    run["duration_s"] = round(time.monotonic() - t0)
+    text = json.dumps(label, ensure_ascii=False, indent=1) + "\n"
+    (night / f"{iid}.json").write_text(text)
+    if label["valid"]:
+        INCIDENTS.mkdir(exist_ok=True)
+        (INCIDENTS / f"{iid}.json").write_text(text)
+    log(f"{iid} {entry['scenario']}: {'VALID' if label['valid'] else 'INVALID'} marks {label['marks']} "
+        f"symptom {checks.get('symptom', {}).get('verdict')} duration {run['duration_s']} s")
+    return label
+
+
+def cmd_incidents(list_path: Path) -> int:
+    if os.environ.get("SCENARIO_RUNNER_INHIBITED") != "1":
+        env = dict(os.environ, SCENARIO_RUNNER_INHIBITED="1")
+        cmd = [*GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
+               "--who=aiops_rca scenario_runner", "--why=incident runs", sys.executable, *sys.argv]
+        return subprocess.run(cmd, env=env).returncode
+    entries = json.loads(list_path.read_text(encoding="utf-8"))
+    unknown = [e for e in entries if e["scenario"] not in BY_ID or BY_ID[e["scenario"]]["root"] is None
+               or (e.get("noise_layer") and e["noise_layer"] not in BY_ID)]
+    if unknown:
+        print(f"error: unknown or non-incident entries {unknown}", file=sys.stderr)
+        return 2
+    night = INCIDENT_RUNS / f"{time.strftime('%Y%m%dT%H%MZ', time.gmtime())}-{list_path.stem}"
+    night.mkdir(parents=True)
+    log_file = (night / "runner.log").open("a")
+
+    def log(msg: str) -> None:
+        line = f"{iso(utc_ns())} {msg}"
+        print(line, flush=True)
+        log_file.write(line + "\n")
+        log_file.flush()
+
+    log(f"list {list_path} ({len(entries)} entries); versions {versions()}")
+    status, first = 0, True
+    for entry in entries:
+        g = guards()
+        if g["problems"]:
+            log(f"STOP before {entry}: guards: {'; '.join(g['problems'])}")
+            return 1
+        label = run_incident(entry, night, log, first)
+        first = False
+        if label["run"]["leakage_found"]:
+            log("STOP: leakage found (may be systematic); night stopped")
+            return 1
+        # Taban sağlık, ısınma ya da döndürme: bir kez daha (kart; C2 kuralı).
+        if label["run"]["baseline_failed"] or label["run"]["overheat"] or label["run"]["coverage_short"]:
+            if label["run"]["overheat"]:
+                log("overheat: waiting to cool, then one more attempt")
+                wait_cool()
+            g = guards()
+            if g["problems"]:
+                log(f"STOP before retry of {entry}: guards: {'; '.join(g['problems'])}")
+                return 1
+            label = run_incident(entry, night, log, False)
+            if label["run"]["leakage_found"]:
+                log("STOP: leakage found (may be systematic); night stopped")
+                return 1
+        if not label["valid"]:
+            status = 1
+    log("list done")
+    log_file.close()
+    return status
+
+
 def main(argv: list[str]) -> int:
-    if not argv or argv[0] not in ("list", "guards", "run") or (argv[0] == "run" and len(argv) < 2):
+    if not argv or argv[0] not in ("list", "guards", "run", "incidents") \
+            or (argv[0] == "run" and len(argv) < 2) or (argv[0] == "incidents" and len(argv) != 2):
         print(__doc__, file=sys.stderr)
         return 2
+    if argv[0] == "incidents":
+        return cmd_incidents(Path(argv[1]))
     if argv[0] == "list":
         for sid, s in BY_ID.items():
             print(f"{sid}\t{s['kind']}\troot={s['root']}")

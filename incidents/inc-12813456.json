@@ -1,0 +1,238 @@
+{
+ "incident_id": "inc-12813456",
+ "set": "pilot",
+ "answer": {
+  "scenario": "adFailure",
+  "variant": "on",
+  "noise_layer": null,
+  "injection_start": "2026-10-25T19:29:02Z",
+  "injection_end": "2026-10-25T19:39:03Z",
+  "root_cause_service": "ad",
+  "fault_type": "error",
+  "propagation_path": [
+   [
+    "ad",
+    "frontend"
+   ]
+  ],
+  "categories": []
+ },
+ "window": {
+  "start": "2026-10-25T19:16:59Z",
+  "end": "2026-10-25T19:40:03Z"
+ },
+ "checks": {
+  "baseline_health": {
+   "frontend_p95_ms": 27.0,
+   "reference_ms": 25.3,
+   "threshold_ms": 50.6,
+   "pass": true,
+   "measured_at": "2026-10-25T19:28:59Z"
+  },
+  "coverage": {
+   "traces": {
+    "bytes": 148810590,
+    "mb_per_min": 6.45,
+    "oldest_utc": "2026-10-25T02:23:30Z",
+    "covered": true
+   },
+   "metrics": {
+    "bytes": 41077797,
+    "mb_per_min": 1.78,
+    "oldest_utc": "2026-10-24T04:15:23Z",
+    "covered": true
+   },
+   "logs": {
+    "bytes": 48370782,
+    "mb_per_min": 2.1,
+    "oldest_utc": "2026-10-24T08:46:24Z",
+    "covered": true
+   }
+  },
+  "leakage": {
+   "findings": 0,
+   "first": []
+  },
+  "symptom": {
+   "service": "ad",
+   "min_requests": 10,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "service",
+    "signal": "new_warn_log",
+    "strength": 5.0
+   },
+   "service_level": {
+    "level": "service",
+    "signal": "new_warn_log",
+    "strength": 5.0
+   },
+   "operation_level": {
+    "level": "operation",
+    "operation": "oteldemo.AdService/GetAds",
+    "signal": "error_rate",
+    "strength": 2.304,
+    "requests": [
+     186,
+     217
+    ],
+    "values": [
+     0.0,
+     0.1152
+    ]
+   }
+  },
+  "event": {
+   "applied": true,
+   "pass": true,
+   "requests_after": 217,
+   "basis": "service total",
+   "min_requests": 10
+  },
+  "monitoring_health": {
+   "opensearch": {
+    "sent_series": 1,
+    "sent": 35683.0,
+    "send_failed": 0.0,
+    "enqueue_failed": 0.0
+   },
+   "exporters": {
+    "file/traces": {
+     "sent": 119844.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/metrics": {
+     "sent": 97966.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/logs": {
+     "sent": 35682.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "debug": {
+     "sent_series": 3,
+     "sent": 253492.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "jaeger_storage_exporter": {
+     "sent_series": 1,
+     "sent": 120557.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "opensearch": {
+     "sent_series": 1,
+     "sent": 35683.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_grpc/jaeger": {
+     "sent_series": 1,
+     "sent": 119869.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_http/prometheus": {
+     "sent_series": 1,
+     "sent": 97966.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    }
+   },
+   "receiver_refused": 0.0
+  }
+ },
+ "valid": true,
+ "invalid_reasons": [],
+ "marks": [],
+ "run": {
+  "list_entry": {
+   "scenario": "adFailure_on",
+   "noise_layer": null
+  },
+  "versions": {
+   "repo_commit": "c6c88d84aa833b1c9088fc76a16270043676951c",
+   "demo_commit": "dedc0178918e260823323b8d95005a8cb924b007",
+   "demo_env": {
+    "IMAGE_VERSION": "3.0.0",
+    "DEMO_VERSION": "latest",
+    "COLLECTOR_CONTRIB_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0",
+    "COLLECTOR_EBPF_PROFILER_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-ebpf-profiler:0.159.0",
+    "FIREPIT_IMAGE": "ghcr.io/florianl/firepit:v0.1.0",
+    "FLAGD_IMAGE": "ghcr.io/open-feature/flagd:v0.16.0",
+    "GRAFANA_IMAGE": "grafana/grafana:13.1.0",
+    "JAEGERTRACING_IMAGE": "quay.io/jaegertracing/jaeger:2.19.0",
+    "POSTGRES_IMAGE": "postgres:18.4",
+    "PROMETHEUS_IMAGE": "quay.io/prometheus/prometheus:v3.13.1",
+    "VALKEY_IMAGE": "ghcr.io/valkey-io/valkey:9.0.4-alpine3.23"
+   }
+  },
+  "guards": {
+   "ac_online": "1",
+   "charge_limit": "80",
+   "battery_pct": "80",
+   "pkg_temp_c": 49.0,
+   "free_disk_gb": 291.3,
+   "monitoring_gb": 1.81,
+   "snapshot_gb": 0.24,
+   "power_profile": "balanced",
+   "inhibited": true,
+   "gnome_inhibited": true,
+   "problems": []
+  },
+  "times": {
+   "start": "2026-10-25T19:13:29Z",
+   "demo_up": "2026-10-25T19:13:59Z",
+   "collector_restarted": "2026-10-25T19:14:13Z",
+   "normal_start": "2026-10-25T19:18:59Z",
+   "flag_on_write_adFailure": "2026-10-25T19:29:02Z",
+   "flag_on_verified_adFailure": "2026-10-25T19:29:03Z",
+   "flag_off_write_adFailure": "2026-10-25T19:39:03Z",
+   "flag_off_verified_adFailure": "2026-10-25T19:39:04Z",
+   "demo_down": "2026-10-25T19:39:37Z",
+   "snapshot_cut": "2026-10-25T19:39:48Z"
+  },
+  "containers": {
+   "after_collector_restart": 22,
+   "at_flag_on": 22,
+   "at_flag_off": 22
+  },
+  "collector_restarted": true,
+  "restarts_in_window": [],
+  "expected_restarts": [],
+  "suspended_s": -0.0,
+  "max_pkg_temp_c": 69.0,
+  "memory": {
+   "jaeger": {
+    "peak_mib": 2000.0,
+    "anon_mib": 263.9,
+    "max": 14751,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "otel-collector": {
+    "peak_mib": 332.5,
+    "anon_mib": 96.5,
+    "max": 0,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "collector_sampled_peak_mib": 118.6,
+   "jaeger_anon_peak_mib": 1735.4
+  },
+  "anonymous_volumes_removed": {
+   "d4a8ce95db6e0483ef1693dc2aa7ba45e23f928e65cff51b0cac462f0094e4e5": 0
+  },
+  "duration_s": 1643,
+  "snapshot_bytes": 238259234,
+  "overheat": false,
+  "baseline_failed": false,
+  "coverage_short": false,
+  "leakage_found": false,
+  "scheduler": "stopped"
+ }
+}

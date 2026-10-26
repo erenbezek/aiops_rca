@@ -1,0 +1,15 @@
+[
+ {"scenario": "adFailure_on", "noise_layer": null},
+ {"scenario": "adHighCpu_on", "noise_layer": null},
+ {"scenario": "adManualGc_on", "noise_layer": null},
+ {"scenario": "cartFailure_50pct", "noise_layer": null},
+ {"scenario": "emailMemoryLeak_1000x", "noise_layer": null},
+ {"scenario": "paymentFailure_50pct", "noise_layer": null},
+ {"scenario": "paymentUnreachable_on", "noise_layer": null},
+ {"scenario": "productCatalogFailure_on", "noise_layer": null},
+ {"scenario": "productCatalogLockContention_on", "noise_layer": null},
+ {"scenario": "recommendationCacheFailure_on", "noise_layer": null},
+ {"scenario": "intlShippingSlowdown_10sec", "noise_layer": null},
+ {"scenario": "paymentFailure_50pct", "noise_layer": "loadGeneratorFloodHomepage_on"},
+ {"scenario": "productCatalogLockContention_on", "noise_layer": "loadGeneratorFloodHomepage_on"}
+]

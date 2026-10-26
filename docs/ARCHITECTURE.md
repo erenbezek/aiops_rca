@@ -17,10 +17,12 @@ flowchart LR
     raw[("OTLP dosyası (süzülmüş)<br/>~/cerebrum2/telemetry/filtered/")]
     rawu[("süzülmemiş kopya<br/>telemetry/raw/ (sadece --raw)")]
     mon[("Kalıcı izleme sistemi<br/>Prometheus, Jaeger, OpenSearch<br/>isimli volume, 7 gün, ≤ 40 GB")]
-    cut["Snapshot kesici<br/>(dosyadan, zaman aralığına göre)"]
-    snap[("snapshot'lar<br/>snapshots/ — git dışı")]
+    cut["Snapshot kesici<br/>scenario_runner.py incidents<br/>(dosyadan, vaka penceresi)"]
+    snap[("snapshot'lar<br/>~/cerebrum2/snapshots/inc-…/<br/>— git dışı, ≤ 20 GB")]
+    labels[("etiketler<br/>incidents/inc-….json — repoda")]
+    ichk["tools/incident_checks.py<br/>(belirti, olay, taban sağlık)"]
     fix[("CI alt kümesi<br/>tests/fixtures/snapshots/")]
-    view["model_view<br/>(etiketler hariç)"]
+    view["model_view<br/>(= snapshot klasörü: süzülmüş<br/>pencere + window.json; etiketler hariç)"]
     leak["Sızıntı testi<br/>src/aiops_rca/leakage.py"]
     ci["CI (GitHub Actions)<br/>.github/workflows/ci.yml"]
 
@@ -40,6 +42,8 @@ flowchart LR
     col -.->|positive_control| rawu
     col --> mon
     raw --> cut --> snap
+    snap --> ichk --> labels
+    cut --> labels
     snap -.-> fix
     snap --> view
     view -->|"0 bulgu şartı"| leak
@@ -61,6 +65,7 @@ flowchart LR
     demo_sh["tools/otel_demo.sh<br/>fetch / up / down / config"] -->|"repo dışı klon 3.1.0,<br/>minimal mod"| otel
     extras["deploy/otel-demo/compose.extras.yaml<br/>(log 5 MB × 2, 3 port 127.0.0.1)"] -->|son compose katmanı| otel
     runner["tools/scenario_runner.py<br/>(10 dk normal + 10 dk flag, korumalar)"] -->|"flag aç/kapat (flagd-ui API)"| otel
+    runner -->|"incidents (V1): kesim"| cut
     runner -->|"pencere kopyası (raw + filtered)"| c2runs[("~/cerebrum2/c2_runs/<br/>repo dışı, cevap içerir")]
     c2runs --> meas["tools/c2_measure.py<br/>(sızıntı, belirti, collector)"]
     meas -->|positive_control| leak
@@ -71,12 +76,13 @@ flowchart LR
     rmon -->|canlı araçlar| agent
 
     classDef yok stroke-dasharray: 5 5
-    class own,inj,cut,snap,fix,view,base,nar,llm,agent,cache,evr,ev,tab yok
+    class own,inj,fix,base,nar,llm,agent,cache,evr,ev,tab yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
 - OTel Demo çalışıyor (minimal mod, 2026-10-18). Collector süzüyor ve dosyaya yazıyor (C1, 2026-10-20); 15 gerçek senaryoyla doğrulandı (C2, 2026-10-24). İzleme sistemi kalıcı (depolama kartı, 2026-10-25): isimli volume'ler (`down` silmez), Jaeger diske (badger), saklama 7 gün (Prometheus ayrıca 2GB, OpenSearch ISM), volume toplamı ≤ 40 GB koşucu korumasında; canlı = dosya doğrulandı (D2).
 - Yeniden oynatma (depolama D3, 2026-10-25) iki C2 penceresinde sınandı: izler, loglar ve metrikler canlı demodan ayrı, boş bir izleme sistemine kayıpsız gitti; Prometheus eski zamanlı örnekleri kabul ediyor ve diske yazdıktan sonra da sorgulanabiliyor. Proje 2'de `mon` vakaları tutmaz (~7 gün); ajanın canlı araçları vakaların snapshot'larından bu yolla doldurulan sisteme bakar (DECISIONS 2026-10-25).
+- Vaka üretimi V1 (2026-10-25/26): `scenario_runner.py incidents` bir listedeki vakaları uçtan uca üretir (enjekte et → kaydet → temizle → snapshot + etiket → kontroller). Pilot gece 13/13 geçerli, sızıntı 0, ~27,4 dk/vaka. `inj` hâlâ kesik çizgili: flag dışı enjeksiyonlar V2'de.
 - Sızıntı testi gerçek veride sınandı (C2 `positive_control`: her senaryoda raw'da bulgu, filtered temiz). Senaryo koşucusu (`scenario_runner.py`) vaka üretiminin temeli; `inj` kesik çizgili, çünkü flag dışı enjeksiyonlar (tc netem, CPU/bellek, kill) yok.
 
 ## Dosyalar
@@ -111,7 +117,7 @@ flowchart LR
 | `tools/local_model_bench.sh` | Lokal model hız ölçümü: `matrix` (model × iş parçacığı tablosu, turlar halinde), `sustained` (30 dk bütçe döngüsü); llama.cpp sabit imajda, 10 sn izleme, priz kopmasında bekle-tekrarla, `--resume`; ham çıktılar `~/cerebrum2/bench_runs/` |
 | `tools/bench_summary.py` | `local_model_bench.sh` koşularından özet: geçerli hücreleri birleştirir, soğuk/ısınmış bütçe, GEÇER/KALIR |
 | `docs/LOCAL_MODEL_BENCH.md` | Lokal model hız ölçümünün kurulumu, yöntemi ve sonuç tablosu |
-| `tools/scenario_runner.py` | Senaryo koşucusu: korumalar (priz, şarj 80, sıcaklık, disk, izleme volume'leri ≤ 40 GB, güç profili, GNOME + systemd uyku engeli), demo `up --raw`, 10 dk normal + 10 dk flag, uyku ve yeniden başlama kontrolü, pencere kopyası `~/cerebrum2/c2_runs/` |
+| `tools/scenario_runner.py` | Senaryo koşucusu: korumalar (priz, şarj 80, sıcaklık, disk, izleme volume'leri ≤ 40 GB, snapshot'lar ≤ 20 GB, güç profili, GNOME + systemd uyku engeli); `run` (C2: `up --raw`, 10 dk normal + 10 dk flag, pencere kopyası `~/cerebrum2/c2_runs/`); `incidents` (V1 vaka üretimi: collector yeniden başlatma, ısınma, taban sağlık, enjeksiyon, anonim volume silme, snapshot kesimi `~/cerebrum2/snapshots/`, kontroller, etiket `incidents/`) |
 | `tools/c2_measure.py` | C2 ölçümü: koşu klasöründen sızıntı (`positive_control`), belirti gücü (raw/filtered), yeniden yazımlar, basit kural, collector sayaçları; `measure.json`, `samples/` |
 | `tools/test_collector_rules.sh` | Collector kural testi: geçici collector'a ayarımız + fixture kayıtları; kapsam, tam ayarda çıktı temiz, kural başına `delete`/`alone` (kasıtlı kırmızı). Docker ister, CI'da koşmaz |
 | `tests/fixtures/collector_rules/` | Kural testi girdisi: C2 raw verisinden tek kayıtlık örnekler ve temiz kontroller (`traces/metrics/logs.jsonl`), kural listesi `rules.tsv` |
@@ -121,3 +127,8 @@ flowchart LR
 | `deploy/replay/compose.yaml` | Yeniden oynatma yığını (`otel-replay`): Jaeger, Prometheus, OpenSearch upstream tanımından `extends` ile (portlar 127.0.0.1, ayrı volume'ler), tek alıcısı dosya olan collector (`REPLAY_WINDOW`, sayaçlar 127.0.0.1:18888) |
 | `deploy/replay/otelcol-replay.yml` | Yeniden oynatma collector'ı: `otlpjsonfile` alıcıları, `transform/backend_compat` ve upstream exporter kopyaları; izinli farklar `block_on_overflow` ve Jaeger paketi 2048 span |
 | `tests/test_replay_config.py` | `otelcol-replay.yml`'daki kopyalar kaynaklarıyla aynı mı (`REPLAY_ONLY` dışında), alıcılar yalnız dosya mı; upstream klonu yoksa (CI) exporter testi atlanır |
+| `tools/incident_checks.py` | Vaka kontrolleri (C2 ölçüsüyle aynı): işlem düzeyi belirti, olay, taban sağlık, izleme sağlığı |
+| `tests/test_catalog.py` | Koşucunun doğru cevap alanları (`SCENARIOS`) INCIDENT_CATALOG tablosuyla aynı mı |
+| `tests/test_incident_checks.py` | `incident_checks.py` kurallarının sınırları (sahte OTLP girdileriyle) ve V1a eşik değerleri |
+| `incident_lists/pilot.json` | Pilot gece listesi: 11 katalog senaryosu (kalibre varyant) + flood'lu 2 vaka |
+| `incidents/` | Geçerli vakaların etiketleri ve koşu kayıtları (`<incident_id>.json`) |

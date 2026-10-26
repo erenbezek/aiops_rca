@@ -43,7 +43,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 | OTel instrumentation | Kendi Python servisim | [ ] |
 | Docker Compose, kaynak limitleri | OTel Demo yığını | [ ] |
 | Telemetri hattı (collector) | Sızıntı süzmesi, dosyaya ve izleme sistemine çift çıkış | [ ] |
-| Kalıcı depolama, saklama süresi | Jaeger diske, Prometheus/OpenSearch saklama | [ ] |
+| Kalıcı depolama, saklama süresi | Jaeger diske, Prometheus/OpenSearch saklama | [ ] kısmen: isimli volume, Jaeger diske, 7 gün + boyut sınırları, canlı = dosya doğrulandı; saklamanın silmesi henüz gözlenmedi |
 | PromQL, Jaeger ve log sorguları | Snapshot kaydedici, ajan araçları | [ ] |
 | Linux ağ/kaynak hataları (tc netem, CPU/bellek, kill) | Hata enjeksiyonu | [ ] |
 | Otomasyon betikleri | Gece boyu vaka üretim hattı | [ ] |
@@ -78,4 +78,5 @@ Takma ad ön denemesi yapıldı (`task/alias-trial`, 6 özet, kaba sinyal, rapor
 Collector C2 yapıldı (PR #16, main `9cf8e6e`): senaryo koşucusu ve ölçüm, 15 senaryo (gece + gözetimli + recommendation yeniden koşusu). Süzme 15/15'te sızıntıyı temizledi, aşırı süzme yok (raw = filtered belirtiler), collector kayıpsız. Belirtili 10 senaryo koşusu, basit kural top-1 8, top-3 10/10. Kural testi betiği geçiyor (53 kural: delete 18, alone 18, örneksiz 17). `telemetry/raw/` boş; `c2_runs/` raw kopyaları planlama doğrulamasından sonra silinecek.
 C2 doğrulandı (planlama, 2026-10-24): kalibrasyon kararlaştı (payment %50, email 1000x, cartFailure %50 zincirleme, intlShipping 10sec; INCIDENT_CATALOG, DECISIONS); belirti kontrolü vaka üretiminden itibaren işlem (span adı) düzeyinde de. `c2_runs/` süzülmemiş kopyaları ve `samples/` silindi, `productCatalogFailure_on_2` geçersiz işaretlendi.
 Depolama kartı yapıldı (`task/depolama`, 2026-10-25): izleme sistemi kalıcı (isimli volume, Jaeger diske, 7 gün, Prometheus 2GB, OpenSearch ISM, volume toplamı ≤ 40 GB koruması), OpenSearch log kaybı düzeldi (`transform/backend_compat`), canlı = dosya doğrulandı; döndürme kalıcı 300 MB × 2 yedek. Yeniden oynatma (D3) iki C2 penceresinde geçti: Prometheus eski zamanı kabul ediyor, Proje 2'nin canlı tarafı snapshot'lardan doldurulabilir. Disk bütçesi HANDOFF'ta.
-Sıradaki: vaka üretimi (gece koşucusu, ısınma, taban sağlık kontrolü, zincirleme vakalara ağırlık).
+Vaka üretimi V1 yapıldı (`task/vaka-hatti`, 2026-10-26): `scenario_runner.py incidents` (collector yeniden başlatma, taban sağlık, enjeksiyon, anonim volume silme, snapshot kesimi, kontroller, etiket); snapshot = `model_view` (`~/cerebrum2/snapshots/inc-…/`), etiketler `incidents/`; eşikler C2'den (M = 10, taban 25,3 ms). Pilot gece 13/13 geçerli, sızıntı 0, hepsi belirtili, ~27,4 dk/vaka (40 vaka ≈ 18 saat). Açık risk: Jaeger belleği sınırın %84–91'i.
+Sıradaki: V2 altyapı hataları (kill, CPU, bellek, ağ), sonra kendi Python servisi, sonra V3 resmî set.
