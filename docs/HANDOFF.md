@@ -1602,3 +1602,47 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - **Dikkat (V3):**
   - Bu tanımla `cascading` bu sette ayırt edici değil.
   - Flag tablosunun kategorileri aynı tanımlarla V3 bileşim kartında gözden geçirilecek.
+
+## 2026-10-28 · Planlama → Uygulama (kendi Python servisi: quote-gateway)
+- Dal `task/quote-gateway` (main `9db7065`'ten). Kararlar DECISIONS 2026-10-28 (`quote-gateway`, yanıltıcı gürültü).
+- **Amaç:** modellerin bilmediği bir servis demonun HTTP zincirine girer; V3'ün bütün vakaları onunla kaydedilir. Servisin üç hatası kalibre edilir, quote'un V2 çiftleri yeni topolojide yeniden doğrulanır, Jaeger `GOMEMLIMIT` uzun süre sınanır.
+- Onaylı adlar: `quote-gateway`, `services/quote-gateway/`, `aiops-quote-gateway:1`, `task/quote-gateway`. Flag adları, liste dosyası ve yeni kod adları uygulamanın önerisi, Eren onayından sonra GLOSSARY.
+
+### a. Servis
+- `services/quote-gateway/`: uygulama kodu, sabit sürümlü bağımlılık listesi, Dockerfile (Python 3.12). İmaj yerelde `aiops-quote-gateway:1`.
+- İşi: quote'un fiyat isteğini (shipping'in kullandığı yol ve gövde; koddan doğrula) aynı arayüzle alır; küçük bir kural ve sınırlı bir önbellekle quote'a iletir; cevabı aynı biçimde döner. shipping'in davranışı ve cevabın biçimi değişmez.
+- OTel: `opentelemetry-instrument` ile; Flask ve requests enstrümantasyonu; loglar OTel'e (demodaki Python servisi gibi). `service.name` = `quote-gateway`.
+- Hata açma: OpenFeature + flagd sağlayıcısı, demodaki sürümler; flag'ler istek başına okunur.
+- Adlarda, loglarda ve span özniteliklerinde hataya ya da flag'e ipucu yok (sızıntı kuralı). Yanlış yapılandırmadaki hedef adresin span'de görünmesi belirtidir (paymentUnreachable'daki `badAddress` gibi).
+- Bellek sınırı: normal çalışmada ölçülür (açılış tepesi ve 20 dk sonraki kullanım), sızıntı flag'i kapalıyken rahat pay bırakacak biçimde seçilir; değer ve gerekçe HANDOFF'a.
+
+### b. Demoya bağlama
+- Bizim katmanda (`deploy/otel-demo/compose.extras.yaml`): servis eklenir (`restart: unless-stopped`, bellek sınırı); shipping'in `QUOTE_ADDR`'ı `quote-gateway`'e yönlenir. Upstream'e dokunulmaz.
+- Üç flag flag dosyasına eklenir (varsayılan kapalı):
+  - yanlış yapılandırma: tek değer;
+  - gecikme: iki aday (ms; quote'un normal p95'ine göre biri hafif, biri güçlü, ölçüp öner);
+  - bellek sızıntısı: iki büyüme hızı (biri enjeksiyon döneminde OOM'a varmayacak, biri varacak hızda; ölçüp öner).
+- INCIDENT_CATALOG flag tablosuna üç satır (kök neden quote-gateway; yayılım yolu ve kategoriler kalibrasyondan sonra, 2026-10-28 tanımlarıyla) ve `SCENARIOS` girişleri; `test_catalog.py` kapsamı.
+
+### c. Sızıntı ve canlı kontrol
+- Kasıtlı pozitif kontrol: flag açıkken ham kopyada flag izi bulunur, süzülmüş kopyada bulunmaz; sızıntı testi süzülmüş kopyada 0.
+- Canlı kontrol: normal dönemde shipping → quote-gateway → quote aynı izde (tek trace id); her flag kısa açılıp kapanır ve beklenen etki görülür; taban sağlık eşiğin altında (referans 25,3 ms, eşik 50,6). Taban sağlık eşiği geçerse dur ve sor.
+- pytest yeşil; kasıtlı kırmızılar.
+
+### d. Kalibrasyon koşusu (~3,5 saat, 7 vaka)
+- Liste:
+  - yanlış yapılandırma (1), gecikme (2 aday), sızıntı (2 aday);
+  - yeni topolojide quote: networkDelay 50 ms, containerPause.
+- Liste ve hazırlık (şarj sınırı 80, priz, `aiops-netem:1` ve `aiops-quote-gateway:1` mevcut, pytest) Eren'e sunulur; Eren onaylar ve `systemd-run --user` ile başlatır (gündüz olabilir).
+- Ölçütler:
+  - Seçim: her hatada belirtili çıkan en hafif aday. Olay kuralı değişmez (hedefin kendi isteği ≥ M). Sızıntıda hedefin yeniden başlamaları `expected_restarts`'a.
+  - quote çiftleri yeni topolojide belirtili kalmalı; çağıran artık quote-gateway. Kalmazsa rapora, karar planlamanın.
+  - Jaeger (DECISIONS 2026-10-28), her vakada: swap tepesi < 500 MiB, OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0. Geçmezse rapora, karar V3'ten önce planlamada.
+  - Geçerlilik, sızıntı 0, temizlik doğrulaması her vakada.
+- Kayda: taban sağlık (V2c'de 31,6 ms), Go yığını tepesi, Jaeger CPU, en düşük boş swap.
+
+### e. Rapor ver ve dur
+- Raporda: seçimler, quote çiftlerinin sonucu, Jaeger vaka vaka, taban sağlık, bellek sınırı, pytest.
+- Katalog yolları ve kategoriler kalibrasyondan sonra yazılır.
+- PR planlama kontrolünden sonra.
+- Kapsam dışı: imajın GHCR'a konması ve CI'da kurulması (ayrı küçük kart), V3, flag tablosunun kategori gözden geçirmesi.
