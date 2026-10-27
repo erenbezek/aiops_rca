@@ -1,7 +1,8 @@
 """Altyapı hataları (vaka üretimi V2) için Docker gerektirmeyen testler.
 
 Mekanizmanın kendisi (docker update/stop/pause, tc netem) Docker ister; V2a'da geçici konteynerde ve kuru denemede
-sınandı (HANDOFF). Burada: dondurmanın yeniden başlama kaydında görünmesi, parametre biçimleri, katalog uyumu.
+sınandı (HANDOFF). Burada: dondurmanın yeniden başlama kaydında görünmesi, parametre biçimleri (katalog uyumu
+tests/test_catalog.py'de).
 """
 import re
 import sys
@@ -12,9 +13,6 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 import scenario_runner as sr  # noqa: E402
-
-CATALOG = REPO / "docs" / "INCIDENT_CATALOG.md"
-
 
 def state(**kw) -> dict:
     base = {"restarts": 0, "oom": False, "running": True, "started": "t0", "paused": False}
@@ -49,19 +47,6 @@ def test_param_formats(fault, param, ok):
 def test_every_fault_has_param_rule_and_type():
     assert set(sr.PARAM_RE) == set(sr.INFRA_FAULTS)
     assert set(sr.NETEM_WORD) <= set(sr.INFRA_FAULTS)
-
-
-def test_fault_types_match_catalog():
-    # INCIDENT_CATALOG "Kendi altyapı hatalarımız": yöntem sütunundaki komut → hata tipi.
-    text = CATALOG.read_text(encoding="utf-8")
-    expect = {"containerStop": ("docker stop", "unavailable"), "containerPause": ("docker pause", "unavailable"),
-              "cpuThrottle": ("docker update --cpus", "resource"),
-              "memoryLimit": ("docker update --memory", "resource"),
-              "networkDelay": ("tc netem delay", "latency"), "packetLoss": ("tc netem loss", "error")}
-    for fault, (command, ftype) in expect.items():
-        row = next(line for line in text.splitlines() if f"`{command}" in line)
-        assert f"| {ftype} |" in row, row
-        assert sr.INFRA_FAULTS[fault]["fault_type"] == ftype
 
 
 def test_schedule_ranges_v2_decision():

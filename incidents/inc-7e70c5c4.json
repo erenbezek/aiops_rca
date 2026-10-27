@@ -9,8 +9,15 @@
   "injection_end": "2026-10-26T22:59:19Z",
   "root_cause_service": "recommendation",
   "fault_type": "resource",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "recommendation",
+    "frontend"
+   ]
+  ],
+  "categories": [
+   "cascading"
+  ]
  },
  "window": {
   "start": "2026-10-26T22:34:02Z",

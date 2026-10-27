@@ -9,8 +9,15 @@
   "injection_end": "2026-10-27T01:03:15Z",
   "root_cause_service": "recommendation",
   "fault_type": "unavailable",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "recommendation",
+    "frontend"
+   ]
+  ],
+  "categories": [
+   "cascading"
+  ]
  },
  "window": {
   "start": "2026-10-27T00:38:48Z",

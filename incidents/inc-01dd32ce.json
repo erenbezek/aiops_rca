@@ -9,8 +9,20 @@
   "injection_end": "2026-10-26T18:18:23Z",
   "root_cause_service": "cart",
   "fault_type": "latency",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "cart",
+    "frontend"
+   ],
+   [
+    "cart",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "silent"
+  ]
  },
  "window": {
   "start": "2026-10-26T17:53:34Z",
@@ -48,7 +60,7 @@
    "findings": 0,
    "first": []
   },
-  "symptom": {
+  "symptom_target": {
    "service": "cart",
    "min_requests": 10,
    "verdict": "symptomatic",
@@ -85,6 +97,60 @@
      612.0
     ]
    }
+  },
+  "symptom_callers": {
+   "service": "cart",
+   "min_requests": 10,
+   "callers_measured": 4,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "checkout",
+    "operation": "oteldemo.CartService/EmptyCart",
+    "signal": "p95_ms",
+    "strength": 40.49,
+    "requests": [
+     24,
+     15
+    ],
+    "values": [
+     3.0,
+     812.8
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.21"
+   ],
+   "matched_rpc_services": []
+  },
+  "symptom": {
+   "service": "cart",
+   "min_requests": 10,
+   "callers_measured": 4,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "checkout",
+    "operation": "oteldemo.CartService/EmptyCart",
+    "signal": "p95_ms",
+    "strength": 40.49,
+    "requests": [
+     24,
+     15
+    ],
+    "values": [
+     3.0,
+     812.8
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.21"
+   ],
+   "matched_rpc_services": []
   },
   "event": {
    "applied": true,

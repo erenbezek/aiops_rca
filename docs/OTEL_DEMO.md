@@ -149,7 +149,7 @@ tools/otel_demo.sh down     # durdurur, volume silmez; klon kirli olsa da çalı
 - Kalıcılık (ilk kurulumda, 2026-10-18): Prometheus verisi imajın isimsiz volume'ünde; OpenSearch verisi her `up`'ta siliniyordu (volume yok); Jaeger bellekte.
 - Kalıcılık (depolama kartı, 2026-10-25; `compose.extras.yaml`, DECISIONS):
   - İsimli volume'ler `otel-demo_prometheus-data`, `otel-demo_jaeger-data`, `otel-demo_opensearch-data`; `down` silmez. `down -v` isimli volume'leri de siler, kullanılmaz.
-  - Jaeger diske (badger, `jaeger-config-extras.yml`; volume imajda 10001'in yazabildiği tek klasör `/tmp`'de), 7 gün; bellek sınırı 2000M (upstream 1200M; badger bakımında anon tepe 1248 MiB).
+  - Jaeger diske (badger, `jaeger-config-extras.yml`; volume imajda 10001'in yazabildiği tek klasör `/tmp`'de), 7 gün; bellek sınırı 2500M (upstream 1200M; depolama D2'de 2000M, V2'de 2500M) ve `GOMEMLIMIT=2000MiB` (V2c; DECISIONS 2026-10-26, 2026-10-27, 2026-10-28).
   - Prometheus 7 gün ya da 2GB, hangisi önce dolarsa (Prometheus GB'yi ikili okur: 2GiB, 2,15 GB). Süre saklaması en yeni bloğun zamanından sayılır, duvar saatinden değil.
   - OpenSearch: ISM kuralı `otel-logs-retention`, 7 günden eski `otel-logs-*` indeksini siler (`otel_demo.sh up` yükler). Yaş indeksin oluşturulma zamanından sayılır.
   - Koruma: üç volume'ün toplamı > 40 GB ise koşucu başlamaz (`MAX_MONITORING_GB`).

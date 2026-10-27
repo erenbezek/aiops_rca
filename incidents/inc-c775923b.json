@@ -9,8 +9,20 @@
   "injection_end": "2026-10-26T20:23:42Z",
   "root_cause_service": "shipping",
   "fault_type": "error",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "shipping",
+    "frontend"
+   ],
+   [
+    "shipping",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "silent"
+  ]
  },
  "window": {
   "start": "2026-10-26T19:59:03Z",
@@ -48,7 +60,7 @@
    "findings": 0,
    "first": []
   },
-  "symptom": {
+  "symptom_target": {
    "service": "shipping",
    "min_requests": 10,
    "verdict": "symptomatic",
@@ -76,6 +88,60 @@
      3312.0
     ]
    }
+  },
+  "symptom_callers": {
+   "service": "shipping",
+   "min_requests": 10,
+   "callers_measured": 2,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "frontend",
+    "operation": "POST",
+    "signal": "p99_ms",
+    "strength": 259.295,
+    "requests": [
+     69,
+     77
+    ],
+    "values": [
+     21.0,
+     5206.9
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.14"
+   ],
+   "matched_rpc_services": []
+  },
+  "symptom": {
+   "service": "shipping",
+   "min_requests": 10,
+   "callers_measured": 2,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "frontend",
+    "operation": "POST",
+    "signal": "p99_ms",
+    "strength": 259.295,
+    "requests": [
+     69,
+     77
+    ],
+    "values": [
+     21.0,
+     5206.9
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.14"
+   ],
+   "matched_rpc_services": []
   },
   "event": {
    "applied": true,

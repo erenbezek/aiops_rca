@@ -13,7 +13,7 @@ flowchart LR
         col["OTel collector<br/>(sızıntı süzmesi: filter/sim_world,<br/>transform/scrub)"]
     end
 
-    inj["Hata enjeksiyonu<br/>(flagd API, tc netem, CPU/bellek, kill)"]
+    inj["Hata enjeksiyonu<br/>(flagd API; altyapı: tc netem (aiops-netem),<br/>docker update --cpus, stop, pause)"]
     raw[("OTLP dosyası (süzülmüş)<br/>~/cerebrum2/telemetry/filtered/")]
     rawu[("süzülmemiş kopya<br/>telemetry/raw/ (sadece --raw)")]
     mon[("Kalıcı izleme sistemi<br/>Prometheus, Jaeger, OpenSearch<br/>isimli volume, 7 gün, ≤ 40 GB")]
@@ -128,7 +128,10 @@ flowchart LR
 | `deploy/replay/otelcol-replay.yml` | Yeniden oynatma collector'ı: `otlpjsonfile` alıcıları, `transform/backend_compat` ve upstream exporter kopyaları; izinli farklar `block_on_overflow` ve Jaeger paketi 2048 span |
 | `tests/test_replay_config.py` | `otelcol-replay.yml`'daki kopyalar kaynaklarıyla aynı mı (`REPLAY_ONLY` dışında), alıcılar yalnız dosya mı; upstream klonu yoksa (CI) exporter testi atlanır |
 | `tools/incident_checks.py` | Vaka kontrolleri (C2 ölçüsüyle aynı): işlem düzeyi belirti, olay, taban sağlık, izleme sağlığı |
-| `tests/test_catalog.py` | Koşucunun doğru cevap alanları (`SCENARIOS`) INCIDENT_CATALOG tablosuyla aynı mı |
+| `tests/test_catalog.py` | Koşucunun doğru cevap alanları INCIDENT_CATALOG tablolarıyla aynı mı: flag senaryoları (`SCENARIOS`) ve altyapı hataları (`INFRA_ANSWERS`, `INFRA_FAULTS`, `PARAM_RE`; her satırın destek vakası geçerli ve belirtili) |
 | `tests/test_incident_checks.py` | `incident_checks.py` kurallarının sınırları (sahte OTLP girdileriyle) ve V1a eşik değerleri |
 | `incident_lists/pilot.json` | Pilot gece listesi: 11 katalog senaryosu (kalibre varyant) + flood'lu 2 vaka |
+| `incident_lists/v2_dry.json`, `v2b.json`, `v2c.json` | V2 listeleri: altyapı hatası kuru denemesi (6) / kalibrasyon gecesi (16) / bellek kısa koşusu (1) |
+| `deploy/netem/Dockerfile` | Ağ hatası yardımcı imajı `aiops-netem:1` (sabit alpine + iproute2, giriş `tc`); hedefin ağ ad alanında yalnız NET_ADMIN ile koşar |
+| `tests/test_infra_faults.py` | Altyapı hatalarının Docker'sız testleri: dondurmanın kaydı, parametre biçimleri, zaman kalıbı, çağıran kuralı, temizlik doğrulaması, boş swap koruması, liste denetimi |
 | `incidents/` | Geçerli vakaların etiketleri ve koşu kayıtları (`<incident_id>.json`) |

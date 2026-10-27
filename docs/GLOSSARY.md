@@ -175,3 +175,4 @@ Sadece Eren'in onayladığı isimler.
 | `run.memory.jaeger_cpu_avg_cores`, `_cpu_usec` | Jaeger CPU ortalaması (normal başından demo kapanışına, çekirdek) / cgroup `cpu.stat` usage_usec okuması |
 | `run.export_failures`, `EXPORT_FAILURE_QUERIES`, `_SIGNALS` | `otlp_grpc_jaeger`, `jaeger_storage_exporter`, `collector_refused` artışı (Prometheus, normal başından vaka sonuna) / onların sorgu listeleri / spans, metric_points, log_records |
 | `prom_increase` | Prometheus'ta son N saniyedeki sayaç artışı (seri yoksa 0, okunamazsa None) |
+| `INFRA_ANSWERS` | Koşucuda altyapı vakalarının doğru cevap alanları (`SCENARIOS`'un eşi): (hata, hedef) → `propagation_path`, `categories`; kaynağı INCIDENT_CATALOG altyapı tablosu |
