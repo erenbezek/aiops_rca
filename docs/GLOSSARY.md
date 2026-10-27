@@ -166,3 +166,12 @@ Sadece Eren'in onayladığı isimler.
 | `caller_rows`, `caller_symptom_check`, `SPAN_KIND_CLIENT`, `_span_attrs`, `_rpc_service` | Hedefi çağıranların hedefe giden istemci span'leri / onlarda belirti / istemci span türü (3) / span özniteliklerini okuma / gRPC servis adı |
 | `callers_measured`, `matched_ips`, `matched_rpc_services`, `caller` | `checks.symptom`'da ölçülen çağıran işlem sayısı / eşleşen IP'ler / eşleşen gRPC adları; karar düzeyi `caller` (`deciding.caller`) |
 | `tests/test_infra_faults.py` | Altyapı hatalarının Docker'sız testleri |
+| `V2c` | Vaka üretimi V2'nin üçüncü adımı: ağ belirtisi, bellek kalibrasyonu, Jaeger `GOMEMLIMIT` denemesi |
+| `incident_lists/v2c.json` | V2c kısa koşu listesi (bellek hatası) |
+| `checks.symptom_target`, `checks.symptom_callers` | Ağ hatalarında hedefin kendi belirti ölçümü / çağıranlardaki ölçüm; `symptom` güçlü olanın kopyası |
+| `stronger_symptom` | `incident_checks.py`: iki belirti ölçümünden karar sinyali güçlü olan (eşitlikte ilki) |
+| `MIN_SWAP_FREE_GB`, `swap_free_gb` | Boş swap koruma eşiği (1 GB) / `/proc/meminfo` SwapFree okuması (korumalar çıktısında da alan) |
+| `run.min_swap_free_gb` | Vaka boyunca en düşük boş swap (dakikalık örnek) |
+| `run.memory.jaeger_cpu_avg_cores`, `_cpu_usec` | Jaeger CPU ortalaması (normal başından demo kapanışına, çekirdek) / cgroup `cpu.stat` usage_usec okuması |
+| `run.export_failures`, `EXPORT_FAILURE_QUERIES`, `_SIGNALS` | `otlp_grpc_jaeger`, `jaeger_storage_exporter`, `collector_refused` artışı (Prometheus, normal başından vaka sonuna) / onların sorgu listeleri / spans, metric_points, log_records |
+| `prom_increase` | Prometheus'ta son N saniyedeki sayaç artışı (seri yoksa 0, okunamazsa None) |

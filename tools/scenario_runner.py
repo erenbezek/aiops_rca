@@ -72,6 +72,7 @@ WINDOW_MARGIN_NS = (120 * 10**9, 60 * 10**9)  # normal başlangıcından önce, 
 
 # Makine sınırları (DECISIONS 2026-10-20)
 MIN_FREE_GB = 30
+MIN_SWAP_FREE_GB = 1  # DECISIONS 2026-10-27 (Jaeger): boş swap bunun altındaysa yeni vakaya başlanmaz
 # İzleme volume'lerinin toplamı (depolama D2, Eren onayı 2026-10-25): ölçülen büyüme ~0,85 GB/saat, 40 GB ≈ 7 günlük
 # saklamada haftada ~47 saat demo. Aşılırsa koşu başlamaz; saklama süresi eskiyi silene kadar bekle ya da volume'leri
 # elle sil. AIOPS_MAX_MONITORING_GB yalnız kasıtlı kırmızı için (düşük sahte sınır).
@@ -217,6 +218,14 @@ def monitoring_gb() -> float | None:
     return total / 1e9
 
 
+def swap_free_gb() -> float | None:
+    """Sistemde boş swap (`/proc/meminfo` SwapFree), ondalık GB."""
+    for line in (read("/proc/meminfo") or "").splitlines():
+        if line.startswith("SwapFree:"):
+            return round(int(line.split()[1]) * 1024 / 1e9, 2)
+    return None
+
+
 def snapshot_gb() -> float:
     """Snapshot kökündeki dosyaların toplamı (GB, ondalık); kök yoksa 0."""
     return sum(f.stat().st_size for f in SNAPSHOTS.rglob("*") if f.is_file()) / 1e9 if SNAPSHOTS.exists() else 0.0
@@ -231,6 +240,7 @@ def guards() -> dict:
     free_gb = shutil.disk_usage(Path.home()).free / 1e9
     mon_gb = monitoring_gb()
     snap_gb = snapshot_gb()
+    swap_gb = swap_free_gb()
     g = {
         "ac_online": ac[0] if ac else None,
         "charge_limit": read("/sys/class/power_supply/BAT0/charge_control_end_threshold"),
@@ -239,6 +249,7 @@ def guards() -> dict:
         "free_disk_gb": round(free_gb, 1),
         "monitoring_gb": round(mon_gb, 2) if mon_gb is not None else None,
         "snapshot_gb": round(snap_gb, 2),
+        "swap_free_gb": swap_gb,
         "power_profile": profile,
         "inhibited": os.environ.get("SCENARIO_RUNNER_INHIBITED") == "1",
         "gnome_inhibited": gnome_inhibited(),
@@ -258,6 +269,8 @@ def guards() -> dict:
         problems.append(f"monitoring volumes {g['monitoring_gb']} GB > {MAX_MONITORING_GB:g}")
     if snap_gb > MAX_SNAPSHOT_GB:
         problems.append(f"snapshots {g['snapshot_gb']} GB > {MAX_SNAPSHOT_GB:g}")
+    if swap_gb is None or swap_gb < MIN_SWAP_FREE_GB:
+        problems.append(f"swap free {swap_gb} GB < {MIN_SWAP_FREE_GB}")
     if profile != POWER_PROFILE:
         problems.append(f"power profile {profile}, want {POWER_PROFILE}")
     if not g["inhibited"]:
@@ -281,6 +294,7 @@ class Monitor(threading.Thread):
         self.max_temp = None
         self.peak_mem_mib = None
         self.mem_samples = 0
+        self.min_swap_free_gb = None
         self.jaeger_anon_peak_mib = None
         self.jaeger_swap_peak_mib = None
 
@@ -303,6 +317,9 @@ class Monitor(threading.Thread):
             self.stop_event.wait(TEMP_EVERY_S)
 
     def sample_mem(self) -> None:
+        s = swap_free_gb()
+        if s is not None:
+            self.min_swap_free_gb = s if self.min_swap_free_gb is None else min(self.min_swap_free_gb, s)
         jaeger = cgroup_memory("jaeger")
         if jaeger and jaeger["anon_mib"] is not None:
             a = jaeger["anon_mib"]
@@ -355,6 +372,34 @@ def prom_max(query_metric: str, seconds: int) -> float | None:
         return float(r["data"]["result"][0]["value"][1]) if r["data"]["result"] else None
     except (OSError, ValueError, KeyError, IndexError):
         return None
+
+
+def prom_increase(expr: str, seconds: float) -> float | None:
+    """Prometheus'ta son `seconds` saniyedeki sayaç artışı (`sum(increase(...))`). Seri yoksa 0: hata sayaçları
+    (`send_failed`) hata olmadıkça hiç yazılmıyor (V2c canlı kontrol; `monitoring_health` de seri yoksa 0 sayar).
+    Okunamazsa None."""
+    try:
+        q = urllib.parse.quote(f"sum(increase({expr}[{max(int(seconds), 60)}s]))")
+        r = http("GET", f"{PROMETHEUS}/api/v1/query?query={q}")
+        if r.get("status") != "success":
+            return None
+        return round(float(r["data"]["result"][0]["value"][1]), 1) if r["data"]["result"] else 0.0
+    except (OSError, ValueError, KeyError, IndexError):
+        return None
+
+
+# Jaeger denemesinin gönderim sayaçları (DECISIONS 2026-10-27). Snapshot'taki `checks.monitoring_health` aynı
+# sayaçları normal başı → hata kapanışı için ve yalnız geçerli vakada verir; bu okuma normal başı → vaka sonu
+# (kuyruk ve geçersiz vaka dahil). Reddedilenler `monitoring_health` gibi bütün `otelcol_receiver_refused_*` (Jaeger'in
+# kendi alıcısı dahil). Her metrik adı ayrı sorgulanır: `__name__` deseniyle `increase` adı düşürünce aynı etiketli
+# seriler çakışıyor ve sorgu hata veriyor (V2c canlı kontrol).
+_SIGNALS = ("spans", "metric_points", "log_records")
+EXPORT_FAILURE_QUERIES = {
+    "otlp_grpc_jaeger": [f'otelcol_exporter_send_failed_{s}_total{{exporter="otlp_grpc/jaeger"}}' for s in _SIGNALS],
+    "jaeger_storage_exporter": [f'otelcol_exporter_send_failed_{s}_total{{exporter="jaeger_storage_exporter"}}'
+                                for s in _SIGNALS],
+    "collector_refused": [f"otelcol_receiver_refused_{s}_total" for s in _SIGNALS],
+}
 
 
 def scheduler_state() -> str:
@@ -811,6 +856,16 @@ def cgroup_memory(container: str) -> dict | None:
             "max": int(ev.get("max", 0)), "oom": int(ev.get("oom", 0)), "oom_kill": int(ev.get("oom_kill", 0))}
 
 
+def _cpu_usec(container: str) -> int | None:
+    """Konteynerin cgroup v2 `cpu.stat` usage_usec değeri; yoksa None."""
+    cid = subprocess.run(["docker", "inspect", "--format", "{{.Id}}", container],
+                         capture_output=True, text=True).stdout.strip()
+    for line in (read(f"/sys/fs/cgroup/system.slice/docker-{cid}.scope/cpu.stat") or "").splitlines():
+        if cid and line.startswith("usage_usec "):
+            return int(line.split()[1])
+    return None
+
+
 def versions() -> dict:
     def git(path: Path) -> str | None:
         p = subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"], capture_output=True, text=True)
@@ -1003,6 +1058,7 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
                 "suspended_s": None, "max_pkg_temp_c": None, "memory": {}, "anonymous_volumes_removed": {},
                 "duration_s": None, "snapshot_bytes": None, "overheat": False, "baseline_failed": False,
                 "coverage_short": False, "leakage_found": False, "fault_state": None, "target_ips": None,
+                "min_swap_free_gb": None, "export_failures": None,
                 "schedule": {"seed": None, "normal_s": DRY_NORMAL_S, "tail_s": DRY_TAIL_S, "dry": True} if dry
                 else schedule(secrets.randbits(32))},
     }
@@ -1022,6 +1078,7 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
     flags_on: list[dict] = []
     fault_state = None
     normal_ns = flag_on_ns = flag_off_ns = up_ns = None
+    jaeger_cpu_start = (None, None)
     try:
         log(f"{iid} {entry}; guards {run['guards']}")
         if run["guards"]["problems"]:
@@ -1058,6 +1115,7 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
         start_state = containers()
         (work / "containers_start.txt").write_text(json.dumps(start_state, indent=1) + "\n")
         normal_ns = mark("normal_start")
+        jaeger_cpu_start = (_cpu_usec("jaeger"), time.monotonic())
         slept_before = sleep_offset_s()
         wait(run["schedule"]["normal_s"])
 
@@ -1161,6 +1219,17 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
             if up_ns:  # Jaeger'in kendi Go yığını (collector üzerinden Prometheus'a gelir), demo açık kaldığı süre
                 heap = prom_max('otelcol_process_runtime_heap_alloc_bytes{job="jaeger"}', (utc_ns() - up_ns) / 1e9)
                 run["memory"]["jaeger_heap_peak_mib"] = round(heap / 2**20, 1) if heap is not None else None
+            if normal_ns:  # normal başından buraya (demo kapanmadan önce)
+                usec, t_start = jaeger_cpu_start
+                usec_end = _cpu_usec("jaeger")
+                run["memory"]["jaeger_cpu_avg_cores"] = (
+                    round((usec_end - usec) / 1e6 / (time.monotonic() - t_start), 3)
+                    if usec is not None and usec_end is not None and usec_end >= usec else None)
+                since = (utc_ns() - normal_ns) / 1e9
+                run["export_failures"] = {}
+                for k, qs in EXPORT_FAILURE_QUERIES.items():
+                    vals = [prom_increase(q, since) for q in qs]
+                    run["export_failures"][k] = None if None in vals else round(sum(vals), 1)
             anon = anonymous_volumes()
             if demo("down", log) == 0:
                 run["anonymous_volumes_removed"] = remove_volumes(anon)
@@ -1173,6 +1242,7 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
         run["memory"]["collector_sampled_peak_mib"] = monitor.peak_mem_mib
         run["memory"]["jaeger_anon_peak_mib"] = monitor.jaeger_anon_peak_mib
         run["memory"]["jaeger_swap_peak_mib"] = monitor.jaeger_swap_peak_mib
+        run["min_swap_free_gb"] = monitor.min_swap_free_gb
 
     if label["valid"]:
         lo, hi = normal_ns - WINDOW_MARGIN_NS[0], flag_off_ns + run["schedule"]["tail_s"] * 10**9
@@ -1203,6 +1273,21 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
             checks["symptom"] = {**ic.caller_symptom_check(callers, root), "matched_ips": list(ips),
                                  "matched_rpc_services": rpcs}
             checks["event"] = ic.event_check(checks["symptom"], rows)
+            if checks["event"]["applied"] and not checks["event"]["pass"]:
+                label["invalid_reasons"].append(f"no event: {checks['event']}")
+            if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
+                label["marks"].append(checks["symptom"]["verdict"])
+        elif root and infra and entry["fault"] in NETEM_WORD:
+            # Ağ hatası: hedefin kendisi ve çağıranları; güçlü olan karar verir. Olay hedefin kendi isteğiyle
+            # (DECISIONS 2026-10-27 "Ağ hatalarında belirti").
+            own = checks["symptom_target"] = ic.symptom_check(rows, ops, root)
+            ips = tuple(sorted(set((run["target_ips"] or {}).get("before") or [])
+                               | set((run["target_ips"] or {}).get("after") or [])))
+            callers, rpcs = ic.caller_rows([snap / "traces.jsonl"], w, root, ips)
+            checks["symptom_callers"] = {**ic.caller_symptom_check(callers, root), "matched_ips": list(ips),
+                                         "matched_rpc_services": rpcs}
+            checks["symptom"] = ic.stronger_symptom(own, checks["symptom_callers"])
+            checks["event"] = ic.event_check(own, rows)
             if checks["event"]["applied"] and not checks["event"]["pass"]:
                 label["invalid_reasons"].append(f"no event: {checks['event']}")
             if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
