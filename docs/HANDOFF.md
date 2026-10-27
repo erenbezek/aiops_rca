@@ -1556,3 +1556,16 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - Sıcaklık en çok 79 °C, uyku 0.
   - pytest 287/287.
 - **Dikkat (planlama):** Swap tepesi şarta çok yakın. Deneme tek bir ~31 dk'lık vakada yapıldı; uzun gecede yığının davranışı bu koşuyla görülmüyor.
+
+## 2026-10-28 · Planlama → Uygulama (V2 kapanışı: katalog ve PR)
+- **V2c kontrolü (planlama):** uygun. pytest 287/287; `inc-d8f67a48` bağımsız tarandı, sızıntı 0; `window.json` etiketle aynı; temizlik doğrulandı; `run.export_failures` ve `monitoring_health` aynı sonucu verdi.
+- **Kararlar** (DECISIONS 2026-10-28): memoryLimit V2'den çıkar (kod ve testler kalır); Jaeger `GOMEMLIMIT` kalır, uzun süreli sınaması Python servisi kalibrasyon koşusunda.
+- **Yapılacaklar:**
+  1. INCIDENT_CATALOG "Kendi altyapı hatalarımız": 5 hata, 10 çift. Her satırda hedef, seçilen parametre, `fault_type`, belirtinin ölçüldüğü yer (hedef / çağıran) ve izlerde görülen yayılım yolu (V2b–V2c etiketlerinden; ör. quote ← shipping ← frontend, checkout). memoryLimit satırı "denendi, V3'e girmez" notuyla, ölçümler ve DECISIONS'a bağlantı.
+     - Seçimler: networkDelay cart 50 ms, quote 50 ms; packetLoss shipping %10, currency %10; cpuThrottle product-catalog 0.09, recommendation 0.03; containerPause cart, quote; containerStop recommendation, currency.
+  2. `test_catalog.py` kapsamı katalogla aynı olacak şekilde güncellenir.
+  3. V2b'nin 6 ağ vakasının etiketlerine yeni kuralın iki ölçümü (`checks.symptom_target`, `checks.symptom_callers`) ve `symptom` yazılır; işaretler (`marks`) yeni karara göre güncellenir. Diğer alanlar değişmez. Hangi etiketlerin değiştiği HANDOFF'a not edilir (30 pilot vakanın hepsi aynı kuralla).
+  4. PROJECT DevOps tablosunda "Linux ağ/kaynak hataları" `[x]`: netem (gecikme, kayıp), CPU sınırı, durdurma, dondurma; bellek denendi, çıktı. "Şu an" güncellenir.
+  5. pytest yeşil; PR açılır (sade açıklama), merge Eren'de.
+- **Ölçüt:** katalogdaki 10 çiftin her biri bir etiketle desteklenir (belirtili); pytest yeşil; değişen etiketlerde `answer`, `window`, `run` aynı kalır.
+- Kapsam dışı: kendi Python servisi (sonraki kart), V3.
