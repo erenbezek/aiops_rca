@@ -9,8 +9,20 @@
   "injection_end": "2026-10-26T21:23:37Z",
   "root_cause_service": "currency",
   "fault_type": "error",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "currency",
+    "frontend"
+   ],
+   [
+    "currency",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "silent"
+  ]
  },
  "window": {
   "start": "2026-10-26T21:01:22Z",
@@ -48,7 +60,7 @@
    "findings": 0,
    "first": []
   },
-  "symptom": {
+  "symptom_target": {
    "service": "currency",
    "min_requests": 10,
    "verdict": "no_symptom",
@@ -76,6 +88,64 @@
      0.1
     ]
    }
+  },
+  "symptom_callers": {
+   "service": "currency",
+   "min_requests": 10,
+   "callers_measured": 3,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "frontend",
+    "operation": "oteldemo.CurrencyService/GetSupportedCurrencies",
+    "signal": "p99_ms",
+    "strength": 65.425,
+    "requests": [
+     149,
+     147
+    ],
+    "values": [
+     6.6,
+     1315.1
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.16"
+   ],
+   "matched_rpc_services": [
+    "oteldemo.CurrencyService"
+   ]
+  },
+  "symptom": {
+   "service": "currency",
+   "min_requests": 10,
+   "callers_measured": 3,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "frontend",
+    "operation": "oteldemo.CurrencyService/GetSupportedCurrencies",
+    "signal": "p99_ms",
+    "strength": 65.425,
+    "requests": [
+     149,
+     147
+    ],
+    "values": [
+     6.6,
+     1315.1
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.16"
+   ],
+   "matched_rpc_services": [
+    "oteldemo.CurrencyService"
+   ]
   },
   "event": {
    "applied": true,
@@ -143,9 +213,7 @@
  },
  "valid": true,
  "invalid_reasons": [],
- "marks": [
-  "no_symptom"
- ],
+ "marks": [],
  "run": {
   "list_entry": {
    "fault": "packetLoss",

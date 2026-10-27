@@ -60,18 +60,59 @@ Sızıntı notu: `productCatalogFailure` hata mesajı ve `productCatalogLockCont
 
 Bitti ölçütündeki "yanıltıcı gürültü" şartı için gerekirse kendi servisimizden ilgisiz hata logları eklenir; kendi servis tasarlanınca karar verilir.
 
-## Kendi altyapı hatalarımız (taslak)
+## Kendi altyapı hatalarımız (10)
 
-| Hata | Hata tipi | Kök neden |
-|---|---|---|
-| Durdurma (`docker stop`) | unavailable | Hedef servis |
-| Dondurma (`docker pause`; süreç donar, bağlantılar açık kalır) | unavailable | Hedef servis |
-| CPU kısıtlama (`docker update --cpus`) | resource | Hedef servis |
-| Bellek sınırını kullanımın altına indirme (`docker update --memory`; OOM ve yeniden başlama döngüsü) | resource | Hedef servis |
-| Ağ gecikmesi (`tc netem delay`) | latency | Hedef servis |
-| Paket kaybı (`tc netem loss`) | error | Hedef servis |
+V2 kalibrasyonu (V2b gecesi 2026-10-26, V2c 2026-10-27). Her çift için belirtili çıkan en hafif aday seçildi; destek
+vakası o adayın etiketi (`incidents/`). Koşucudaki eşi `INFRA_ANSWERS` (yol ve kategoriler), `INFRA_FAULTS` (hata
+tipi), `PARAM_RE` (parametre biçimi); `tests/test_catalog.py` aynı olduklarını ve her satırın geçerli, belirtili bir
+etiketle desteklendiğini sınar.
 
-Araçlar ve iz kuralı DECISIONS 2026-10-26'da: `tc netem` kendi yardımcı imajımızla (alpine + iproute2), diğerleri araçsız. Mekanizmanın izi sızıntı, hedefteki fiziksel etki belirti. Senaryo adları, hedef servisler ve parametreler V2 kalibrasyonunda belirlenir, buraya yazılır.
+| Senaryo | Kök neden | Parametre | Hata tipi | Yöntem | Belirti nerede (karar) | İzlerde yayılım yolu | Kategori | Destek vakası |
+|---|---|---|---|---|---|---|---|---|
+| `networkDelay` | cart | `50ms` | latency | `tc netem delay` | Hedef + çağıran; karar çağıran: frontend AddItem p99 5 → 210 ms | cart → frontend, checkout | cascading, silent | `inc-2e5706ab` |
+| `networkDelay` | quote | `50ms` | latency | `tc netem delay` | Hedef + çağıran; karar çağıran: shipping→quote p99 4 → 148 ms (hedefte belirti yok) | quote → shipping → frontend, checkout | cascading, silent | `inc-d60dcc58` |
+| `packetLoss` | shipping | `10%` | error | `tc netem loss` | Hedef + çağıran; karar çağıran: frontend→shipping p99 10 → 2.292 ms | shipping → frontend, checkout | cascading, silent | `inc-91c1ad44` |
+| `packetLoss` | currency | `10%` | error | `tc netem loss` | Hedef + çağıran; karar çağıran: checkout Convert p99 3 → 419 ms (hedefte belirti yok) | currency → frontend, checkout | cascading, silent | `inc-d1709db7` |
+| `cpuThrottle` | product-catalog | `0.09` | resource | `docker update --cpus` | Hedef: GetProduct p99 22 → 1.200 ms | product-catalog → frontend, recommendation, checkout | cascading, silent | `inc-3967c278` |
+| `cpuThrottle` | recommendation | `0.03` | resource | `docker update --cpus` | Hedef: servis p99 (güç 840) | recommendation → frontend | cascading | `inc-7e70c5c4` |
+| `containerPause` | cart | `on` | unavailable | `docker pause` | Çağıran: frontend GetCart p99 6 ms → 594 sn | cart → frontend, checkout | cascading | `inc-2a87f603` |
+| `containerPause` | quote | `on` | unavailable | `docker pause` | Çağıran: shipping→quote p99 5 → 5.004 ms | quote → shipping → frontend, checkout | cascading | `inc-e23c74cb` |
+| `containerStop` | recommendation | `on` | unavailable | `docker stop` | Çağıran: frontend ListRecommendations p99 13 → 32.092 ms | recommendation → frontend | cascading | `inc-01a609bb` |
+| `containerStop` | currency | `on` | unavailable | `docker stop` | Çağıran: frontend GetSupportedCurrencies p99 7 → 71.101 ms | currency → frontend, checkout | cascading | `inc-569a664d` |
+
+- **Belirti nerede:** durdurma ve dondurmada hedefin kendi span'leri kesilir, belirti ve olay çağıranlarda ölçülür
+  (DECISIONS 2026-10-26). Ağ hatalarında hedef ve çağıranlar ölçülür, güçlü olan karar verir; olay hedefin kendi
+  isteğiyle (DECISIONS 2026-10-27). quote ve currency kimseyi çağırmaz: netem yalnız cevaplarını geciktirir, gecikme
+  hedefin kendi sunucu span'ine girmez; ayırt edici iz istemci span'i uzun, sunucu span'i kısa.
+- **Yayılım yolu:** destek vakasının normal döneminde hedefe gelen sunucu span'lerinin üst span'i hangi serviste ise o
+  çağırandır (frontend-proxy hariç, frontend'de durulur). Tek çağıranı olan hedefte bir üst seviye de yazılır (quote →
+  shipping).
+- **Kategoriler (ölçülebilir tanımlar, Eren 2026-10-28; flag tablosu V3 bileşim kartında aynı tanımlarla gözden
+  geçirilecek):**
+  - `cascading`: belirti kök nedenin çağıranlarında ölçülü olarak görünür (çağıran kontrolünde belirtili).
+  - `silent`: enjeksiyon döneminde kök neden ve çağıran zincirinde hata span'i ve hata logu (severity ≥ ERROR) artmaz;
+    belirti yalnız gecikme ya da kaynak. cpuThrottle recommendation bu yüzden `silent` değil: recommendation 12 hata
+    logu yazdı (telemetriyi collector'a gönderemedi, `DEADLINE_EXCEEDED`).
+  - `noisy` ve `partial` bu tabloda kullanılmadı (kanıt yok).
+- Araçlar ve iz kuralı DECISIONS 2026-10-26'da: `tc netem` kendi yardımcı imajımızla (`aiops-netem:1`, alpine +
+  iproute2), diğerleri araçsız. Mekanizmanın izi sızıntı, hedefteki fiziksel etki belirti.
+
+### Denendi, V3'e girmez: `memoryLimit` (`docker update --memory --memory-swap`, resource)
+
+DECISIONS 2026-10-26 ("Bellek hatası") ve 2026-10-28 ("memoryLimit V2'den çıkar"). Kod ve testleri koşucuda kalır.
+Bu demoda iki uç var, arası yok: sınır sürecin kendi belleğinin üstündeyse yalnız dosya önbelleği sıkışır, belirti
+zayıf; altındaysa (ya da açılış tepesinin altındaysa) açılışta OOM döngüsü, hata durdurmanın kopyası olur.
+
+| Servis | Taban (ilk 60 sn tepe) | Isınmış kullanım | Sonuç |
+|---|---|---|---|
+| cart (kuru deneme, anon × 0,8) | — | anon 20,1 MiB | Sınır 16,9 MB: 12 yeniden başlama, kendi span'i 0, olay yok |
+| ad | 220,7 MiB | 210,2 MiB (5. dk) | 0,9× ve 0,75× tabanın altında |
+| quote | 24,0 MiB | 18,6 MiB (5. dk) | 0,9× ve 0,75× tabanın altında |
+| cart | 47,6 MiB | 52,4 MiB (25. dk) | 0,9× tabanın altında (pay 0,991) |
+| email | 63,9 MiB | 58,5 MiB | 0,9× tabanın altında |
+| recommendation | 53,5 MiB | 47,8 MiB | 0,9× tabanın altında |
+| payment | 91,4 MiB | 60,4 MiB | 0,9× tabanın altında |
+| frontend | 103,8 MiB | 120,6 MiB | Uydu (pay 1,046); 0,9× koşuldu (`inc-d8f67a48`): enjeksiyonda kullanım 133,8 MiB, sınır 120,4 MiB, OOM 0, belirti sınırda (`POST /api/checkout` p99 82,7 → 122,3 ms, güç 0,958 < 1,2) |
 
 ## Yeni makinede kalibrasyon
 

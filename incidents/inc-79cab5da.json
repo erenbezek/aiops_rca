@@ -9,8 +9,24 @@
   "injection_end": "2026-10-26T22:25:28Z",
   "root_cause_service": "product-catalog",
   "fault_type": "resource",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "product-catalog",
+    "frontend"
+   ],
+   [
+    "product-catalog",
+    "recommendation"
+   ],
+   [
+    "product-catalog",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "silent"
+  ]
  },
  "window": {
   "start": "2026-10-26T22:00:46Z",

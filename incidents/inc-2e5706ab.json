@@ -9,8 +9,20 @@
   "injection_end": "2026-10-26T17:46:38Z",
   "root_cause_service": "cart",
   "fault_type": "latency",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "cart",
+    "frontend"
+   ],
+   [
+    "cart",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "silent"
+  ]
  },
  "window": {
   "start": "2026-10-26T17:23:26Z",
@@ -48,7 +60,7 @@
    "findings": 0,
    "first": []
   },
-  "symptom": {
+  "symptom_target": {
    "service": "cart",
    "min_requests": 10,
    "verdict": "symptomatic",
@@ -85,6 +97,60 @@
      153.8
     ]
    }
+  },
+  "symptom_callers": {
+   "service": "cart",
+   "min_requests": 10,
+   "callers_measured": 4,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "frontend",
+    "operation": "oteldemo.CartService/AddItem",
+    "signal": "p99_ms",
+    "strength": 10.25,
+    "requests": [
+     163,
+     143
+    ],
+    "values": [
+     5.1,
+     210.1
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.22"
+   ],
+   "matched_rpc_services": []
+  },
+  "symptom": {
+   "service": "cart",
+   "min_requests": 10,
+   "callers_measured": 4,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "frontend",
+    "operation": "oteldemo.CartService/AddItem",
+    "signal": "p99_ms",
+    "strength": 10.25,
+    "requests": [
+     163,
+     143
+    ],
+    "values": [
+     5.1,
+     210.1
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.22"
+   ],
+   "matched_rpc_services": []
   },
   "event": {
    "applied": true,

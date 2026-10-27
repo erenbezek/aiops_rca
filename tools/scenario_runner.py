@@ -897,6 +897,34 @@ INFRA_FAULTS = {
     "networkDelay": {"fault_type": "latency", "method": "tc netem delay"},
     "packetLoss": {"fault_type": "error", "method": "tc netem loss"},
 }
+# Altyapı vakalarının doğru cevap alanları (`SCENARIOS`'un eşi; DECISIONS 2026-10-28, Eren seçenek A). Kaynak
+# INCIDENT_CATALOG "Kendi altyapı hatalarımız" tablosu (yol V2b destek vakalarının izlerinden, kategoriler katalogdaki
+# tanımlarla); tests/test_catalog.py ikisinin aynı olduğunu sınar. Tabloda olmayan (hata, hedef) çiftinde boş kalır.
+INFRA_ANSWERS = [
+    {"fault": "networkDelay", "target": "cart",
+     "propagation_path": [["cart", "frontend"], ["cart", "checkout"]], "categories": ["cascading", "silent"]},
+    {"fault": "networkDelay", "target": "quote",
+     "propagation_path": [["quote", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]],
+     "categories": ["cascading", "silent"]},
+    {"fault": "packetLoss", "target": "shipping",
+     "propagation_path": [["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading", "silent"]},
+    {"fault": "packetLoss", "target": "currency",
+     "propagation_path": [["currency", "frontend"], ["currency", "checkout"]], "categories": ["cascading", "silent"]},
+    {"fault": "cpuThrottle", "target": "product-catalog",
+     "propagation_path": [["product-catalog", "frontend"], ["product-catalog", "recommendation"],
+                          ["product-catalog", "checkout"]], "categories": ["cascading", "silent"]},
+    {"fault": "cpuThrottle", "target": "recommendation",
+     "propagation_path": [["recommendation", "frontend"]], "categories": ["cascading"]},
+    {"fault": "containerPause", "target": "cart",
+     "propagation_path": [["cart", "frontend"], ["cart", "checkout"]], "categories": ["cascading"]},
+    {"fault": "containerPause", "target": "quote",
+     "propagation_path": [["quote", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]],
+     "categories": ["cascading"]},
+    {"fault": "containerStop", "target": "recommendation",
+     "propagation_path": [["recommendation", "frontend"]], "categories": ["cascading"]},
+    {"fault": "containerStop", "target": "currency",
+     "propagation_path": [["currency", "frontend"], ["currency", "checkout"]], "categories": ["cascading"]},
+]
 NETEM_IMAGE = "aiops-netem:1"  # deploy/netem/Dockerfile; docker build -t aiops-netem:1 deploy/netem
 NETEM_WORD = {"networkDelay": "delay", "packetLoss": "loss"}
 STABLE_S = 30
@@ -1037,6 +1065,8 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
     s = None if infra else BY_ID[entry["scenario"]]
     root = entry["target"] if infra else s["root"]
     noise = BY_ID[entry["noise_layer"]] if entry.get("noise_layer") else None
+    ia = next((x for x in INFRA_ANSWERS if infra and (x["fault"], x["target"]) == (entry["fault"], root)),
+              {"propagation_path": [], "categories": []})
     iid = new_incident_id()
     work = night / iid
     snap = work / "model_view" if dry else SNAPSHOTS / iid
@@ -1049,9 +1079,8 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
                    "noise_layer": noise["flag"] if noise else None,
                    "injection_start": None, "injection_end": None, "root_cause_service": root,
                    "fault_type": INFRA_FAULTS[entry["fault"]]["fault_type"] if infra else s["fault_type"],
-                   # Altyapı vakalarında yol V2b kalibrasyonundan sonra katalogdan gelir.
-                   "propagation_path": [] if infra else s["propagation_path"],
-                   "categories": [] if infra else s["categories"]},
+                   "propagation_path": ia["propagation_path"] if infra else s["propagation_path"],
+                   "categories": ia["categories"] if infra else s["categories"]},
         "window": None, "checks": {}, "valid": False, "invalid_reasons": [], "marks": [],
         "run": {"list_entry": entry, "versions": versions(), "guards": guards(), "times": {}, "containers": {},
                 "collector_restarted": False, "restarts_in_window": [], "expected_restarts": [],

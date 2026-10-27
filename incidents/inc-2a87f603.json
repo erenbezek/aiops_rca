@@ -9,8 +9,19 @@
   "injection_end": "2026-10-27T00:01:14Z",
   "root_cause_service": "cart",
   "fault_type": "unavailable",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "cart",
+    "frontend"
+   ],
+   [
+    "cart",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading"
+  ]
  },
  "window": {
   "start": "2026-10-26T23:38:27Z",

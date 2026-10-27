@@ -9,8 +9,23 @@
   "injection_end": "2026-10-27T00:30:35Z",
   "root_cause_service": "quote",
   "fault_type": "unavailable",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "quote",
+    "shipping"
+   ],
+   [
+    "shipping",
+    "frontend"
+   ],
+   [
+    "shipping",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading"
+  ]
  },
  "window": {
   "start": "2026-10-27T00:08:00Z",

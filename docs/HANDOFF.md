@@ -1569,3 +1569,36 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   5. pytest yeşil; PR açılır (sade açıklama), merge Eren'de.
 - **Ölçüt:** katalogdaki 10 çiftin her biri bir etiketle desteklenir (belirtili); pytest yeşil; değişen etiketlerde `answer`, `window`, `run` aynı kalır.
 - Kapsam dışı: kendi Python servisi (sonraki kart), V3.
+
+## 2026-10-28 · Uygulama → Planlama (V2 kapanışı: katalog, etiketler, PR)
+- **INCIDENT_CATALOG "Kendi altyapı hatalarımız (10)":**
+  - 5 hata, 10 çift. Her satırda seçilen parametre, hata tipi, yöntem, belirtinin yeri (karar veren sinyal), izlerde yayılım yolu, kategori ve destek vakası var.
+  - Kategori tanımları yazılı (`cascading`, `silent`).
+  - "Denendi, V3'e girmez: memoryLimit" alt bölümünde 7 servisin ölçümü var. Flag tablosuna dokunulmadı.
+- **Koşucu:** `INFRA_ANSWERS` eklendi (`SCENARIOS`'un eşi); altyapı vakasının `answer.propagation_path` ve `categories` alanları bu tablodan gelir, tabloda olmayan çift boş kalır.
+- **Kategoriler:**
+  - `cascading`: 10 çiftin 10'u.
+  - `silent`: dört ağ çifti ve cpuThrottle product-catalog. Destek vakalarında kök neden ve çağıran zincirinde hata span'i ve hata logu 0 → 0.
+  - cpuThrottle recommendation `silent` değil: 12 hata logu (`DEADLINE_EXCEEDED`, telemetri gönderimi).
+  - Dondurma ve durdurmada çağıranlarda hata span'i ve hata logu var.
+- **Değişen etiketler (16, hepsi V2b; `window` ve `run` aynı; git'teki eski hâlle alan alan karşılaştırıldı):**
+  - 8 ağ etiketinde `checks.symptom_target` (koşucunun ölçümü, aynen), `checks.symptom_callers` (yeni), `checks.symptom` (güçlü olan) ve `answer.propagation_path`, `answer.categories`: `inc-2e5706ab`, `inc-01dd32ce` (cart 50/200 ms), `inc-d60dcc58`, `inc-e8b2a872` (quote 50/200 ms), `inc-91c1ad44`, `inc-c775923b` (shipping %10/%30), `inc-d1709db7`, `inc-b4665f44` (currency %10/%30).
+  - Bunlardan dördünde (quote ve currency) `symptom` `no_symptom` → `symptomatic` oldu ve `marks`'tan `no_symptom` kalktı. Sekizinde de karar çağırandan geliyor.
+  - 8 etikette yalnız `answer.propagation_path` ve `answer.categories`: `inc-3967c278`, `inc-79cab5da`, `inc-7e70c5c4`, `inc-6d85f68b` (cpuThrottle), `inc-2a87f603`, `inc-e23c74cb` (pause), `inc-01a609bb`, `inc-569a664d` (stop).
+  - Değişmeyen: 14 V1 etiketi ve `inc-d8f67a48` (memoryLimit, yol boş kalır). Gece klasörlerindeki kopyalar repo dışında, değiştirilmedi.
+- **Testler:** `test_catalog.py` altyapı tablosunu okuyor:
+  - 10 çift; satırlar `INFRA_ANSWERS` ile aynı (sıra dahil).
+  - Hata tipi ve yöntem `INFRA_FAULTS` ile, parametre `PARAM_RE` ile uyuşuyor.
+  - Destek vakası geçerli ve belirtili; vakadaki parametre, yol ve kategoriler satırla aynı.
+  - memoryLimit seçimde yok.
+  
+  `test_infra_faults.py`'deki eski katalog testi buraya taşındı. pytest 309/309. Kasıtlı kırmızılar: kategori farkı, yanlış destek vakası, memoryLimit'in tabloya eklenmesi.
+- **Belgeler:**
+  - PROJECT: DevOps "Linux ağ/kaynak hataları" `[x]`, "Şu an" V2 satırı.
+  - ARCHITECTURE: enjeksiyon kutusu; dosya tablosuna `deploy/netem/Dockerfile`, `tests/test_infra_faults.py`, V2 listeleri.
+  - OTEL_DEMO: Jaeger 2500M ve `GOMEMLIMIT`.
+  - GLOSSARY: `INFRA_ANSWERS`.
+  - DECISIONS 2026-10-28'e üç satır: `INFRA_ANSWERS`, kategori tanımları, geriye dönük etiket kuralı.
+- **Dikkat (V3):**
+  - Bu tanımla `cascading` bu sette ayırt edici değil.
+  - Flag tablosunun kategorileri aynı tanımlarla V3 bileşim kartında gözden geçirilecek.

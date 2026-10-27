@@ -9,8 +9,24 @@
   "injection_end": "2026-10-26T18:49:18Z",
   "root_cause_service": "quote",
   "fault_type": "latency",
-  "propagation_path": [],
-  "categories": []
+  "propagation_path": [
+   [
+    "quote",
+    "shipping"
+   ],
+   [
+    "shipping",
+    "frontend"
+   ],
+   [
+    "shipping",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "silent"
+  ]
  },
  "window": {
   "start": "2026-10-26T18:26:30Z",
@@ -48,7 +64,7 @@
    "findings": 0,
    "first": []
   },
-  "symptom": {
+  "symptom_target": {
    "service": "quote",
    "min_requests": 10,
    "verdict": "no_symptom",
@@ -76,6 +92,60 @@
      1.3
     ]
    }
+  },
+  "symptom_callers": {
+   "service": "quote",
+   "min_requests": 10,
+   "callers_measured": 1,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "shipping",
+    "operation": "POST",
+    "signal": "p99_ms",
+    "strength": 7.21,
+    "requests": [
+     103,
+     111
+    ],
+    "values": [
+     4.1,
+     148.3
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.16"
+   ],
+   "matched_rpc_services": []
+  },
+  "symptom": {
+   "service": "quote",
+   "min_requests": 10,
+   "callers_measured": 1,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "shipping",
+    "operation": "POST",
+    "signal": "p99_ms",
+    "strength": 7.21,
+    "requests": [
+     103,
+     111
+    ],
+    "values": [
+     4.1,
+     148.3
+    ]
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.16"
+   ],
+   "matched_rpc_services": []
   },
   "event": {
    "applied": true,
@@ -143,9 +213,7 @@
  },
  "valid": true,
  "invalid_reasons": [],
- "marks": [
-  "no_symptom"
- ],
+ "marks": [],
  "run": {
   "list_entry": {
    "fault": "networkDelay",
