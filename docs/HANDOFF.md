@@ -1646,3 +1646,41 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - Katalog yolları ve kategoriler kalibrasyondan sonra yazılır.
 - PR planlama kontrolünden sonra.
 - Kapsam dışı: imajın GHCR'a konması ve CI'da kurulması (ayrı küçük kart), V3, flag tablosunun kategori gözden geçirmesi.
+
+## 2026-10-28 · Uygulama → Planlama (quote-gateway a–c; kalibrasyon listesi)
+- **a · Servis** (`services/quote-gateway/`):
+  - İş mantığı Flask'sız `gateway.py`'de: girdi kontrolü ve `QuoteCache` (1 sn, 64 kayıt; sızıntı kipinde istek başına rastgele baytla dolu blok, bırakılmaz).
+  - `app.py`: Flask, requests ve üç flag (istek başına okunur).
+  - `requirements.txt`: 40 paketin hepsi sabit ve 2026-10-14'ten önce yayımlanmış.
+    - OTel ve OpenFeature demodaki sürümler; flask 3.1.3, requests 2.34.2.
+    - Enstrümantasyon 0.64b0; `opentelemetry-bootstrap` kullanılmadı.
+    - grpcio ve protobuf demodaki sürümler. certifi, googleapis-common-protos ve wrapt'ın son sürümleri 2 haftadan yeniydi, eskiye sabitlendi.
+  - Taban `python:3.12.14-slim` (digest sabit; 3.12-slim ve 3.12.16 iki gün önce yayımlanmıştı). Kullanıcı 10001. İmaj 253,2 MB.
+- **b · Bağlama:**
+  - `compose.extras.yaml`: quote-gateway servisi eklendi, shipping'in `QUOTE_ADDR`'ı `http://quote-gateway:8090` oldu.
+  - `deploy/otel-demo/flagd-extras.json`: `otel_demo.sh` upstream flag dosyasıyla birleştiriyor (aynı ad iki dosyada da varsa hata).
+  - Koşucu: `CONTAINERS` 23, `GATEWAY_IMAGE` kontrolü, `SCENARIOS`'a 5 giriş.
+  - Katalog flag tablosu 14 satır; yol beklenen, kategoriler kalibrasyondan sonra.
+  - Sızıntı tarayıcısı üç yeni adı biliyor; `flagd-extras.json`'daki her adın tarayıcıda olduğu testte sınanıyor.
+- **c · Canlı kontrol** (2026-10-28 01:07–01:43 yerel saat, `--raw` ile):
+  - shipping normal dönemde hata 0; quote-gateway'in cevabı quote'unkiyle aynı (n = 0–5).
+  - 290 izde shipping → quote-gateway → quote zinciri birlikte.
+  - Taban sağlık 31,6 ms.
+  - Pozitif kontrol: ham kopyada üç yeni flag adı yakalandı, süzülmüş kopyada bulgu 0.
+  - quote-gateway normal dönemde 168 istek (~10,5/dk), p95 6,8 ms; quote p95 0,9 ms.
+  - Misroute: 33/33 hata, quote'a 0 istek.
+  - Gecikme: 50 ms'de p95 56,8 ms, 200 ms'de 208,7 ms.
+  - Bellek (`memory.current`): açılış tepesi 46,5 MiB, 20. dk 51,8 MiB (anon 40,4).
+    - 64 KB × 23 istek: +1,6 MiB. 512 KB × 19 istek: +9,2 MiB.
+    - Flag kapanınca bellek geri verilmedi.
+  - Jaeger swap tepesi 481,9 MiB (~36 dk açılış).
+- Konteyner sayısı bu kontrolde 22 çıktı. Eksik olan quote'tu: `docker_stats` açılış yarışı (HANDOFF V1a); bu kontrolde collector yeniden başlatılmadı, koşucu başlatıyor. Kalan 22 içinde quote-gateway var; beklenen 23.
+- **Seçimler (Eren onayı):**
+  - Bellek sınırı 128M.
+  - Gecikme 30 ve 100 ms (eşik normal p95 + 20 ms).
+  - Sızıntı 384 KB/istek (10 dk'da ~39 MiB, güç ~1,9, OOM yok) ve 1024 KB/istek (~105 MiB, ~7. dk'da OOM). Bellek sinyali dönem ortalaması, eşik +%20.
+- **Liste** `incident_lists/quote_gateway.json` (7 vaka, ~3,5 saat): misroute, gecikme 30 / 100 ms, networkDelay quote 50 ms, containerPause quote, sızıntı 384 / 1024 KB.
+- **Testler:** pytest 357/357. Kasıtlı kırmızılar 8/8 kendi testinde düştü (sıfır dolu sızıntı, önbellek ömrü ve sınırı, girdi kontrolü, aynı flag adı, açık varsayılan, eksik varyant, tarayıcıdan çıkarılan ad).
+- **Dikkat:**
+  - Jaeger swap tepesi şarta yakın (481,9 / 500 MiB; V2c'de 484). Kalibrasyonda düşebilir.
+  - `telemetry/raw/`'a bu kontrolün ham kopyası eklendi; içinde flag adları var. Silinmedi (Eren: silme yok).

@@ -1,0 +1,46 @@
+# quote-gateway bağımlılıkları, hepsi sabit (DECISIONS 2026-10-28 quote-gateway). Üretim: aşağıdaki üst düzey liste
+# Dockerfile'daki taban imajda kuruldu, `pip freeze` (pip check temiz); hepsi 2026-10-14'ten önce yayımlanmış sürümler.
+# Üst düzey: flask 3.1.3, requests 2.34.2; OTel ve OpenFeature demodaki sürümler (opentelemetry-distro 0.64b0,
+# exporter-otlp-proto-grpc 1.43.0, openfeature-sdk 0.9.0, provider-flagd 0.5.2, hooks-opentelemetry 0.3.1);
+# instrumentation-flask ve -requests 0.64b0 (opentelemetry-bootstrap kullanılmaz: sürümsüz kurar). Sabitlenen
+# dolaylılar: grpcio 1.83.1 ve protobuf 7.35.1 (demodaki), certifi, googleapis-common-protos, wrapt (son sürüm < 2 hafta).
+blinker==1.9.0
+cachebox==5.2.3
+certifi==2026.7.22
+charset-normalizer==3.5.2
+click==8.5.0
+Flask==3.1.3
+googleapis-common-protos==1.75.5
+grpcio==1.83.1
+idna==3.20
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+mmh3==5.3.1
+openfeature-flagd-api==1.0.0
+openfeature-flagd-core==1.0.0
+openfeature-hooks-opentelemetry==0.3.1
+openfeature-provider-flagd==0.5.2
+openfeature-sdk==0.9.0
+opentelemetry-api==1.43.0
+opentelemetry-distro==0.64b0
+opentelemetry-exporter-otlp-proto-common==1.43.0
+opentelemetry-exporter-otlp-proto-grpc==1.43.0
+opentelemetry-instrumentation==0.64b0
+opentelemetry-instrumentation-flask==0.64b0
+opentelemetry-instrumentation-requests==0.64b0
+opentelemetry-instrumentation-wsgi==0.64b0
+opentelemetry-proto==1.43.0
+opentelemetry-sdk==1.43.0
+opentelemetry-semantic-conventions==0.64b0
+opentelemetry-util-http==0.64b0
+packaging==26.3
+panzi-json-logic==1.0.1
+protobuf==7.35.1
+PyYAML==6.0.3
+requests==2.34.2
+semver==3.1.0
+typing_extensions==4.16.0
+urllib3==2.8.0
+Werkzeug==3.1.9
+wrapt==2.5.0

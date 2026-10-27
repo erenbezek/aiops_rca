@@ -9,7 +9,7 @@ Kesik çizgili kutular henüz yok; klasör adları ihtiyaç doğduğunda onayla 
 flowchart LR
     subgraph ortam["Demo ortamı (Docker Compose)"]
         otel["OpenTelemetry Demo"]
-        own["Kendi Python servisim"]
+        own["Kendi Python servisim<br/>quote-gateway (shipping → quote-gateway → quote)"]
         col["OTel collector<br/>(sızıntı süzmesi: filter/sim_world,<br/>transform/scrub)"]
     end
 
@@ -134,4 +134,8 @@ flowchart LR
 | `incident_lists/v2_dry.json`, `v2b.json`, `v2c.json` | V2 listeleri: altyapı hatası kuru denemesi (6) / kalibrasyon gecesi (16) / bellek kısa koşusu (1) |
 | `deploy/netem/Dockerfile` | Ağ hatası yardımcı imajı `aiops-netem:1` (sabit alpine + iproute2, giriş `tc`); hedefin ağ ad alanında yalnız NET_ADMIN ile koşar |
 | `tests/test_infra_faults.py` | Altyapı hatalarının Docker'sız testleri: dondurmanın kaydı, parametre biçimleri, zaman kalıbı, çağıran kuralı, temizlik doğrulaması, boş swap koruması, liste denetimi |
+| `services/quote-gateway/` | Kendi Python servisimiz `quote-gateway` (Flask + requests, OTel otomatik, OpenFeature + flagd): shipping'in fiyat isteğini quote'a iletir; `gateway.py` iş mantığı, `app.py` Flask ve flag'ler, `requirements.txt` sabit, `Dockerfile` (imaj `aiops-quote-gateway:1`) |
+| `deploy/otel-demo/flagd-extras.json` | quote-gateway flag'leri; `otel_demo.sh up` upstream flag dosyasıyla birleştirir |
+| `tests/test_quote_gateway.py` | quote-gateway iş mantığı, flag birleştirme, koşucunun yeni flag'leri açıp kapatması |
+| `incident_lists/quote_gateway.json` | quote-gateway kalibrasyon listesi (7 vaka) |
 | `incidents/` | Geçerli vakaların etiketleri ve koşu kayıtları (`<incident_id>.json`) |

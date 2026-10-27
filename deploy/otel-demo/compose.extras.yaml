@@ -98,6 +98,46 @@ services:
     ports: !reset []
   shipping:
     ports: !reset []
+    # Kendi Python servisimiz araya girer: shipping → quote-gateway → quote (DECISIONS 2026-10-28 quote-gateway).
+    environment:
+      - QUOTE_ADDR=http://quote-gateway:${QUOTE_PORT}
+    depends_on:
+      quote-gateway:
+        condition: service_started
+  # Kendi Python servisimiz (services/quote-gateway/; imaj yerelde: docker build -t aiops-quote-gateway:1
+  # services/quote-gateway). quote'un fiyat isteğini aynı arayüzle alır, quote'a iletir. OTel demodaki Python servisi
+  # gibi otomatik; flag'ler flagd'den (deploy/otel-demo/flagd-extras.json). Bellek sınırı 128M: normal çalışmada
+  # açılış tepesi 46,5 MiB, 20. dk'da 51,8 MiB (anon 40,4); ~2,4 kat pay. Sızıntı adayları buna göre (HANDOFF
+  # 2026-10-28 quote-gateway c).
+  quote-gateway:
+    image: aiops-quote-gateway:1
+    container_name: quote-gateway
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    restart: unless-stopped
+    environment:
+      - QUOTE_ADDR
+      - QUOTE_GATEWAY_PORT=${QUOTE_PORT}
+      - FLAGD_HOST
+      - FLAGD_PORT
+      - OTEL_EXPORTER_OTLP_ENDPOINT
+      - OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      - OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION
+      - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES},service.criticality=high
+      - OTEL_SERVICE_NAME=quote-gateway
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+      - OTEL_PYTHON_LOG_CORRELATION=true
+    depends_on:
+      otel-collector:
+        condition: service_started
+      flagd:
+        condition: service_started
+      quote:
+        condition: service_started
   telemetry-docs:
     ports: !reset []
   valkey-cart:

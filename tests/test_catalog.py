@@ -35,7 +35,7 @@ def table(heading: str) -> tuple[dict, list]:
 
 
 def catalog_rows() -> dict[str, dict]:
-    col, rows = table("## Flag senaryoları (11)")
+    col, rows = table("## Flag senaryoları (14)")
     out = {}
     for r in rows:
         flag = r[col["Senaryo"]].strip("`")
@@ -55,8 +55,9 @@ ROWS = catalog_rows()
 CASES = [s for s in scenario_runner.SCENARIOS if s["root"] is not None]
 
 
-def test_catalog_has_eleven_scenarios():
-    assert len(ROWS) == 11, sorted(ROWS)
+def test_catalog_has_fourteen_scenarios():
+    # 11 demo flag'i + kendi servisimizin 3 flag'i (quote-gateway, DECISIONS 2026-10-28).
+    assert len(ROWS) == 14, sorted(ROWS)
 
 
 def test_every_catalog_scenario_in_runner():
