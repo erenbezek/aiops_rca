@@ -1468,3 +1468,36 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   3. Jaeger: yığın kararda varsayılan ~3 GiB'i aştı; swap tepesi 4 GB'lık swap'ın yarısına yaklaştı. Ölçüt geçti, ama daha uzun gecelerde risk var.
   
   Kararlardan sonra uygulama INCIDENT_CATALOG'u (adlar, hedefler, parametreler, yayılım), `test_catalog.py` kapsamını ve kalan kayıtları yazar.
+
+## 2026-10-27 · Planlama → Uygulama (V2c: ağ belirtisi, bellek kalibrasyonu, Jaeger denemesi)
+- **V2b kontrolü (planlama):**
+  - Uygun: 16/16 etiket geçerli; 16 snapshot bağımsız tarandı, sızıntı 0; `window.json` etiketlerle aynı; temizlik 16/16 doğrulandı.
+  - Zaman kalıbı kurala uygun: normal dönem 10,2–13,5 dk, kuyruk 1,0–3,0 dk. pytest 266/266.
+  - quote ve currency için çağıran ölçümü planlamada yeniden yapıldı, uygulamanın sayılarıyla aynı.
+  - V2b seçimleri kesin. Ek olarak networkDelay quote 50 ms ve packetLoss currency %10 seçildi (DECISIONS 2026-10-27, ağ belirtisi).
+- **Kararlar:** DECISIONS 2026-10-27'deki üç satır (ağ belirtisi, bellek hedefleri, Jaeger). Ölçütler oradadır; bu kart sırayı verir.
+- Onaylı adlar: `V2c`, `incident_lists/v2c.json` (GLOSSARY'ye uygulama yazar).
+
+### a. Kod
+- **Ağ hatalarında belirti:** networkDelay ve packetLoss'ta hedefin kendi belirtisinin yanında çağıran ölçümü de yapılır (`caller_rows`, `caller_symptom_check`); güçlü olan `symptom` olur. Etikette iki ölçümün ikisi de kayıtlı kalır. Olay kuralı değişmez.
+- **Boş swap koruması:** her vakadan önce `/proc/meminfo` SwapFree < 1 GB ise koşucu vakaya başlamaz, geceyi durdurur, nedeni log'a ve kayda yazar. Vaka boyunca en düşük boş swap `run` kaydına girer.
+- **Jaeger:** `compose.extras.yaml`'da Jaeger'e `GOMEMLIMIT=2000MiB`. Vaka kaydına Jaeger CPU ortalaması eklenir (yığın tepesi zaten var).
+- Testler; pytest yeşil.
+
+### b. Bellek tabanı
+- Hedef adayları: cart, payment, frontend, email, recommendation.
+- Taban: açılıştan sonraki ilk 60 sn'de `memory.peak`.
+- Isınmış kullanım: yük altında en az 20 dk çalıştıktan sonra `memory.current`.
+- Uygunluk: 0,9× ısınmış kullanım > taban. Pay = 0,9× ısınmış kullanım / taban. Payı en geniş iki servis seçilir. Her biri için iki aday: 0,9× ve 0,75× ısınmış kullanım; tabanın altındaki aday düşer.
+- Hiçbir servis uymazsa memoryLimit V2'den çıkar; koşu yapılmaz, rapor ver ve dur.
+- Ölçüm tablosu (beş servis: taban, ısınmış kullanım, pay, adaylar) HANDOFF'a; liste `incident_lists/v2c.json` (en fazla 4 vaka, her çiftte hafif aday önce). Eren onayından sonra koşu.
+
+### c. Kısa koşu
+- `systemd-run --user` ile, Eren başlatır (~2 saat). Öncesinde: şarj sınırı 80 mi, makine prize bağlı mı, `aiops-netem:1` mevcut mu, pytest yeşil mi.
+- `GOMEMLIMIT` denemesi bu koşuda. Her vakada geçme şartı: Jaeger swap tepesi < 500 MiB, OOM 0, yeniden başlama 0, `otlp_grpc/jaeger` ve `jaeger_storage_exporter` gönderim hatası 0, collector'da reddedilen 0. Kayda: Go yığını tepesi, Jaeger CPU ortalaması, en düşük boş swap.
+- Bellek seçimi: her çiftte belirtili çıkan en hafif aday. Olay kuralı: hedefin kendi isteği enjeksiyon döneminde ≥ M.
+- Jaeger şartı geçmezse: ayar kaldırılır, karar planlamaya döner. Ayar yüzünden geçersiz olan vaka sonra yeniden koşulur.
+
+### d. Rapor ver ve dur
+- Raporda: bellek seçimi (ya da memoryLimit'in çıkışı), Jaeger ölçümleri vaka vaka, koruma devreye girdi mi, pytest.
+- INCIDENT_CATALOG altyapı satırları planlama kontrolünden sonra yazılır.
