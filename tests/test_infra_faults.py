@@ -294,3 +294,20 @@ def test_export_failure_queries_cover_decision():
 def test_prom_increase_empty_is_zero_error_is_none(monkeypatch, reply, want):
     monkeypatch.setattr(sr, "http", lambda *a, **k: reply)
     assert sr.prom_increase("x_total", 600) == want
+
+
+# --- liste denetimi: frontend yalnız memoryLimit'te hedef olabilir (DECISIONS 2026-10-27, V2c bellek) ---
+
+@pytest.mark.parametrize("fault,param,want", [("memoryLimit", "0.9", 1), ("cpuThrottle", "0.1", 2),
+                                              ("containerStop", "on", 2), ("networkDelay", "50ms", 2)])
+def test_frontend_target_only_for_memory(monkeypatch, tmp_path, fault, param, want):
+    # Geçerli liste koruma adımına kadar gider (koruma burada durdurur: 1); reddedilen liste 2 döner.
+    monkeypatch.setenv("SCENARIO_RUNNER_INHIBITED", "1")
+    monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
+    monkeypatch.setattr(sr, "versions", lambda: {})
+    monkeypatch.setattr(sr, "guards", lambda: {"problems": ["test stop"]})
+    monkeypatch.setattr(sr, "run_incident", lambda *a, **k: pytest.fail("must not run"))
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
+    lst = tmp_path / "l.json"
+    lst.write_text(json.dumps([{"fault": fault, "target": "frontend", "param": param, "noise_layer": None}]))
+    assert sr.cmd_incidents(lst) == want

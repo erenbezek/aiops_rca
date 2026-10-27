@@ -1501,3 +1501,31 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 ### d. Rapor ver ve dur
 - Raporda: bellek seçimi (ya da memoryLimit'in çıkışı), Jaeger ölçümleri vaka vaka, koruma devreye girdi mi, pytest.
 - INCIDENT_CATALOG altyapı satırları planlama kontrolünden sonra yazılır.
+
+## 2026-10-27 · Uygulama → Planlama (V2c a ve b: kod, bellek tabanı)
+- **a (`7f15dca`):**
+  - Ağ hatalarında belirti hem hedefte hem çağıranlarda ölçülür, güçlü olan karar verir. İki ölçüm `checks.symptom_target` ve `checks.symptom_callers` olarak kayıtlı; olay hedefin kendi isteğiyle kontrol edilir.
+  - Boş swap koruması korumalara eklendi (`swap_free_gb`, 1 GB); vaka boyunca en düşük boş swap `run.min_swap_free_gb`'ye yazılır.
+  - Jaeger'e `GOMEMLIMIT=2000MiB`; Jaeger CPU ortalaması kayda giriyor.
+  - `run.export_failures`: Prometheus'tan, normal başından vaka sonuna. Snapshot'taki `monitoring_health` normal başı → hata kapanışını ve yalnız geçerli vakayı kapsıyor; bu okuma kuyruğu ve geçersiz vakayı da kapsar.
+- **Canlı kontrolde bulunan:**
+  - `send_failed` sayaçları hata olmadıkça Prometheus'ta hiç oluşmuyor; seri yoksa 0 sayılıyor (`monitoring_health` gibi).
+  - Sayaçlar `__name__` deseniyle tek sorguda okunamadı; tahminen adı düşen seriler çakışıyordu. Her metrik adı ayrı sorgulanıyor.
+  
+  İkinci kontrolde dokuz sorgu da 0 döndü; aynı etiketlerle `sent` sayaçları doluydu (Jaeger'e 18.437, depoya 18.818 span).
+- **V2b'nin altı ağ vakası yeni kuralla çevrimdışı hesaplandı:** quote ve currency'nin dört vakası belirtili oldu (karar çağırandan); olay kontrolü 108–595 istekle geçti. cart ve shipping'de de çağıran daha güçlü çıktı, karar değişmedi.
+- pytest 287/287. Kasıtlı kırmızılar: güçlü olanın seçimi, swap koruması, meminfo, `cpu.stat`, boş sonucun 0 sayılması, frontend ret kuralı (iki yönde).
+- **b · bellek tabanı** (23:00–23:24 yerel saat, tek açılış; değerler MiB). Taban: ilk 60 sn'de `memory.peak`. Isınmış kullanım: 25. dakikada `memory.current`. Ölçüm boyunca yeniden başlama 0. İstek sayıları pilot `inc-07533a0a`'nın normal döneminden.
+
+  | Servis | Taban | Isınmış (20. / 25. dk) | Pay | 0,9× | 0,75× | İstek (10 dk) |
+  |---|---|---|---|---|---|---|
+  | frontend | 103,8 | 121,1 / 120,6 | 1,046 | 108,5 ✓ | 90,4 düştü | 9.159 |
+  | cart | 47,6 | 51,6 / 52,4 | 0,991 | 47,2 düştü | 39,3 düştü | 871 |
+  | email | 63,9 | 57,9 / 58,5 | 0,824 | 52,6 düştü | 43,9 düştü | 24 |
+  | recommendation | 53,5 | 47,9 / 47,8 | 0,804 | 43,0 düştü | 35,8 düştü | 505 |
+  | payment | 91,4 | 59,7 / 60,4 | 0,595 | 54,4 düştü | 45,3 düştü | 24 |
+
+  Kurala uyan tek servis frontend; payı ince (sınır tabanın %4,5 üstünde). cart 0,4 MiB eksikle uymadı.
+- Koşucu frontend'i reddediyordu. Eren seçenek A: ret yalnız `memoryLimit` için kalktı (DECISIONS 2026-10-27).
+- Liste `incident_lists/v2c.json`: tek vaka, memoryLimit frontend 0.9 (~31 dk).
+- **Dikkat (planlama):** Jaeger `GOMEMLIMIT` denemesi tek bir ~31 dk'lık vakada sınanacak. V2b'de yığın ilk 3 saatte büyümüştü; kısa koşu bunu göstermez. Ek vaka gerekip gerekmediği planlamanın kararı.

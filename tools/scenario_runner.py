@@ -1333,8 +1333,11 @@ def cmd_incidents(list_path: Path) -> int:
     def bad(e: dict) -> bool:
         if e.get("noise_layer") and e["noise_layer"] not in BY_ID:
             return True
-        if "fault" in e:  # frontend hedef seçilmez: frontend-proxy span'lerinde hedef alanı yok (Eren)
-            return e["fault"] not in INFRA_FAULTS or not e.get("target") or e["target"] == "frontend" \
+        if "fault" in e:
+            # frontend hedef seçilmez: frontend-proxy span'lerinde hedef alanı yok, çağıran ölçümü yapılamaz (Eren).
+            # İstisna memoryLimit: belirti ve olay hedefin kendi span'lerinde (DECISIONS 2026-10-27, V2c bellek).
+            return e["fault"] not in INFRA_FAULTS or not e.get("target") \
+                or (e["target"] == "frontend" and e["fault"] != "memoryLimit") \
                 or not re.fullmatch(PARAM_RE[e["fault"]], str(e.get("param", "")))
         return e.get("scenario") not in BY_ID or BY_ID[e["scenario"]]["root"] is None
 
