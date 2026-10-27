@@ -93,6 +93,10 @@ LEAK_FIXTURES = {
         "load-generator span ve logu",
         [("excluded_service", 2, "load-generator"), ("excluded_service", 3, "load-generator")],
     ),
+    "leak_infra_helper.jsonl": (
+        "Altyapı hatası yardımcı konteyneri ve komut izleri (V2)",
+        [("infra_term", 2, "netem"), ("infra_term", 3, "qdisc"), ("infra_term", 3, "netem")],
+    ),
 }
 
 CLEAN_FIXTURES = ["clean_symptoms.jsonl", "clean_false_alarms.jsonl"]
@@ -144,7 +148,7 @@ def leak_table_rows():
 
 def test_every_leak_table_row_has_a_fixture():
     rows = leak_table_rows()
-    assert len(rows) == 12
+    assert len(rows) == 13
     covered = {row for row, _ in LEAK_FIXTURES.values()}
     assert set(rows) == covered
 
@@ -266,6 +270,16 @@ def test_envoy_fallback_only_for_standalone_di(tmp_path):
     ])
     lines = sorted(f.line for f in scan_model_view(view) if f.rule == "envoy_fault_flag")
     assert lines == [1, 2]
+
+
+@pytest.mark.parametrize("text,leaks", [
+    ("aiops-netem", True), ("qdisc netem 8001: root", True), ("QDISC del dev eth0", True), ("NetEm", True),
+    ("network timeout after 200ms", False), ("delay 200ms", False), ("discount applied", False),
+])
+def test_infra_terms(tmp_path, text, leaks):
+    view = view_with_lines(tmp_path, [log_line("shipping", text)])
+    found = [f for f in scan_model_view(view) if f.rule == "infra_term"]
+    assert bool(found) is leaks, found
 
 
 def test_known_phrase(tmp_path):

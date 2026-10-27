@@ -78,6 +78,7 @@ Cevabı (hangi flag açık) ele veren veriler. Sadece flagd servisini çıkarmak
 | product-catalog span durumu ve olayı | `Error: Product Catalog Fail Feature Flag Enabled` |
 | product-catalog logu | `lock contention scenario active: holding ACCESS EXCLUSIVE lock on catalog.products` |
 | load-generator span ve logu | `user_flood_home` span'i, `demo.request.flood.count`, `User flooding homepage N times` |
+| Altyapı hatası yardımcı konteyneri ve komut izleri (V2) | `aiops-netem` konteynerinin `docker_stats` metrikleri (`container.name`, `container.image.name`), `tc` çıktısındaki `netem` ve `qdisc` (DECISIONS 2026-10-26 "Enjeksiyon izi kuralı") |
 
 Ele vermeyenler (gerçekçi belirti, korunur): payment hata mesajı (`Payment request failed. Invalid token...`), servislerin flagd'ye yaptığı rutin çağrılar (flag açık olsun olmasın her zaman var).
 

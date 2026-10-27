@@ -333,4 +333,14 @@ write("clean_false_alarms.jsonl", [
     spans_req("frontend", [span("upload", {"error.type": "upload_failure", "app.reason": "UPLOAD_FAILURE", "app.event": "imageReloadFailure"})]),
 ])
 
+
+# V2 iz kuralı: yardımcı konteynerin docker_stats metrikleri (ad ve imaj) ve tc çıktısı bir log gövdesinde.
+write("leak_infra_helper.jsonl", [
+    CLEAN_TRAFFIC,
+    metrics_req({"attributes": attrs({"container.name": "aiops-netem", "container.image.name": "aiops-netem:1",
+                                      "container.id": "f6e5d4c3b2a1"})},
+                [gauge_metric("container.memory.percent", 0.4)], scope="dockerstatsreceiver"),
+    logs_req("shipping", [log("qdisc netem 8001: root refcnt 13 limit 1000 delay 200ms")]),
+])
+
 print("ok", sorted(p.name for p in OUT.iterdir()))

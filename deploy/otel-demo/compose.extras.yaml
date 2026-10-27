@@ -108,13 +108,17 @@ services:
     ports: !reset []
   # Komut upstream'inkine ikinci ayar dosyası eklenerek yeniden yazılır (ek dosyada command listesi değiştirilir).
   # Volume /tmp'de: gerekçe jaeger-config-extras.yml'da.
-  # Bellek sınırı upstream'in 1200M'i yerine 2000M: badger'la Jaeger'in kendi belleği (anon) dakikalarca
-  # 1064 MiB'e çıktı, 1200M'de tampon yalnız dosya önbelleğiydi (depolama D2 ölçümü, Eren onayı 2026-10-25).
+  # Bellek sınırı upstream'in 1200M'i yerine 2500M: badger'la Jaeger'in kendi belleği (anon) dakikalarca
+  # 1064 MiB'e çıktı, 1200M'de tampon yalnız dosya önbelleğiydi (depolama D2, 2000M'e çıkarıldı); pilot gecede
+  # 25 dk'lık vakalarda anon tepe 1.677–1.826 MiB, 2000M'in %84–91'i (DECISIONS 2026-10-26, 2500M).
+  # V2a kuru denemesinden sonra: Jaeger'in Go yığını tepede ~3 GiB (2000M'de de 2500M'de de), RSS sınırda, taşan
+  # kısım swap'ta; ihtiyaç sınırla değişmiyor. Geçme şartı OOM 0 ve yeniden başlama 0; anon, swap ve yığın tepesi
+  # kayda (DECISIONS 2026-10-26 "Jaeger ölçütü düzeltmesi").
   jaeger:
     deploy:
       resources:
         limits:
-          memory: 2000M
+          memory: 2500M
     ports: !reset []
     command:
       - "--config=file:/etc/jaeger/config.yml"

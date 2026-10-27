@@ -130,6 +130,8 @@ Sadece Eren'in onayladığı isimler.
 | `marks` | Geçerli ama işaretli vaka: `no_symptom`, `borderline`, `not_measurable` (set kararı V3'te) |
 | `run` | Etiketin koşu kaydı: `versions`, `guards`, `times`, `containers`, `duration_s`, `snapshot_bytes`, `list_entry`, `collector_restarted`, `scheduler`, `memory`, `anonymous_volumes_removed`, `overheat`, `baseline_failed`, `coverage_short`, `leakage_found` ve C2'den `restarts_in_window`, `expected_restarts`, `suspended_s`, `max_pkg_temp_c` |
 | `incident_lists/`, `pilot.json` | Repoda koşulacak vaka listeleri (öğe: `scenario` = koşucu senaryo kimliği, `noise_layer`) / pilot gece listesi (13 vaka) |
+| `incident_lists/v2_dry.json` | V2a kuru deneme listesi (altı hata, her biri bir hedefte, `"dry": true`) |
+| `incident_lists/v2b.json` | V2b kalibrasyon gecesi listesi (16 vaka; bellek adayları taban altında kaldığı için yok) |
 | `~/cerebrum2/incident_runs/` | Vaka üretimi çalışma dosyaları, gece başına `<UTC>-<liste>/`: `runner.log`, `ism.json`, her denemenin etiketi `<incident_id>.json`, vaka klasöründe bellek ve konteyner dökümleri; geçersiz vakanın snapshot'ı `<incident_id>/model_view/`'a taşınır; repo dışı |
 | `ism.json` | Gece klasöründe OpenSearch ISM kontrolü (her `otel-logs` indeksinde `otel-logs-retention` mı) |
 | `fault_type`, `propagation_path`, `categories` | `SCENARIOS`'taki doğru cevap alanları (INCIDENT_CATALOG tablosunun aynısı) |
@@ -144,3 +146,23 @@ Sadece Eren'in onayladığı isimler.
 | `snapshot_gb`, `anonymous_volumes`, `remove_volumes`, `ism_explain`, `new_incident_id`, `cut_snapshot` | Koşucu fonksiyonları: snapshot kökünün boyutu / projenin konteynerlerine bağlı anonim volume'ler / onları silme / ISM kontrolü / rastgele kimlik / pencereyi snapshot'a yazma |
 | `run_incident`, `cmd_incidents`, `cgroup_memory`, `versions` | Tek vaka / liste koşusu / cgroup bellek tepesi, anon ve `memory.events` / repo ve demo commit'i, imaj sürümleri |
 | `tests/test_catalog.py`, `tests/test_incident_checks.py` | `SCENARIOS` ↔ INCIDENT_CATALOG senkron testi / kontrol modülünün testleri |
+| `containerStop`, `containerPause`, `cpuThrottle`, `memoryLimit`, `networkDelay`, `packetLoss` | Altyapı hatası senaryoları (V2): `docker stop` / `docker pause` / `docker update --cpus` / `docker update --memory --memory-swap` / `tc netem delay` / `tc netem loss` |
+| `deploy/netem/Dockerfile`, `aiops-netem:1`, `aiops-netem` | Ağ hatası yardımcı imajının tarifi (sabit alpine + iproute2, giriş `tc`) / imaj adı / hedefin ağ ad alanında koşan, iş bitince silinen yardımcı konteyner |
+| `{"fault","target","param","noise_layer"}`, `"dry": true` | Vaka listesinde altyapı hatası öğesi / kuru deneme işareti (snapshot gece klasöründe, `incidents/`'a etiket yazılmaz, taban sağlık engellemez) |
+| `INFRA_FAULTS`, `NETEM_IMAGE`, `NETEM_WORD`, `PARAM_RE` | Koşucu: hata → `fault_type` ve yöntem / yardımcı imaj adı / netem hatası → `tc` sözcüğü / parametre biçimleri |
+| `apply_fault`, `revert_fault`, `_inspect`, `_tc`, `cleanup_failed` | Hatayı uygulayıp geri okur / geri alıp doğrular / hedefin `docker inspect` durumu / yardımcı imajla `tc` / temizlik doğrulanamadı mı (gece durur) |
+| `STABLE_S` | Temizlikte yeniden başlama sayısının sabit kalması gereken süre (30 sn) |
+| `schedule`, `NORMAL_RANGE_S`, `TAIL_RANGE_S` | Tohumdan normal dönem ve kuyruk süresi / 600–840 sn / 60–180 sn |
+| `DRY_NORMAL_S`, `DRY_FAULT_S`, `DRY_TAIL_S` | Kuru denemenin sabit süreleri (180 / 180 / 60 sn) |
+| `prom_max` | Prometheus'ta son N saniyedeki tepe değer (`max_over_time`) |
+| `current_mib`, `file_mib`, `swap_mib`, `swap_peak_mib` | `cgroup_memory` çıktısında `memory.current` (bellek sınırının saydığı toplam) / dosya sayfaları / `memory.swap.current` / `memory.swap.peak` |
+| `run.schedule`, `run.fault_state`, `run.target_ips` | Etikette tohum ve süreler / hata durum kaydı / hedefin IP'leri (`before` enjeksiyondan önce, `after` geri almadan sonra) |
+| `before`, `applied`, `applied_ok`, `reverted`, `after`, `stable`, `verified` | `fault_state` alanları: önceki durum / uygulama sonucu (bellekte `usage_mib`) / uygulandı mı / geri alma sonucu / son okuma / `{restarts_start, restarts_end, seconds}` / temizlik doğrulandı mı |
+| `usage_mib` | Bellek hatasında sınırın hesaplandığı toplam kullanım (`memory.current`) |
+| `run.times.fault_on_<hata>`, `fault_off_<hata>`, `tail_end` | Hatanın uygulandığı / geri alındığı an, kuyruğun sonu |
+| `paused` | `containers()` kaydında dondurulmuş mu; `split_restarts` değişimi görür |
+| `run.memory.jaeger_swap_peak_mib`, `jaeger_heap_peak_mib` | Jaeger swap tepesi (dakikalık örnek) / Go yığını tepesi (`otelcol_process_runtime_heap_alloc_bytes`, Prometheus) |
+| `infra_term`, `leak_infra_helper.jsonl` | Sızıntı tarayıcısında yardımcı konteyner ve `netem`/`qdisc` deseni / sahte satır dosyası |
+| `caller_rows`, `caller_symptom_check`, `SPAN_KIND_CLIENT`, `_span_attrs`, `_rpc_service` | Hedefi çağıranların hedefe giden istemci span'leri / onlarda belirti / istemci span türü (3) / span özniteliklerini okuma / gRPC servis adı |
+| `callers_measured`, `matched_ips`, `matched_rpc_services`, `caller` | `checks.symptom`'da ölçülen çağıran işlem sayısı / eşleşen IP'ler / eşleşen gRPC adları; karar düzeyi `caller` (`deciding.caller`) |
+| `tests/test_infra_faults.py` | Altyapı hatalarının Docker'sız testleri |

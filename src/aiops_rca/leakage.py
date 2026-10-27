@@ -67,6 +67,9 @@ TEXT_RULES = (
     ("feature_path", re.compile(r"/feature(?![sd])", re.IGNORECASE)),
     # Satır: "product-catalog logu". Kalıba girmeyen bilinen ifadeler.
     ("known_phrase", re.compile(r"lock\s+contention\s+scenario", re.IGNORECASE)),
+    # Satır: "Altyapı hatası yardımcı konteyneri ve komut izleri (V2)": yardımcı konteynerin adı ve imajı
+    # (`aiops-netem`), `tc` çıktısı (`qdisc netem ...`). Hedefteki fiziksel etki belirtidir, aranmaz.
+    ("infra_term", re.compile(r"netem|qdisc", re.IGNORECASE)),
 )
 
 # Satır: "frontend-proxy (Envoy) erişim logu ve span'leri" (`%RESPONSE_FLAGS%` alanında `DI`).

@@ -1278,3 +1278,226 @@ Uygulamanın V1 kartına dört sorusunun cevabı (Eren onayı). Kartın ölçüt
   - Collector cgroup tepesi flood'lu paymentFailure'da 400 / 400 MiB, ama anon ~90 MiB (dosya önbelleği), `max` 18; bellek sorunu değil.
 - "Bitince": ARCHITECTURE diyagramı (kesici, snapshot'lar ve `model_view` kesik çizgiden çıktı; `incidents/` ve `incident_checks.py` eklendi), PROJECT "Şu an". GLOSSARY ve DECISIONS (snapshot biçimi, sınır, M, taban eşiği) V1a commit'inde.
 - Repoda 13 pilot etiketi (`incidents/`); tek vaka denemesinin etiketi (`inc-8ceb7ae5`) V1a'da.
+
+## 2026-10-26 · Planlama → Uygulama (vaka üretimi V2, altyapı hataları)
+- V1 planlama kontrolü: rapor doğrulandı. 14 etiket (13 pilot + tek vaka) geçerli ve belirtili; 14 snapshot sızıntı tarayıcısından bağımsız geçirildi, bulgu 0; snapshot pencereleri etiketlerle aynı; pytest 226/226.
+- Kararlar DECISIONS 2026-10-26 (yedi satır: Jaeger 2500M, ağ aracı, hata yöntemleri, iz kuralı, zaman kalıbı, systemd-run, V3 notu) ve INCIDENT_CATALOG "Kendi altyapı hatalarımız" tablosu. Bu kartın kayıtları planlamanın commit'inde. İşe `task/vaka-v2` dalında devam et.
+- Önce 3-5 maddelik planını yaz, Eren onaylasın. Yeni ad (senaryo, imaj, konteyner, dosya, alan) koymadan önce öner. Yardımcı imajın tabanı (sabit sürümlü alpine) ve içindeki iproute2 kararla onaylı; başka imaj ya da paket sorulur. Upstream'e dokunma. V2a ve V2b sonunda rapor ver ve dur.
+
+### Amaç
+Altı altyapı hatasını (durdurma, dondurma, CPU kısıtlama, bellek sınırı, ağ gecikmesi, paket kaybı) koşucuya eklemek, kalibre etmek ve bir gece koşusunda sınamak. Vakalar `set: pilot`, resmî sete girmez.
+Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test bölümü, repoda systemd birimi ve zamanlayıcı (V3'ten önce ayrı kart), değerlendirme.
+
+### V2a · Mekanizma (gözetimli, gece koşusu yok)
+1. Öner (Eren onaylar): senaryo adları, yardımcı imajın adı ve Dockerfile'ın yeri (`deploy/` altında), yardımcı konteyner ad deseni, liste dosyasında altyapı hatasının biçimi (tip, hedef, parametre).
+2. Enjeksiyon ve temizleme:
+   - Enjeksiyondan önce hedefin mevcut değeri okunur (CPU ve bellek sınırı), temizlemede geri yazılır ve geri okunarak doğrulanır (flag'lerdeki gibi). netem: kural silinir, `tc qdisc show` ile doğrulanır. Dondurma: `unpause`, durum running. Durdurma: `start`, durum running.
+   - Temizleme doğrulanamazsa vaka geçersiz ve gece durur (sonraki vakayı kirletebilir).
+   - Bellek: yeni sınır ölçülen kullanımın altında; oranı öner.
+3. Kontrollerin uyarlanması:
+   - Durdurma ve dondurmada hedefin kendi span'ları kesilir ya da azalır: belirti ve olay kontrolü hedefi çağıran servisin hedefe giden istemci span'larında yapılır (paymentUnreachable'daki checkout gibi). Yöntemi öner.
+   - Bellek, durdurma ve dondurmada hedef `expected_restarts`'a girer. `split_restarts`'ın `paused` durumunu nasıl gördüğüne bak.
+   - Koşucunun konteyner sayısı (22) ve izleme sağlığı kontrolleriyle çakışan yerleri listele.
+   - İz kuralı (DECISIONS): yardımcı konteyner `otelcol-config-extras.yml`'deki süzgece eklenir (flagd satırının yanına). Sızıntı tarayıcısına desenler eklenir: yardımcı konteynerin adı ve imajı, `netem`, `qdisc`. Test: desenli sahte satır yakalanıyor (kasıtlı kırmızı).
+4. Zaman kalıbı: normal dönem rastgele 8–12 dk, kuyruk rastgele 1–3 dk; tohum ve süreler etikette. Testler: süreler aralıkta, aynı tohum aynı süreleri verir.
+5. Jaeger sınırı 2500M (`compose.extras.yaml`, yorum satırıyla). Etiketteki boş `run.snapshot_gb` alanı düzeltilir.
+6. Kuru deneme (gözetimli): her hata tipi bir hedefte, kısa enjeksiyonla (yöntemi öner). Bakılanlar:
+   - Mekanizma çalışıyor ve hedefte etki gözleniyor.
+   - Temizlik doğrulanıyor.
+   - Yardımcı konteyner `model_view`'da yok, sızıntı 0.
+   - Bu denemelerin çıktısı sete girmez.
+- Rapor ver ve dur.
+
+### V2b · Kalibrasyon gecesi
+- Aday listesi ölçmeden önce yazılır, Eren onaylar:
+  - Hedefler: her hata tipi için 2 servis. Ölçütler:
+    - Katalogdaki bir yayılım yolunda olsun, yayılım görünsün.
+    - Pilot verisinde 10 dakikada en az M istek alsın.
+    - Mümkünse farklı diller.
+    - En az biri hiçbir flag'in hedefi olmayan bir servis (ör. currency, quote, shipping).
+  - Parametre: CPU, gecikme ve kayıpta hafiften güçlüye 2 aday; durdurma, dondurma ve bellekte tek değer.
+  - Toplam süre ≤ 9 saat.
+- Başlatma: Eren `systemd-run --user` ile başlatır (DECISIONS); komutu raporda ver. Önce şarj sınırının 80 olduğu kontrol edilir.
+- Ölçütler:
+  - Gece yarıda kalmadı.
+  - Geçerli vaka oranı ≥ %80.
+  - Sızıntı 0.
+  - Temizlik her vakada doğrulandı.
+  - Her (tip, hedef) çifti için belirtili çıkan en hafif aday seçilir ve INCIDENT_CATALOG'a yazılır. Hiçbir aday belirtili değilse o çift rapora girer; kural değişmez, karar planlamanın.
+  - Jaeger: anon tepe < 2.000 MiB, OOM 0.
+  - Collector'ın OOM'u ya da yeniden başlaması 0 (mevcut kural: vakayı geçersiz kılar).
+  - Belirtinin hedefi çağıranlarda görünüp görünmediği kayda geçer (geçme şartı değil; katalogdaki yayılım yollarını bu doldurur).
+  - pytest yeşil.
+- Güç kontrolü:
+  - Bir hata tipinde iki hedefte de belirti yoksa o tip V3'e girmez ya da parametresi yeniden seçilir; karar planlamanın.
+  - Jaeger ölçütü tutmazsa V3'ten önce Jaeger kararı yeniden açılır.
+  - Temizliği doğrulanamayan bir vaka çıkarsa mekanizma düzeltilir ve gece tekrarlanır.
+  - Vaka başına süre V3'ün kaç gece süreceğini belirler.
+- Rapor ver ve dur.
+
+### Bitince
+- INCIDENT_CATALOG: senaryo adları, hedefler, parametreler, beklenen yayılım; `test_catalog.py` kapsamı.
+- GLOSSARY (onaylı adlar), ARCHITECTURE (yardımcı imaj, enjeksiyon), OTEL_DEMO (Jaeger 2500M), PROJECT "Şu an". DevOps tablosundaki "Linux ağ/kaynak hataları" satırını planlama kontrolden sonra işaretler.
+- PR açıklaması sade; push'tan önce PR durumuna bak.
+
+## 2026-10-26 · Uygulama → Planlama (vaka üretimi V2a, mekanizma)
+- Yapılan:
+  - Altı altyapı hatası koşucuda (`INFRA_FAULTS`, `apply_fault`, `revert_fault`). Hedefin durumu önce okunur, hata uygulanıp geri okunur, temizlikte önceki değer geri yazılıp doğrulanır. Doğrulanamazsa vaka geçersiz sayılır ve gece durur (`cleanup_failed`). `frontend` hedef seçilemez.
+  - Ağ hataları için yardımcı imaj `deploy/netem/Dockerfile` (`aiops-netem:1`; sabit alpine 3.24.3 ve iproute2 7.0.0-r0). Konteyner `--network container:<hedef>` ile koşar ve yalnız NET_ADMIN yetkisi alır. Gece öncesinde imaj yoksa koşucu hata verir ve derleme komutunu yazar.
+  - CPU sınırının geri alınması: `docker update --cpus 0` çıkış 0 verdiği hâlde sınırı kaldırmıyor. Bu yüzden önceki değer 0 ise çekirdek sayısı yazılıyor.
+  - Durdurma ve dondurmada belirti ve olay, çağıranların hedefe giden istemci span'lerinde ölçülür (`caller_rows`, `caller_symptom_check`). Hedefe giden span şu yollarla eşleşir: hedefin adı, o vakadaki IP'leri (enjeksiyondan önce ve geri almadan sonra kaydedilen) ya da hedefin kendi gelen span'lerinde görülen gRPC servis adı.
+  - `split_restarts` artık `paused` değişimini de görüyor. Stop, pause ve memory hatalarında hedef `expected_restarts`'a giriyor; dondurmanın kanıtı ayrıca `fault_state`'te.
+  - Zaman kalıbı tohumla belirleniyor (`schedule`): normal dönem 10–14 dk, kuyruk 1–3 dk. Pencere `fault_off + kuyruk`'ta biter.
+  - İz kuralı: collector süzgecinde `aiops-netem` için kural var, sızıntı tarayıcısında `infra_term` (netem, qdisc) deseni var. OTEL_DEMO tablosuna satır eklendi; 14 snapshot yeniden tarandı, hepsi temiz. Jaeger sınırı 2500M.
+  - DECISIONS 46ed6b6 eklendi:
+    - Bellek sınırı toplam kullanıma (`memory.current`, `usage_mib`) göre hesaplanıyor.
+    - Temizlik doğrulaması: hedef çalışıyor, dondurulmamış ve IP'si var olmalı; `STABLE_S` (30 sn) boyunca yeniden başlama sayısı sabit kalmalı (`fault_state.stable`).
+    - Jaeger için kayda swap tepesi (dakikalık `memory.swap.current` ve `memory.swap.peak`) ile Go yığını tepesi (`prom_max`, Prometheus `job="jaeger"`) giriyor.
+- Kuru deneme `incident_runs/20261026T0327Z-v2_dry/` (`incident_lists/v2_dry.json`, 6 hata, her biri 3 dk). Dört ölçüt geçti:
+  - 6/6 uygulandı, 6/6 temizlik doğrulandı.
+  - Sızıntı 0; netem/qdisc düz metin araması da 0.
+  - Snapshot kökü ve `incidents/` değişmedi.
+  
+  Beş vaka belirtili. `memoryLimit` cart "no event" ile geçersiz: sınır 16,9 MB kaldı, cart 12 kez yeniden başladı. Bu sonuç kararın (46ed6b6) kaynağı. Eski temizlik kuralı bu vakada IP boşken "doğrulandı" demişti; yeni kural bu durumu düşürür (testte kasıtlı kırmızısı var).
+- Karar eklerinin canlı kontrolü (19:35–19:43 yerel saat, demo açık ~5 dk):
+  - `cgroup_memory("jaeger")` değerleri: current 1.290, anon 802, file 481 MiB; swap 0 ve swap tepesi 0 (okunabiliyor).
+  - Prometheus'tan Jaeger yığın tepesi 795,6 MiB.
+  - quote pause → geri alma: `verified` true, IP var, 30 sn'de yeniden başlama 0→0.
+  - Demo kapandı, anonim volume silindi.
+- Testler: pytest 266/266. Kasıtlı kırmızılar paused, hata tipi, tohum, aralık, gRPC eşleşmesi, IP eşleşmesi, `infra_term`, IP'siz temizlik, 30 sn içinde yeniden başlama ve anon tabanlı bellek sınırı için koşuldu; hepsinde ilgili test kırmızı verdi.
+- Beklenen (planlama): V2b aday listesi. Bellekte iki aday olacak, ikisi de sürecin açılış ihtiyacının üstünde. Listeyi Eren onaylayınca kalibrasyon gecesi koşulacak.
+- Dikkat:
+  - Kuru denemede taban sağlık 27,6–30,7 ms çıktı; ölçüm penceresi ısınmaya taşıyordu. Gerçek gecede normal dönem 10–14 dk olduğu için taşma olmaz.
+  - Monitor'deki dakikalık swap örneklemesi canlıda yalnız `cgroup_memory` okuması üzerinden sınandı (Monitor bu kontrolde çalışmadı); ilk gerçek kaydı V2b gecesi verecek.
+  - Altyapı vakalarında `propagation_path` boş; V2b'den sonra katalogdan gelecek.
+
+## 2026-10-26 · Planlama → Uygulama (V2b aday listesi)
+- V2a kontrolü: rapor ve commit (`844d1d5`) uygun; pytest 266/266.
+- Liste aşağıda, ölçmeden önce yazıldı (Eren onayı). Veri: pilot `inc-07533a0a`'nın normal dönemi (10 dk); istek sayısı = servisin gelen span'leri, bellek = `container.memory.usage.total` medyanı, CPU = `container.cpu.usage.total` artış hızının ortalaması.
+- Kartın hedef ölçütlerinde iki düzeltme:
+  - "Katalogdaki bir yayılım yolunda" ölçütü yayılımın görünmesi anlamında uygulandı. Katalogdaki yollar flag'lerden çıkıyor; flag dışı servisler (currency, quote) o yollarda yok. Bu iki servisin izlerde çağıranları var: currency ← frontend, checkout; quote ← shipping ← frontend, checkout.
+  - Kartta flag dışı örneklerden biri olarak geçen shipping yanlış: shipping, intlShippingSlowdown'ın hedefi.
+- checkout, email ve payment aday değil: normal dönemde 10 dk'da 24 istek alıyorlar, M = 10'a göre pay ince.
+
+### Liste (20 vaka)
+| Hata | Hedef 1 | Hedef 2 | Adaylar (hafif → güçlü) |
+|---|---|---|---|
+| networkDelay | cart (.NET; çağıranlar frontend, checkout) | quote (PHP; çağıran shipping) | 50 ms, 200 ms |
+| packetLoss | shipping (Rust) | currency (C++) | %10, %30 |
+| cpuThrottle | product-catalog (Go) | recommendation (Python) | Ortalama kullanımın 1×'i ve 0,5×'i: product-catalog 0,09 / 0,045; recommendation 0,03 / 0,015 çekirdek |
+| containerPause | cart | quote | tek değer |
+| containerStop | recommendation | currency | tek değer |
+| memoryLimit | ad (Java) | quote (PHP) | Toplam kullanımın 0,9×'i ve 0,75×'i (enjeksiyon anında ölçülen) |
+
+- **CPU'da flag dışı hedef yok (istisna):** currency ve quote ortalama 0,01 çekirdek kullanıyor; bu, Docker'ın en düşük sınırı.
+- **Bellek tabanı:** gece öncesinde kısa bir açılışla her bellek hedefinin açılış ihtiyacı ölçülür (açılıştan sonraki ilk 60 sn'de `memory.current` tepesi). Bu tabanın altında kalan aday düşer ve kayda yazılır; o çift tek adayla kalır.
+- **Kuru deneme bilgisi:**
+  - product-catalog 0,05 çekirdekte p99 23 → 4.099 ms.
+  - shipping 200 ms gecikmede p95 3,7 → 405 ms.
+  - payment %20 kayıpta belirti zayıftı (servis düzeyi p95, güç 21).
+- **Sıra:** networkDelay → packetLoss → cpuThrottle → containerPause → containerStop → memoryLimit. Temizliği en riskli olanlar sonda: temizlik doğrulanamazsa gece durur, önceki vakalar kayıtta kalır. Her çiftte hafif aday önce.
+- **Süre:** vaka başına ~30 dk, toplam ~10 saat. Eren onayıyla kartın 9 saatlik bütçesinin yerine tek gece (ör. 21:00 → ~07:00).
+
+### Gece
+- Liste dosyasının adını öner (ör. `incident_lists/v2b.json`). Gece öncesinde yapılacaklar:
+  - Bellek tabanı ölçümü.
+  - `aiops-netem:1` imajının var olduğu kontrol edilir.
+  - Şarj sınırının 80 olduğu kontrol edilir.
+  - pytest yeşil.
+  - Eren'e `systemd-run --user` komutu verilir.
+- **Ölçütler:** kart V2b, DECISIONS 2026-10-26 düzeltmeleriyle:
+  - Jaeger: OOM 0 ve yeniden başlama 0; anon, swap ve Go yığını tepesi kayda.
+  - Bellek hatasında olay kuralı hedefin kendi isteği (≥ M).
+- **Seçim:** her (hata, hedef) çifti için belirtili çıkan en hafif aday INCIDENT_CATALOG'a girer. Hiçbir aday belirtili değilse o çift rapora girer; kural değişmez, karar planlamanın.
+- Rapor ver ve dur.
+
+## 2026-10-26 · Uygulama → Planlama (V2b gece hazırlığı)
+- Liste `incident_lists/v2b.json` (Eren onayı): kartın sırasıyla 16 vaka. Bellek çifti yok (Eren seçenek A).
+- Bellek tabanı (19:55–20:03 yerel saat, kısa açılış; açılıştan sonraki ilk 60 sn'de `memory.peak`, 60. sn'de okundu; ısınmış kullanım `memory.current`, up'tan 300 sn sonra) ve **düşen adaylar** (kart kuralı):
+
+  | Hedef | Taban | Isınmış kullanım (6. dk) | 0,9× | 0,75× |
+  |---|---|---|---|---|
+  | ad | 220,7 MiB | 210,2 MiB (210,7) | 189,2 MiB, düştü | 157,6 MiB, düştü |
+  | quote | 24,0 MiB | 18,6 MiB (18,6) | 16,7 MiB, düştü | 14,0 MiB, düştü |
+
+  İki serviste de açılış tepesi ısınmış kullanımdan yüksek. Bu yüzden kullanımın 1'den küçük her katı tabanın altında kalıyor. Bellek adayları yeniden seçilecek; karar planlamanın.
+- Hazırlık kontrolleri:
+  - `aiops-netem:1` mevcut, şarj sınırı 80, pytest 266/266.
+  - Disk 281 GB boş; izleme volume'leri 6,15 GB, snapshot kökü 3,33 GB.
+  - Kullanıcı biriminden `gnome-session-inhibit`, `systemd-inhibit`, Docker ve venv çalışıyor (1 sn'lik test birimi).
+- Başlatma (Eren): `systemd-run --user --unit=aiops-incidents -p WorkingDirectory=/home/eren/cerebrum2/aiops_rca /home/eren/cerebrum2/aiops_rca/.venv/bin/python tools/scenario_runner.py incidents incident_lists/v2b.json`. Makine prize bağlı olmalı; koruma prize bağlı değilken başlatmaz.
+
+## 2026-10-27 · Uygulama → Planlama (vaka üretimi V2b, kalibrasyon gecesi)
+- Gece `incident_runs/20261026T1719Z-v2b/` (`incident_lists/v2b.json`, 16 vaka), 20:19–04:39 yerel saat (8 sa 20 dk). Birim `aiops-incidents` başarıyla bitti. Etiketler `incidents/` altında (16), snapshot'lar kökte (toplam 30 vaka, 7,54 GB).
+- Ölçütler:
+  - Gece yarıda kalmadı.
+  - Geçerli 16/16, sızıntı 16/16 vakada 0.
+  - Temizlik 16/16 doğrulandı: IP aynı kaldı, 30 sn'de yeniden başlama 0→0.
+  - Beklenmeyen yeniden başlama 0.
+  - Collector'da OOM 0 ve yeniden başlama 0 (tepe 114–123 MiB).
+  - Jaeger'de OOM 0 ve yeniden başlama 0.
+  - pytest 266/266.
+  
+  Kayıt için:
+  - Taban sağlık 23,5–27,5 ms.
+  - Uyku 0 sn, sıcaklık en çok 82 °C.
+  - OpenSearch'e gönderim hatası 0, collector alıcısında reddedilen 0.
+- Seçim (her çiftte belirtili çıkan en hafif aday):
+  - networkDelay: cart 50 ms (AddItem p99 1,2 → 154 ms).
+  - packetLoss: shipping %10 (servis p99, güç 63).
+  - cpuThrottle: product-catalog 0.09 (GetProduct p99 22 → 1.200 ms), recommendation 0.03 (servis p99, güç 840).
+  - containerPause cart ve quote, containerStop recommendation ve currency: tek değer, belirtili; ölçüm çağırandan.
+  - **Aday çıkmayan çiftler:** networkDelay quote ve packetLoss currency. İki adayda da hedefte belirti yok.
+- Çağıranlarda belirti (kayıt; ölçüm `caller_rows` ve `caller_symptom_check` ile, snapshot'tan): 16/16 belirtili. Aday çıkmayan çiftlerde:
+  - quote 50 ms: shipping p99 4 → 148 ms (güç 7,2).
+  - quote 200 ms: shipping p99 6 → 447 ms (güç 22).
+  - currency %10: checkout→Convert p99 3 → 419 ms (güç 21).
+  - currency %30: frontend→GetSupportedCurrencies p99 7 → 1.315 ms (güç 65).
+  
+  Neden: bu iki servis kimseyi çağırmıyor, netem yalnız cevaplarını geciktiriyor ve gecikme hedefin kendi span'lerine girmiyor. cart (valkey'i çağırıyor) ve shipping (quote'u çağırıyor) hedefte belirti verdi.
+- Jaeger kaydı:
+  - Go yığını tepesi 2.544–4.295 MiB; gece boyunca artış eğilimi yok.
+  - `memory.peak` her vakada 2.500 MiB (sınırda).
+  - Swap tepesi: `memory.swap.peak` 922–2.008 MiB, dakikalık örnekleme 918–1.940 MiB.
+  - Anon tepe 1.995–2.240 MiB.
+- Vaka başına süre 1.751–2.005 sn (ortalama 31,2 dk).
+- İnce paylar (seçilmeyen adaylarda): recommendation 0.015'te enjeksiyon döneminde 12 istek, cart 200 ms'de EmptyCart 15 istek (M = 10).
+- Beklenen (planlama):
+  1. Ağ hatalarında, çağrı yapmayan hedeflerde belirtinin nereden ölçüleceği; quote ve currency çiftlerinin akıbeti.
+  2. Yeni bellek adayları (önceki adaylar taban altında kaldı, önceki kayıt).
+  3. Jaeger: yığın kararda varsayılan ~3 GiB'i aştı; swap tepesi 4 GB'lık swap'ın yarısına yaklaştı. Ölçüt geçti, ama daha uzun gecelerde risk var.
+  
+  Kararlardan sonra uygulama INCIDENT_CATALOG'u (adlar, hedefler, parametreler, yayılım), `test_catalog.py` kapsamını ve kalan kayıtları yazar.
+
+## 2026-10-27 · Planlama → Uygulama (V2c: ağ belirtisi, bellek kalibrasyonu, Jaeger denemesi)
+- **V2b kontrolü (planlama):**
+  - Uygun: 16/16 etiket geçerli; 16 snapshot bağımsız tarandı, sızıntı 0; `window.json` etiketlerle aynı; temizlik 16/16 doğrulandı.
+  - Zaman kalıbı kurala uygun: normal dönem 10,2–13,5 dk, kuyruk 1,0–3,0 dk. pytest 266/266.
+  - quote ve currency için çağıran ölçümü planlamada yeniden yapıldı, uygulamanın sayılarıyla aynı.
+  - V2b seçimleri kesin. Ek olarak networkDelay quote 50 ms ve packetLoss currency %10 seçildi (DECISIONS 2026-10-27, ağ belirtisi).
+- **Kararlar:** DECISIONS 2026-10-27'deki üç satır (ağ belirtisi, bellek hedefleri, Jaeger). Ölçütler oradadır; bu kart sırayı verir.
+- Onaylı adlar: `V2c`, `incident_lists/v2c.json` (GLOSSARY'ye uygulama yazar).
+
+### a. Kod
+- **Ağ hatalarında belirti:** networkDelay ve packetLoss'ta hedefin kendi belirtisinin yanında çağıran ölçümü de yapılır (`caller_rows`, `caller_symptom_check`); güçlü olan `symptom` olur. Etikette iki ölçümün ikisi de kayıtlı kalır. Olay kuralı değişmez.
+- **Boş swap koruması:** her vakadan önce `/proc/meminfo` SwapFree < 1 GB ise koşucu vakaya başlamaz, geceyi durdurur, nedeni log'a ve kayda yazar. Vaka boyunca en düşük boş swap `run` kaydına girer.
+- **Jaeger:** `compose.extras.yaml`'da Jaeger'e `GOMEMLIMIT=2000MiB`. Vaka kaydına Jaeger CPU ortalaması eklenir (yığın tepesi zaten var).
+- Testler; pytest yeşil.
+
+### b. Bellek tabanı
+- Hedef adayları: cart, payment, frontend, email, recommendation.
+- Taban: açılıştan sonraki ilk 60 sn'de `memory.peak`.
+- Isınmış kullanım: yük altında en az 20 dk çalıştıktan sonra `memory.current`.
+- Uygunluk: 0,9× ısınmış kullanım > taban. Pay = 0,9× ısınmış kullanım / taban. Payı en geniş iki servis seçilir. Her biri için iki aday: 0,9× ve 0,75× ısınmış kullanım; tabanın altındaki aday düşer.
+- Hiçbir servis uymazsa memoryLimit V2'den çıkar; koşu yapılmaz, rapor ver ve dur.
+- Ölçüm tablosu (beş servis: taban, ısınmış kullanım, pay, adaylar) HANDOFF'a; liste `incident_lists/v2c.json` (en fazla 4 vaka, her çiftte hafif aday önce). Eren onayından sonra koşu.
+
+### c. Kısa koşu
+- `systemd-run --user` ile, Eren başlatır (~2 saat). Öncesinde: şarj sınırı 80 mi, makine prize bağlı mı, `aiops-netem:1` mevcut mu, pytest yeşil mi.
+- `GOMEMLIMIT` denemesi bu koşuda. Her vakada geçme şartı: Jaeger swap tepesi < 500 MiB, OOM 0, yeniden başlama 0, `otlp_grpc/jaeger` ve `jaeger_storage_exporter` gönderim hatası 0, collector'da reddedilen 0. Kayda: Go yığını tepesi, Jaeger CPU ortalaması, en düşük boş swap.
+- Bellek seçimi: her çiftte belirtili çıkan en hafif aday. Olay kuralı: hedefin kendi isteği enjeksiyon döneminde ≥ M.
+- Jaeger şartı geçmezse: ayar kaldırılır, karar planlamaya döner. Ayar yüzünden geçersiz olan vaka sonra yeniden koşulur.
+
+### d. Rapor ver ve dur
+- Raporda: bellek seçimi (ya da memoryLimit'in çıkışı), Jaeger ölçümleri vaka vaka, koruma devreye girdi mi, pytest.
+- INCIDENT_CATALOG altyapı satırları planlama kontrolünden sonra yazılır.

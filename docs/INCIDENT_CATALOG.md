@@ -64,12 +64,14 @@ Bitti ölçütündeki "yanıltıcı gürültü" şartı için gerekirse kendi se
 
 | Hata | Hata tipi | Kök neden |
 |---|---|---|
-| Konteyner öldürme / durdurma | unavailable | Hedef servis |
-| CPU baskısı | resource | Hedef servis |
-| Bellek baskısı | resource | Hedef servis |
-| Ağ gecikmesi / paket kaybı (`tc netem`) | latency / error | Hedef servis |
+| Durdurma (`docker stop`) | unavailable | Hedef servis |
+| Dondurma (`docker pause`; süreç donar, bağlantılar açık kalır) | unavailable | Hedef servis |
+| CPU kısıtlama (`docker update --cpus`) | resource | Hedef servis |
+| Bellek sınırını kullanımın altına indirme (`docker update --memory`; OOM ve yeniden başlama döngüsü) | resource | Hedef servis |
+| Ağ gecikmesi (`tc netem delay`) | latency | Hedef servis |
+| Paket kaybı (`tc netem loss`) | error | Hedef servis |
 
-Açık: hedef servisler, parametreler ve araçlar (`tc` için `NET_ADMIN` yetkisi, CPU/bellek baskısı için araç). Yeni araç gerektirdiği için ilgili kartta Eren'e sorulur.
+Araçlar ve iz kuralı DECISIONS 2026-10-26'da: `tc netem` kendi yardımcı imajımızla (alpine + iproute2), diğerleri araçsız. Mekanizmanın izi sızıntı, hedefteki fiziksel etki belirti. Senaryo adları, hedef servisler ve parametreler V2 kalibrasyonunda belirlenir, buraya yazılır.
 
 ## Yeni makinede kalibrasyon
 
