@@ -1529,3 +1529,30 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - Koşucu frontend'i reddediyordu. Eren seçenek A: ret yalnız `memoryLimit` için kalktı (DECISIONS 2026-10-27).
 - Liste `incident_lists/v2c.json`: tek vaka, memoryLimit frontend 0.9 (~31 dk).
 - **Dikkat (planlama):** Jaeger `GOMEMLIMIT` denemesi tek bir ~31 dk'lık vakada sınanacak. V2b'de yığın ilk 3 saatte büyümüştü; kısa koşu bunu göstermez. Ek vaka gerekip gerekmediği planlamanın kararı.
+
+## 2026-10-27 · Uygulama → Planlama (V2c c ve d: kısa koşu, rapor)
+- Koşu `incident_runs/20261027T2027Z-v2c/` (`incident_lists/v2c.json`, repo `e03e959`), 23:27–23:58 yerel saat. Birim başarıyla bitti. Etiket `incidents/inc-d8f67a48.json`: geçerli, işaret `borderline`.
+- **Bellek seçimi: aday yok.**
+  - Enjeksiyon anında frontend'in toplam kullanımı 133,8 MiB (anon 99,9, dosya 26,7). Sınır 0,9× = 120,4 MiB; OOM 0, yeniden başlama 0.
+  - Belirti sınırda (güç 0,958): `POST /api/checkout` p99 82,7 → 122,3 ms (58 / 72 istek); servis düzeyi güç 0,144.
+  - Olay kontrolü geçti (72 istek).
+  - Temizlik: önceki sınır (250 MiB, upstream) geri yazıldı, IP aynı, 30 sn'de yeniden başlama 0→0.
+  - 0,75× aday tabanın altında kaldığı için koşulmadı. `memoryLimit`'in akıbeti planlamanın kararı.
+- **Jaeger `GOMEMLIMIT=2000MiB` denemesi: beş şart geçti.**
+  - Swap tepesi: `memory.swap.peak` 484,0 MiB (şart < 500, pay %3); dakikalık örnek 318,8 MiB.
+  - OOM 0, yeniden başlama 0.
+  - Gönderim hatası 0 (`otlp_grpc/jaeger`, `jaeger_storage_exporter`), collector'da reddedilen 0. İki kaynak aynı sonucu verdi: `run.export_failures` (Prometheus, normal başından vaka sonuna) ve `checks.monitoring_health` (snapshot, normal başından hata kapanışına).
+  
+  Kayıt:
+  - Go yığını tepesi 1.846 MiB (V2b 2.544–4.295).
+  - Anon tepe 1.530 MiB (V2b 1.995–2.240).
+  - `memory.peak` 2.500 MiB.
+  - `memory.events` max 16.729 (V2b 9.553–43.912).
+  - CPU ortalaması 0,115 çekirdek; V2b'de bu kayıt yok.
+- **Koruma devreye girmedi:** en düşük boş swap 1,81 GB.
+- Diğer:
+  - Sızıntı 0, beklenmeyen yeniden başlama 0.
+  - Taban sağlık 31,6 ms (V2b 23,5–27,5).
+  - Sıcaklık en çok 79 °C, uyku 0.
+  - pytest 287/287.
+- **Dikkat (planlama):** Swap tepesi şarta çok yakın. Deneme tek bir ~31 dk'lık vakada yapıldı; uzun gecede yığının davranışı bu koşuyla görülmüyor.
