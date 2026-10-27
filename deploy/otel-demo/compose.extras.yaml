@@ -114,11 +114,16 @@ services:
   # V2a kuru denemesinden sonra: Jaeger'in Go yığını tepede ~3 GiB (2000M'de de 2500M'de de), RSS sınırda, taşan
   # kısım swap'ta; ihtiyaç sınırla değişmiyor. Geçme şartı OOM 0 ve yeniden başlama 0; anon, swap ve yığın tepesi
   # kayda (DECISIONS 2026-10-26 "Jaeger ölçütü düzeltmesi").
+  # GOMEMLIMIT=2000MiB (V2c denemesi, DECISIONS 2026-10-27): Go çalışma ortamı yığını bu sınıra yaklaşınca daha sık
+  # temizler; 2500M (= 2.384 MiB) ile arasındaki pay yığın dışı bellek için. Geçme şartı her vakada Jaeger swap tepesi
+  # < 500 MiB, OOM 0, yeniden başlama 0, gönderim hatası 0; geçmezse bu satır kaldırılır.
   jaeger:
     deploy:
       resources:
         limits:
           memory: 2500M
+    environment:
+      - GOMEMLIMIT=2000MiB
     ports: !reset []
     command:
       - "--config=file:/etc/jaeger/config.yml"

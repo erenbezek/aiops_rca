@@ -235,3 +235,79 @@ def test_memory_limit_from_total_usage(monkeypatch):
 
 def test_stable_seconds_decision():
     assert sr.STABLE_S == 30
+
+
+# --- V2c (DECISIONS 2026-10-27): ağ belirtisinde güçlü olan, boş swap koruması, Jaeger CPU okuması ---
+
+def sym(strength):
+    return {"verdict": "x", "deciding": None if strength is None else {"strength": strength}}
+
+
+@pytest.mark.parametrize("own,callers,pick", [(0.1, 7.2, "callers"), (30.0, 40.0, "callers"), (63.0, 5.0, "own"),
+                                              (2.0, 2.0, "own"), (None, 3.0, "callers"), (1.0, None, "own")])
+def test_stronger_symptom(own, callers, pick):
+    a, b = sym(own), sym(callers)
+    assert ic.stronger_symptom(a, b) is (a if pick == "own" else b)
+
+
+MEMINFO = "MemTotal:       32000000 kB\nSwapTotal:       4194300 kB\nSwapFree:         {} kB\n"
+
+
+def test_swap_free_gb_reads_meminfo(monkeypatch):
+    monkeypatch.setattr(sr, "read", lambda path: MEMINFO.format(976563) if path == "/proc/meminfo" else None)
+    assert sr.swap_free_gb() == 1.0  # 976.563 KiB = 1,000 GB (ondalık)
+
+
+@pytest.mark.parametrize("free,blocked", [(0.99, True), (1.0, False), (2.5, False), (None, True)])
+def test_swap_guard(monkeypatch, free, blocked):
+    monkeypatch.setattr(sr, "swap_free_gb", lambda: free)
+    for name, value in (("monitoring_gb", 1.0), ("snapshot_gb", 1.0), ("gnome_inhibited", True),
+                        ("pkg_temp_c", 40.0)):
+        monkeypatch.setattr(sr, name, lambda v=value: v)
+    g = sr.guards()
+    assert g["swap_free_gb"] == free
+    assert any(p.startswith("swap free") for p in g["problems"]) is blocked
+
+
+def test_min_swap_threshold_decision():
+    assert sr.MIN_SWAP_FREE_GB == 1
+
+
+def test_cpu_usec_reads_cpu_stat(monkeypatch):
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "abc\n", ""))
+    stat = "usage_usec 123456789\nuser_usec 100\nsystem_usec 23\n"
+    monkeypatch.setattr(sr, "read", lambda path: stat if path.endswith("docker-abc.scope/cpu.stat") else None)
+    assert sr._cpu_usec("jaeger") == 123456789
+
+
+def test_export_failure_queries_cover_decision():
+    assert set(sr.EXPORT_FAILURE_QUERIES) == {"otlp_grpc_jaeger", "jaeger_storage_exporter", "collector_refused"}
+    assert all('exporter="otlp_grpc/jaeger"' in q for q in sr.EXPORT_FAILURE_QUERIES["otlp_grpc_jaeger"])
+    assert all('exporter="jaeger_storage_exporter"' in q for q in sr.EXPORT_FAILURE_QUERIES["jaeger_storage_exporter"])
+    # Desen yok: her sorgu tek metrik adı (adı düşen seriler çakışmasın).
+    assert not any("__name__" in q for qs in sr.EXPORT_FAILURE_QUERIES.values() for q in qs)
+
+
+@pytest.mark.parametrize("reply,want", [({"status": "success", "data": {"result": []}}, 0.0),
+                                        ({"status": "success", "data": {"result": [{"value": [0, "3"]}]}}, 3.0),
+                                        ({"status": "error", "error": "same labelset"}, None)])
+def test_prom_increase_empty_is_zero_error_is_none(monkeypatch, reply, want):
+    monkeypatch.setattr(sr, "http", lambda *a, **k: reply)
+    assert sr.prom_increase("x_total", 600) == want
+
+
+# --- liste denetimi: frontend yalnız memoryLimit'te hedef olabilir (DECISIONS 2026-10-27, V2c bellek) ---
+
+@pytest.mark.parametrize("fault,param,want", [("memoryLimit", "0.9", 1), ("cpuThrottle", "0.1", 2),
+                                              ("containerStop", "on", 2), ("networkDelay", "50ms", 2)])
+def test_frontend_target_only_for_memory(monkeypatch, tmp_path, fault, param, want):
+    # Geçerli liste koruma adımına kadar gider (koruma burada durdurur: 1); reddedilen liste 2 döner.
+    monkeypatch.setenv("SCENARIO_RUNNER_INHIBITED", "1")
+    monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
+    monkeypatch.setattr(sr, "versions", lambda: {})
+    monkeypatch.setattr(sr, "guards", lambda: {"problems": ["test stop"]})
+    monkeypatch.setattr(sr, "run_incident", lambda *a, **k: pytest.fail("must not run"))
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
+    lst = tmp_path / "l.json"
+    lst.write_text(json.dumps([{"fault": fault, "target": "frontend", "param": param, "noise_layer": None}]))
+    assert sr.cmd_incidents(lst) == want

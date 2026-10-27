@@ -1501,3 +1501,71 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 ### d. Rapor ver ve dur
 - Raporda: bellek seçimi (ya da memoryLimit'in çıkışı), Jaeger ölçümleri vaka vaka, koruma devreye girdi mi, pytest.
 - INCIDENT_CATALOG altyapı satırları planlama kontrolünden sonra yazılır.
+
+## 2026-10-27 · Uygulama → Planlama (V2c a ve b: kod, bellek tabanı)
+- **a (`7f15dca`):**
+  - Ağ hatalarında belirti hem hedefte hem çağıranlarda ölçülür, güçlü olan karar verir. İki ölçüm `checks.symptom_target` ve `checks.symptom_callers` olarak kayıtlı; olay hedefin kendi isteğiyle kontrol edilir.
+  - Boş swap koruması korumalara eklendi (`swap_free_gb`, 1 GB); vaka boyunca en düşük boş swap `run.min_swap_free_gb`'ye yazılır.
+  - Jaeger'e `GOMEMLIMIT=2000MiB`; Jaeger CPU ortalaması kayda giriyor.
+  - `run.export_failures`: Prometheus'tan, normal başından vaka sonuna. Snapshot'taki `monitoring_health` normal başı → hata kapanışını ve yalnız geçerli vakayı kapsıyor; bu okuma kuyruğu ve geçersiz vakayı da kapsar.
+- **Canlı kontrolde bulunan:**
+  - `send_failed` sayaçları hata olmadıkça Prometheus'ta hiç oluşmuyor; seri yoksa 0 sayılıyor (`monitoring_health` gibi).
+  - Sayaçlar `__name__` deseniyle tek sorguda okunamadı; tahminen adı düşen seriler çakışıyordu. Her metrik adı ayrı sorgulanıyor.
+  
+  İkinci kontrolde dokuz sorgu da 0 döndü; aynı etiketlerle `sent` sayaçları doluydu (Jaeger'e 18.437, depoya 18.818 span).
+- **V2b'nin altı ağ vakası yeni kuralla çevrimdışı hesaplandı:** quote ve currency'nin dört vakası belirtili oldu (karar çağırandan); olay kontrolü 108–595 istekle geçti. cart ve shipping'de de çağıran daha güçlü çıktı, karar değişmedi.
+- pytest 287/287. Kasıtlı kırmızılar: güçlü olanın seçimi, swap koruması, meminfo, `cpu.stat`, boş sonucun 0 sayılması, frontend ret kuralı (iki yönde).
+- **b · bellek tabanı** (23:00–23:24 yerel saat, tek açılış; değerler MiB). Taban: ilk 60 sn'de `memory.peak`. Isınmış kullanım: 25. dakikada `memory.current`. Ölçüm boyunca yeniden başlama 0. İstek sayıları pilot `inc-07533a0a`'nın normal döneminden.
+
+  | Servis | Taban | Isınmış (20. / 25. dk) | Pay | 0,9× | 0,75× | İstek (10 dk) |
+  |---|---|---|---|---|---|---|
+  | frontend | 103,8 | 121,1 / 120,6 | 1,046 | 108,5 ✓ | 90,4 düştü | 9.159 |
+  | cart | 47,6 | 51,6 / 52,4 | 0,991 | 47,2 düştü | 39,3 düştü | 871 |
+  | email | 63,9 | 57,9 / 58,5 | 0,824 | 52,6 düştü | 43,9 düştü | 24 |
+  | recommendation | 53,5 | 47,9 / 47,8 | 0,804 | 43,0 düştü | 35,8 düştü | 505 |
+  | payment | 91,4 | 59,7 / 60,4 | 0,595 | 54,4 düştü | 45,3 düştü | 24 |
+
+  Kurala uyan tek servis frontend; payı ince (sınır tabanın %4,5 üstünde). cart 0,4 MiB eksikle uymadı.
+- Koşucu frontend'i reddediyordu. Eren seçenek A: ret yalnız `memoryLimit` için kalktı (DECISIONS 2026-10-27).
+- Liste `incident_lists/v2c.json`: tek vaka, memoryLimit frontend 0.9 (~31 dk).
+- **Dikkat (planlama):** Jaeger `GOMEMLIMIT` denemesi tek bir ~31 dk'lık vakada sınanacak. V2b'de yığın ilk 3 saatte büyümüştü; kısa koşu bunu göstermez. Ek vaka gerekip gerekmediği planlamanın kararı.
+
+## 2026-10-27 · Uygulama → Planlama (V2c c ve d: kısa koşu, rapor)
+- Koşu `incident_runs/20261027T2027Z-v2c/` (`incident_lists/v2c.json`, repo `e03e959`), 23:27–23:58 yerel saat. Birim başarıyla bitti. Etiket `incidents/inc-d8f67a48.json`: geçerli, işaret `borderline`.
+- **Bellek seçimi: aday yok.**
+  - Enjeksiyon anında frontend'in toplam kullanımı 133,8 MiB (anon 99,9, dosya 26,7). Sınır 0,9× = 120,4 MiB; OOM 0, yeniden başlama 0.
+  - Belirti sınırda (güç 0,958): `POST /api/checkout` p99 82,7 → 122,3 ms (58 / 72 istek); servis düzeyi güç 0,144.
+  - Olay kontrolü geçti (72 istek).
+  - Temizlik: önceki sınır (250 MiB, upstream) geri yazıldı, IP aynı, 30 sn'de yeniden başlama 0→0.
+  - 0,75× aday tabanın altında kaldığı için koşulmadı. `memoryLimit`'in akıbeti planlamanın kararı.
+- **Jaeger `GOMEMLIMIT=2000MiB` denemesi: beş şart geçti.**
+  - Swap tepesi: `memory.swap.peak` 484,0 MiB (şart < 500, pay %3); dakikalık örnek 318,8 MiB.
+  - OOM 0, yeniden başlama 0.
+  - Gönderim hatası 0 (`otlp_grpc/jaeger`, `jaeger_storage_exporter`), collector'da reddedilen 0. İki kaynak aynı sonucu verdi: `run.export_failures` (Prometheus, normal başından vaka sonuna) ve `checks.monitoring_health` (snapshot, normal başından hata kapanışına).
+  
+  Kayıt:
+  - Go yığını tepesi 1.846 MiB (V2b 2.544–4.295).
+  - Anon tepe 1.530 MiB (V2b 1.995–2.240).
+  - `memory.peak` 2.500 MiB.
+  - `memory.events` max 16.729 (V2b 9.553–43.912).
+  - CPU ortalaması 0,115 çekirdek; V2b'de bu kayıt yok.
+- **Koruma devreye girmedi:** en düşük boş swap 1,81 GB.
+- Diğer:
+  - Sızıntı 0, beklenmeyen yeniden başlama 0.
+  - Taban sağlık 31,6 ms (V2b 23,5–27,5).
+  - Sıcaklık en çok 79 °C, uyku 0.
+  - pytest 287/287.
+- **Dikkat (planlama):** Swap tepesi şarta çok yakın. Deneme tek bir ~31 dk'lık vakada yapıldı; uzun gecede yığının davranışı bu koşuyla görülmüyor.
+
+## 2026-10-28 · Planlama → Uygulama (V2 kapanışı: katalog ve PR)
+- **V2c kontrolü (planlama):** uygun. pytest 287/287; `inc-d8f67a48` bağımsız tarandı, sızıntı 0; `window.json` etiketle aynı; temizlik doğrulandı; `run.export_failures` ve `monitoring_health` aynı sonucu verdi.
+- **Kararlar** (DECISIONS 2026-10-28): memoryLimit V2'den çıkar (kod ve testler kalır); Jaeger `GOMEMLIMIT` kalır, uzun süreli sınaması Python servisi kalibrasyon koşusunda.
+- **Yapılacaklar:**
+  1. INCIDENT_CATALOG "Kendi altyapı hatalarımız": 5 hata, 10 çift. Her satırda hedef, seçilen parametre, `fault_type`, belirtinin ölçüldüğü yer (hedef / çağıran) ve izlerde görülen yayılım yolu (V2b–V2c etiketlerinden; ör. quote ← shipping ← frontend, checkout). memoryLimit satırı "denendi, V3'e girmez" notuyla, ölçümler ve DECISIONS'a bağlantı.
+     - Seçimler: networkDelay cart 50 ms, quote 50 ms; packetLoss shipping %10, currency %10; cpuThrottle product-catalog 0.09, recommendation 0.03; containerPause cart, quote; containerStop recommendation, currency.
+  2. `test_catalog.py` kapsamı katalogla aynı olacak şekilde güncellenir.
+  3. V2b'nin 6 ağ vakasının etiketlerine yeni kuralın iki ölçümü (`checks.symptom_target`, `checks.symptom_callers`) ve `symptom` yazılır; işaretler (`marks`) yeni karara göre güncellenir. Diğer alanlar değişmez. Hangi etiketlerin değiştiği HANDOFF'a not edilir (30 pilot vakanın hepsi aynı kuralla).
+  4. PROJECT DevOps tablosunda "Linux ağ/kaynak hataları" `[x]`: netem (gecikme, kayıp), CPU sınırı, durdurma, dondurma; bellek denendi, çıktı. "Şu an" güncellenir.
+  5. pytest yeşil; PR açılır (sade açıklama), merge Eren'de.
+- **Ölçüt:** katalogdaki 10 çiftin her biri bir etiketle desteklenir (belirtili); pytest yeşil; değişen etiketlerde `answer`, `window`, `run` aynı kalır.
+- Kapsam dışı: kendi Python servisi (sonraki kart), V3.

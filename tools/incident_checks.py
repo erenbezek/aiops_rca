@@ -19,6 +19,7 @@ referansı 25,3 ms (15 geçerli koşunun normal dönem frontend p95 medyanı).
   (enjeksiyondan önce ve geri almadan sonra kaydedilen ikisi de), ya da gRPC servis adı (`rpc.service`; yoksa
   `rpc.method`'un "/" öncesi, ör. checkout'un Go istemcisi) hedefin kendi gelen span'lerinde görülen adlardan biri
   (sabit tablo yok).
+- `stronger_symptom` (V2c, ağ hataları): hedefin kendi ölçümü ile çağıran ölçümünden güçlü olanı.
 """
 from __future__ import annotations
 
@@ -164,6 +165,13 @@ def symptom_check(rows: dict, ops: dict, svc: str, m: int = MIN_OP_REQUESTS) -> 
     top = max(cand, key=lambda x: x["strength"]) if cand else None
     return {"service": svc, "min_requests": m, "verdict": cm.classify(top["strength"]) if top else "not_measurable",
             "deciding": top, "service_level": sb, "operation_level": ob}
+
+
+def stronger_symptom(a: dict, b: dict) -> dict:
+    """İki belirti ölçümünden karar sinyali güçlü olan (ağ hatası: hedef ve çağıranlar); eşitlikte `a`."""
+    def strength(s: dict) -> float:
+        return s["deciding"]["strength"] if s.get("deciding") else float("-inf")
+    return b if strength(b) > strength(a) else a
 
 
 def event_check(symptom: dict, rows: dict, m: int = MIN_OP_REQUESTS) -> dict:
