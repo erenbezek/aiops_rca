@@ -1426,3 +1426,45 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - Disk 281 GB boş; izleme volume'leri 6,15 GB, snapshot kökü 3,33 GB.
   - Kullanıcı biriminden `gnome-session-inhibit`, `systemd-inhibit`, Docker ve venv çalışıyor (1 sn'lik test birimi).
 - Başlatma (Eren): `systemd-run --user --unit=aiops-incidents -p WorkingDirectory=/home/eren/cerebrum2/aiops_rca /home/eren/cerebrum2/aiops_rca/.venv/bin/python tools/scenario_runner.py incidents incident_lists/v2b.json`. Makine prize bağlı olmalı; koruma prize bağlı değilken başlatmaz.
+
+## 2026-10-27 · Uygulama → Planlama (vaka üretimi V2b, kalibrasyon gecesi)
+- Gece `incident_runs/20261026T1719Z-v2b/` (`incident_lists/v2b.json`, 16 vaka), 20:19–04:39 yerel saat (8 sa 20 dk). Birim `aiops-incidents` başarıyla bitti. Etiketler `incidents/` altında (16), snapshot'lar kökte (toplam 30 vaka, 7,54 GB).
+- Ölçütler:
+  - Gece yarıda kalmadı.
+  - Geçerli 16/16, sızıntı 16/16 vakada 0.
+  - Temizlik 16/16 doğrulandı: IP aynı kaldı, 30 sn'de yeniden başlama 0→0.
+  - Beklenmeyen yeniden başlama 0.
+  - Collector'da OOM 0 ve yeniden başlama 0 (tepe 114–123 MiB).
+  - Jaeger'de OOM 0 ve yeniden başlama 0.
+  - pytest 266/266.
+  
+  Kayıt için:
+  - Taban sağlık 23,5–27,5 ms.
+  - Uyku 0 sn, sıcaklık en çok 82 °C.
+  - OpenSearch'e gönderim hatası 0, collector alıcısında reddedilen 0.
+- Seçim (her çiftte belirtili çıkan en hafif aday):
+  - networkDelay: cart 50 ms (AddItem p99 1,2 → 154 ms).
+  - packetLoss: shipping %10 (servis p99, güç 63).
+  - cpuThrottle: product-catalog 0.09 (GetProduct p99 22 → 1.200 ms), recommendation 0.03 (servis p99, güç 840).
+  - containerPause cart ve quote, containerStop recommendation ve currency: tek değer, belirtili; ölçüm çağırandan.
+  - **Aday çıkmayan çiftler:** networkDelay quote ve packetLoss currency. İki adayda da hedefte belirti yok.
+- Çağıranlarda belirti (kayıt; ölçüm `caller_rows` ve `caller_symptom_check` ile, snapshot'tan): 16/16 belirtili. Aday çıkmayan çiftlerde:
+  - quote 50 ms: shipping p99 4 → 148 ms (güç 7,2).
+  - quote 200 ms: shipping p99 6 → 447 ms (güç 22).
+  - currency %10: checkout→Convert p99 3 → 419 ms (güç 21).
+  - currency %30: frontend→GetSupportedCurrencies p99 7 → 1.315 ms (güç 65).
+  
+  Neden: bu iki servis kimseyi çağırmıyor, netem yalnız cevaplarını geciktiriyor ve gecikme hedefin kendi span'lerine girmiyor. cart (valkey'i çağırıyor) ve shipping (quote'u çağırıyor) hedefte belirti verdi.
+- Jaeger kaydı:
+  - Go yığını tepesi 2.544–4.295 MiB; gece boyunca artış eğilimi yok.
+  - `memory.peak` her vakada 2.500 MiB (sınırda).
+  - Swap tepesi: `memory.swap.peak` 922–2.008 MiB, dakikalık örnekleme 918–1.940 MiB.
+  - Anon tepe 1.995–2.240 MiB.
+- Vaka başına süre 1.751–2.005 sn (ortalama 31,2 dk).
+- İnce paylar (seçilmeyen adaylarda): recommendation 0.015'te enjeksiyon döneminde 12 istek, cart 200 ms'de EmptyCart 15 istek (M = 10).
+- Beklenen (planlama):
+  1. Ağ hatalarında, çağrı yapmayan hedeflerde belirtinin nereden ölçüleceği; quote ve currency çiftlerinin akıbeti.
+  2. Yeni bellek adayları (önceki adaylar taban altında kaldı, önceki kayıt).
+  3. Jaeger: yığın kararda varsayılan ~3 GiB'i aştı; swap tepesi 4 GB'lık swap'ın yarısına yaklaştı. Ölçüt geçti, ama daha uzun gecelerde risk var.
+  
+  Kararlardan sonra uygulama INCIDENT_CATALOG'u (adlar, hedefler, parametreler, yayılım), `test_catalog.py` kapsamını ve kalan kayıtları yazar.
