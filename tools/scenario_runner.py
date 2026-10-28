@@ -135,13 +135,14 @@ SCENARIOS = [
      "propagation_path": [["shipping", "checkout"], ["checkout", "frontend"]], "categories": ["partial"]},
     # Kendi servisimiz quote-gateway (deploy/otel-demo/flagd-extras.json). Varyantlar c adımındaki ölçümden (Eren
     # onayı 2026-10-28): gecikme eşiği normal p95 + 20 ms (30 ms ≈ güç 1,5; 100 ms ≈ 5); sızıntı 384 KB/istek 10 dk'da
-    # ~39 MiB (OOM yok, sınır 128M), 1024 KB/istek ~105 MiB (OOM). Yol beklenen, kategoriler kalibrasyondan sonra.
+    # ~39 MiB (OOM yok, sınır 128M), 1024 KB/istek ~105 MiB (OOM). Yol ve kategoriler kalibrasyondan (HANDOFF
+    # 2026-10-29); 100 ms ölçülemedi, 30 ms'ninkiyle aynı. Sızıntının kategorisi planlamada (384 KB silent, 1024 KB değil).
     {"flag": "quoteGatewayMisroute", "variant": "on", "kind": "Boolean", "root": "quote-gateway",
-     "fault_type": "misconfig", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": []},
+     "fault_type": "misconfig", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading"]},
     {"flag": "quoteGatewaySlowdown", "variant": "30ms", "kind": "Int", "root": "quote-gateway",
-     "fault_type": "latency", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": []},
+     "fault_type": "latency", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading", "silent"]},
     {"flag": "quoteGatewaySlowdown", "variant": "100ms", "kind": "Int", "root": "quote-gateway",
-     "fault_type": "latency", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": []},
+     "fault_type": "latency", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading", "silent"]},
     {"flag": "quoteGatewayMemoryLeak", "variant": "384kb", "kind": "Int", "root": "quote-gateway",
      "fault_type": "resource", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": []},
     {"flag": "quoteGatewayMemoryLeak", "variant": "1024kb", "kind": "Int", "root": "quote-gateway",
@@ -917,7 +918,8 @@ INFRA_ANSWERS = [
     {"fault": "networkDelay", "target": "cart",
      "propagation_path": [["cart", "frontend"], ["cart", "checkout"]], "categories": ["cascading", "silent"]},
     {"fault": "networkDelay", "target": "quote",
-     "propagation_path": [["quote", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]],
+     "propagation_path": [["quote", "quote-gateway"], ["quote-gateway", "shipping"], ["shipping", "frontend"],
+                          ["shipping", "checkout"]],
      "categories": ["cascading", "silent"]},
     {"fault": "packetLoss", "target": "shipping",
      "propagation_path": [["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading", "silent"]},
@@ -931,7 +933,8 @@ INFRA_ANSWERS = [
     {"fault": "containerPause", "target": "cart",
      "propagation_path": [["cart", "frontend"], ["cart", "checkout"]], "categories": ["cascading"]},
     {"fault": "containerPause", "target": "quote",
-     "propagation_path": [["quote", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]],
+     "propagation_path": [["quote", "quote-gateway"], ["quote-gateway", "shipping"], ["shipping", "frontend"],
+                          ["shipping", "checkout"]],
      "categories": ["cascading"]},
     {"fault": "containerStop", "target": "recommendation",
      "propagation_path": [["recommendation", "frontend"]], "categories": ["cascading"]},

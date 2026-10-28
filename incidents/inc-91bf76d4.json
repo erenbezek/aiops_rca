@@ -23,7 +23,9 @@
     "checkout"
    ]
   ],
-  "categories": []
+  "categories": [
+   "cascading"
+  ]
  },
  "window": {
   "start": "2026-10-27T22:59:10Z",

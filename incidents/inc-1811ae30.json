@@ -12,6 +12,10 @@
   "propagation_path": [
    [
     "quote",
+    "quote-gateway"
+   ],
+   [
+    "quote-gateway",
     "shipping"
    ],
    [

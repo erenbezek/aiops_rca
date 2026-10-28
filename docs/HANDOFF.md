@@ -1793,3 +1793,26 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - Jaeger swap tepesi bu vakada 940,2 MiB, kalibrasyon gecesinin en yükseğinden (731,2) fazla; şart değil, kayıt.
   - İlk başlatma prizde olmadığı için korumada durdu (vaka yok); boş gece klasörü `incident_runs/20261028T2126Z-quote_gateway_leak/` (yalnız `runner.log`) kaldı, silinmedi.
 - **Sıradaki (kart d):** katalogda yollar ve kategoriler (quote-gateway'in üç satırı, quote'un iki çifti); sonra rapor ve PR planlama kontrolünden sonra.
+
+## 2026-10-29 · Uygulama → Planlama (quote-gateway düzeltmeleri d: yollar ve kategoriler)
+- **Ölçüm** (destek vakalarının snapshot'larından; yol normal dönemde hedefe gelen sunucu span'lerinin üst span servisi; `silent` kök neden ve çağıran zincirinde hata span'i ve ERROR logu, iki dönem; `cascading` çağıran kontrolü):
+
+  | Vaka | Hata span'i / ERROR logu (önce → sonra) | Çağıran kontrolü | Kategori |
+  |---|---|---|---|
+  | networkDelay quote 50 ms (`inc-1811ae30`) | 0 → 0 / 0 → 0 | belirtili, quote-gateway (4,71) | cascading, silent |
+  | containerPause quote (`inc-58493603`) | quote-gateway 0 → 210, shipping 0 → 210, frontend 0 → 340, checkout 0 → 50 / quote-gateway ve frontend 0 → 105 | belirtili, quote-gateway (500,6) | cascading |
+  | Misroute (`inc-91bf76d4`) | quote-gateway 0 → 388, shipping 0 → 388, frontend 0 → 776, checkout 0 → 48 / quote-gateway ve frontend 0 → 194; quote'un trafiği 98 → 0 | belirtili, shipping hata oranı 0 → 1 (20) | cascading |
+  | Gecikme 30 ms (`inc-2dd806a2`) | 0 → 0 / 0 → 0 | belirtili, shipping p95 10,1 → 40,2 ms (1,5) | cascading, silent |
+  | Sızıntı 384 KB (`inc-ff3a6614`) | 0 → 0 / 0 → 0 | belirti yok (0,14) | silent |
+  | Sızıntı 1024 KB (`inc-660f7c44`) | shipping 0 → 4, frontend 0 → 8 / frontend 0 → 2 | sınırda (0,81) | yok |
+
+  - Çağıranlar beş vakada da aynı: quote ← quote-gateway ← shipping ← frontend, checkout (checkout ← frontend).
+- **Yazılanlar:**
+  - Altyapı tablosu, quote'un iki satırı: yol quote → quote-gateway → shipping → frontend, checkout (Eren: tek çağıranlı halkalar ilk dallanmaya kadar; DECISIONS 2026-10-29); belirti yeri quote-gateway→quote; destek vakaları `inc-1811ae30`, `inc-58493603`. Kategoriler eskisiyle aynı. Yol kuralı metni güncellendi.
+  - Flag tablosu: misroute `cascading`; gecikme `cascading, silent`; ölçülen belirti metinleri ve destek etiketleri satırlarda.
+  - Koşucu: `INFRA_ANSWERS`'ta quote'un iki yolu; `SCENARIOS`'ta misroute ve gecikmenin iki varyantının kategorileri (100 ms ölçülemedi, 30 ms ile aynı).
+  - Etiketler (yalnız `answer`, git'teki hâlle alan alan karşılaştırıldı): `inc-1811ae30`, `inc-58493603` yol; `inc-91bf76d4`, `inc-2dd806a2` kategoriler.
+  - Dokunulmayanlar: quote'un V2b destek vakaları (`inc-d60dcc58`, `inc-e23c74cb`, eski topolojide kalır), sızıntı etiketleri.
+- **Planlamaya karar:** sızıntı satırının kategorisi. 384 KB (seçilen) `silent`, 1024 KB değil (OOM yeniden başlaması shipping ve frontend'de hata span'i üretiyor). Test bir flag'in her varyantının satırla aynı kategoriyi taşımasını istiyor; satır şimdilik "—", `SCENARIOS`'ta iki varyant da boş. Seçenekler (Eren'e sunulan): satır seçilen varyantı anlatsın, testte quote-gateway satırları seçilen varyant ve destek etiketiyle karşılaştırılsın (test ve katalog yapısı değişir); kesişim (sızıntı "—" kalır, V3'te sessiz bir vaka eksilir).
+- **Testler:** pytest 359/359. Kasıtlı kırmızılar: katalogda quote yolu eskiye (2 test), 100 ms kategorisi boş (1), destek etiketinde kategori farkı (1).
+- **Sonra:** sızıntı kararı; PR planlama kontrolünden sonra.
