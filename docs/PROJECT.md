@@ -22,6 +22,7 @@ kök neden analizinde ne kadar iş görür?
 - [ ] Ölçütler: top-1/top-3, kanıt geçerliliği, kalibrasyon, süre, token
 - [ ] Canlı demo: hata enjekte et → kanıtlı olay raporu (+ bir sonraki adım önerisi)
 - [ ] CI yeşil: birim testler + sabit snapshot'larda baseline regresyonu + servis imajı (GHCR)
+  - Servis imajı (GHCR) tamam (2026-10-29): iki imaj CI'da derlenip main'de gönderiliyor (`images.yml`), koşular digest'le sabit. Açık kalan: baseline regresyonu.
 - [ ] Sızıntı kontrolü: snapshot'larda cevabı ele veren veri yok (flagd vb.), testle doğrulandı
 - [ ] Vaka çeşitliliği: set en az zincirleme hata, sessiz hata (log yok, sadece metrik) ve yanıltıcı gürültü içeriyor
 - [ ] Tekrarlanabilirlik:
@@ -39,7 +40,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 
 | Beceri | Projede nerede | Yapıldı |
 |---|---|---|
-| Dockerfile, imaj oluşturma | Kendi Python servisim | [ ] |
+| Dockerfile, imaj oluşturma | Kendi Python servisim | [x] quote-gateway ve netem: sabit taban (digest) ve sabit bağımlılıklar, root olmayan kullanıcı; CI'da derleme ve kontrol (`pip freeze` = requirements, `tc -V`), GHCR'da açık paket, koşular digest'le |
 | OTel instrumentation | Kendi Python servisim | [ ] |
 | Docker Compose, kaynak limitleri | OTel Demo yığını | [ ] |
 | Telemetri hattı (collector) | Sızıntı süzmesi, dosyaya ve izleme sistemine çift çıkış | [ ] |
@@ -48,7 +49,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 | Linux ağ/kaynak hataları (tc netem, CPU/bellek, kill) | Hata enjeksiyonu | [x] tc netem (gecikme, kayıp; kendi yardımcı imajla), CPU sınırı, durdurma, dondurma; uygula, geri al, doğrula; bellek sınırı denendi, bu demoda belirti vermediği için çıktı (INCIDENT_CATALOG) |
 | Otomasyon betikleri | Gece boyu vaka üretim hattı | [ ] |
 | Grafana dashboard | Canlı demo | [ ] |
-| CI/CD (GitHub Actions, GHCR) | Testler, regresyon, imaj | [ ] kısmen: testler PR'da ve main'de (`.github/workflows/ci.yml`); baseline regresyonu ve GHCR imajı yok |
+| CI/CD (GitHub Actions, GHCR) | Testler, regresyon, imaj | [ ] kısmen: testler PR'da ve main'de (`.github/workflows/ci.yml`); imajlar PR'da derlenip kontrol ediliyor, main'de GHCR'a gönderiliyor (`.github/workflows/images.yml`, üçüncü taraf eylem yok); baseline regresyonu yok |
 | Dağıtık sistemde sorun giderme | Kurulum ve işletme | [ ] |
 
 ## Kapsam dışı
@@ -81,4 +82,5 @@ Depolama kartı yapıldı (`task/depolama`, 2026-10-25): izleme sistemi kalıcı
 Vaka üretimi V1 yapıldı (`task/vaka-hatti`, 2026-10-26): `scenario_runner.py incidents` (collector yeniden başlatma, taban sağlık, enjeksiyon, anonim volume silme, snapshot kesimi, kontroller, etiket); snapshot = `model_view` (`~/cerebrum2/snapshots/inc-…/`), etiketler `incidents/`; eşikler C2'den (M = 10, taban 25,3 ms). Pilot gece 13/13 geçerli, sızıntı 0, hepsi belirtili, ~27,4 dk/vaka (40 vaka ≈ 18 saat). Açık risk: Jaeger belleği sınırın %84–91'i.
 Vaka üretimi V2 yapıldı (`task/vaka-v2`, `task/vaka-v2c`, 2026-10-28): altı altyapı hatası koşucuda (uygula, geri al, doğrula; ağ hatası yardımcı imajı `aiops-netem:1`), kalibrasyon gecesi 16/16 geçerli, sızıntı 0. Katalogda 5 hata, 10 çift (seçilen parametre, belirtinin yeri, izlerde yayılım yolu, kategori); koşucuda eşi `INFRA_ANSWERS`. memoryLimit denendi, V3'e girmez. Jaeger 2500M + `GOMEMLIMIT=2000MiB` (uzun sınama Python servisi koşusunda), boş swap koruması 1 GB. Pilot set 31 vaka (`incidents/`, hepsi `set: pilot`).
 Kendi Python servisi quote-gateway yapıldı (`task/quote-gateway`, 2026-10-29): shipping → quote-gateway → quote (Flask, OTel otomatik, flag'ler flagd'den; imaj yerelde `aiops-quote-gateway:1`, 128M, swap kapalı). Üç hata: misroute (cascading), gecikme 30 ms (cascading, silent), sızıntı 384 KB (silent) / 1024 KB (OOM ve yeniden başlama). quote'un iki çifti yeni topolojide belirtili (çağıran eşleşmesi URL'den). Jaeger'de swap şartı kalktı. Pilot set 38 vaka.
-Sıradaki: imajın GHCR'a konması ve CI'da kurulması (ayrı kart), sonra V3 resmî set.
+İmajlar GHCR'da (`task/ghcr-ci`, 2026-10-29): `ghcr.io/erenbezek/aiops-quote-gateway` ve `aiops-netem` CI'da derleniyor, main'de `sha-<commit>` etiketiyle gönderiliyor; koşucu ve compose digest'le sabit. Canlı kontrol geçti (girişsiz çekme, 23 konteyner, zincir, netem, taban sağlık 34,0 ms prizde).
+Sıradaki: V3 resmî set.

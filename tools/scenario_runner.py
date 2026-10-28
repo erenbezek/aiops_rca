@@ -942,8 +942,10 @@ INFRA_ANSWERS = [
     {"fault": "containerStop", "target": "currency",
      "propagation_path": [["currency", "frontend"], ["currency", "checkout"]], "categories": ["cascading"]},
 ]
-GATEWAY_IMAGE = "aiops-quote-gateway:1"  # services/quote-gateway; compose.extras.yaml her vakada kullanır
-NETEM_IMAGE = "aiops-netem:1"  # deploy/netem/Dockerfile; docker build -t aiops-netem:1 deploy/netem
+# İmajlar CI'da derlenir, GHCR'da; digest'le sabit (DECISIONS 2026-10-29 "İmajlar GHCR'da"; .github/workflows/images.yml,
+# ilk gönderim main 1b33aab). GATEWAY_IMAGE compose.extras.yaml'dakiyle aynı olmalı (tests/test_quote_gateway.py).
+GATEWAY_IMAGE = "ghcr.io/erenbezek/aiops-quote-gateway@sha256:333902cf518d8c059b2a880c753a0515f61350762e8859dbc5f65e9a7d83c9e9"
+NETEM_IMAGE = "ghcr.io/erenbezek/aiops-netem@sha256:2651be1375920341fb2cc508bb29a42569d8e93723610763689943e403fa6201"
 NETEM_WORD = {"networkDelay": "delay", "packetLoss": "loss"}
 STABLE_S = 30
 PARAM_RE = {"containerStop": r"on", "containerPause": r"on", "cpuThrottle": r"\d+(\.\d+)?",
@@ -1393,12 +1395,11 @@ def cmd_incidents(list_path: Path) -> int:
         print(f"error: unknown or non-incident entries {unknown}", file=sys.stderr)
         return 2
     if subprocess.run(["docker", "image", "inspect", GATEWAY_IMAGE], capture_output=True).returncode != 0:
-        print(f"error: {GATEWAY_IMAGE} missing; build: docker build -t {GATEWAY_IMAGE} services/quote-gateway",
-              file=sys.stderr)
+        print(f"error: {GATEWAY_IMAGE} missing; pull: docker pull {GATEWAY_IMAGE}", file=sys.stderr)
         return 2
     if any(e.get("fault") in NETEM_WORD for e in entries) and subprocess.run(
             ["docker", "image", "inspect", NETEM_IMAGE], capture_output=True).returncode != 0:
-        print(f"error: {NETEM_IMAGE} missing; build: docker build -t {NETEM_IMAGE} deploy/netem", file=sys.stderr)
+        print(f"error: {NETEM_IMAGE} missing; pull: docker pull {NETEM_IMAGE}", file=sys.stderr)
         return 2
     night = INCIDENT_RUNS / f"{time.strftime('%Y%m%dT%H%MZ', time.gmtime())}-{list_path.stem}"
     night.mkdir(parents=True)

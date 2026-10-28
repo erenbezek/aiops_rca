@@ -133,3 +133,19 @@ def test_runner_sets_and_resets_our_flag_in_merged_file(tmp_path, monkeypatch, s
         {k: v for k, v in before["flags"].items() if k != s["flag"]}
     _, verified, _ = sr.set_flag(s, "off")
     assert verified is not None and state["doc"] == before
+
+
+# --- imajlar GHCR'da, digest'le sabit (DECISIONS 2026-10-29 "İmajlar GHCR'da") ---
+
+COMPOSE = REPO / "deploy" / "otel-demo" / "compose.extras.yaml"
+PINNED = r"ghcr\.io/erenbezek/{name}@sha256:[0-9a-f]{{64}}"
+
+
+def test_images_pinned_by_digest():
+    assert re.fullmatch(PINNED.format(name="aiops-quote-gateway"), sr.GATEWAY_IMAGE)
+    assert re.fullmatch(PINNED.format(name="aiops-netem"), sr.NETEM_IMAGE)
+
+
+def test_compose_uses_runner_gateway_image():
+    block = re.search(r"\n  quote-gateway:\n(.*?)\n  [a-z-]+:\n", COMPOSE.read_text(), re.S).group(1)
+    assert re.findall(r"^    image: (\S+)$", block, re.M) == [sr.GATEWAY_IMAGE]

@@ -1874,3 +1874,26 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - ARCHITECTURE: `images.yml` dosya tablosuna.
 - Rapor ver ve dur. PR'lar planlama kontrolünden sonra merge edilir.
 - Kapsam dışı: baseline regresyonu, V3, systemd kartı, dal koruması (`ci.yml`'deki yorum main'de koruma olduğunu söylüyor, ama API "Branch not protected" dönüyor; yalnız not).
+
+## 2026-10-29 · Uygulama → Planlama (GHCR/CI b–d)
+- **a sonrası:** PR #25 merge edildi (main `1b33aab`). `publish` koşusu (`40783655484`) iki imajı `sha-1b33aab342c0beac593918cbc0c56db9bb446064` etiketiyle gönderdi:
+  - `ghcr.io/erenbezek/aiops-quote-gateway@sha256:333902cf518d8c059b2a880c753a0515f61350762e8859dbc5f65e9a7d83c9e9`
+  - `ghcr.io/erenbezek/aiops-netem@sha256:2651be1375920341fb2cc508bb29a42569d8e93723610763689943e403fa6201`
+  - PR'daki `build`: ilk koşu yeşil (19 sn); kasıtlı kırmızı (`itsdangerous` satırı silindi) dalda düştü, fark `+itsdangerous==2.2.0` ([koşu](https://github.com/erenbezek/aiops_rca/actions/runs/40782795779)); dal Eren'in komutuyla `632a500`'e geri alındı, kırmızı commit main'e girmedi; sonraki koşu yeşil (17 sn). Yerelde de `wrapt` satırıyla gösterildi (pip 2.5.1 kurdu).
+- **b · Sabitleme:**
+  - Koşucu `GATEWAY_IMAGE`, `NETEM_IMAGE` ve `compose.extras.yaml`'daki quote-gateway imajı yukarıdaki digest'lerle. İmaj yoksa koşucu `docker pull <imaj>` komutunu yazar.
+  - Dockerfile başlıkları çekme komutunu ve yerel derleme notunu taşır; GLOSSARY, ARCHITECTURE, INCIDENT_CATALOG'da imaj adları.
+  - Testler (`test_quote_gateway.py`): iki imaj `ghcr.io/erenbezek/<ad>@sha256:<64 hex>` biçiminde; compose'daki quote-gateway imajı koşucudakiyle aynı. Kasıtlı kırmızılar: compose'da digest'te bir hane (1), koşucuda `NETEM_IMAGE` yerel ad (1).
+  - Sızıntı: netem konteyneri adı (`aiops-netem`) değişmedi; süzgeç `container.name` ile ayıklıyor, tarayıcının `netem` deseni yeni imaj adını da yakalar.
+- **c · Canlı kontrol** (koşu yok; koşucunun fonksiyonlarıyla, betik repo dışında):
+  - Girişsiz `docker pull` iki digest'te başarılı (boş `DOCKER_CONFIG`; `~/.docker/config.json`'da ghcr girişi yok). Çekilen digest'ler compose ve koşucudakiyle aynı, iki imajda `org.opencontainers.image.source` var.
+  - Demo: koşucunun sayımı (`count(container_uptime_seconds)`, collector yeniden başlatıldıktan sonra) 23. quote-gateway `.Config.Image` ve `.Image` GHCR digest'i.
+  - Normal dönemde quote'un 107 sunucu span'inin 107'si shipping → quote-gateway → quote zincirinde, aynı izde.
+  - netem (quote 50 ms) GHCR imajıyla uygulandı, 60 sn sonra geri alındı; geri alma doğrulandı (`noqueue`, yeniden başlama 0).
+  - Taban sağlık 34,0 ms (eşik 50,6), prizde. İlk deneme pildeydi (%79 → %67): 56,3 ms, geçmedi, durup rapor verildi; o koşuda bütün servisler yavaştı (quote-gateway p95 8,9 ms, shipping 13,7, quote 1,1; prizde 6,6 / 9,3 / 0,9). Diğer şartlar iki denemede de geçti.
+  - pytest 364/364.
+- **d · Kayıtlar:** PROJECT DevOps tablosunda "Dockerfile, imaj oluşturma" `[x]`, CI/CD satırı (GHCR kısmı yapıldı, baseline regresyonu açık); bitti ölçütünde servis imajı (GHCR) tamam notu; "Şu an". ARCHITECTURE: `images.yml` satırı, diyagramda iş akışı ve GHCR.
+- **Dikkat:**
+  - Bu PR Dockerfile başlıklarını değiştirdiği için PR'da `build`, merge'den sonra `publish` yeniden çalışır ve yeni bir `sha-<commit>` etiketi gönderir. Sabitlenen digest'ler ilk gönderimde kalır; yeni gönderimin digest'i farklı olabilir (yeniden derleme bayt bayt aynı olmayabilir).
+  - Taban sağlık pil modunda eşiği geçti. Koşulardan önce priz kontrolü koşucunun korumasında zaten var; elle yapılan kontrollerde de priz şart.
+  - Dal koruması: `ci.yml`'deki yorum korumayı anlatıyor, API "Branch not protected" dönüyor (kapsam dışı, not).

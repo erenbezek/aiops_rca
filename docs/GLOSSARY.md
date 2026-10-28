@@ -147,7 +147,7 @@ Sadece Eren'in onayladığı isimler.
 | `run_incident`, `cmd_incidents`, `cgroup_memory`, `versions` | Tek vaka / liste koşusu / cgroup bellek tepesi, anon ve `memory.events` / repo ve demo commit'i, imaj sürümleri |
 | `tests/test_catalog.py`, `tests/test_incident_checks.py` | `SCENARIOS` ↔ INCIDENT_CATALOG senkron testi / kontrol modülünün testleri |
 | `containerStop`, `containerPause`, `cpuThrottle`, `memoryLimit`, `networkDelay`, `packetLoss` | Altyapı hatası senaryoları (V2): `docker stop` / `docker pause` / `docker update --cpus` / `docker update --memory --memory-swap` / `tc netem delay` / `tc netem loss` |
-| `deploy/netem/Dockerfile`, `aiops-netem:1`, `aiops-netem` | Ağ hatası yardımcı imajının tarifi (sabit alpine + iproute2, giriş `tc`) / imaj adı / hedefin ağ ad alanında koşan, iş bitince silinen yardımcı konteyner |
+| `deploy/netem/Dockerfile`, `aiops-netem:1`, `aiops-netem` | Ağ hatası yardımcı imajının tarifi (sabit alpine + iproute2, giriş `tc`) / yerel deneme imajının adı (koşular GHCR'daki `ghcr.io/erenbezek/aiops-netem`'i çeker) / hedefin ağ ad alanında koşan, iş bitince silinen yardımcı konteyner |
 | `{"fault","target","param","noise_layer"}`, `"dry": true` | Vaka listesinde altyapı hatası öğesi / kuru deneme işareti (snapshot gece klasöründe, `incidents/`'a etiket yazılmaz, taban sağlık engellemez) |
 | `INFRA_FAULTS`, `NETEM_IMAGE`, `NETEM_WORD`, `PARAM_RE` | Koşucu: hata → `fault_type` ve yöntem / yardımcı imaj adı / netem hatası → `tc` sözcüğü / parametre biçimleri |
 | `apply_fault`, `revert_fault`, `_inspect`, `_tc`, `cleanup_failed` | Hatayı uygulayıp geri okur / geri alıp doğrular / hedefin `docker inspect` durumu / yardımcı imajla `tc` / temizlik doğrulanamadı mı (gece durur) |
@@ -176,12 +176,12 @@ Sadece Eren'in onayladığı isimler.
 | `run.export_failures`, `EXPORT_FAILURE_QUERIES`, `_SIGNALS` | `otlp_grpc_jaeger`, `jaeger_storage_exporter`, `collector_refused` artışı (Prometheus, normal başından vaka sonuna) / onların sorgu listeleri / spans, metric_points, log_records |
 | `prom_increase` | Prometheus'ta son N saniyedeki sayaç artışı (seri yoksa 0, okunamazsa None) |
 | `INFRA_ANSWERS` | Koşucuda altyapı vakalarının doğru cevap alanları (`SCENARIOS`'un eşi): (hata, hedef) → `propagation_path`, `categories`; kaynağı INCIDENT_CATALOG altyapı tablosu |
-| `quote-gateway`, `services/quote-gateway/`, `aiops-quote-gateway:1`, `task/quote-gateway` | Kendi Python servisimiz (shipping → quote-gateway → quote) / klasörü / yerel imajı / dalı |
+| `quote-gateway`, `services/quote-gateway/`, `aiops-quote-gateway:1`, `task/quote-gateway` | Kendi Python servisimiz (shipping → quote-gateway → quote) / klasörü / yerel deneme imajı (koşular GHCR'daki `ghcr.io/erenbezek/aiops-quote-gateway`'i çeker) / dalı |
 | `services/quote-gateway/app.py`, `gateway.py`, `requirements.txt`, `Dockerfile` | Flask katmanı ve flag okuma / iş mantığı (`QuoteCache`) / sabit bağımlılıklar / imaj tarifi |
 | `QuoteCache` | quote-gateway'in kısa ömürlü (1 sn), sınırlı (64 kayıt) önbelleği; sızıntı kipinde istek başına blok saklar, bırakmaz |
 | `quoteGatewayMisroute`, `quoteGatewaySlowdown`, `quoteGatewayMemoryLeak` | quote-gateway flag'leri: yanlış yapılandırma (misconfig) / gecikme (ms, latency) / bellek sızıntısı (KB/istek, resource) |
 | `deploy/otel-demo/flagd-extras.json` | Bizim flag'lerimiz; `otel_demo.sh` upstream flag dosyasıyla birleştirir (aynı ad iki dosyada da varsa hata) |
-| `GATEWAY_IMAGE`, `QUOTE_GATEWAY_PORT` | Koşucuda quote-gateway imaj adı (yoksa koşu başlamaz) / quote-gateway'in dinlediği port (8090) |
+| `GATEWAY_IMAGE`, `QUOTE_GATEWAY_PORT` | Koşucuda quote-gateway imajı, GHCR digest'iyle (yoksa koşu başlamaz, `docker pull` komutu yazılır) / quote-gateway'in dinlediği port (8090) |
 | `tests/test_quote_gateway.py` | quote-gateway iş mantığı, flag birleştirme ve koşucunun yeni flag'leri açıp kapatması |
 | `incident_lists/quote_gateway.json` | quote-gateway kalibrasyon listesi (7 vaka) |
 | `incident_lists/quote_gateway_leak.json` | quote-gateway kısa koşu listesi (1024 KB sızıntı, swap kapalı; 1 vaka) |

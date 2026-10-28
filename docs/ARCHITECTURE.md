@@ -25,6 +25,8 @@ flowchart LR
     view["model_view<br/>(= snapshot klasörü: süzülmüş<br/>pencere + window.json; etiketler hariç)"]
     leak["Sızıntı testi<br/>src/aiops_rca/leakage.py"]
     ci["CI (GitHub Actions)<br/>.github/workflows/ci.yml"]
+    img["İmajlar (GitHub Actions)<br/>.github/workflows/images.yml"]
+    ghcr[("GHCR<br/>aiops-quote-gateway, aiops-netem<br/>— digest'le sabit")]
 
     base["baseline<br/>(kural, BARO)"]
     nar["candidate_narrowing"]
@@ -49,6 +51,9 @@ flowchart LR
     view -->|"0 bulgu şartı"| leak
     ci -->|"pytest, ekstrasız kurulum"| leak
     fix -.->|baseline regresyonu| ci
+    img -->|"main'de gönderim"| ghcr
+    ghcr -->|docker pull, digest| ortam
+    ghcr -->|netem imajı| inj
     view --> base
     view --> nar --> llm
     view -->|ham log| llm
@@ -95,6 +100,7 @@ flowchart LR
 | `.editorconfig` | Editörlerin yeni dosyaları LF, UTF-8 ve sonda boş satırla kaydetmesi |
 | `.vscode/settings.json` | VS Code'da yeni dosyalar LF (`files.eol`) |
 | `.github/workflows/ci.yml` | CI: PR'da ve main'e push'ta testler; ekstrasız kurulumun sadece `aiops_rca` eklediği ve sızıntı CLI'ının kurulu kopyadan temiz dosyada 0 döndüğü kontrolü |
+| `.github/workflows/images.yml` | İmajlar: PR'da `build` (quote-gateway ve netem derlenir; `pip freeze` = `requirements.txt`, `tc -V`), main'de `publish` (aynı adımlar, GHCR'a `sha-<commit>` etiketiyle gönderir, digest'leri yazar); üçüncü taraf eylem yok |
 | `pyproject.toml` | Python paket tanımı: `aiops_rca`, `src/` düzeni, Python ≥ 3.12, çalışma zamanı bağımlılığı yok, `[dev]` = `pytest==9.1.1` |
 | `src/aiops_rca/__init__.py` | Paket işareti (boş) |
 | `src/aiops_rca/leakage.py` | Sızıntı testi: `model_view` klasöründe cevabı ele veren izleri arar; CLI `python -m aiops_rca.leakage <klasör>`, çıkış kodu 0/1/2 |
@@ -132,9 +138,9 @@ flowchart LR
 | `tests/test_incident_checks.py` | `incident_checks.py` kurallarının sınırları (sahte OTLP girdileriyle) ve V1a eşik değerleri |
 | `incident_lists/pilot.json` | Pilot gece listesi: 11 katalog senaryosu (kalibre varyant) + flood'lu 2 vaka |
 | `incident_lists/v2_dry.json`, `v2b.json`, `v2c.json` | V2 listeleri: altyapı hatası kuru denemesi (6) / kalibrasyon gecesi (16) / bellek kısa koşusu (1) |
-| `deploy/netem/Dockerfile` | Ağ hatası yardımcı imajı `aiops-netem:1` (sabit alpine + iproute2, giriş `tc`); hedefin ağ ad alanında yalnız NET_ADMIN ile koşar |
+| `deploy/netem/Dockerfile` | Ağ hatası yardımcı imajı (GHCR `ghcr.io/erenbezek/aiops-netem`, digest'le sabit; sabit alpine + iproute2, giriş `tc`); hedefin ağ ad alanında yalnız NET_ADMIN ile koşar |
 | `tests/test_infra_faults.py` | Altyapı hatalarının Docker'sız testleri: dondurmanın kaydı, parametre biçimleri, zaman kalıbı, çağıran kuralı, temizlik doğrulaması, boş swap koruması, liste denetimi |
-| `services/quote-gateway/` | Kendi Python servisimiz `quote-gateway` (Flask + requests, OTel otomatik, OpenFeature + flagd): shipping'in fiyat isteğini quote'a iletir; `gateway.py` iş mantığı, `app.py` Flask ve flag'ler, `requirements.txt` sabit, `Dockerfile` (imaj `aiops-quote-gateway:1`) |
+| `services/quote-gateway/` | Kendi Python servisimiz `quote-gateway` (Flask + requests, OTel otomatik, OpenFeature + flagd): shipping'in fiyat isteğini quote'a iletir; `gateway.py` iş mantığı, `app.py` Flask ve flag'ler, `requirements.txt` sabit, `Dockerfile` (imaj GHCR `ghcr.io/erenbezek/aiops-quote-gateway`, digest'le sabit) |
 | `deploy/otel-demo/flagd-extras.json` | quote-gateway flag'leri; `otel_demo.sh up` upstream flag dosyasıyla birleştirir |
 | `tests/test_quote_gateway.py` | quote-gateway iş mantığı, flag birleştirme, koşucunun yeni flag'leri açıp kapatması |
 | `incident_lists/quote_gateway.json` | quote-gateway kalibrasyon listesi (7 vaka) |
