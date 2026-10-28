@@ -1728,3 +1728,41 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - İki ölçüm de 03:00–03:35 yerel saatte. sar: o dilimde swap trafiği gecenin geri kalanının ~3 katı (pswpin ~1.600/s, diğer saatlerde ~400–900), disk beklemesi ~4 katı (%2,6, diğer saatlerde %0,5–0,9). Eşzamanlılık; sebep bulunmadı.
 - **Bellek sınırı:** 128M kalır; normal çalışmada tepe 49 MiB.
 - **Kapsam:** Kod değişikliği yok. Katalog yolları ve kategoriler planlamanın üç kararından sonra.
+
+## 2026-10-28 · Planlama → Uygulama (quote-gateway düzeltmeleri)
+- Dal `task/quote-gateway`. Kararlar DECISIONS 2026-10-28: çağıran eşleşmesi, Jaeger'de swap şartı, quote-gateway'in swap'ı.
+- **Amaç:** quote çiftleri ölçülebilir olur; sızıntı OOM ve yeniden başlamayla biter; quote-gateway çiftleri V3'e hazır olur.
+- Gecikme 100 ms yeniden koşulmaz: seçim 30 ms (belirtili en hafif aday), 100 ms seçimi değiştirmez.
+
+### a. Çağıran eşleşmesi
+- `caller_rows`: `server.address` ve `net.peer.name` yoksa `http.url` ya da `url.full`'daki ana makine adı kullanılır.
+- Testler:
+  - eski biçimli istemci span'i eşleşir;
+  - yeni biçimli span'lerin sonucu değişmez;
+  - kasıtlı kırmızı.
+- Geriye dönük kontrol: V2b'nin 8 ağ etiketinin snapshot'larında `caller_rows` yeniden çalıştırılır; sonuç etiketteki `symptom_callers` ile aynı olmalı. Farklı çıkarsa dur ve rapor ver.
+- İki quote vakası (`inc-1811ae30`, `inc-58493603`) snapshot'tan yeniden hesaplanır:
+  - Yol V2c'deki gibi: `symptom_target` aynen, `symptom_callers` yeniden, `symptom` güçlü olan, `marks` yeniden.
+  - Geçme şartı: çağıranda (quote-gateway) güç ≥ 1,2.
+  - Tutmayan çift rapora; karar planlamada.
+
+### b. quote-gateway'in swap'ı
+- `compose.extras.yaml`: `memswap_limit: 128M`.
+- Canlı kontrol:
+  - konteynerin `memory.swap.max` değeri 0;
+  - 1024 KB flag'i açılır, OOM ve yeniden başlama görülür (`memory.events` oom_kill, Docker'ın yeniden başlama sayısı), sonra flag kapatılır.
+- Katalogdaki sızıntı metni gözden geçirilir: 384 KB'ta OOM yok, 1024 KB'ta OOM ve yeniden başlama var.
+
+### c. Kısa koşu: 1024 KB sızıntı (1 vaka, ~35 dk)
+- Hazırlık Eren'e sunulur (şarj sınırı 80, priz, imajlar, pytest); Eren `systemd-run --user` ile başlatır.
+- Geçme şartları (önceden yazılı):
+  - vaka geçerli, sızıntı 0, temizlik doğrulandı;
+  - enjeksiyon döneminde OOM ≥ 1 ve yeniden başlama ≥ 1, `expected_restarts`'ta;
+  - belirtili;
+  - Jaeger yeni şartlarla (OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0).
+- Eski etiket `inc-aec7e4ea` swap'lı düzende kaydedildi (OOM yok). Silinmez; nasıl işaretleneceğini uygulama önerir, Eren onaylar.
+
+### d. Sonra
+- Katalogda yollar ve kategoriler (2026-10-28 tanımlarıyla), quote-gateway'in üç satırı ve quote'un iki çifti için.
+- Rapor ver ve dur. PR planlama kontrolünden sonra.
+- Kapsam dışı: GHCR/CI kartı, V3, 03:00'teki taban sağlık düşüşünün araştırılması (V3'te tekrarlarsa açılır).
