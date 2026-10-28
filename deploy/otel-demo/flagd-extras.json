@@ -1,0 +1,22 @@
+{
+  "flags": {
+    "quoteGatewayMisroute": {
+      "description": "quote-gateway forwards quote requests to a non-existent address",
+      "state": "ENABLED",
+      "variants": {"on": true, "off": false},
+      "defaultVariant": "off"
+    },
+    "quoteGatewaySlowdown": {
+      "description": "quote-gateway waits before forwarding (milliseconds)",
+      "state": "ENABLED",
+      "variants": {"off": 0, "30ms": 30, "100ms": 100},
+      "defaultVariant": "off"
+    },
+    "quoteGatewayMemoryLeak": {
+      "description": "quote-gateway keeps a block per request and never frees it (KB per request)",
+      "state": "ENABLED",
+      "variants": {"off": 0, "384kb": 384, "1024kb": 1024},
+      "defaultVariant": "off"
+    }
+  }
+}

@@ -16,6 +16,8 @@ RAW_FILE="${DEPLOY_DIR}/compose.raw.yaml"
 COLLECTOR_EXTRAS="${DEPLOY_DIR}/otelcol-config-extras.yml"
 COLLECTOR_RAW="${DEPLOY_DIR}/otelcol-config-raw.yml"
 JAEGER_EXTRAS="${DEPLOY_DIR}/jaeger-config-extras.yml"
+# Bizim flag'lerimiz (quote-gateway): upstream flag dosyasıyla birleştirilir (reset_flag_file).
+FLAGD_EXTRAS="${DEPLOY_DIR}/flagd-extras.json"
 # flagd ve flagd-ui bu klasörü bağlar (compose.extras.yaml'da aynı yol).
 FLAGD_RUNTIME_DIR="${HOME}/cerebrum2/runtime/flagd"
 # Collector dosya çıkışı (compose.extras.yaml'da aynı yol): filtered/ her zaman, raw/ sadece --raw ile.
@@ -100,11 +102,29 @@ cmd_fetch() {
 
 # Her up bütün flag'ler kapalı, sabit commit'teki haliyle başlar. flagd-ui dosyayı root olarak
 # yeniden yazmış olabilir: üzerine kopyalamak yerine silinir (klasör bizim, sudo gerekmez).
+# Dosya = upstream demo.flagd.json + bizim flagd-extras.json (upstream'in sonuna eklenir; aynı ad iki dosyada da
+# varsa hata, upstream'e dokunulmaz; Eren onayı 2026-10-28).
 reset_flag_file() {
     mkdir -p "$FLAGD_RUNTIME_DIR"
     rm -f "${FLAGD_RUNTIME_DIR}/demo.flagd.json"
-    cp "${DEMO_DIR}/src/flagd/demo.flagd.json" "${FLAGD_RUNTIME_DIR}/demo.flagd.json"
+    merge_flag_files "${DEMO_DIR}/src/flagd/demo.flagd.json" "$FLAGD_EXTRAS" "${FLAGD_RUNTIME_DIR}/demo.flagd.json"
     chmod 0644 "${FLAGD_RUNTIME_DIR}/demo.flagd.json"
+}
+
+merge_flag_files() {
+    python3 - "$1" "$2" "$3" <<'PY'
+import json, sys
+upstream, extras, out = sys.argv[1:4]
+doc = json.load(open(upstream, encoding="utf-8"))
+ours = json.load(open(extras, encoding="utf-8"))["flags"]
+dup = sorted(set(doc["flags"]) & set(ours))
+if dup:
+    sys.exit(f"error: flags defined in both {upstream} and {extras}: {dup}")
+doc["flags"].update(ours)
+with open(out, "w", encoding="utf-8") as f:
+    json.dump(doc, f, indent=2)
+    f.write("\n")
+PY
 }
 
 # Klasörler collector'dan önce eren'in kullanıcısıyla açılır (Docker eksik bağlama klasörünü root'la açar).

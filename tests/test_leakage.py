@@ -27,6 +27,8 @@ ALL_FLAGS = [
     "emailMemoryLeak", "emitRawPii", "failedReadinessProbe", "imageSlowLoad", "intlShippingSlowdown",
     "kafkaQueueProblems", "loadGeneratorFloodHomepage", "paymentFailure", "paymentUnreachable",
     "productCatalogFailure", "productCatalogLockContention", "recommendationCacheFailure",
+    # Bizim flag'lerimiz (deploy/otel-demo/flagd-extras.json).
+    "quoteGatewayMemoryLeak", "quoteGatewayMisroute", "quoteGatewaySlowdown",
 ]
 
 # Sahte dosya → (OTEL_DEMO.md "Sızıntı yolları" tablosundaki satır, beklenen bulgular).
@@ -429,3 +431,9 @@ def test_leakage_imports_only_stdlib():
         elif isinstance(node, ast.ImportFrom) and node.level == 0:
             modules.add(node.module.split(".")[0])
     assert modules <= set(sys.stdlib_module_names) | {"__future__"}, modules
+
+
+def test_scanner_knows_our_flags():
+    # flagd-extras.json'a eklenen her flag tarayıcının listesinde olmalı (quote-gateway kartı, Eren).
+    ours = set(json.loads((REPO / "deploy" / "otel-demo" / "flagd-extras.json").read_text(encoding="utf-8"))["flags"])
+    assert ours and ours <= set(leakage.FLAGS) and ours <= set(ALL_FLAGS)

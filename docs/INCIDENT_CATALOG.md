@@ -25,7 +25,7 @@ Kaynak: OTel Demo 3.1.0 kodu (bkz. `OTEL_DEMO.md`). Belirtiler ve yollar koddan 
 
 Alan adları ve dosya biçimi uygulamada önerilir, Eren onaylar.
 
-## Flag senaryoları (11)
+## Flag senaryoları (14)
 
 | Senaryo | Kök neden | Hata tipi | Ne oluyor | Beklenen yayılım yolu | Beklenen belirti | Kategori |
 |---|---|---|---|---|---|---|
@@ -40,8 +40,13 @@ Alan adları ve dosya biçimi uygulamada önerilir, Eren onaylar.
 | `productCatalogLockContention` | product-catalog | latency | Kendi işlemi `catalog.products` tablosunu 30 sn kilitler (10 sn'de bir kontrol) | product-catalog → frontend, recommendation, checkout | DB bekleme, product-catalog ve frontend gecikmesi | cascading |
 | `recommendationCacheFailure` | recommendation | resource | Önbellek sınırsız büyür | recommendation → frontend | recommendation bellek ve gecikme artışı | silent |
 | `intlShippingSlowdown` | shipping | latency | Yurt dışı gönderide 5/10 sn gecikme (varyant 10sec) | shipping → checkout → frontend | Siparişlerin ~%11'inde gecikme (Gecikme sadece ship-order'da, 10 sn. Servis p95'i yurt dışı sipariş sayısına bağlı: zor denemede ~3 sipariş, görünmedi; C2'de 26'nın 8'i, göründü. ship-order ve checkout PlaceOrder p95/p99'da görünür; zor deneme için hesap, yeniden ölçülmedi.) | partial |
+| `quoteGatewayMisroute` | quote-gateway | misconfig | Kendi servisimiz; fiyat isteğini quote yerine var olmayan bir adrese (`quote-svc:8090`) iletir | quote-gateway → shipping → frontend, checkout | quote-gateway POST /getquote hata oranı 0 → 1 (502) ve hata logu; çağıran shipping→quote-gateway hata oranı 0 → 1; quote'un trafiği kesilir (98 → 0 istek) (`inc-91bf76d4`) | cascading |
+| `quoteGatewaySlowdown` | quote-gateway | latency | Kendi servisimiz; iletmeden önce bekler (varyant ms, kalibrasyonda seçilir) | quote-gateway → shipping → frontend, checkout | Seçilen 30 ms: quote-gateway POST /getquote p95 7,2 → 37,5 ms; çağıran shipping→quote-gateway p95 10,1 → 40,2 ms (güç 1,5); hata span'i ve hata logu 0 → 0 (`inc-2dd806a2`) | cascading, silent |
+| `quoteGatewayMemoryLeak` | quote-gateway | resource | Kendi servisimiz; her istekte bir blok saklar, hiç bırakmaz (varyant istek başına KB). Bellek sınırı 128M, swap kapalı: 1024 KB'ta ~8. dk'da OOM ve yeniden başlama; 384 KB 10 dk'da sınıra varmaz (tepe 84 MiB) | quote-gateway → shipping → frontend, checkout | 384 KB (seçilen): quote-gateway bellek 43 → 84 MiB (güç 1,87), çağıranda belirti yok (0,14), hata 0 → 0. 1024 KB: OOM ve yeniden başlama (bellek güç 4,85), shipping ve frontend'de hata span'i, çağıranda sınırda (0,81). Kategori varyant başına (DECISIONS 2026-10-29) | `384kb`: silent (`inc-ff3a6614`); `1024kb`: — (`inc-660f7c44`) |
 
 Sızıntı notu: `productCatalogFailure` hata mesajı ve `productCatalogLockContention` logu flag'i ele veriyor; silinmez, gerçekçi bir mesajla yeniden yazılır (belirti korunur). Ayrıntı `OTEL_DEMO.md`.
+
+Etiket notu (quote-gateway sızıntısı): `inc-aec7e4ea` (1024 KB, kalibrasyon gecesi) swap açık düzende kaydedildi: bellek 128 MiB'te kaldı, OOM ve yeniden başlama yok. Dosyaya dokunulmadı. Swap kapalı düzende 1024 KB örneği `inc-660f7c44` (enjeksiyonun ~9,5. dk'sında OOM ve yeniden başlama; HANDOFF 2026-10-29).
 
 ## Çıkarılanlar
 
@@ -62,7 +67,7 @@ Bitti ölçütündeki "yanıltıcı gürültü" şartı için gerekirse kendi se
 
 ## Kendi altyapı hatalarımız (10)
 
-V2 kalibrasyonu (V2b gecesi 2026-10-26, V2c 2026-10-27). Her çift için belirtili çıkan en hafif aday seçildi; destek
+V2 kalibrasyonu (V2b gecesi 2026-10-26, V2c 2026-10-27); quote'un iki çifti quote-gateway eklendikten sonra yeni topolojide (kalibrasyon gecesi 2026-10-28, çağıran eşleşmesi düzeltilip snapshot'tan yeniden hesaplandı). Her çift için belirtili çıkan en hafif aday seçildi; destek
 vakası o adayın etiketi (`incidents/`). Koşucudaki eşi `INFRA_ANSWERS` (yol ve kategoriler), `INFRA_FAULTS` (hata
 tipi), `PARAM_RE` (parametre biçimi); `tests/test_catalog.py` aynı olduklarını ve her satırın geçerli, belirtili bir
 etiketle desteklendiğini sınar.
@@ -70,13 +75,13 @@ etiketle desteklendiğini sınar.
 | Senaryo | Kök neden | Parametre | Hata tipi | Yöntem | Belirti nerede (karar) | İzlerde yayılım yolu | Kategori | Destek vakası |
 |---|---|---|---|---|---|---|---|---|
 | `networkDelay` | cart | `50ms` | latency | `tc netem delay` | Hedef + çağıran; karar çağıran: frontend AddItem p99 5 → 210 ms | cart → frontend, checkout | cascading, silent | `inc-2e5706ab` |
-| `networkDelay` | quote | `50ms` | latency | `tc netem delay` | Hedef + çağıran; karar çağıran: shipping→quote p99 4 → 148 ms (hedefte belirti yok) | quote → shipping → frontend, checkout | cascading, silent | `inc-d60dcc58` |
+| `networkDelay` | quote | `50ms` | latency | `tc netem delay` | Hedef + çağıran; karar çağıran: quote-gateway→quote p99 5 → 99 ms (hedefte belirti yok) | quote → quote-gateway → shipping → frontend, checkout | cascading, silent | `inc-1811ae30` |
 | `packetLoss` | shipping | `10%` | error | `tc netem loss` | Hedef + çağıran; karar çağıran: frontend→shipping p99 10 → 2.292 ms | shipping → frontend, checkout | cascading, silent | `inc-91c1ad44` |
 | `packetLoss` | currency | `10%` | error | `tc netem loss` | Hedef + çağıran; karar çağıran: checkout Convert p99 3 → 419 ms (hedefte belirti yok) | currency → frontend, checkout | cascading, silent | `inc-d1709db7` |
 | `cpuThrottle` | product-catalog | `0.09` | resource | `docker update --cpus` | Hedef: GetProduct p99 22 → 1.200 ms | product-catalog → frontend, recommendation, checkout | cascading, silent | `inc-3967c278` |
 | `cpuThrottle` | recommendation | `0.03` | resource | `docker update --cpus` | Hedef: servis p99 (güç 840) | recommendation → frontend | cascading | `inc-7e70c5c4` |
 | `containerPause` | cart | `on` | unavailable | `docker pause` | Çağıran: frontend GetCart p99 6 ms → 594 sn | cart → frontend, checkout | cascading | `inc-2a87f603` |
-| `containerPause` | quote | `on` | unavailable | `docker pause` | Çağıran: shipping→quote p99 5 → 5.004 ms | quote → shipping → frontend, checkout | cascading | `inc-e23c74cb` |
+| `containerPause` | quote | `on` | unavailable | `docker pause` | Çağıran: quote-gateway→quote p95 4 → 10.017 ms (10 sn zaman aşımı) | quote → quote-gateway → shipping → frontend, checkout | cascading | `inc-58493603` |
 | `containerStop` | recommendation | `on` | unavailable | `docker stop` | Çağıran: frontend ListRecommendations p99 13 → 32.092 ms | recommendation → frontend | cascading | `inc-01a609bb` |
 | `containerStop` | currency | `on` | unavailable | `docker stop` | Çağıran: frontend GetSupportedCurrencies p99 7 → 71.101 ms | currency → frontend, checkout | cascading | `inc-569a664d` |
 
@@ -85,8 +90,9 @@ etiketle desteklendiğini sınar.
   isteğiyle (DECISIONS 2026-10-27). quote ve currency kimseyi çağırmaz: netem yalnız cevaplarını geciktirir, gecikme
   hedefin kendi sunucu span'ine girmez; ayırt edici iz istemci span'i uzun, sunucu span'i kısa.
 - **Yayılım yolu:** destek vakasının normal döneminde hedefe gelen sunucu span'lerinin üst span'i hangi serviste ise o
-  çağırandır (frontend-proxy hariç, frontend'de durulur). Tek çağıranı olan hedefte bir üst seviye de yazılır (quote →
-  shipping).
+  çağırandır (frontend-proxy hariç, frontend'de durulur). Tek çağıranı olan halkada bir üst seviye de yazılır, ilk dallanmaya kadar (quote →
+  quote-gateway → shipping → frontend, checkout; Eren 2026-10-29). quote'un V2b destek vakaları (`inc-d60dcc58`,
+  `inc-e23c74cb`) eski topolojide (quote → shipping → frontend, checkout) kalır, değiştirilmedi.
 - **Kategoriler (ölçülebilir tanımlar, Eren 2026-10-28; flag tablosu V3 bileşim kartında aynı tanımlarla gözden
   geçirilecek):**
   - `cascading`: belirti kök nedenin çağıranlarında ölçülü olarak görünür (çağıran kontrolünde belirtili).

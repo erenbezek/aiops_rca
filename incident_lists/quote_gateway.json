@@ -1,0 +1,9 @@
+[
+ {"scenario": "quoteGatewayMisroute_on", "noise_layer": null},
+ {"scenario": "quoteGatewaySlowdown_30ms", "noise_layer": null},
+ {"scenario": "quoteGatewaySlowdown_100ms", "noise_layer": null},
+ {"fault": "networkDelay", "target": "quote", "param": "50ms", "noise_layer": null},
+ {"fault": "containerPause", "target": "quote", "param": "on", "noise_layer": null},
+ {"scenario": "quoteGatewayMemoryLeak_384kb", "noise_layer": null},
+ {"scenario": "quoteGatewayMemoryLeak_1024kb", "noise_layer": null}
+]

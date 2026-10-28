@@ -18,7 +18,9 @@ referansı 25,3 ms (15 geçerli koşunun normal dönem frontend p95 medyanı).
   eşikler, en az M istek). Hedefe giden span: `server.address` ya da `net.peer.name` hedefin adı ya da o vakadaki IP'si
   (enjeksiyondan önce ve geri almadan sonra kaydedilen ikisi de), ya da gRPC servis adı (`rpc.service`; yoksa
   `rpc.method`'un "/" öncesi, ör. checkout'un Go istemcisi) hedefin kendi gelen span'lerinde görülen adlardan biri
-  (sabit tablo yok).
+  (sabit tablo yok). `server.address` ve `net.peer.name` yoksa adres `http.url` ya da `url.full`'daki ana makine
+  adından okunur: Python'ın requests enstrümantasyonu (0.64b0) eski alan adlarını yazıyor, adres yalnız URL'de
+  (quote-gateway → quote; DECISIONS 2026-10-28 "Çağıran eşleşmesi URL'deki adresi de okur").
 - `stronger_symptom` (V2c, ağ hataları): hedefin kendi ölçümü ile çağıran ölçümünden güçlü olanı.
 """
 from __future__ import annotations
@@ -26,6 +28,7 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 from pathlib import Path
+from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import c2_measure as cm  # noqa: E402
@@ -71,7 +74,7 @@ def caller_rows(paths: list[Path], window: Window, target: str, ips: tuple[str, 
     """(çağıran, span adı) → {"before"|"after": [istek, hata, süreler]}: çağıranların hedefe giden istemci span'leri.
     Döner: (satırlar, hedefin gRPC servis adları)."""
     rpc_services, groups = set(), defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})
-    keys = ("server.address", "net.peer.name", "rpc.service", "rpc.method")
+    keys = ("server.address", "net.peer.name", "http.url", "url.full", "rpc.service", "rpc.method")
     for doc in iter_lines(paths):
         for rs in doc.get("resourceSpans", []):
             svc = resource_attr(rs.get("resource", {}), "service.name")
@@ -90,8 +93,13 @@ def caller_rows(paths: list[Path], window: Window, target: str, ips: tuple[str, 
                     if side is None:
                         continue
                     a = _span_attrs(sp, keys)
-                    row = groups[(svc, sp.get("name", ""), a.get("server.address") or a.get("net.peer.name"),
-                                  _rpc_service(a))][side]
+                    peer = a.get("server.address") or a.get("net.peer.name")
+                    if not peer and (a.get("http.url") or a.get("url.full")):
+                        try:
+                            peer = urlsplit(a.get("http.url") or a.get("url.full")).hostname
+                        except ValueError:
+                            peer = None
+                    row = groups[(svc, sp.get("name", ""), peer, _rpc_service(a))][side]
                     row[0] += 1
                     if sp.get("status", {}).get("code") == STATUS_ERROR:
                         row[1] += 1

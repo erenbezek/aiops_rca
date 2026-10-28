@@ -27,6 +27,8 @@ FLAGS = (
     "emailMemoryLeak", "emitRawPii", "failedReadinessProbe", "imageSlowLoad", "intlShippingSlowdown",
     "kafkaQueueProblems", "loadGeneratorFloodHomepage", "paymentFailure", "paymentUnreachable",
     "productCatalogFailure", "productCatalogLockContention", "recommendationCacheFailure",
+    # Bizim flag'lerimiz (deploy/otel-demo/flagd-extras.json, quote-gateway; DECISIONS 2026-10-28).
+    "quoteGatewayMemoryLeak", "quoteGatewayMisroute", "quoteGatewaySlowdown",
 )
 
 # Satırlar: "flagd, flagd-ui servis telemetrisi", "flagd, flagd-ui, load-generator konteyner metrikleri",

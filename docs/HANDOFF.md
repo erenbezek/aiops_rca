@@ -1602,3 +1602,228 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - **Dikkat (V3):**
   - Bu tanımla `cascading` bu sette ayırt edici değil.
   - Flag tablosunun kategorileri aynı tanımlarla V3 bileşim kartında gözden geçirilecek.
+
+## 2026-10-28 · Planlama → Uygulama (kendi Python servisi: quote-gateway)
+- Dal `task/quote-gateway` (main `9db7065`'ten). Kararlar DECISIONS 2026-10-28 (`quote-gateway`, yanıltıcı gürültü).
+- **Amaç:** modellerin bilmediği bir servis demonun HTTP zincirine girer; V3'ün bütün vakaları onunla kaydedilir. Servisin üç hatası kalibre edilir, quote'un V2 çiftleri yeni topolojide yeniden doğrulanır, Jaeger `GOMEMLIMIT` uzun süre sınanır.
+- Onaylı adlar: `quote-gateway`, `services/quote-gateway/`, `aiops-quote-gateway:1`, `task/quote-gateway`. Flag adları, liste dosyası ve yeni kod adları uygulamanın önerisi, Eren onayından sonra GLOSSARY.
+
+### a. Servis
+- `services/quote-gateway/`: uygulama kodu, sabit sürümlü bağımlılık listesi, Dockerfile (Python 3.12). İmaj yerelde `aiops-quote-gateway:1`.
+- İşi: quote'un fiyat isteğini (shipping'in kullandığı yol ve gövde; koddan doğrula) aynı arayüzle alır; küçük bir kural ve sınırlı bir önbellekle quote'a iletir; cevabı aynı biçimde döner. shipping'in davranışı ve cevabın biçimi değişmez.
+- OTel: `opentelemetry-instrument` ile; Flask ve requests enstrümantasyonu; loglar OTel'e (demodaki Python servisi gibi). `service.name` = `quote-gateway`.
+- Hata açma: OpenFeature + flagd sağlayıcısı, demodaki sürümler; flag'ler istek başına okunur.
+- Adlarda, loglarda ve span özniteliklerinde hataya ya da flag'e ipucu yok (sızıntı kuralı). Yanlış yapılandırmadaki hedef adresin span'de görünmesi belirtidir (paymentUnreachable'daki `badAddress` gibi).
+- Bellek sınırı: normal çalışmada ölçülür (açılış tepesi ve 20 dk sonraki kullanım), sızıntı flag'i kapalıyken rahat pay bırakacak biçimde seçilir; değer ve gerekçe HANDOFF'a.
+
+### b. Demoya bağlama
+- Bizim katmanda (`deploy/otel-demo/compose.extras.yaml`): servis eklenir (`restart: unless-stopped`, bellek sınırı); shipping'in `QUOTE_ADDR`'ı `quote-gateway`'e yönlenir. Upstream'e dokunulmaz.
+- Üç flag flag dosyasına eklenir (varsayılan kapalı):
+  - yanlış yapılandırma: tek değer;
+  - gecikme: iki aday (ms; quote'un normal p95'ine göre biri hafif, biri güçlü, ölçüp öner);
+  - bellek sızıntısı: iki büyüme hızı (biri enjeksiyon döneminde OOM'a varmayacak, biri varacak hızda; ölçüp öner).
+- INCIDENT_CATALOG flag tablosuna üç satır (kök neden quote-gateway; yayılım yolu ve kategoriler kalibrasyondan sonra, 2026-10-28 tanımlarıyla) ve `SCENARIOS` girişleri; `test_catalog.py` kapsamı.
+
+### c. Sızıntı ve canlı kontrol
+- Kasıtlı pozitif kontrol: flag açıkken ham kopyada flag izi bulunur, süzülmüş kopyada bulunmaz; sızıntı testi süzülmüş kopyada 0.
+- Canlı kontrol: normal dönemde shipping → quote-gateway → quote aynı izde (tek trace id); her flag kısa açılıp kapanır ve beklenen etki görülür; taban sağlık eşiğin altında (referans 25,3 ms, eşik 50,6). Taban sağlık eşiği geçerse dur ve sor.
+- pytest yeşil; kasıtlı kırmızılar.
+
+### d. Kalibrasyon koşusu (~3,5 saat, 7 vaka)
+- Liste:
+  - yanlış yapılandırma (1), gecikme (2 aday), sızıntı (2 aday);
+  - yeni topolojide quote: networkDelay 50 ms, containerPause.
+- Liste ve hazırlık (şarj sınırı 80, priz, `aiops-netem:1` ve `aiops-quote-gateway:1` mevcut, pytest) Eren'e sunulur; Eren onaylar ve `systemd-run --user` ile başlatır (gündüz olabilir).
+- Ölçütler:
+  - Seçim: her hatada belirtili çıkan en hafif aday. Olay kuralı değişmez (hedefin kendi isteği ≥ M). Sızıntıda hedefin yeniden başlamaları `expected_restarts`'a.
+  - quote çiftleri yeni topolojide belirtili kalmalı; çağıran artık quote-gateway. Kalmazsa rapora, karar planlamanın.
+  - Jaeger (DECISIONS 2026-10-28), her vakada: swap tepesi < 500 MiB, OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0. Geçmezse rapora, karar V3'ten önce planlamada.
+  - Geçerlilik, sızıntı 0, temizlik doğrulaması her vakada.
+- Kayda: taban sağlık (V2c'de 31,6 ms), Go yığını tepesi, Jaeger CPU, en düşük boş swap.
+
+### e. Rapor ver ve dur
+- Raporda: seçimler, quote çiftlerinin sonucu, Jaeger vaka vaka, taban sağlık, bellek sınırı, pytest.
+- Katalog yolları ve kategoriler kalibrasyondan sonra yazılır.
+- PR planlama kontrolünden sonra.
+- Kapsam dışı: imajın GHCR'a konması ve CI'da kurulması (ayrı küçük kart), V3, flag tablosunun kategori gözden geçirmesi.
+
+## 2026-10-28 · Uygulama → Planlama (quote-gateway a–c; kalibrasyon listesi)
+- **a · Servis** (`services/quote-gateway/`):
+  - İş mantığı Flask'sız `gateway.py`'de: girdi kontrolü ve `QuoteCache` (1 sn, 64 kayıt; sızıntı kipinde istek başına rastgele baytla dolu blok, bırakılmaz).
+  - `app.py`: Flask, requests ve üç flag (istek başına okunur).
+  - `requirements.txt`: 40 paketin hepsi sabit ve 2026-10-14'ten önce yayımlanmış.
+    - OTel ve OpenFeature demodaki sürümler; flask 3.1.3, requests 2.34.2.
+    - Enstrümantasyon 0.64b0; `opentelemetry-bootstrap` kullanılmadı.
+    - grpcio ve protobuf demodaki sürümler. certifi, googleapis-common-protos ve wrapt'ın son sürümleri 2 haftadan yeniydi, eskiye sabitlendi.
+  - Taban `python:3.12.14-slim` (digest sabit; 3.12-slim ve 3.12.16 iki gün önce yayımlanmıştı). Kullanıcı 10001. İmaj 253,2 MB.
+- **b · Bağlama:**
+  - `compose.extras.yaml`: quote-gateway servisi eklendi, shipping'in `QUOTE_ADDR`'ı `http://quote-gateway:8090` oldu.
+  - `deploy/otel-demo/flagd-extras.json`: `otel_demo.sh` upstream flag dosyasıyla birleştiriyor (aynı ad iki dosyada da varsa hata).
+  - Koşucu: `CONTAINERS` 23, `GATEWAY_IMAGE` kontrolü, `SCENARIOS`'a 5 giriş.
+  - Katalog flag tablosu 14 satır; yol beklenen, kategoriler kalibrasyondan sonra.
+  - Sızıntı tarayıcısı üç yeni adı biliyor; `flagd-extras.json`'daki her adın tarayıcıda olduğu testte sınanıyor.
+- **c · Canlı kontrol** (2026-10-28 01:07–01:43 yerel saat, `--raw` ile):
+  - shipping normal dönemde hata 0; quote-gateway'in cevabı quote'unkiyle aynı (n = 0–5).
+  - 290 izde shipping → quote-gateway → quote zinciri birlikte.
+  - Taban sağlık 31,6 ms.
+  - Pozitif kontrol: ham kopyada üç yeni flag adı yakalandı, süzülmüş kopyada bulgu 0.
+  - quote-gateway normal dönemde 168 istek (~10,5/dk), p95 6,8 ms; quote p95 0,9 ms.
+  - Misroute: 33/33 hata, quote'a 0 istek.
+  - Gecikme: 50 ms'de p95 56,8 ms, 200 ms'de 208,7 ms.
+  - Bellek (`memory.current`): açılış tepesi 46,5 MiB, 20. dk 51,8 MiB (anon 40,4).
+    - 64 KB × 23 istek: +1,6 MiB. 512 KB × 19 istek: +9,2 MiB.
+    - Flag kapanınca bellek geri verilmedi.
+  - Jaeger swap tepesi 481,9 MiB (~36 dk açılış).
+- Konteyner sayısı bu kontrolde 22 çıktı. Eksik olan quote'tu: `docker_stats` açılış yarışı (HANDOFF V1a); bu kontrolde collector yeniden başlatılmadı, koşucu başlatıyor. Kalan 22 içinde quote-gateway var; beklenen 23.
+- **Seçimler (Eren onayı):**
+  - Bellek sınırı 128M.
+  - Gecikme 30 ve 100 ms (eşik normal p95 + 20 ms).
+  - Sızıntı 384 KB/istek (10 dk'da ~39 MiB, güç ~1,9, OOM yok) ve 1024 KB/istek (~105 MiB, ~7. dk'da OOM). Bellek sinyali dönem ortalaması, eşik +%20.
+- **Liste** `incident_lists/quote_gateway.json` (7 vaka, ~3,5 saat): misroute, gecikme 30 / 100 ms, networkDelay quote 50 ms, containerPause quote, sızıntı 384 / 1024 KB.
+- **Testler:** pytest 357/357. Kasıtlı kırmızılar 8/8 kendi testinde düştü (sıfır dolu sızıntı, önbellek ömrü ve sınırı, girdi kontrolü, aynı flag adı, açık varsayılan, eksik varyant, tarayıcıdan çıkarılan ad).
+- **Dikkat:**
+  - Jaeger swap tepesi şarta yakın (481,9 / 500 MiB; V2c'de 484). Kalibrasyonda düşebilir.
+  - `telemetry/raw/`'a bu kontrolün ham kopyası eklendi; içinde flag adları var. Silinmedi (Eren: silme yok).
+
+## 2026-10-28 · Uygulama → Planlama (quote-gateway d: kalibrasyon koşusu)
+- **Koşu:** 2026-10-28 01:55–05:40 yerel saat (22:55Z–02:40Z), repo `d308ba8`, gece klasörü `incident_runs/20261027T2255Z-quote_gateway/`.
+  - 7 vakanın 6'sı geçerli: etiketler `incidents/` altında (6 dosya).
+  - Gecikme 100 ms iki denemede de geçersiz; koşucu bu yüzden 1 koduyla çıktı (tanımlı davranış).
+  - Sızıntı taraması her vakada 0; temizlik doğrulaması her vakada geçti; pytest 357/357.
+- **Vakalar:**
+
+  | Vaka | Etiket | Sonuç |
+  |---|---|---|
+  | Misroute on | `inc-91bf76d4` | belirtili: 195 isteğin hepsi hata, yeni uyarı logu |
+  | Gecikme 30 ms | `inc-2dd806a2` | belirtili: p95 7,2 → 37,5 ms (güç 1,5) |
+  | Gecikme 100 ms | `inc-f3a838a0`, `inc-2faad37b` | geçersiz: taban sağlık 171,2 ve 56,7 ms (eşik 50,6) |
+  | networkDelay quote 50 ms | `inc-1811ae30` | belirti yok (çağıran ölçümü 0) |
+  | containerPause quote | `inc-58493603` | ölçülemedi (çağıran ölçümü 0) |
+  | Sızıntı 384 KB | `inc-ff3a6614` | belirtili: bellek 43 → 84 MiB (güç 1,87) |
+  | Sızıntı 1024 KB | `inc-aec7e4ea` | belirtili: bellek 43 → 128 MiB sınırı (güç 5,8); OOM yok |
+
+- **Seçimler** (her hatada belirtili en hafif aday): misroute on, gecikme 30 ms, sızıntı 384 KB. Gecikme 100 ms'nin ölçülememesi seçimi değiştirmez.
+- **Planlamaya üç karar:**
+  1. **quote çiftleri belirti vermedi (kart şartı tutmadı).**
+     - V2'de ikisi de çağıran (shipping → quote) üzerinden belirtiliydi (`inc-d60dcc58`, `inc-e23c74cb`).
+     - Neden: quote-gateway'in quote'a giden istemci span'lerinde yalnız eski adlı alanlar var (`http.url`, `http.method`, `http.status_code`; `opentelemetry.instrumentation.requests` 0.64b0). `server.address` ve `net.peer.name` yok. `caller_rows` çağıranı bu iki alandan eşlediği için iki vakada da `callers_measured: 0`.
+     - Gecikme ve duraklatma büyük ihtimalle oluştu ama ölçülemedi.
+     - Seçenekler: (a) quote-gateway'e `OTEL_SEMCONV_STABILITY_OPT_IN=http` (yeni paket yok; sunucu span'lerinin alan adları da değişir, belirti kodunun okuduğu alanlar kontrol edilmeli); (b) `caller_rows` `http.url` / `url.full`'daki adresi de okusun.
+     - Her iki yolda da iki quote vakası yeniden koşulur (~1 saat).
+  2. **Jaeger swap şartı 8 vakanın 7'sinde geçmedi** (DECISIONS 2026-10-28; karar V3'ten önce planlamada).
+     - Swap tepesi vaka sırasıyla 455,8 / 538,3 / 551,8 / 573,4 / 731,2 / 601,4 / 569,2 / 520,7 MiB; şart < 500.
+     - Go yığını tepesi 1.837 → 3.716 MiB; `GOMEMLIMIT=2000MiB` yığını sınırda tutmadı, V2b'deki gece içi büyüme yine var.
+     - Diğer şartlar geçti: OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0 (geçersiz iki vakada reddedilen ölçülmedi).
+     - Anon tepe 1.181–1.656 MiB; CPU 0,10–0,22 çekirdek; en düşük boş swap 2,07 GB (koruma 1 GB).
+  3. **1024 KB sızıntıda OOM yok.**
+     - Bellek 9. dakikada 128 MiB sınırına dayandı ve orada kaldı; yeniden başlama 0, `expected_restarts` boş.
+     - Taşan kısım büyük ihtimalle konteynerin swap payına gitti (Docker varsayılanı: sınır kadar swap; quote'un kaydında `memory_swap` = 2 × `memory`). Doğrudan ölçülmedi.
+     - Kartın "~7. dk'da OOM" beklentisi ve katalogdaki "sınırda OOM ve yeniden başlama" ifadesi bu ayarla doğru değil.
+- **Sızıntı vakaları arasında bellek** (Eren sorusu; snapshot'taki `container.memory.usage.total`, docker_stats):
+  - 384 KB vakasının sonunda flag kapandıktan sonra bellek geri verilmedi: 02:04:34Z flag kapandı, pencerenin sonunda (02:06:00Z) 83,7 MiB.
+  - 1024 KB vakası temiz başladı: koşucu demoyu kapatıp (02:07:01Z) yeniden kurdu, quote-gateway yeni konteyner (başlangıç 02:08:52Z; önceki 01:38:32Z). Normal dönem 43,2–43,8 MiB, ilk örnek 43,7 MiB.
+- **Taban sağlık:**
+  - Geçerli vakalarda 26,0–33,6 ms (V2c 31,6).
+  - Gecikme 100 ms'nin iki ölçümü flag açılmadan önce düştü; sebep flag değil.
+  - İki ölçüm de 03:00–03:35 yerel saatte. sar: o dilimde swap trafiği gecenin geri kalanının ~3 katı (pswpin ~1.600/s, diğer saatlerde ~400–900), disk beklemesi ~4 katı (%2,6, diğer saatlerde %0,5–0,9). Eşzamanlılık; sebep bulunmadı.
+- **Bellek sınırı:** 128M kalır; normal çalışmada tepe 49 MiB.
+- **Kapsam:** Kod değişikliği yok. Katalog yolları ve kategoriler planlamanın üç kararından sonra.
+
+## 2026-10-28 · Planlama → Uygulama (quote-gateway düzeltmeleri)
+- Dal `task/quote-gateway`. Kararlar DECISIONS 2026-10-28: çağıran eşleşmesi, Jaeger'de swap şartı, quote-gateway'in swap'ı.
+- **Amaç:** quote çiftleri ölçülebilir olur; sızıntı OOM ve yeniden başlamayla biter; quote-gateway çiftleri V3'e hazır olur.
+- Gecikme 100 ms yeniden koşulmaz: seçim 30 ms (belirtili en hafif aday), 100 ms seçimi değiştirmez.
+
+### a. Çağıran eşleşmesi
+- `caller_rows`: `server.address` ve `net.peer.name` yoksa `http.url` ya da `url.full`'daki ana makine adı kullanılır.
+- Testler:
+  - eski biçimli istemci span'i eşleşir;
+  - yeni biçimli span'lerin sonucu değişmez;
+  - kasıtlı kırmızı.
+- Geriye dönük kontrol: V2b'nin 8 ağ etiketinin snapshot'larında `caller_rows` yeniden çalıştırılır; sonuç etiketteki `symptom_callers` ile aynı olmalı. Farklı çıkarsa dur ve rapor ver.
+- İki quote vakası (`inc-1811ae30`, `inc-58493603`) snapshot'tan yeniden hesaplanır:
+  - Yol V2c'deki gibi: `symptom_target` aynen, `symptom_callers` yeniden, `symptom` güçlü olan, `marks` yeniden.
+  - Geçme şartı: çağıranda (quote-gateway) güç ≥ 1,2.
+  - Tutmayan çift rapora; karar planlamada.
+
+### b. quote-gateway'in swap'ı
+- `compose.extras.yaml`: `memswap_limit: 128M`.
+- Canlı kontrol:
+  - konteynerin `memory.swap.max` değeri 0;
+  - 1024 KB flag'i açılır, OOM ve yeniden başlama görülür (`memory.events` oom_kill, Docker'ın yeniden başlama sayısı), sonra flag kapatılır.
+- Katalogdaki sızıntı metni gözden geçirilir: 384 KB'ta OOM yok, 1024 KB'ta OOM ve yeniden başlama var.
+
+### c. Kısa koşu: 1024 KB sızıntı (1 vaka, ~35 dk)
+- Hazırlık Eren'e sunulur (şarj sınırı 80, priz, imajlar, pytest); Eren `systemd-run --user` ile başlatır.
+- Geçme şartları (önceden yazılı):
+  - vaka geçerli, sızıntı 0, temizlik doğrulandı;
+  - enjeksiyon döneminde OOM ≥ 1 ve yeniden başlama ≥ 1, `expected_restarts`'ta;
+  - belirtili;
+  - Jaeger yeni şartlarla (OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0).
+- Eski etiket `inc-aec7e4ea` swap'lı düzende kaydedildi (OOM yok). Silinmez; nasıl işaretleneceğini uygulama önerir, Eren onaylar.
+
+### d. Sonra
+- Katalogda yollar ve kategoriler (2026-10-28 tanımlarıyla), quote-gateway'in üç satırı ve quote'un iki çifti için.
+- Rapor ver ve dur. PR planlama kontrolünden sonra.
+- Kapsam dışı: GHCR/CI kartı, V3, 03:00'teki taban sağlık düşüşünün araştırılması (V3'te tekrarlarsa açılır).
+
+## 2026-10-29 · Uygulama → Planlama (quote-gateway düzeltmeleri a–c)
+- **a · Çağıran eşleşmesi** (commit `8c1a7ce`):
+  - `caller_rows`: `server.address` ve `net.peer.name` yoksa adres `http.url` / `url.full`'daki ana makine adından okunur; bozuk URL'de eşleşme yok.
+  - Testler: eski biçimli span URL'den eşleşir (ad, IP, bozuk URL); adres alanı varsa URL'e bakılmaz. Kasıtlı kırmızılar (URL okuması kapalı; URL adres alanından önce) yalnız kendi testlerini düşürdü.
+  - Geriye dönük kontrol: V2b'nin 8 ağ etiketinin (`inc-01dd32ce`, `inc-2e5706ab`, `inc-91c1ad44`, `inc-b4665f44`, `inc-c775923b`, `inc-d1709db7`, `inc-d60dcc58`, `inc-e8b2a872`) snapshot'larında `caller_rows` + `caller_symptom_check` yeniden çalıştırıldı; sonuç etiketteki `symptom_callers` ile aynı (8/8; eski kod da 8/8).
+  - quote'un iki vakası snapshot'tan yeniden hesaplandı (pencere `injection_start`'tan):
+    - `inc-1811ae30` (networkDelay 50 ms): çağıran quote-gateway POST p99 5,1 → 99,3 ms, güç 4,71; `symptom_target` ve olay aynen; `symptom` çağırandan; `marks` boş.
+    - `inc-58493603` (containerPause): çağıran quote-gateway POST p95 3,9 → 10.016,5 ms (10 sn zaman aşımı), güç 500,63; olay çağırandan (107 istek); `marks` boş.
+    - İkisi de şartı (≥ 1,2) geçti.
+- **b · quote-gateway swap'ı kapalı** (commit `d1212f2`):
+  - `compose.extras.yaml`: `memswap_limit: 128M`. Canlıda `memory.swap.max` 0, Docker `MemorySwap` = `Memory`.
+  - Canlı kontrol (2026-10-28 06:01–06:11): 1024 KB açıldıktan ~7,7 dk sonra çekirdek OOM'u, Docker yeniden başlattı (`RestartCount` 1).
+  - Katalogdaki sızıntı metni swap kapalı düzene göre yazıldı. Liste `incident_lists/quote_gateway_leak.json`.
+- **c · Kısa koşu** (2026-10-29 00:27–01:02 yerel saat, repo `d1212f2`, `incident_runs/20261028T2127Z-quote_gateway_leak/`, etiket `inc-660f7c44`):
+  - Geçerli, sızıntı taraması 0; konteyner 23/23; taban sağlık 25,2 ms.
+  - Belirtili: bellek güç 4,85 (servis düzeyi); olay 93 istek.
+  - Yeniden başlama: quote-gateway `expected_restarts`'ta (0 → 1, yeni başlangıç 00:56:26); beklenmeyen yeniden başlama yok.
+  - OOM (kanıt çekirdek kaydından, karar (a)): enjeksiyon penceresinde (00:46:56–00:56:57) tek satır, 00:56:26 `Memory cgroup out of memory: Killed process (python)`, anon-rss 126 MiB, UID 10001. `task_memcg=/system.slice/docker-31ef6b10….scope`; aynı kimlik snapshot'taki docker_stats metriklerinde `container.name=quote-gateway`'in `container.id`'si ve `container=quote-gateway` süzgeçli Docker olaylarında.
+  - Jaeger: OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0 (geçti). Kayıt: swap tepesi 940,2 MiB (`memory.swap.peak` 1.230,3), Go yığını tepesi 3.906,5 MiB, anon tepe 1.953,2 MiB, CPU 0,216 çekirdek, en düşük boş swap 2,15 GB.
+  - Kart şartlarının hepsi geçti.
+- **Eski etiket** `inc-aec7e4ea` (karar (a)): dosyaya dokunulmadı; katalogda not (swap açık düzende, OOM yok; swap kapalı örnek `inc-660f7c44`).
+- **Dikkat:**
+  - Koşucu OOM'u kendisi kaydedemiyor: yeniden başlamada konteynerin `memory.events`'i ve Docker'ın `OOMKilled`'ı sıfırlanıyor. V3'e 384 KB giriyor (sınıra varmıyor); OOM'lu vaka eklenirse kanıt çekirdek kaydından.
+  - Jaeger swap tepesi bu vakada 940,2 MiB, kalibrasyon gecesinin en yükseğinden (731,2) fazla; şart değil, kayıt.
+  - İlk başlatma prizde olmadığı için korumada durdu (vaka yok); boş gece klasörü `incident_runs/20261028T2126Z-quote_gateway_leak/` (yalnız `runner.log`) kaldı, silinmedi.
+- **Sıradaki (kart d):** katalogda yollar ve kategoriler (quote-gateway'in üç satırı, quote'un iki çifti); sonra rapor ve PR planlama kontrolünden sonra.
+
+## 2026-10-29 · Uygulama → Planlama (quote-gateway düzeltmeleri d: yollar ve kategoriler)
+- **Ölçüm** (destek vakalarının snapshot'larından; yol normal dönemde hedefe gelen sunucu span'lerinin üst span servisi; `silent` kök neden ve çağıran zincirinde hata span'i ve ERROR logu, iki dönem; `cascading` çağıran kontrolü):
+
+  | Vaka | Hata span'i / ERROR logu (önce → sonra) | Çağıran kontrolü | Kategori |
+  |---|---|---|---|
+  | networkDelay quote 50 ms (`inc-1811ae30`) | 0 → 0 / 0 → 0 | belirtili, quote-gateway (4,71) | cascading, silent |
+  | containerPause quote (`inc-58493603`) | quote-gateway 0 → 210, shipping 0 → 210, frontend 0 → 340, checkout 0 → 50 / quote-gateway ve frontend 0 → 105 | belirtili, quote-gateway (500,6) | cascading |
+  | Misroute (`inc-91bf76d4`) | quote-gateway 0 → 388, shipping 0 → 388, frontend 0 → 776, checkout 0 → 48 / quote-gateway ve frontend 0 → 194; quote'un trafiği 98 → 0 | belirtili, shipping hata oranı 0 → 1 (20) | cascading |
+  | Gecikme 30 ms (`inc-2dd806a2`) | 0 → 0 / 0 → 0 | belirtili, shipping p95 10,1 → 40,2 ms (1,5) | cascading, silent |
+  | Sızıntı 384 KB (`inc-ff3a6614`) | 0 → 0 / 0 → 0 | belirti yok (0,14) | silent |
+  | Sızıntı 1024 KB (`inc-660f7c44`) | shipping 0 → 4, frontend 0 → 8 / frontend 0 → 2 | sınırda (0,81) | yok |
+
+  - Çağıranlar beş vakada da aynı: quote ← quote-gateway ← shipping ← frontend, checkout (checkout ← frontend).
+- **Yazılanlar:**
+  - Altyapı tablosu, quote'un iki satırı: yol quote → quote-gateway → shipping → frontend, checkout (Eren: tek çağıranlı halkalar ilk dallanmaya kadar; DECISIONS 2026-10-29); belirti yeri quote-gateway→quote; destek vakaları `inc-1811ae30`, `inc-58493603`. Kategoriler eskisiyle aynı. Yol kuralı metni güncellendi.
+  - Flag tablosu: misroute `cascading`; gecikme `cascading, silent`; ölçülen belirti metinleri ve destek etiketleri satırlarda.
+  - Koşucu: `INFRA_ANSWERS`'ta quote'un iki yolu; `SCENARIOS`'ta misroute ve gecikmenin iki varyantının kategorileri (100 ms ölçülemedi, 30 ms ile aynı).
+  - Etiketler (yalnız `answer`, git'teki hâlle alan alan karşılaştırıldı): `inc-1811ae30`, `inc-58493603` yol; `inc-91bf76d4`, `inc-2dd806a2` kategoriler.
+  - Dokunulmayanlar: quote'un V2b destek vakaları (`inc-d60dcc58`, `inc-e23c74cb`, eski topolojide kalır), sızıntı etiketleri.
+- **Planlamaya karar:** sızıntı satırının kategorisi. 384 KB (seçilen) `silent`, 1024 KB değil (OOM yeniden başlaması shipping ve frontend'de hata span'i üretiyor). Test bir flag'in her varyantının satırla aynı kategoriyi taşımasını istiyor; satır şimdilik "—", `SCENARIOS`'ta iki varyant da boş. Seçenekler (Eren'e sunulan): satır seçilen varyantı anlatsın, testte quote-gateway satırları seçilen varyant ve destek etiketiyle karşılaştırılsın (test ve katalog yapısı değişir); kesişim (sızıntı "—" kalır, V3'te sessiz bir vaka eksilir).
+- **Testler:** pytest 359/359. Kasıtlı kırmızılar: katalogda quote yolu eskiye (2 test), 100 ms kategorisi boş (1), destek etiketinde kategori farkı (1).
+- **Sonra:** sızıntı kararı; PR planlama kontrolünden sonra.
+
+## 2026-10-29 · Uygulama → Planlama (quote-gateway: sızıntı kategorisi varyant başına; PR)
+- **Karar** (Eren, planlama kontrolü; DECISIONS 2026-10-29): `quoteGatewayMemoryLeak` 384 KB `silent`, 1024 KB kategorisiz.
+- **Yapılan:**
+  - Koşucu `SCENARIOS`: 384 KB `["silent"]`, 1024 KB `[]`.
+  - Katalog: sızıntı satırının kategori hücresi `` `384kb`: silent (`inc-ff3a6614`); `1024kb`: — (`inc-660f7c44`) ``; belirti metni iki varyant için.
+  - `test_catalog.py`: kategori hücresi varyant başına okunuyor (düz hücreler eskisi gibi). Her varyant koşucudaki kendi girişiyle karşılaştırılıyor (hücrede olmayan varyant kırmızı). Her varyantın destek etiketi kendi senaryo ve varyantında, geçerli, belirtili, işaretsiz; etiketteki kategori ve yol satırla aynı. Sızıntının iki varyantı ayrıca sabit değerle sınanıyor.
+  - Etiket `inc-ff3a6614`: yalnız `answer.categories` → `["silent"]`. `inc-660f7c44` zaten boş.
+  - PROJECT "Şu an": quote-gateway satırı; pilot set 38 vaka.
+- **Testler:** pytest 362/362. Kasıtlı kırmızılar: destek etiketleri yer değiştirdi (3 test), 1024 KB etiketine `silent` (1), koşucuda 1024 KB `silent` (1), katalogda 1024 KB yazılmamış (2).
+- **PR:** `task/quote-gateway` → main; merge'den önce planlama son kontrolü.

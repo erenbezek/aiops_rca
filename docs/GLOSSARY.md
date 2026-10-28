@@ -176,3 +176,15 @@ Sadece Eren'in onayladığı isimler.
 | `run.export_failures`, `EXPORT_FAILURE_QUERIES`, `_SIGNALS` | `otlp_grpc_jaeger`, `jaeger_storage_exporter`, `collector_refused` artışı (Prometheus, normal başından vaka sonuna) / onların sorgu listeleri / spans, metric_points, log_records |
 | `prom_increase` | Prometheus'ta son N saniyedeki sayaç artışı (seri yoksa 0, okunamazsa None) |
 | `INFRA_ANSWERS` | Koşucuda altyapı vakalarının doğru cevap alanları (`SCENARIOS`'un eşi): (hata, hedef) → `propagation_path`, `categories`; kaynağı INCIDENT_CATALOG altyapı tablosu |
+| `quote-gateway`, `services/quote-gateway/`, `aiops-quote-gateway:1`, `task/quote-gateway` | Kendi Python servisimiz (shipping → quote-gateway → quote) / klasörü / yerel imajı / dalı |
+| `services/quote-gateway/app.py`, `gateway.py`, `requirements.txt`, `Dockerfile` | Flask katmanı ve flag okuma / iş mantığı (`QuoteCache`) / sabit bağımlılıklar / imaj tarifi |
+| `QuoteCache` | quote-gateway'in kısa ömürlü (1 sn), sınırlı (64 kayıt) önbelleği; sızıntı kipinde istek başına blok saklar, bırakmaz |
+| `quoteGatewayMisroute`, `quoteGatewaySlowdown`, `quoteGatewayMemoryLeak` | quote-gateway flag'leri: yanlış yapılandırma (misconfig) / gecikme (ms, latency) / bellek sızıntısı (KB/istek, resource) |
+| `deploy/otel-demo/flagd-extras.json` | Bizim flag'lerimiz; `otel_demo.sh` upstream flag dosyasıyla birleştirir (aynı ad iki dosyada da varsa hata) |
+| `GATEWAY_IMAGE`, `QUOTE_GATEWAY_PORT` | Koşucuda quote-gateway imaj adı (yoksa koşu başlamaz) / quote-gateway'in dinlediği port (8090) |
+| `tests/test_quote_gateway.py` | quote-gateway iş mantığı, flag birleştirme ve koşucunun yeni flag'leri açıp kapatması |
+| `incident_lists/quote_gateway.json` | quote-gateway kalibrasyon listesi (7 vaka) |
+| `incident_lists/quote_gateway_leak.json` | quote-gateway kısa koşu listesi (1024 KB sızıntı, swap kapalı; 1 vaka) |
+| `merge_flag_files`, `FLAGD_EXTRAS` | `otel_demo.sh`: upstream flag dosyasıyla `flagd-extras.json`'ı birleştiren fonksiyon / bizim flag dosyamızın yolu |
+| `parse_items`, `CACHE_TTL_S`, `CACHE_MAX_ENTRIES`, `retained_bytes` | `gateway.py`: `numberOfItems` kontrolü / önbellek ömrü (1 sn) / kayıt sınırı (64) / sızıntıda tutulan toplam bayt |
+| `UPSTREAM`, `ALT_UPSTREAM`, `TIMEOUT_S`, `PORT` | `app.py`: quote adresi (`QUOTE_ADDR`) / yanlış yapılandırmanın hedefi (`http://quote-svc:8090`) / iletim zaman aşımı (10 sn) / dinlenen port |

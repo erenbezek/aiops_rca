@@ -3,6 +3,8 @@ altyapı hataları (`INFRA_ANSWERS`, `INFRA_FAULTS`, `PARAM_RE`) "Kendi altyapı
 satır geçerli, belirtili bir etiketle destekleniyor mu (V2).
 
 Tablo elle yazılan kaynak; koşucu etiketlere bu alanları yazar. Biri değişip diğeri unutulursa kırmızı.
+Kategori hücresi varyant başına da yazılabilir (DECISIONS 2026-10-29, quote-gateway sızıntısı):
+"`384kb`: silent (`inc-…`); `1024kb`: — (`inc-…`)"; o zaman her varyant kendi kategorisi ve destek etiketiyle sınanır.
 Yayılım yolu "a → b → c" zincir, "a → b, c" dallanma: ardışık iki parçanın her çifti bir kenar.
 """
 import json
@@ -34,15 +36,35 @@ def table(heading: str) -> tuple[dict, list]:
     return {name: i for i, name in enumerate(rows[0])}, rows[2:]
 
 
+VARIANT_CELL = re.compile(r"`([^`]+)`: (.+) \(`(inc-[0-9a-f]{8})`\)")
+
+
+def category_list(cell: str) -> list[str]:
+    return [] if cell.strip() == "—" else [c.strip() for c in cell.split(",")]
+
+
+def variant_cells(cell: str) -> dict[str, dict]:
+    """Varyant başına kategori hücresi → {varyant: {"categories", "support"}}; düz hücrede boş."""
+    if "`" not in cell:
+        return {}
+    out = {}
+    for part in cell.split(";"):
+        m = VARIANT_CELL.fullmatch(part.strip())
+        assert m, f"bad variant cell: {part!r}"
+        out[m.group(1)] = {"categories": category_list(m.group(2)), "support": m.group(3)}
+    return out
+
+
 def catalog_rows() -> dict[str, dict]:
-    col, rows = table("## Flag senaryoları (11)")
+    col, rows = table("## Flag senaryoları (14)")
     out = {}
     for r in rows:
         flag = r[col["Senaryo"]].strip("`")
+        variants = variant_cells(r[col["Kategori"]])
         out[flag] = {"root": r[col["Kök neden"]], "fault_type": r[col["Hata tipi"]],
                      "propagation_path": edges(r[col["Beklenen yayılım yolu"]]),
-                     "categories": [] if r[col["Kategori"]] == "—" else
-                     [c.strip() for c in r[col["Kategori"]].split(",")]}
+                     "categories": None if variants else category_list(r[col["Kategori"]]),
+                     "variants": variants}
     return out
 
 
@@ -52,11 +74,13 @@ def edges(path: str) -> list[list[str]]:
 
 
 ROWS = catalog_rows()
+VERDICT_MARKS = {"no_symptom", "borderline", "not_measurable"}
 CASES = [s for s in scenario_runner.SCENARIOS if s["root"] is not None]
 
 
-def test_catalog_has_eleven_scenarios():
-    assert len(ROWS) == 11, sorted(ROWS)
+def test_catalog_has_fourteen_scenarios():
+    # 11 demo flag'i + kendi servisimizin 3 flag'i (quote-gateway, DECISIONS 2026-10-28).
+    assert len(ROWS) == 14, sorted(ROWS)
 
 
 def test_every_catalog_scenario_in_runner():
@@ -66,7 +90,34 @@ def test_every_catalog_scenario_in_runner():
 @pytest.mark.parametrize("s", CASES, ids=scenario_runner.scenario_id)
 def test_answer_fields_match_catalog(s):
     row = ROWS[s["flag"]]
-    assert {k: s[k] for k in row} == row
+    if row["variants"]:
+        assert s["variant"] in row["variants"], "variant missing from per-variant catalog cell"
+        categories = row["variants"][s["variant"]]["categories"]
+    else:
+        categories = row["categories"]
+    want = {"root": row["root"], "fault_type": row["fault_type"], "propagation_path": row["propagation_path"],
+            "categories": categories}
+    assert {k: s[k] for k in want} == want
+
+
+VARIANT_ROWS = [(flag, v, d) for flag, row in ROWS.items() for v, d in row["variants"].items()]
+
+
+def test_leak_categories_per_variant():
+    # DECISIONS 2026-10-29: 384 KB silent, 1024 KB boş (OOM yeniden başlaması çağıranlarda hata span'i üretir).
+    assert ROWS["quoteGatewayMemoryLeak"]["variants"] == {
+        "384kb": {"categories": ["silent"], "support": "inc-ff3a6614"},
+        "1024kb": {"categories": [], "support": "inc-660f7c44"}}
+
+
+@pytest.mark.parametrize("flag,variant,d", VARIANT_ROWS, ids=[f"{f}_{v}" for f, v, _ in VARIANT_ROWS])
+def test_variant_supported_by_own_label(flag, variant, d):
+    label = json.loads((REPO / "incidents" / f"{d['support']}.json").read_text(encoding="utf-8"))
+    a = label["answer"]
+    assert (a["scenario"], a["variant"]) == (flag, variant)
+    assert label["valid"] and label["checks"]["symptom"]["verdict"] == "symptomatic"
+    assert not VERDICT_MARKS & set(label["marks"])
+    assert a["categories"] == d["categories"] and a["propagation_path"] == ROWS[flag]["propagation_path"]
 
 
 def test_edges_chain_and_branch():
@@ -82,7 +133,6 @@ def test_flag_cells_are_plain_names():
 
 INFRA_HEADING = "## Kendi altyapı hatalarımız (10)"
 CATEGORIES = {"cascading", "silent", "noisy", "partial"}
-VERDICT_MARKS = {"no_symptom", "borderline", "not_measurable"}
 
 
 def infra_rows() -> list[dict]:

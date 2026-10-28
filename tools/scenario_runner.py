@@ -12,7 +12,7 @@ Kullanım:
                                                        (`incident_lists/*.json`; aynı engeller altında)
 
 Koşu başına (`~/cerebrum2/c2_runs/<senaryo>_<varyant>_<deneme>/`, repo dışı, cevap içerir):
-  korumalar → `otel_demo.sh up --raw` → 22 konteyner (6 dk içinde olmazsa collector yeniden başlatılır, 4 dk daha)
+  korumalar → `otel_demo.sh up --raw` → 22 konteyner (V2 sonrası 23: + quote-gateway) (6 dk içinde olmazsa collector yeniden başlatılır, 4 dk daha)
   → flagd-ui zamanlayıcısı kapalı ve flag kapalı → 10 dk normal → flag yaz, flagd'den doğrula → 10 dk → flag kapat,
   doğrula → konteyner yeniden başlama / OOM → `down` → telemetri penceresi `window/raw/` ve `window/filtered/`'a
   kopyalanır (döndürme eski veriyi siler; DECISIONS 2026-10-21). Ölçüm ayrı: `tools/c2_measure.py`.
@@ -22,7 +22,7 @@ Koşu başına (`~/cerebrum2/c2_runs/<senaryo>_<varyant>_<deneme>/`, repo dış�
 Kayıt: `run.json` (alanlar aşağıda `record`), `runner.log`, `collector_mem.tsv`, `containers_start.txt`,
 `containers_end.txt`, `window/`.
 
-Geçersiz koşu: flag doğrulanamadı, 22 konteyner yok, pencerede kök neden servisi dışında bir konteyner yeniden
+Geçersiz koşu: flag doğrulanamadı, beklenen konteyner sayısı (`CONTAINERS`) yok, pencerede kök neden servisi dışında bir konteyner yeniden
 başladı ya da durdu (kök neden servisinin yeniden başlaması beklenir, `expected_restarts`'a yazılır; Eren,
 2026-10-24), makine normal başlangıcı ile flag kapanışı arasında 1 dk'dan uzun uyudu (`suspended_s`: CLOCK_BOOTTIME
 uykuda ilerler, CLOCK_MONOTONIC ilerlemez; farkın artışı uyku süresidir), ısınma (95 °C üstünde 1 dk'dan fazla), pencere döndürmeyle kısaldı (bir {raw, filtered} × {traces, metrics,
@@ -34,7 +34,7 @@ Vaka üretimi (`incidents`, V1): akış aşağıda "vaka üretimi" bölümünde.
 `~/cerebrum2/snapshots/<incident_id>/` (= model_view: süzülmüş `traces/metrics/logs.jsonl` + `window.json`), etiket
 repoda `incidents/<incident_id>.json` (yalnız geçerli vakalar), gece klasörü `~/cerebrum2/incident_runs/<UTC>-<liste>/`
 (`runner.log`, `ism.json`, her denemenin etiketi `<incident_id>.json` ve çalışma dosyaları). Geçersiz: korumalar,
-22 konteyner yok, taban sağlık (enjeksiyon yapılmaz), flag doğrulanamadı, pencerede beklenmeyen yeniden başlama, uyku,
+konteyner sayısı (`CONTAINERS`) tutmadı, taban sağlık (enjeksiyon yapılmaz), flag doğrulanamadı, pencerede beklenmeyen yeniden başlama, uyku,
 döndürme, sızıntı (gece durur), olay yok. Belirtisiz / sınırda vaka geçerli, `marks`'ta işaretli.
 Taban sağlık, ısınma ve döndürmede bir kez daha.
 
@@ -66,7 +66,7 @@ PROMETHEUS = "http://127.0.0.1:9090"
 
 NORMAL_S = 600
 FLAG_S = 600
-CONTAINERS = 22
+CONTAINERS = 23  # 22 demo + quote-gateway (DECISIONS 2026-10-28)
 WAIT_CONTAINERS_S = (360, 240)  # ilk bekleme, collector yeniden başlatıldıktan sonra
 WINDOW_MARGIN_NS = (120 * 10**9, 60 * 10**9)  # normal başlangıcından önce, flag kapanışından sonra
 
@@ -133,6 +133,21 @@ SCENARIOS = [
      "fault_type": "resource", "propagation_path": [["recommendation", "frontend"]], "categories": ["silent"]},
     {"flag": "intlShippingSlowdown", "variant": "10sec", "kind": "Int", "root": "shipping", "fault_type": "latency",
      "propagation_path": [["shipping", "checkout"], ["checkout", "frontend"]], "categories": ["partial"]},
+    # Kendi servisimiz quote-gateway (deploy/otel-demo/flagd-extras.json). Varyantlar c adımındaki ölçümden (Eren
+    # onayı 2026-10-28): gecikme eşiği normal p95 + 20 ms (30 ms ≈ güç 1,5; 100 ms ≈ 5); sızıntı 384 KB/istek 10 dk'da
+    # ~39 MiB (OOM yok, sınır 128M), 1024 KB/istek ~105 MiB (OOM). Yol ve kategoriler kalibrasyondan (HANDOFF
+    # 2026-10-29); 100 ms ölçülemedi, 30 ms'ninkiyle aynı. Sızıntının kategorisi varyant başına
+    # (DECISIONS 2026-10-29): 384 KB silent, 1024 KB boş (OOM yeniden başlaması çağıranlarda hata span'i üretir).
+    {"flag": "quoteGatewayMisroute", "variant": "on", "kind": "Boolean", "root": "quote-gateway",
+     "fault_type": "misconfig", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading"]},
+    {"flag": "quoteGatewaySlowdown", "variant": "30ms", "kind": "Int", "root": "quote-gateway",
+     "fault_type": "latency", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading", "silent"]},
+    {"flag": "quoteGatewaySlowdown", "variant": "100ms", "kind": "Int", "root": "quote-gateway",
+     "fault_type": "latency", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading", "silent"]},
+    {"flag": "quoteGatewayMemoryLeak", "variant": "384kb", "kind": "Int", "root": "quote-gateway",
+     "fault_type": "resource", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["silent"]},
+    {"flag": "quoteGatewayMemoryLeak", "variant": "1024kb", "kind": "Int", "root": "quote-gateway",
+     "fault_type": "resource", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": []},
     # Sadece sızıntı kontrolü (vaka değil, noise_layer); kök neden servisi yok.
     {"flag": "loadGeneratorFloodHomepage", "variant": "on", "kind": "Int", "root": None},
 ]
@@ -750,7 +765,7 @@ def cmd_run(ids: list[str]) -> int:
 # --- vaka üretimi (V1) -----------------------------------------------------------------------------------------
 # HANDOFF 2026-10-25 "Planlama → Uygulama (vaka üretimi V1)" ve "V1 netleştirmeler"; adlar Eren onaylı.
 # Akış: korumalar → `up` (süzülmemiş kopya yok) → collector yeniden başlatılır (açılış yarışı: konteyner metrik
-# alıcısı collector'dan hemen sonra başlayan konteyneri kaçırabiliyor; V1a 3. adım) → 22 konteyner → ısınma (up'tan
+# alıcısı collector'dan hemen sonra başlayan konteyneri kaçırabiliyor; V1a 3. adım) → `CONTAINERS` konteyner → ısınma (up'tan
 # WARMUP_S) → flag'ler kapalı, zamanlayıcı durmuş → 10 dk normal → taban sağlık (geçmezse enjeksiyon yok) → flag
 # (ve noise_layer) açık 10 dk → kapat, doğrula → anonim volume'ler kaydedilir → `down` → silinir → kesim
 # (snapshot = model_view: süzülmüş pencere + window.json) → kontroller → etiket.
@@ -904,7 +919,8 @@ INFRA_ANSWERS = [
     {"fault": "networkDelay", "target": "cart",
      "propagation_path": [["cart", "frontend"], ["cart", "checkout"]], "categories": ["cascading", "silent"]},
     {"fault": "networkDelay", "target": "quote",
-     "propagation_path": [["quote", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]],
+     "propagation_path": [["quote", "quote-gateway"], ["quote-gateway", "shipping"], ["shipping", "frontend"],
+                          ["shipping", "checkout"]],
      "categories": ["cascading", "silent"]},
     {"fault": "packetLoss", "target": "shipping",
      "propagation_path": [["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading", "silent"]},
@@ -918,13 +934,15 @@ INFRA_ANSWERS = [
     {"fault": "containerPause", "target": "cart",
      "propagation_path": [["cart", "frontend"], ["cart", "checkout"]], "categories": ["cascading"]},
     {"fault": "containerPause", "target": "quote",
-     "propagation_path": [["quote", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]],
+     "propagation_path": [["quote", "quote-gateway"], ["quote-gateway", "shipping"], ["shipping", "frontend"],
+                          ["shipping", "checkout"]],
      "categories": ["cascading"]},
     {"fault": "containerStop", "target": "recommendation",
      "propagation_path": [["recommendation", "frontend"]], "categories": ["cascading"]},
     {"fault": "containerStop", "target": "currency",
      "propagation_path": [["currency", "frontend"], ["currency", "checkout"]], "categories": ["cascading"]},
 ]
+GATEWAY_IMAGE = "aiops-quote-gateway:1"  # services/quote-gateway; compose.extras.yaml her vakada kullanır
 NETEM_IMAGE = "aiops-netem:1"  # deploy/netem/Dockerfile; docker build -t aiops-netem:1 deploy/netem
 NETEM_WORD = {"networkDelay": "delay", "packetLoss": "loss"}
 STABLE_S = 30
@@ -1373,6 +1391,10 @@ def cmd_incidents(list_path: Path) -> int:
     unknown = [e for e in entries if bad(e)]
     if unknown:
         print(f"error: unknown or non-incident entries {unknown}", file=sys.stderr)
+        return 2
+    if subprocess.run(["docker", "image", "inspect", GATEWAY_IMAGE], capture_output=True).returncode != 0:
+        print(f"error: {GATEWAY_IMAGE} missing; build: docker build -t {GATEWAY_IMAGE} services/quote-gateway",
+              file=sys.stderr)
         return 2
     if any(e.get("fault") in NETEM_WORD for e in entries) and subprocess.run(
             ["docker", "image", "inspect", NETEM_IMAGE], capture_output=True).returncode != 0:

@@ -122,6 +122,26 @@ def test_callers_matched_by_name_ip_and_rpc(tmp_path):
     assert set(rows) == {("frontend", "A"), ("checkout", "B"), ("checkout", "oteldemo.PaymentService/Charge")}
 
 
+def test_old_style_client_span_matched_by_url_host(tmp_path):
+    # Python requests enstrümantasyonu (0.64b0): adres yalnız http.url'de (quote-gateway → quote).
+    docs = [doc("quote-gateway", calls("POST", {"http.url": "http://quote:8090/getquote"}, 20, 20)),
+            doc("shipping", calls("POST", {"url.full": "http://quote:8090/getquote"}, 20, 20)),
+            doc("frontend", calls("GET", {"http.url": "http://172.18.0.15:8090/x"}, 20, 20)),
+            doc("cart", calls("GET", {"http.url": "http://valkey-cart:6379/"}, 20, 20)),
+            doc("email", calls("GET", {"http.url": "http://[bad"}, 20, 20))]
+    rows, _ = rows_for(tmp_path, docs, target="quote", ips=("172.18.0.15",))
+    assert set(rows) == {("quote-gateway", "POST"), ("shipping", "POST"), ("frontend", "GET")}
+    assert rows[("quote-gateway", "POST")]["after"][0] == 20
+
+
+def test_address_field_wins_over_url(tmp_path):
+    # Yeni biçimli span'lerde sonuç değişmez: server.address varsa URL'e bakılmaz.
+    docs = [doc("shipping", calls("POST", {"server.address": "quote-gateway",
+                                           "url.full": "http://quote:8090/getquote"}, 20, 20))]
+    assert rows_for(tmp_path, docs, target="quote")[0] == {}
+    assert set(rows_for(tmp_path, docs, target="quote-gateway")[0]) == {("shipping", "POST")}
+
+
 def test_unknown_ip_not_matched(tmp_path):
     rows, _ = rows_for(tmp_path, [doc("checkout", calls("B", {"server.address": "172.18.0.14"}, 20, 20))])
     assert rows == {}
