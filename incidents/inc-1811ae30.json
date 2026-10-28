@@ -1,0 +1,372 @@
+{
+ "incident_id": "inc-1811ae30",
+ "set": "pilot",
+ "answer": {
+  "scenario": "networkDelay",
+  "variant": "50ms",
+  "noise_layer": null,
+  "injection_start": "2026-10-28T00:51:43Z",
+  "injection_end": "2026-10-28T01:01:43Z",
+  "root_cause_service": "quote",
+  "fault_type": "latency",
+  "propagation_path": [
+   [
+    "quote",
+    "shipping"
+   ],
+   [
+    "shipping",
+    "frontend"
+   ],
+   [
+    "shipping",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "silent"
+  ]
+ },
+ "window": {
+  "start": "2026-10-28T00:39:28Z",
+  "end": "2026-10-28T01:04:39Z"
+ },
+ "checks": {
+  "baseline_health": {
+   "frontend_p95_ms": 33.6,
+   "reference_ms": 25.3,
+   "threshold_ms": 50.6,
+   "pass": true,
+   "measured_at": "2026-10-28T00:51:39Z"
+  },
+  "coverage": {
+   "traces": {
+    "bytes": 171128170,
+    "mb_per_min": 6.79,
+    "oldest_utc": "2026-10-27T22:28:34Z",
+    "covered": true
+   },
+   "metrics": {
+    "bytes": 47445524,
+    "mb_per_min": 1.88,
+    "oldest_utc": "2026-10-26T20:29:13Z",
+    "covered": true
+   },
+   "logs": {
+    "bytes": 56640073,
+    "mb_per_min": 2.25,
+    "oldest_utc": "2026-10-26T22:52:05Z",
+    "covered": true
+   }
+  },
+  "leakage": {
+   "findings": 0,
+   "first": []
+  },
+  "symptom_target": {
+   "service": "quote",
+   "min_requests": 10,
+   "verdict": "no_symptom",
+   "deciding": {
+    "level": "service",
+    "signal": "mem_mb",
+    "strength": 0.069
+   },
+   "service_level": {
+    "level": "service",
+    "signal": "mem_mb",
+    "strength": 0.069
+   },
+   "operation_level": {
+    "level": "operation",
+    "operation": "POST /getquote",
+    "signal": "p95_ms",
+    "strength": 0.005,
+    "requests": [
+     111,
+     111
+    ],
+    "values": [
+     0.9,
+     1.0
+    ]
+   }
+  },
+  "symptom_callers": {
+   "service": "quote",
+   "min_requests": 10,
+   "callers_measured": 0,
+   "verdict": "not_measurable",
+   "deciding": null,
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.15"
+   ],
+   "matched_rpc_services": []
+  },
+  "symptom": {
+   "service": "quote",
+   "min_requests": 10,
+   "verdict": "no_symptom",
+   "deciding": {
+    "level": "service",
+    "signal": "mem_mb",
+    "strength": 0.069
+   },
+   "service_level": {
+    "level": "service",
+    "signal": "mem_mb",
+    "strength": 0.069
+   },
+   "operation_level": {
+    "level": "operation",
+    "operation": "POST /getquote",
+    "signal": "p95_ms",
+    "strength": 0.005,
+    "requests": [
+     111,
+     111
+    ],
+    "values": [
+     0.9,
+     1.0
+    ]
+   }
+  },
+  "event": {
+   "applied": true,
+   "pass": true,
+   "requests_after": 111,
+   "basis": "service total (resource signal)",
+   "min_requests": 10
+  },
+  "monitoring_health": {
+   "opensearch": {
+    "sent_series": 1,
+    "sent": 38881.0,
+    "send_failed": 0.0,
+    "enqueue_failed": 0.0
+   },
+   "exporters": {
+    "file/traces": {
+     "sent": 127619.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/metrics": {
+     "sent": 105277.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/logs": {
+     "sent": 38875.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "debug": {
+     "sent_series": 3,
+     "sent": 271771.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "jaeger_storage_exporter": {
+     "sent_series": 1,
+     "sent": 123501.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "opensearch": {
+     "sent_series": 1,
+     "sent": 38881.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_grpc/jaeger": {
+     "sent_series": 1,
+     "sent": 127626.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_http/prometheus": {
+     "sent_series": 1,
+     "sent": 105277.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    }
+   },
+   "receiver_refused": 0.0
+  }
+ },
+ "valid": true,
+ "invalid_reasons": [],
+ "marks": [
+  "no_symptom"
+ ],
+ "run": {
+  "list_entry": {
+   "fault": "networkDelay",
+   "target": "quote",
+   "param": "50ms",
+   "noise_layer": null
+  },
+  "versions": {
+   "repo_commit": "d308ba8f3544a034d810a56dbe640b5a99b0731a",
+   "demo_commit": "dedc0178918e260823323b8d95005a8cb924b007",
+   "demo_env": {
+    "IMAGE_VERSION": "3.0.0",
+    "DEMO_VERSION": "latest",
+    "COLLECTOR_CONTRIB_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0",
+    "COLLECTOR_EBPF_PROFILER_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-ebpf-profiler:0.159.0",
+    "FIREPIT_IMAGE": "ghcr.io/florianl/firepit:v0.1.0",
+    "FLAGD_IMAGE": "ghcr.io/open-feature/flagd:v0.16.0",
+    "GRAFANA_IMAGE": "grafana/grafana:13.1.0",
+    "JAEGERTRACING_IMAGE": "quay.io/jaegertracing/jaeger:2.19.0",
+    "POSTGRES_IMAGE": "postgres:18.4",
+    "PROMETHEUS_IMAGE": "quay.io/prometheus/prometheus:v3.13.1",
+    "VALKEY_IMAGE": "ghcr.io/valkey-io/valkey:9.0.4-alpine3.23"
+   }
+  },
+  "guards": {
+   "ac_online": "1",
+   "charge_limit": "80",
+   "battery_pct": "79",
+   "pkg_temp_c": 52.0,
+   "free_disk_gb": 267.5,
+   "monitoring_gb": 12.87,
+   "snapshot_gb": 8.38,
+   "swap_free_gb": 2.87,
+   "power_profile": "balanced",
+   "inhibited": true,
+   "gnome_inhibited": true,
+   "problems": []
+  },
+  "times": {
+   "start": "2026-10-28T00:35:58Z",
+   "demo_up": "2026-10-28T00:36:28Z",
+   "collector_restarted": "2026-10-28T00:36:32Z",
+   "normal_start": "2026-10-28T00:41:28Z",
+   "fault_on_networkDelay": "2026-10-28T00:51:43Z",
+   "fault_off_networkDelay": "2026-10-28T01:01:43Z",
+   "tail_end": "2026-10-28T01:04:39Z",
+   "demo_down": "2026-10-28T01:05:19Z",
+   "snapshot_cut": "2026-10-28T01:05:31Z"
+  },
+  "containers": {
+   "after_collector_restart": 23,
+   "at_flag_on": 23,
+   "at_flag_off": 23
+  },
+  "collector_restarted": true,
+  "restarts_in_window": [],
+  "expected_restarts": [],
+  "suspended_s": -0.0,
+  "max_pkg_temp_c": 76.0,
+  "memory": {
+   "jaeger": {
+    "peak_mib": 2500.0,
+    "current_mib": 1856.7,
+    "anon_mib": 1013.4,
+    "file_mib": 782.9,
+    "swap_mib": 531.1,
+    "swap_peak_mib": 999.8,
+    "max": 21590,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "otel-collector": {
+    "peak_mib": 400.0,
+    "current_mib": 380.0,
+    "anon_mib": 87.5,
+    "file_mib": 281.5,
+    "swap_mib": 0.0,
+    "swap_peak_mib": 0.0,
+    "max": 67,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "jaeger_heap_peak_mib": 2897.7,
+   "jaeger_cpu_avg_cores": 0.22,
+   "collector_sampled_peak_mib": 120.7,
+   "jaeger_anon_peak_mib": 1656.1,
+   "jaeger_swap_peak_mib": 731.2
+  },
+  "anonymous_volumes_removed": {
+   "1db620889105a341f115c35f6703c8a161a3fb59e17fca8ccd6424a6db54f225": 0
+  },
+  "duration_s": 1857,
+  "snapshot_bytes": 275213832,
+  "overheat": false,
+  "baseline_failed": false,
+  "coverage_short": false,
+  "leakage_found": false,
+  "fault_state": {
+   "fault": "networkDelay",
+   "target": "quote",
+   "param": "50ms",
+   "before": {
+    "running": true,
+    "paused": false,
+    "restarts": 0,
+    "oom_killed": false,
+    "nano_cpus": 0,
+    "memory": 41943040,
+    "memory_swap": 83886080,
+    "ips": [
+     "172.18.0.15"
+    ],
+    "qdisc": "qdisc noqueue 0: root refcnt 2"
+   },
+   "applied": {
+    "exit": 0,
+    "stderr": "",
+    "qdisc": "qdisc netem 800f: root refcnt 13 limit 1000 delay 50ms seed 14430079558347782877"
+   },
+   "applied_ok": true,
+   "reverted": {
+    "exit": 0,
+    "stderr": "",
+    "qdisc": "qdisc noqueue 0: root refcnt 2"
+   },
+   "after": {
+    "running": true,
+    "paused": false,
+    "restarts": 0,
+    "oom_killed": false,
+    "nano_cpus": 0,
+    "memory": 41943040,
+    "memory_swap": 83886080,
+    "ips": [
+     "172.18.0.15"
+    ]
+   },
+   "stable": {
+    "restarts_start": 0,
+    "restarts_end": 0,
+    "seconds": 30
+   },
+   "verified": true
+  },
+  "target_ips": {
+   "before": [
+    "172.18.0.15"
+   ],
+   "after": [
+    "172.18.0.15"
+   ]
+  },
+  "min_swap_free_gb": 2.07,
+  "export_failures": {
+   "otlp_grpc_jaeger": 0.0,
+   "jaeger_storage_exporter": 0.0,
+   "collector_refused": 0.0
+  },
+  "schedule": {
+   "seed": 2243044445,
+   "normal_s": 611,
+   "tail_s": 176
+  },
+  "scheduler": "stopped"
+ }
+}

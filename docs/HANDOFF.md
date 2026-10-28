@@ -1684,3 +1684,47 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - **Dikkat:**
   - Jaeger swap tepesi şarta yakın (481,9 / 500 MiB; V2c'de 484). Kalibrasyonda düşebilir.
   - `telemetry/raw/`'a bu kontrolün ham kopyası eklendi; içinde flag adları var. Silinmedi (Eren: silme yok).
+
+## 2026-10-28 · Uygulama → Planlama (quote-gateway d: kalibrasyon koşusu)
+- **Koşu:** 2026-10-28 01:55–05:40 yerel saat (22:55Z–02:40Z), repo `d308ba8`, gece klasörü `incident_runs/20261027T2255Z-quote_gateway/`.
+  - 7 vakanın 6'sı geçerli: etiketler `incidents/` altında (6 dosya).
+  - Gecikme 100 ms iki denemede de geçersiz; koşucu bu yüzden 1 koduyla çıktı (tanımlı davranış).
+  - Sızıntı taraması her vakada 0; temizlik doğrulaması her vakada geçti; pytest 357/357.
+- **Vakalar:**
+
+  | Vaka | Etiket | Sonuç |
+  |---|---|---|
+  | Misroute on | `inc-91bf76d4` | belirtili: 195 isteğin hepsi hata, yeni uyarı logu |
+  | Gecikme 30 ms | `inc-2dd806a2` | belirtili: p95 7,2 → 37,5 ms (güç 1,5) |
+  | Gecikme 100 ms | `inc-f3a838a0`, `inc-2faad37b` | geçersiz: taban sağlık 171,2 ve 56,7 ms (eşik 50,6) |
+  | networkDelay quote 50 ms | `inc-1811ae30` | belirti yok (çağıran ölçümü 0) |
+  | containerPause quote | `inc-58493603` | ölçülemedi (çağıran ölçümü 0) |
+  | Sızıntı 384 KB | `inc-ff3a6614` | belirtili: bellek 43 → 84 MiB (güç 1,87) |
+  | Sızıntı 1024 KB | `inc-aec7e4ea` | belirtili: bellek 43 → 128 MiB sınırı (güç 5,8); OOM yok |
+
+- **Seçimler** (her hatada belirtili en hafif aday): misroute on, gecikme 30 ms, sızıntı 384 KB. Gecikme 100 ms'nin ölçülememesi seçimi değiştirmez.
+- **Planlamaya üç karar:**
+  1. **quote çiftleri belirti vermedi (kart şartı tutmadı).**
+     - V2'de ikisi de çağıran (shipping → quote) üzerinden belirtiliydi (`inc-d60dcc58`, `inc-e23c74cb`).
+     - Neden: quote-gateway'in quote'a giden istemci span'lerinde yalnız eski adlı alanlar var (`http.url`, `http.method`, `http.status_code`; `opentelemetry.instrumentation.requests` 0.64b0). `server.address` ve `net.peer.name` yok. `caller_rows` çağıranı bu iki alandan eşlediği için iki vakada da `callers_measured: 0`.
+     - Gecikme ve duraklatma büyük ihtimalle oluştu ama ölçülemedi.
+     - Seçenekler: (a) quote-gateway'e `OTEL_SEMCONV_STABILITY_OPT_IN=http` (yeni paket yok; sunucu span'lerinin alan adları da değişir, belirti kodunun okuduğu alanlar kontrol edilmeli); (b) `caller_rows` `http.url` / `url.full`'daki adresi de okusun.
+     - Her iki yolda da iki quote vakası yeniden koşulur (~1 saat).
+  2. **Jaeger swap şartı 8 vakanın 7'sinde geçmedi** (DECISIONS 2026-10-28; karar V3'ten önce planlamada).
+     - Swap tepesi vaka sırasıyla 455,8 / 538,3 / 551,8 / 573,4 / 731,2 / 601,4 / 569,2 / 520,7 MiB; şart < 500.
+     - Go yığını tepesi 1.837 → 3.716 MiB; `GOMEMLIMIT=2000MiB` yığını sınırda tutmadı, V2b'deki gece içi büyüme yine var.
+     - Diğer şartlar geçti: OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0 (geçersiz iki vakada reddedilen ölçülmedi).
+     - Anon tepe 1.181–1.656 MiB; CPU 0,10–0,22 çekirdek; en düşük boş swap 2,07 GB (koruma 1 GB).
+  3. **1024 KB sızıntıda OOM yok.**
+     - Bellek 9. dakikada 128 MiB sınırına dayandı ve orada kaldı; yeniden başlama 0, `expected_restarts` boş.
+     - Taşan kısım büyük ihtimalle konteynerin swap payına gitti (Docker varsayılanı: sınır kadar swap; quote'un kaydında `memory_swap` = 2 × `memory`). Doğrudan ölçülmedi.
+     - Kartın "~7. dk'da OOM" beklentisi ve katalogdaki "sınırda OOM ve yeniden başlama" ifadesi bu ayarla doğru değil.
+- **Sızıntı vakaları arasında bellek** (Eren sorusu; snapshot'taki `container.memory.usage.total`, docker_stats):
+  - 384 KB vakasının sonunda flag kapandıktan sonra bellek geri verilmedi: 02:04:34Z flag kapandı, pencerenin sonunda (02:06:00Z) 83,7 MiB.
+  - 1024 KB vakası temiz başladı: koşucu demoyu kapatıp (02:07:01Z) yeniden kurdu, quote-gateway yeni konteyner (başlangıç 02:08:52Z; önceki 01:38:32Z). Normal dönem 43,2–43,8 MiB, ilk örnek 43,7 MiB.
+- **Taban sağlık:**
+  - Geçerli vakalarda 26,0–33,6 ms (V2c 31,6).
+  - Gecikme 100 ms'nin iki ölçümü flag açılmadan önce düştü; sebep flag değil.
+  - İki ölçüm de 03:00–03:35 yerel saatte. sar: o dilimde swap trafiği gecenin geri kalanının ~3 katı (pswpin ~1.600/s, diğer saatlerde ~400–900), disk beklemesi ~4 katı (%2,6, diğer saatlerde %0,5–0,9). Eşzamanlılık; sebep bulunmadı.
+- **Bellek sınırı:** 128M kalır; normal çalışmada tepe 49 MiB.
+- **Kapsam:** Kod değişikliği yok. Katalog yolları ve kategoriler planlamanın üç kararından sonra.
