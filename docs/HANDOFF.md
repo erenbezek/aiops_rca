@@ -1827,3 +1827,50 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - PROJECT "Şu an": quote-gateway satırı; pilot set 38 vaka.
 - **Testler:** pytest 362/362. Kasıtlı kırmızılar: destek etiketleri yer değiştirdi (3 test), 1024 KB etiketine `silent` (1), koşucuda 1024 KB `silent` (1), katalogda 1024 KB yazılmamış (2).
 - **PR:** `task/quote-gateway` → main; merge'den önce planlama son kontrolü.
+
+## 2026-10-29 · Planlama → Uygulama (GHCR/CI: imajlar)
+- Dal `task/ghcr-ci` (main `604b67f`'ten). Karar DECISIONS 2026-10-29 "İmajlar GHCR'da".
+- **Amaç:** iki imaj (`services/quote-gateway`, `deploy/netem`) CI'da derlenir ve main'de GHCR'a gönderilir. Koşular CI'ın derlediği imajla, digest'le sabitlenmiş olarak yapılır.
+- Onaylı adlar:
+  - dal `task/ghcr-ci`
+  - iş akışı `.github/workflows/images.yml`
+  - imajlar `ghcr.io/erenbezek/aiops-quote-gateway` ve `ghcr.io/erenbezek/aiops-netem`
+  - etiket biçimi `sha-<commit>` (tam commit SHA'sı)
+
+### a. İş akışı (PR 1)
+- Tetik: PR ve main'e push; yalnız `services/quote-gateway/**`, `deploy/netem/**` ya da `images.yml` değişince.
+- PR'da iki imaj derlenir, gönderilmez. main'de derlenir ve gönderilir; `latest` etiketi yok.
+- Güvenlik (`ci.yml`'deki kurallarla aynı):
+  - yeni üçüncü taraf eylem yok; derleme, giriş ve gönderme düz `docker` komutuyla;
+  - checkout eylemi SHA'yla sabit, `persist-credentials: false`;
+  - varsayılan izin `contents: read`, `packages: write` yalnız gönderen işte;
+  - giriş `GITHUB_TOKEN` ile, `--password-stdin`; başka gizli bilgi yok, ortam değişkeni ya da jeton yazdırılmaz.
+- İmajlara `org.opencontainers.image.source` etiketi konur (paket repoya bağlanır).
+- Derleme sonrası kontroller (iş akışında):
+  - quote-gateway imajında `pip freeze` çıktısı `requirements.txt` ile aynı;
+  - netem imajında `tc -V` çalışır;
+  - kasıtlı kırmızı: requirements'ta bir sürüm değiştirilince kontrol düşer (yerelde ya da dalda gösterilir, main'e girmez).
+- Gönderilen digest'ler iş akışı günlüğüne yazılır.
+- Merge'den sonra ilk gönderim olur. Eren iki paketi GitHub arayüzünde açık yapar.
+
+### b. Sabitleme (PR 2)
+- `compose.extras.yaml` (`quote-gateway` servisi) ve koşucu (`GATEWAY_IMAGE`, `NETEM_IMAGE`) `ghcr.io/erenbezek/...@sha256:…` kullanır; digest'ler ilk gönderimin günlüğünden alınır.
+- İmaj yerelde yoksa koşucu hata verir ve `docker pull` komutunu yazar (şu anki `docker build` ipucunun yerine).
+- Belgelerdeki derleme komutları (Dockerfile başları, OTEL_DEMO vb.) çekme komutuyla güncellenir; yerelde derleme yolu not olarak kalır.
+
+### c. Canlı kontrol (koşu yok)
+- Geçme şartları (önceden yazılı):
+  - giriş yapmadan `docker pull` iki digest'te de başarılı (açık paket);
+  - çekilen imajların digest'i compose ve koşucudakiyle aynı;
+  - demo 23 konteynerle ayağa kalkar, `quote-gateway` GHCR imajından çalışır (`docker inspect`);
+  - normal dönemde shipping → quote-gateway → quote aynı izde;
+  - netem kuralı (quote networkDelay) GHCR imajıyla kısa süre uygulanır ve geri alınır, geri alma doğrulanır;
+  - taban sağlık < 50,6 ms;
+  - pytest yeşil, CI yeşil.
+- Geçmezse dur ve rapor ver.
+
+### d. Kayıtlar ve rapor
+- PROJECT: DevOps tablosunda CI/CD satırı (GHCR kısmı) ve "Dockerfile, imaj oluşturma" satırı; bitti ölçütündeki "servis imajı (GHCR)" kısmının durumu (satırın tamamı baseline regresyonu yüzünden açık kalır).
+- ARCHITECTURE: `images.yml` dosya tablosuna.
+- Rapor ver ve dur. PR'lar planlama kontrolünden sonra merge edilir.
+- Kapsam dışı: baseline regresyonu, V3, systemd kartı, dal koruması (`ci.yml`'deki yorum main'de koruma olduğunu söylüyor, ama API "Branch not protected" dönüyor; yalnız not).
