@@ -96,9 +96,23 @@
   "symptom_callers": {
    "service": "quote",
    "min_requests": 10,
-   "callers_measured": 0,
-   "verdict": "not_measurable",
-   "deciding": null,
+   "callers_measured": 1,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "quote-gateway",
+    "operation": "POST",
+    "signal": "p99_ms",
+    "strength": 4.71,
+    "requests": [
+     111,
+     111
+    ],
+    "values": [
+     5.1,
+     99.3
+    ]
+   },
    "service_level": null,
    "operation_level": null,
    "matched_ips": [
@@ -109,31 +123,29 @@
   "symptom": {
    "service": "quote",
    "min_requests": 10,
-   "verdict": "no_symptom",
+   "callers_measured": 1,
+   "verdict": "symptomatic",
    "deciding": {
-    "level": "service",
-    "signal": "mem_mb",
-    "strength": 0.069
-   },
-   "service_level": {
-    "level": "service",
-    "signal": "mem_mb",
-    "strength": 0.069
-   },
-   "operation_level": {
-    "level": "operation",
-    "operation": "POST /getquote",
-    "signal": "p95_ms",
-    "strength": 0.005,
+    "level": "caller",
+    "caller": "quote-gateway",
+    "operation": "POST",
+    "signal": "p99_ms",
+    "strength": 4.71,
     "requests": [
      111,
      111
     ],
     "values": [
-     0.9,
-     1.0
+     5.1,
+     99.3
     ]
-   }
+   },
+   "service_level": null,
+   "operation_level": null,
+   "matched_ips": [
+    "172.18.0.15"
+   ],
+   "matched_rpc_services": []
   },
   "event": {
    "applied": true,
@@ -201,9 +213,7 @@
  },
  "valid": true,
  "invalid_reasons": [],
- "marks": [
-  "no_symptom"
- ],
+ "marks": [],
  "run": {
   "list_entry": {
    "fault": "networkDelay",

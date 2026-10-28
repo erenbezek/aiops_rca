@@ -66,9 +66,23 @@
   "symptom": {
    "service": "quote",
    "min_requests": 10,
-   "callers_measured": 0,
-   "verdict": "not_measurable",
-   "deciding": null,
+   "callers_measured": 1,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "caller",
+    "caller": "quote-gateway",
+    "operation": "POST",
+    "signal": "p95_ms",
+    "strength": 500.63,
+    "requests": [
+     102,
+     107
+    ],
+    "values": [
+     3.9,
+     10016.5
+    ]
+   },
    "service_level": null,
    "operation_level": null,
    "matched_ips": [
@@ -77,9 +91,11 @@
    "matched_rpc_services": []
   },
   "event": {
-   "applied": false,
-   "pass": null,
-   "reason": "no signal"
+   "applied": true,
+   "pass": true,
+   "requests_after": 107,
+   "basis": "caller quote-gateway POST",
+   "min_requests": 10
   },
   "monitoring_health": {
    "opensearch": {
@@ -140,9 +156,7 @@
  },
  "valid": true,
  "invalid_reasons": [],
- "marks": [
-  "not_measurable"
- ],
+ "marks": [],
  "run": {
   "list_entry": {
    "fault": "containerPause",
