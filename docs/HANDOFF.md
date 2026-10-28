@@ -1897,3 +1897,43 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - Bu PR Dockerfile başlıklarını değiştirdiği için PR'da `build`, merge'den sonra `publish` yeniden çalışır ve yeni bir `sha-<commit>` etiketi gönderir. Sabitlenen digest'ler ilk gönderimde kalır; yeni gönderimin digest'i farklı olabilir (yeniden derleme bayt bayt aynı olmayabilir).
   - Taban sağlık pil modunda eşiği geçti. Koşulardan önce priz kontrolü koşucunun korumasında zaten var; elle yapılan kontrollerde de priz şart.
   - Dal koruması: `ci.yml`'deki yorum korumayı anlatıyor, API "Branch not protected" dönüyor (kapsam dışı, not).
+
+## 2026-10-29 · Planlama → Uygulama (systemd birimi ve güvenli durdurma)
+- Dal `task/systemd-unit` (main `ae60214`'ten). Karar DECISIONS 2026-10-29 "Gece koşusu için systemd birimi".
+- **Amaç:** gece koşusu repodaki birimle tek komutla başlar. Durdurma ya da kapanma, demoda kalıntı bırakmaz; kalıntı varsa sonraki koşu başlamaz.
+- Onaylı adlar:
+  - dal `task/systemd-unit`
+  - dosya `deploy/systemd/aiops-incidents@.service`
+  - örnek adı = liste adı (ör. `aiops-incidents@quote_gateway_leak` → `incident_lists/quote_gateway_leak.json`)
+
+### a. Birim
+- Bugün elle verilen `systemd-run --user` komutunun eşi:
+  - aynı çalışma klasörü ve Python (`.venv`);
+  - aynı uyku engelleri (`systemd-inhibit` ve `gnome-session-inhibit`; koruma kontrolündeki `inhibited` ve `gnome_inhibited` true olmalı);
+  - aynı ortam.
+- `Restart=no`. `TimeoutStopSec` temizliğin en uzun süresine göre seçilir (ölç: hata geri alma + flag kapatma + `down`), değer ve gerekçe HANDOFF'a.
+- Birimin kendisi sinyali koşucuya iletmeli. Araya giren sarmalayıcılar (inhibit komutları) SIGTERM'i yutmamalı ya da koşucudan önce ölmemeli; bu canlıda gösterilir.
+- Kurulum: `systemctl --user link <repo>/deploy/systemd/aiops-incidents@.service`. Durum `systemctl --user status`, günlük `journalctl --user -u` ve gece klasöründeki `runner.log`.
+- Belgelerde (OTEL_DEMO ya da koşucunun başlığı) başlatma, durdurma ve kurulum komutları.
+
+### b. Güvenli durdurma
+- SIGTERM (ve SIGINT) var olan hata yoluna bağlanır: uygulanmış hata geri alınır, flag'ler kapatılır, demo kapanır; yarıda kalan vaka "durduruldu" sebebiyle geçersiz kaydedilir. Sıradaki vakaya geçilmez, koşucu sıfırdan farklı bir kodla çıkar.
+- Temizlik sırasında gelen ikinci sinyal temizliği yarıda kesmez (ya da kesiyorsa bu açıkça kayda geçer); seçim uygulamanın önerisi.
+- Başlangıç kontrolü (korumalara eklenir): demo konteynerleri çalışıyorsa ya da kalıntı varsa koşu başlamaz ve sebebi yazar. Kalıntı: duraklatılmış konteyner, demo konteynerinde CPU sınırı, netem kuralı. Elle temizlik komutu yazılır, koşucu kendisi silmez.
+- Testler: sinyalin temizlik yoluna gittiği; kalıntı varken başlangıcın reddedildiği; kasıtlı kırmızılar.
+
+### c. Canlı kontrol (tam koşu yok, ~25 dk; prizde, şarj sınırı 80)
+- 1 vakalık liste: containerPause (hedef uygulamanın seçimi; V2'de kalibre edilmiş bir çift), birimle başlatılır.
+- Geçme şartları (önceden yazılı):
+  - koruma kontrolünde `inhibited` ve `gnome_inhibited` true;
+  - enjeksiyondan sonra `systemctl --user stop aiops-incidents@<ad>`: `TimeoutStopSec` içinde hedef artık duraklatılmış değil, flag'ler kapalı, demo kapalı (`docker ps`'te demo konteyneri yok), vaka "durduruldu" ile geçersiz;
+  - birim `failed` ya da `inactive`, hangisi olduğu kayda; SIGKILL'e düşülmedi (`journalctl`);
+  - aynı birim yeniden başlatılınca korumalar geçer ve demo temiz kalkar (ilk dakikalarda yeniden durdurulabilir);
+  - kalıntı reddi canlıda bir kez: bir konteyner elle duraklatılıp koşucu başlatılır, başlamaz; sonra elle geri alınır;
+  - pytest yeşil, CI yeşil.
+- Geçmezse dur ve rapor ver.
+
+### d. Kayıtlar ve rapor
+- PROJECT DevOps tablosunda "Otomasyon betikleri" satırı; ARCHITECTURE dosya tablosu.
+- Rapor ver ve dur. PR planlama kontrolünden sonra.
+- Kapsam dışı: zamanlayıcı, yarıda kalan listeye devam etme (V3 kartında listeler gece başına bölünür), linger (oturum kapanırsa kullanıcı birimleri durur; Eren oturumu açık bırakır, yalnız not).
