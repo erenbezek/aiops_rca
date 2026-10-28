@@ -1766,3 +1766,30 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - Katalogda yollar ve kategoriler (2026-10-28 tanımlarıyla), quote-gateway'in üç satırı ve quote'un iki çifti için.
 - Rapor ver ve dur. PR planlama kontrolünden sonra.
 - Kapsam dışı: GHCR/CI kartı, V3, 03:00'teki taban sağlık düşüşünün araştırılması (V3'te tekrarlarsa açılır).
+
+## 2026-10-29 · Uygulama → Planlama (quote-gateway düzeltmeleri a–c)
+- **a · Çağıran eşleşmesi** (commit `8c1a7ce`):
+  - `caller_rows`: `server.address` ve `net.peer.name` yoksa adres `http.url` / `url.full`'daki ana makine adından okunur; bozuk URL'de eşleşme yok.
+  - Testler: eski biçimli span URL'den eşleşir (ad, IP, bozuk URL); adres alanı varsa URL'e bakılmaz. Kasıtlı kırmızılar (URL okuması kapalı; URL adres alanından önce) yalnız kendi testlerini düşürdü.
+  - Geriye dönük kontrol: V2b'nin 8 ağ etiketinin (`inc-01dd32ce`, `inc-2e5706ab`, `inc-91c1ad44`, `inc-b4665f44`, `inc-c775923b`, `inc-d1709db7`, `inc-d60dcc58`, `inc-e8b2a872`) snapshot'larında `caller_rows` + `caller_symptom_check` yeniden çalıştırıldı; sonuç etiketteki `symptom_callers` ile aynı (8/8; eski kod da 8/8).
+  - quote'un iki vakası snapshot'tan yeniden hesaplandı (pencere `injection_start`'tan):
+    - `inc-1811ae30` (networkDelay 50 ms): çağıran quote-gateway POST p99 5,1 → 99,3 ms, güç 4,71; `symptom_target` ve olay aynen; `symptom` çağırandan; `marks` boş.
+    - `inc-58493603` (containerPause): çağıran quote-gateway POST p95 3,9 → 10.016,5 ms (10 sn zaman aşımı), güç 500,63; olay çağırandan (107 istek); `marks` boş.
+    - İkisi de şartı (≥ 1,2) geçti.
+- **b · quote-gateway swap'ı kapalı** (commit `d1212f2`):
+  - `compose.extras.yaml`: `memswap_limit: 128M`. Canlıda `memory.swap.max` 0, Docker `MemorySwap` = `Memory`.
+  - Canlı kontrol (2026-10-28 06:01–06:11): 1024 KB açıldıktan ~7,7 dk sonra çekirdek OOM'u, Docker yeniden başlattı (`RestartCount` 1).
+  - Katalogdaki sızıntı metni swap kapalı düzene göre yazıldı. Liste `incident_lists/quote_gateway_leak.json`.
+- **c · Kısa koşu** (2026-10-29 00:27–01:02 yerel saat, repo `d1212f2`, `incident_runs/20261028T2127Z-quote_gateway_leak/`, etiket `inc-660f7c44`):
+  - Geçerli, sızıntı taraması 0; konteyner 23/23; taban sağlık 25,2 ms.
+  - Belirtili: bellek güç 4,85 (servis düzeyi); olay 93 istek.
+  - Yeniden başlama: quote-gateway `expected_restarts`'ta (0 → 1, yeni başlangıç 00:56:26); beklenmeyen yeniden başlama yok.
+  - OOM (kanıt çekirdek kaydından, karar (a)): enjeksiyon penceresinde (00:46:56–00:56:57) tek satır, 00:56:26 `Memory cgroup out of memory: Killed process (python)`, anon-rss 126 MiB, UID 10001. `task_memcg=/system.slice/docker-31ef6b10….scope`; aynı kimlik snapshot'taki docker_stats metriklerinde `container.name=quote-gateway`'in `container.id`'si ve `container=quote-gateway` süzgeçli Docker olaylarında.
+  - Jaeger: OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0 (geçti). Kayıt: swap tepesi 940,2 MiB (`memory.swap.peak` 1.230,3), Go yığını tepesi 3.906,5 MiB, anon tepe 1.953,2 MiB, CPU 0,216 çekirdek, en düşük boş swap 2,15 GB.
+  - Kart şartlarının hepsi geçti.
+- **Eski etiket** `inc-aec7e4ea` (karar (a)): dosyaya dokunulmadı; katalogda not (swap açık düzende, OOM yok; swap kapalı örnek `inc-660f7c44`).
+- **Dikkat:**
+  - Koşucu OOM'u kendisi kaydedemiyor: yeniden başlamada konteynerin `memory.events`'i ve Docker'ın `OOMKilled`'ı sıfırlanıyor. V3'e 384 KB giriyor (sınıra varmıyor); OOM'lu vaka eklenirse kanıt çekirdek kaydından.
+  - Jaeger swap tepesi bu vakada 940,2 MiB, kalibrasyon gecesinin en yükseğinden (731,2) fazla; şart değil, kayıt.
+  - İlk başlatma prizde olmadığı için korumada durdu (vaka yok); boş gece klasörü `incident_runs/20261028T2126Z-quote_gateway_leak/` (yalnız `runner.log`) kaldı, silinmedi.
+- **Sıradaki (kart d):** katalogda yollar ve kategoriler (quote-gateway'in üç satırı, quote'un iki çifti); sonra rapor ve PR planlama kontrolünden sonra.

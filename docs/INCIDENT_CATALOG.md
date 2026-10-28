@@ -46,6 +46,8 @@ Alan adları ve dosya biçimi uygulamada önerilir, Eren onaylar.
 
 Sızıntı notu: `productCatalogFailure` hata mesajı ve `productCatalogLockContention` logu flag'i ele veriyor; silinmez, gerçekçi bir mesajla yeniden yazılır (belirti korunur). Ayrıntı `OTEL_DEMO.md`.
 
+Etiket notu (quote-gateway sızıntısı): `inc-aec7e4ea` (1024 KB, kalibrasyon gecesi) swap açık düzende kaydedildi: bellek 128 MiB'te kaldı, OOM ve yeniden başlama yok. Dosyaya dokunulmadı. Swap kapalı düzende 1024 KB örneği `inc-660f7c44` (enjeksiyonun ~9,5. dk'sında OOM ve yeniden başlama; HANDOFF 2026-10-29).
+
 ## Çıkarılanlar
 
 | Senaryo | Neden |
