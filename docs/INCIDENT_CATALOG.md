@@ -100,8 +100,8 @@ etiketle desteklendiğini sınar.
     belirti yalnız gecikme ya da kaynak. cpuThrottle recommendation bu yüzden `silent` değil: recommendation 12 hata
     logu yazdı (telemetriyi collector'a gönderemedi, `DEADLINE_EXCEEDED`).
   - `noisy` ve `partial` bu tabloda kullanılmadı (kanıt yok).
-- Araçlar ve iz kuralı DECISIONS 2026-10-26'da: `tc netem` kendi yardımcı imajımızla (`aiops-netem:1`, alpine +
-  iproute2), diğerleri araçsız. Mekanizmanın izi sızıntı, hedefteki fiziksel etki belirti.
+- Araçlar ve iz kuralı DECISIONS 2026-10-26'da: `tc netem` kendi yardımcı imajımızla (`ghcr.io/erenbezek/aiops-netem`,
+  digest'le sabit; alpine + iproute2), diğerleri araçsız. Mekanizmanın izi sızıntı, hedefteki fiziksel etki belirti.
 
 ### Denendi, V3'e girmez: `memoryLimit` (`docker update --memory --memory-swap`, resource)
 
