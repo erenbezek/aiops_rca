@@ -138,4 +138,5 @@ flowchart LR
 | `deploy/otel-demo/flagd-extras.json` | quote-gateway flag'leri; `otel_demo.sh up` upstream flag dosyasıyla birleştirir |
 | `tests/test_quote_gateway.py` | quote-gateway iş mantığı, flag birleştirme, koşucunun yeni flag'leri açıp kapatması |
 | `incident_lists/quote_gateway.json` | quote-gateway kalibrasyon listesi (7 vaka) |
+| `incident_lists/quote_gateway_leak.json` | quote-gateway kısa koşu listesi (1024 KB sızıntı, swap kapalı; 1 vaka) |
 | `incidents/` | Geçerli vakaların etiketleri ve koşu kayıtları (`<incident_id>.json`) |

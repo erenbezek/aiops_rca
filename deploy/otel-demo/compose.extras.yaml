@@ -109,6 +109,9 @@ services:
   # gibi otomatik; flag'ler flagd'den (deploy/otel-demo/flagd-extras.json). Bellek sınırı 128M: normal çalışmada
   # açılış tepesi 46,5 MiB, 20. dk'da 51,8 MiB (anon 40,4); ~2,4 kat pay. Sızıntı adayları buna göre (HANDOFF
   # 2026-10-28 quote-gateway c).
+  # Swap kapalı (memswap_limit = bellek sınırı): Docker varsayılanı konteynere sınır kadar swap verir, sızıntı sınıra
+  # varınca OOM yerine swap'a taşar (kalibrasyonda 1024 KB, 128 MiB'te OOM'suz). Sınıra varınca OOM ve yeniden
+  # başlama olsun (DECISIONS 2026-10-28 "quote-gateway'in swap'ı kapalı").
   quote-gateway:
     image: aiops-quote-gateway:1
     container_name: quote-gateway
@@ -117,6 +120,7 @@ services:
       resources:
         limits:
           memory: 128M
+    memswap_limit: 128M
     restart: unless-stopped
     environment:
       - QUOTE_ADDR

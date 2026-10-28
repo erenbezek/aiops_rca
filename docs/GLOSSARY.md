@@ -184,6 +184,7 @@ Sadece Eren'in onayladığı isimler.
 | `GATEWAY_IMAGE`, `QUOTE_GATEWAY_PORT` | Koşucuda quote-gateway imaj adı (yoksa koşu başlamaz) / quote-gateway'in dinlediği port (8090) |
 | `tests/test_quote_gateway.py` | quote-gateway iş mantığı, flag birleştirme ve koşucunun yeni flag'leri açıp kapatması |
 | `incident_lists/quote_gateway.json` | quote-gateway kalibrasyon listesi (7 vaka) |
+| `incident_lists/quote_gateway_leak.json` | quote-gateway kısa koşu listesi (1024 KB sızıntı, swap kapalı; 1 vaka) |
 | `merge_flag_files`, `FLAGD_EXTRAS` | `otel_demo.sh`: upstream flag dosyasıyla `flagd-extras.json`'ı birleştiren fonksiyon / bizim flag dosyamızın yolu |
 | `parse_items`, `CACHE_TTL_S`, `CACHE_MAX_ENTRIES`, `retained_bytes` | `gateway.py`: `numberOfItems` kontrolü / önbellek ömrü (1 sn) / kayıt sınırı (64) / sızıntıda tutulan toplam bayt |
 | `UPSTREAM`, `ALT_UPSTREAM`, `TIMEOUT_S`, `PORT` | `app.py`: quote adresi (`QUOTE_ADDR`) / yanlış yapılandırmanın hedefi (`http://quote-svc:8090`) / iletim zaman aşımı (10 sn) / dinlenen port |
