@@ -1,0 +1,115 @@
+# İmajlar: kendi iki imajımız CI'da derlenir; main'de GHCR'a gönderilir (DECISIONS 2026-10-29 "İmajlar GHCR'da").
+# PR'da `build` derler ve kontrol eder, göndermez. main'de `publish` aynı adımları koşar, sonra gönderir.
+# Etiket `sha-<tam commit SHA'sı>`; `latest` yok. Koşular imajı digest'le sabitler (compose.extras.yaml, koşucu).
+# Kurallar ci.yml'deki gibi: üçüncü taraf eylem yok (derleme, giriş, gönderme düz `docker`), checkout SHA'yla sabit,
+# varsayılan izin yalnız okuma, `packages: write` yalnız `publish`'te; giriş GITHUB_TOKEN ile stdin'den, jeton ya da
+# ortam değişkeni yazdırılmaz. Repo açık, günlükler herkese açık.
+name: Images
+
+on:
+  pull_request:
+    paths:
+      - "services/quote-gateway/**"
+      - "deploy/netem/**"
+      - ".github/workflows/images.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/quote-gateway/**"
+      - "deploy/netem/**"
+      - ".github/workflows/images.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash  # bash -eo pipefail: hata veren komut adımı kırmızı yapar
+
+env:
+  GATEWAY: ghcr.io/erenbezek/aiops-quote-gateway
+  NETEM: ghcr.io/erenbezek/aiops-netem
+  TAG: sha-${{ github.sha }}
+  SOURCE: https://github.com/${{ github.repository }}  # paket repoya bu etiketle bağlanır
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      # Eklenti ci.yml'dekiyle aynı SHA (v7.0.1).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build quote-gateway
+        run: docker build --label "org.opencontainers.image.source=$SOURCE" -t "$GATEWAY:$TAG" services/quote-gateway
+
+      # requirements.txt tam olmalı: imajdaki `pip freeze` yorumsuz satırlarla aynı. Eksik sabit (pip'in kendi çözdüğü
+      # bir bağımlılık) ya da farklı çözülen bir sürüm farkta görünür. Sürüm değişikliği tek başına yakalanmaz: imaj
+      # değişen dosyadan kurulur, freeze de onu gösterir.
+      - name: Check quote-gateway packages match requirements.txt
+        run: |
+          export LC_ALL=C
+          grep -vE '^[[:space:]]*(#|$)' services/quote-gateway/requirements.txt | sort > "$RUNNER_TEMP/requirements.txt"
+          docker run --rm --entrypoint pip "$GATEWAY:$TAG" --no-cache-dir freeze | sort > "$RUNNER_TEMP/freeze.txt"
+          if ! diff -u "$RUNNER_TEMP/requirements.txt" "$RUNNER_TEMP/freeze.txt"; then
+            echo "::error::quote-gateway image packages differ from requirements.txt"
+            exit 1
+          fi
+
+      - name: Build netem
+        run: docker build --label "org.opencontainers.image.source=$SOURCE" -t "$NETEM:$TAG" deploy/netem
+
+      - name: Check netem runs tc
+        run: docker run --rm "$NETEM:$TAG" -V
+
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build quote-gateway
+        run: docker build --label "org.opencontainers.image.source=$SOURCE" -t "$GATEWAY:$TAG" services/quote-gateway
+
+      - name: Check quote-gateway packages match requirements.txt
+        run: |
+          export LC_ALL=C
+          grep -vE '^[[:space:]]*(#|$)' services/quote-gateway/requirements.txt | sort > "$RUNNER_TEMP/requirements.txt"
+          docker run --rm --entrypoint pip "$GATEWAY:$TAG" --no-cache-dir freeze | sort > "$RUNNER_TEMP/freeze.txt"
+          if ! diff -u "$RUNNER_TEMP/requirements.txt" "$RUNNER_TEMP/freeze.txt"; then
+            echo "::error::quote-gateway image packages differ from requirements.txt"
+            exit 1
+          fi
+
+      - name: Build netem
+        run: docker build --label "org.opencontainers.image.source=$SOURCE" -t "$NETEM:$TAG" deploy/netem
+
+      - name: Check netem runs tc
+        run: docker run --rm "$NETEM:$TAG" -V
+
+      # Jeton yalnız stdin'den geçer; komut satırına ve günlüğe girmez.
+      - name: Log in to GHCR
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      # Digest'ler koşucu ve compose.extras.yaml'daki sabitleme için günlüğe yazılır.
+      - name: Push images and print digests
+        run: |
+          for image in "$GATEWAY" "$NETEM"; do
+            docker push "$image:$TAG"
+            echo "pushed $(docker inspect --format '{{index .RepoDigests 0}}' "$image:$TAG")"
+          done
+
+      - name: Log out of GHCR
+        if: always()
+        run: docker logout ghcr.io
