@@ -23,7 +23,9 @@
     "checkout"
    ]
   ],
-  "categories": []
+  "categories": [
+   "silent"
+  ]
  },
  "window": {
   "start": "2026-10-28T01:41:44Z",

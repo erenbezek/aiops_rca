@@ -136,7 +136,8 @@ SCENARIOS = [
     # Kendi servisimiz quote-gateway (deploy/otel-demo/flagd-extras.json). Varyantlar c adımındaki ölçümden (Eren
     # onayı 2026-10-28): gecikme eşiği normal p95 + 20 ms (30 ms ≈ güç 1,5; 100 ms ≈ 5); sızıntı 384 KB/istek 10 dk'da
     # ~39 MiB (OOM yok, sınır 128M), 1024 KB/istek ~105 MiB (OOM). Yol ve kategoriler kalibrasyondan (HANDOFF
-    # 2026-10-29); 100 ms ölçülemedi, 30 ms'ninkiyle aynı. Sızıntının kategorisi planlamada (384 KB silent, 1024 KB değil).
+    # 2026-10-29); 100 ms ölçülemedi, 30 ms'ninkiyle aynı. Sızıntının kategorisi varyant başına
+    # (DECISIONS 2026-10-29): 384 KB silent, 1024 KB boş (OOM yeniden başlaması çağıranlarda hata span'i üretir).
     {"flag": "quoteGatewayMisroute", "variant": "on", "kind": "Boolean", "root": "quote-gateway",
      "fault_type": "misconfig", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading"]},
     {"flag": "quoteGatewaySlowdown", "variant": "30ms", "kind": "Int", "root": "quote-gateway",
@@ -144,7 +145,7 @@ SCENARIOS = [
     {"flag": "quoteGatewaySlowdown", "variant": "100ms", "kind": "Int", "root": "quote-gateway",
      "fault_type": "latency", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["cascading", "silent"]},
     {"flag": "quoteGatewayMemoryLeak", "variant": "384kb", "kind": "Int", "root": "quote-gateway",
-     "fault_type": "resource", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": []},
+     "fault_type": "resource", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": ["silent"]},
     {"flag": "quoteGatewayMemoryLeak", "variant": "1024kb", "kind": "Int", "root": "quote-gateway",
      "fault_type": "resource", "propagation_path": [["quote-gateway", "shipping"], ["shipping", "frontend"], ["shipping", "checkout"]], "categories": []},
     # Sadece sızıntı kontrolü (vaka değil, noise_layer); kök neden servisi yok.

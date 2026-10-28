@@ -1816,3 +1816,14 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - **Planlamaya karar:** sızıntı satırının kategorisi. 384 KB (seçilen) `silent`, 1024 KB değil (OOM yeniden başlaması shipping ve frontend'de hata span'i üretiyor). Test bir flag'in her varyantının satırla aynı kategoriyi taşımasını istiyor; satır şimdilik "—", `SCENARIOS`'ta iki varyant da boş. Seçenekler (Eren'e sunulan): satır seçilen varyantı anlatsın, testte quote-gateway satırları seçilen varyant ve destek etiketiyle karşılaştırılsın (test ve katalog yapısı değişir); kesişim (sızıntı "—" kalır, V3'te sessiz bir vaka eksilir).
 - **Testler:** pytest 359/359. Kasıtlı kırmızılar: katalogda quote yolu eskiye (2 test), 100 ms kategorisi boş (1), destek etiketinde kategori farkı (1).
 - **Sonra:** sızıntı kararı; PR planlama kontrolünden sonra.
+
+## 2026-10-29 · Uygulama → Planlama (quote-gateway: sızıntı kategorisi varyant başına; PR)
+- **Karar** (Eren, planlama kontrolü; DECISIONS 2026-10-29): `quoteGatewayMemoryLeak` 384 KB `silent`, 1024 KB kategorisiz.
+- **Yapılan:**
+  - Koşucu `SCENARIOS`: 384 KB `["silent"]`, 1024 KB `[]`.
+  - Katalog: sızıntı satırının kategori hücresi `` `384kb`: silent (`inc-ff3a6614`); `1024kb`: — (`inc-660f7c44`) ``; belirti metni iki varyant için.
+  - `test_catalog.py`: kategori hücresi varyant başına okunuyor (düz hücreler eskisi gibi). Her varyant koşucudaki kendi girişiyle karşılaştırılıyor (hücrede olmayan varyant kırmızı). Her varyantın destek etiketi kendi senaryo ve varyantında, geçerli, belirtili, işaretsiz; etiketteki kategori ve yol satırla aynı. Sızıntının iki varyantı ayrıca sabit değerle sınanıyor.
+  - Etiket `inc-ff3a6614`: yalnız `answer.categories` → `["silent"]`. `inc-660f7c44` zaten boş.
+  - PROJECT "Şu an": quote-gateway satırı; pilot set 38 vaka.
+- **Testler:** pytest 362/362. Kasıtlı kırmızılar: destek etiketleri yer değiştirdi (3 test), 1024 KB etiketine `silent` (1), koşucuda 1024 KB `silent` (1), katalogda 1024 KB yazılmamış (2).
+- **PR:** `task/quote-gateway` → main; merge'den önce planlama son kontrolü.
