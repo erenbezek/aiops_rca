@@ -85,4 +85,5 @@ Kendi Python servisi quote-gateway yapıldı (`task/quote-gateway`, 2026-10-29):
 İmajlar GHCR'da (`task/ghcr-ci`, 2026-10-29): `ghcr.io/erenbezek/aiops-quote-gateway` ve `aiops-netem` CI'da derleniyor, main'de `sha-<commit>` etiketiyle gönderiliyor; koşucu ve compose digest'le sabit. Canlı kontrol geçti (girişsiz çekme, 23 konteyner, zincir, netem, taban sağlık 34,0 ms prizde).
 Gece koşusu systemd biriminde (`task/systemd-unit`, 2026-10-29): `systemctl --user start aiops-incidents@<liste>`; `systemctl stop`'ta temizlenir, canlıda geçti (~65 sn, SIGKILL yok); kapanmada kesilir, sonraki koşu başlamaz (kalıntı denetimi).
 V3 resmî set sürüyor (`task/vaka-v3`, kart HANDOFF 2026-10-29): 40 vaka (19 dev / 21 test), iki gece. V3a hazırlık bitti (`heldout`, sınırlar, flag kategorileri, listeler). 1. gece 20/20 geçerli (bir taban sağlık yeniden denemesiyle), sızıntı 0, Jaeger temiz. Etiketler `incidents/`'ta.
-Sıradaki: planlama 1. geceyi kontrol eder, sonra 2. gece (`v3_night2`); gerekirse V3c telafi listesi.
+1. gece planlamada kontrol edildi (rapor birebir tuttu).
+Sıradaki: 2. gece (`v3_night2`); gerekirse V3c telafi listesi.

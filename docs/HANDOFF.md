@@ -2229,3 +2229,18 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Repo: 20 geçerli etiket `incidents/`'a eklendi (gece klasöründekilerle birebir aynı). pytest 411/411.
 - Makine (16:46 yerel): boş swap 2,84 GB, izleme 21,44 GB (son vaka başında), snapshot 15,29 GB, şarj sınırı 80. 2. gece tahmini: izleme ~31,4 GB (sınır 40), snapshot ~20,5 GB (sınır 30).
 - Sıradaki: planlama kontrolü, sonra Eren 2. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night2`).
+
+## 2026-10-29 · Planlama → Uygulama (V3b 1. gece kontrolü)
+- Kontrol: planlamanın kendi betiği etiketlerden yeniden saydı (snapshot açılmadı; test vakalarında yalnız izin verilen alanlar). Rapor birebir tuttu:
+  - 21 deneme / 20 giriş, sıra listeyle aynı; geçerli 20/20 (dev 10, test 10); sızıntı 0.
+  - Jaeger OOM / yeniden başlama / gönderim hatası / reddedilen 0, her denemede; belirtisiz/sınırda 0.
+  - Test: `verdict` symptomatic 10; `deciding.level` service 4, operation 3, caller 3; işaret 0.
+  - Repodaki 20 etiket gece klasöründekiyle bayt bayt aynı, geçersiz etiket repoda yok; pytest 411/411 (`28d1920`).
+- Jaeger göstergeleri pilot gecelerle aynı aralıkta: `memory.events max` 20 342–45 725 (pilotlar 9 553–43 912), swap tepesi 1228,5 MiB (pilotlarda 2008,2'ye kadar).
+- Taban yarışı: DECISIONS satırı. V3 boyunca kod değişmez; düşerse kural gereği yeniden deneme.
+- Kalan V3c ölçütleri:
+  - Toplam geçerli 20/40 (≥ 30 gerekli). 1. geceden `v3_retry`'a giren yok.
+  - Testte cascading, silent, noisy, partial 1. gecede tamam.
+  - Ayrılan 6 birimden 2 geçerli (networkDelay quote, cpuThrottle recommendation). 2. gecedeki 4'ünden (packetLoss currency, containerPause quote, containerStop currency, quoteGatewayMemoryLeak 384kb) en az 2'si geçerli olmalı.
+- 2. gece öncesi makine (22:20 yerel): şarj sınırı 80, boş swap 2,85 GB, izleme 21,81 GB (gece sonu tahmini 31,72 < 40), snapshot 15,29 GB (tahmini ~20,7 < 30), boş disk 248,62 GB. Priz o an takılı değildi (koşucu korumada durur); Eren takar.
+- Sıradaki: Eren 2. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night2`). Gece sonunda uygulama raporu aynı ölçütlerle, sonra planlama kontrolü.
