@@ -2261,6 +2261,6 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - `incident_lists/v3_night2a.json`: `v3_night2`'nin 1–15. girişleri (8 dev + 7 test). `v3_night2b.json`: 16–20. girişler (1 dev + 4 test; gece sonu aynı). Satırlar `v3_night2.json`'dan kopyalandı, sıra aynı; `v3_night2.json` kaldı. sha256: 2a `1e73142b…8dfd`, 2b `9ad9cb75…3ee4`, `v3_night2` `b3168c03…527f` (değişmedi).
 - `test_v3_lists.py`: `test_night2_parts_equal_night2` (2a 15, 2b 5, art arda giriş giriş `v3_night2`). Kasıtlı kırmızı: 2b'de ilk iki giriş yer değiştirince yalnız bu test kırmızı. pytest 412/412.
 - GLOSSARY: `v3_night2a`, `v3_night2b`. Koşucu ve birim değişmedi (birim `%i` ile `incident_lists/<ad>.json` okur).
-- Makine (17:3x yerel): priz 1, şarj sınırı 80 (pil %80), boş swap 2,85 GB, demo kapalı (0 konteyner), `aiops-incidents@` birimi boşta, kalıntı yok. İzleme 21,81 GB, snapshot 15,29 GB, boş disk 248,6 GB. 2a liste başı tahmini: 15 × 35 dk = 8,75 sa → izleme ~29,2 GB (sınır 40).
+- Makine (22:2x yerel): priz 1, şarj sınırı 80 (pil %80), boş swap 2,85 GB, demo kapalı (0 konteyner), `aiops-incidents@` birimi boşta, kalıntı yok. İzleme 21,81 GB, snapshot 15,29 GB, boş disk 248,6 GB. 2a liste başı tahmini: 15 × 35 dk = 8,75 sa → izleme ~29,2 GB (sınır 40).
 - Not: eski `aiops-incidents@systemd_stop` örneği `failed` durumunda listeleniyor (birim sınamasından kalma); koşuyu etkilemez, dokunulmadı.
 - Sıradaki: Eren `systemctl --user start aiops-incidents@v3_night2a`.
