@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-569a664d",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "containerStop",
   "variant": "on",

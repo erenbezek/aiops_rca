@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-e23c74cb",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "containerPause",
   "variant": "on",

@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-e8b2a872",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "networkDelay",
   "variant": "200ms",

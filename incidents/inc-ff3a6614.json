@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-ff3a6614",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "quoteGatewayMemoryLeak",
   "variant": "384kb",

@@ -181,3 +181,22 @@ def test_memory_limit_not_in_selection():
     assert "memoryLimit" in scenario_runner.INFRA_FAULTS
     assert all(r["fault"] != "memoryLimit" for r in INFRA)
     assert all(x["fault"] != "memoryLimit" for x in scenario_runner.INFRA_ANSWERS)
+
+
+# DECISIONS 2026-10-29 (`heldout`): yalnız V3 testinde olan 6 birim (hata ya da senaryo, kök neden servisi; varyant
+# fark etmez). Bu birimlerin etiketleri geliştirmede okunmaz: set `heldout` (pilot etiketleri) ya da `test` (V3).
+HELDOUT_UNITS = {("networkDelay", "quote"), ("packetLoss", "currency"), ("cpuThrottle", "recommendation"),
+                 ("containerPause", "quote"), ("containerStop", "currency"),
+                 ("quoteGatewayMemoryLeak", "quote-gateway")}
+
+
+def test_heldout_only_in_held_units():
+    labels = [json.loads(p.read_text(encoding="utf-8")) for p in sorted((REPO / "incidents").glob("inc-*.json"))]
+    unit = {d["incident_id"]: (d["answer"]["scenario"], d["answer"]["root_cause_service"]) for d in labels}
+    leaked = [(d["incident_id"], d["set"]) for d in labels
+              if unit[d["incident_id"]] in HELDOUT_UNITS and d["set"] not in {"heldout", "test"}]
+    stray = [d["incident_id"] for d in labels if d["set"] == "heldout" and unit[d["incident_id"]] not in HELDOUT_UNITS]
+    assert not leaked, f"held-out unit labels open to development: {leaked}"
+    assert not stray, f"heldout outside the held-out units: {stray}"
+    # Ad yazım hatası kuralı boşa düşürmesin: her birimin repoda en az bir etiketi var.
+    assert HELDOUT_UNITS <= set(unit.values())

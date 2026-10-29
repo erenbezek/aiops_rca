@@ -125,7 +125,8 @@ Sadece Eren'in onayladığı isimler.
 | `window.json` | `model_view` içinde pencere sınırları (`start`, `end`, UTC); başka bilgi yok |
 | `incidents/<incident_id>.json` | Repoda etiket ve koşu kaydı (yalnız geçerli vakalar): `answer`, `window`, `checks`, `valid`, `invalid_reasons`, `marks`, `run` |
 | `answer` | Etiketin doğru cevap bölümü: `scenario`, `variant`, `noise_layer`, `injection_start`, `injection_end`, `root_cause_service`, `fault_type`, `propagation_path` (kenar listesi), `categories` |
-| `set`, `pilot` | Etiketin set alanı (`dev` / `test` / `pilot`) / resmî sete girmeyen pilot vakaların değeri |
+| `set`, `pilot` | Etiketin set alanı (`dev` / `test` / `pilot` / `heldout`) / resmî sete girmeyen pilot vakaların değeri |
+| `heldout`, `HELDOUT_UNITS` | Set değeri: yalnız V3 testinde olan 6 birimin pilot etiketleri, geliştirmede okunmaz (DECISIONS 2026-10-29) / `tests/test_catalog.py`'de bu 6 birim (hata ya da senaryo, kök neden servisi); bu birimlerin etiketi yalnız `heldout` ya da `test` olabilir, `heldout` yalnız bu birimlerde |
 | `checks` | Etiketin kontrol sonuçları: `coverage`, `leakage`, `baseline_health`, `symptom`, `event`, `monitoring_health` |
 | `marks` | Geçerli ama işaretli vaka: `no_symptom`, `borderline`, `not_measurable` (set kararı V3'te) |
 | `run` | Etiketin koşu kaydı: `versions`, `guards`, `times`, `containers`, `duration_s`, `snapshot_bytes`, `list_entry`, `collector_restarted`, `scheduler`, `memory`, `anonymous_volumes_removed`, `overheat`, `baseline_failed`, `coverage_short`, `leakage_found` ve C2'den `restarts_in_window`, `expected_restarts`, `suspended_s`, `max_pkg_temp_c` |
