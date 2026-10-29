@@ -680,3 +680,22 @@ LIST_OURS = ("aiops_rca scenario_runner    1000 eren 1737589 systemd-inhibit sle
 def test_inhibited_matched_by_our_reason(monkeypatch, out, want):
     monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, out, ""))
     assert sr.inhibited() is want
+
+
+# --- noise_layer'lı vakada noisy (DECISIONS 2026-10-29 "Flag kategorileri") ---
+
+@pytest.mark.parametrize("scenario,noise,want", [
+    ("productCatalogLockContention_on", "loadGeneratorFloodHomepage_on", ["cascading", "silent", "noisy"]),
+    ("paymentFailure_50pct", "loadGeneratorFloodHomepage_on", ["cascading", "noisy"]),  # zaten noisy: tekrar yok
+    ("productCatalogLockContention_on", None, ["cascading", "silent"]),
+])
+def test_noise_layer_adds_noisy(monkeypatch, tmp_path, fresh_stop, scenario, noise, want):
+    fake_incident_world(monkeypatch, tmp_path, [])
+    night = tmp_path / "night"
+    night.mkdir()
+    before = [list(s.get("categories", [])) for s in sr.SCENARIOS]
+    # Korumada durdurulur: etiketin cevap bölümü yazılmış olur, demo açılmaz.
+    label = sr.run_incident({"scenario": scenario, "noise_layer": noise}, night, lambda m: None, False,
+                            {"problems": ["test stop"]})
+    assert label["answer"]["categories"] == want and not label["valid"]
+    assert [s.get("categories", []) for s in sr.SCENARIOS] == before  # SCENARIOS değişmedi

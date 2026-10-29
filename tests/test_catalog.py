@@ -200,3 +200,16 @@ def test_heldout_only_in_held_units():
     assert not stray, f"heldout outside the held-out units: {stray}"
     # Ad yazım hatası kuralı boşa düşürmesin: her birimin repoda en az bir etiketi var.
     assert HELDOUT_UNITS <= set(unit.values())
+
+
+def test_flag_labels_follow_catalog_categories():
+    # DECISIONS 2026-10-29 "Flag kategorileri": etiketteki kategoriler koşucudaki senaryonunkiler, noise_layer'lı vakada
+    # + noisy (pilot etiketleri geriye dönük güncellendi; V3 etiketlerini koşucu yazar).
+    for p in sorted((REPO / "incidents").glob("inc-*.json")):
+        label = json.loads(p.read_text(encoding="utf-8"))
+        entry, a = label["run"]["list_entry"], label["answer"]
+        if "fault" in entry:
+            continue
+        cats = scenario_runner.BY_ID[entry["scenario"]]["categories"]
+        want = cats + (["noisy"] if a["noise_layer"] and "noisy" not in cats else [])
+        assert a["categories"] == want, (label["incident_id"], a["categories"], want)

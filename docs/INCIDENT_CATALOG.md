@@ -29,20 +29,27 @@ Alan adları ve dosya biçimi uygulamada önerilir, Eren onaylar.
 
 | Senaryo | Kök neden | Hata tipi | Ne oluyor | Beklenen yayılım yolu | Beklenen belirti | Kategori |
 |---|---|---|---|---|---|---|
-| `adFailure` | ad | error | İsteklerin ~%10'u `UNAVAILABLE` | ad → frontend | ad hata span'i ve logu, frontend'de reklam hatası | — |
+| `adFailure` | ad | error | İsteklerin ~%10'u `UNAVAILABLE` | ad → frontend | ad hata span'i ve logu, frontend'de reklam hatası | cascading |
 | `adHighCpu` | ad | resource | CPU yükü üreten iş parçacıkları | ad → frontend | ad CPU metriği, gecikme; log yok | silent |
-| `adManualGc` | ad | resource | Her istekte tam GC | ad → frontend | JVM GC metrikleri, gecikme sıçramaları | silent |
+| `adManualGc` | ad | resource | Her istekte tam GC | ad → frontend | JVM GC metrikleri, gecikme sıçramaları | cascading, silent |
 | `cartFailure` | cart | misconfig | Sepet boşaltma var olmayan sunucuya (`badhost:1234`) (varyant %50) | cart → checkout → frontend | cart EmptyCart hatası ve uzun bekleme (p99 4 ms → 380 sn; %10'da 75 sn); checkout PlaceOrder gecikir (p95 37 ms → 450 sn), %50'de 31 siparişin 8'i hata; frontend-proxy'de 15 sn zaman aşımı. Cart'ın toplu sinyallerinde görünmez (EmptyCart, cart isteklerinin ~%3'ü) | cascading, partial |
-| `emailMemoryLeak` | email | resource | Bellek büyür, 100 MB limitte OOM ve yeniden başlama (varyant 1000x) | email → checkout | email bellek metriği, yeniden başlama; checkout'ta sadece uyarı logu. C2 1000x: email belleği flag açılınca ~2 dk'da 53 → 89 MB, sonra dalgalanır; 10 dk'da OOM ya da yeniden başlama görülmedi. 100x'te artış (~1,8 MB/dk) normal dönem büyümesinden (~0,8 MB/dk) ayrılmıyor. | silent |
+| `emailMemoryLeak` | email | resource | Bellek büyür, 100 MB limitte OOM ve yeniden başlama (varyant 1000x) | email → checkout | email bellek metriği, yeniden başlama; checkout'ta sadece uyarı logu. C2 1000x: email belleği flag açılınca ~2 dk'da 53 → 89 MB, sonra dalgalanır; 10 dk'da OOM ya da yeniden başlama görülmedi. 100x'te artış (~1,8 MB/dk) normal dönem büyümesinden (~0,8 MB/dk) ayrılmıyor. | cascading, silent |
 | `paymentFailure` | payment | error | İsteklerin %n'i `Invalid token` (varyant %50) | payment → checkout → frontend | Hata zinciri; hatalar `loyalty_level=gold` ile birlikte (sahte korelasyon). C2 %50: 23 ödemenin 9'u hata; %10: 26'da 1 (10 dk'da 16–43 sipariş). | cascading, noisy |
 | `paymentUnreachable` | checkout | misconfig | checkout payment yerine `badAddress:50051`'e bağlanır | checkout → frontend | checkout bağlantı hatası; payment sağlıklı ama trafiği kesilir | cascading |
 | `productCatalogFailure` | product-catalog | error | Tek üründe (`OLJCESPC7Z`) hata | product-catalog → frontend, checkout, recommendation | O ürüne ait isteklerde hata zinciri | cascading, partial |
-| `productCatalogLockContention` | product-catalog | latency | Kendi işlemi `catalog.products` tablosunu 30 sn kilitler (10 sn'de bir kontrol) | product-catalog → frontend, recommendation, checkout | DB bekleme, product-catalog ve frontend gecikmesi | cascading |
-| `recommendationCacheFailure` | recommendation | resource | Önbellek sınırsız büyür | recommendation → frontend | recommendation bellek ve gecikme artışı | silent |
-| `intlShippingSlowdown` | shipping | latency | Yurt dışı gönderide 5/10 sn gecikme (varyant 10sec) | shipping → checkout → frontend | Siparişlerin ~%11'inde gecikme (Gecikme sadece ship-order'da, 10 sn. Servis p95'i yurt dışı sipariş sayısına bağlı: zor denemede ~3 sipariş, görünmedi; C2'de 26'nın 8'i, göründü. ship-order ve checkout PlaceOrder p95/p99'da görünür; zor deneme için hesap, yeniden ölçülmedi.) | partial |
+| `productCatalogLockContention` | product-catalog | latency | Kendi işlemi `catalog.products` tablosunu 30 sn kilitler (10 sn'de bir kontrol) | product-catalog → frontend, recommendation, checkout | DB bekleme, product-catalog ve frontend gecikmesi. Zincir dışında frontend-proxy (0 → 81) ve frontend-web (0 → 6) hata span'i var (`inc-0f31ed0e`) | cascading, silent |
+| `recommendationCacheFailure` | recommendation | resource | Önbellek sınırsız büyür | recommendation → frontend | recommendation bellek ve gecikme artışı; recommendation'da hata yok, frontend'de hata span'i (0 → 86) ve hata logu (0 → 26), zincir dışında frontend-proxy (0 → 13) (`inc-78df5642`) | cascading |
+| `intlShippingSlowdown` | shipping | latency | Yurt dışı gönderide 5/10 sn gecikme (varyant 10sec) | shipping → checkout → frontend | Siparişlerin ~%11'inde gecikme (Gecikme sadece ship-order'da, 10 sn. Servis p95'i yurt dışı sipariş sayısına bağlı: zor denemede ~3 sipariş, görünmedi; C2'de 26'nın 8'i, göründü. ship-order ve checkout PlaceOrder p95/p99'da görünür; zor deneme için hesap, yeniden ölçülmedi.) | cascading, silent, partial |
 | `quoteGatewayMisroute` | quote-gateway | misconfig | Kendi servisimiz; fiyat isteğini quote yerine var olmayan bir adrese (`quote-svc:8090`) iletir | quote-gateway → shipping → frontend, checkout | quote-gateway POST /getquote hata oranı 0 → 1 (502) ve hata logu; çağıran shipping→quote-gateway hata oranı 0 → 1; quote'un trafiği kesilir (98 → 0 istek) (`inc-91bf76d4`) | cascading |
 | `quoteGatewaySlowdown` | quote-gateway | latency | Kendi servisimiz; iletmeden önce bekler (varyant ms, kalibrasyonda seçilir) | quote-gateway → shipping → frontend, checkout | Seçilen 30 ms: quote-gateway POST /getquote p95 7,2 → 37,5 ms; çağıran shipping→quote-gateway p95 10,1 → 40,2 ms (güç 1,5); hata span'i ve hata logu 0 → 0 (`inc-2dd806a2`) | cascading, silent |
 | `quoteGatewayMemoryLeak` | quote-gateway | resource | Kendi servisimiz; her istekte bir blok saklar, hiç bırakmaz (varyant istek başına KB). Bellek sınırı 128M, swap kapalı: 1024 KB'ta ~8. dk'da OOM ve yeniden başlama; 384 KB 10 dk'da sınıra varmaz (tepe 84 MiB) | quote-gateway → shipping → frontend, checkout | 384 KB (seçilen): quote-gateway bellek 43 → 84 MiB (güç 1,87), çağıranda belirti yok (0,14), hata 0 → 0. 1024 KB: OOM ve yeniden başlama (bellek güç 4,85), shipping ve frontend'de hata span'i, çağıranda sınırda (0,81). Kategori varyant başına (DECISIONS 2026-10-29) | `384kb`: silent (`inc-ff3a6614`); `1024kb`: — (`inc-660f7c44`) |
+
+Kategoriler (V3a, DECISIONS 2026-10-29 "Flag kategorileri"; tanımlar aşağıda "Kendi altyapı hatalarımız" altında):
+`cascading` ve `silent` pilot snapshot'larından ölçüldü: çağıran kontrolü `symptomatic` ise `cascading`; kök neden ve
+katalog yolundaki servislerde (frontend-proxy hariç) enjeksiyon döneminde ERROR span ve severity ≥ 17 log artmıyorsa
+`silent`. `partial` ve `noisy` mekanizmadan. `noise_layer`'lı vaka = senaryonun kategorileri + `noisy` (koşucu ekler).
+Kanıt: `~/cerebrum2/analysis/v3a_categories.py` ve `.out` (repo dışı; sha256 ve özet HANDOFF 2026-10-29 "V3a 4").
+quote-gateway satırları DECISIONS 2026-10-28/29'dan, değişmedi.
 
 Sızıntı notu: `productCatalogFailure` hata mesajı ve `productCatalogLockContention` logu flag'i ele veriyor; silinmez, gerçekçi bir mesajla yeniden yazılır (belirti korunur). Ayrıntı `OTEL_DEMO.md`.
 
@@ -93,8 +100,8 @@ etiketle desteklendiğini sınar.
   çağırandır (frontend-proxy hariç, frontend'de durulur). Tek çağıranı olan halkada bir üst seviye de yazılır, ilk dallanmaya kadar (quote →
   quote-gateway → shipping → frontend, checkout; Eren 2026-10-29). quote'un V2b destek vakaları (`inc-d60dcc58`,
   `inc-e23c74cb`) eski topolojide (quote → shipping → frontend, checkout) kalır, değiştirilmedi.
-- **Kategoriler (ölçülebilir tanımlar, Eren 2026-10-28; flag tablosu V3 bileşim kartında aynı tanımlarla gözden
-  geçirilecek):**
+- **Kategoriler (ölçülebilir tanımlar, Eren 2026-10-28; flag tablosunda da aynı tanımlarla
+  uygulandı, V3a 2026-10-29):**
   - `cascading`: belirti kök nedenin çağıranlarında ölçülü olarak görünür (çağıran kontrolünde belirtili).
   - `silent`: enjeksiyon döneminde kök neden ve çağıran zincirinde hata span'i ve hata logu (severity ≥ ERROR) artmaz;
     belirti yalnız gecikme ya da kaynak. cpuThrottle recommendation bu yüzden `silent` değil: recommendation 12 hata

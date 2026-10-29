@@ -15,7 +15,9 @@
     "frontend"
    ]
   ],
-  "categories": []
+  "categories": [
+   "cascading"
+  ]
  },
  "window": {
   "start": "2026-10-25T19:16:59Z",

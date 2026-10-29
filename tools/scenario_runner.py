@@ -125,22 +125,24 @@ DEMO_PROJECT = "otel-demo"  # demonun compose proje adı (klon klasörü); kalı
 # targeting dalı (productCatalogFailure tek üründe: OTEL_DEMO "Flag'i açıp kapatma").
 # Doğru cevap alanları (V1; INCIDENT_CATALOG "Flag senaryoları" tablosunun aynısı, tests/test_catalog.py kontrol
 # eder): fault_type, propagation_path (kenar listesi [kaynak, hedef]; dallanan yollar için), categories.
+# Kategoriler (V3a, DECISIONS 2026-10-29 "Flag kategorileri"): cascading ve silent pilot snapshot'larından ölçüldü
+# (`~/cerebrum2/analysis/v3a_categories.py`), partial ve noisy mekanizmadan; noise_layer'lı vakada koşucu noisy ekler.
 PCF_CONTEXT = {"product_id": "OLJCESPC7Z"}
 SCENARIOS = [
     {"flag": "adFailure", "variant": "on", "kind": "Boolean", "root": "ad", "fault_type": "error",
-     "propagation_path": [["ad", "frontend"]], "categories": []},
+     "propagation_path": [["ad", "frontend"]], "categories": ["cascading"]},
     {"flag": "adHighCpu", "variant": "on", "kind": "Boolean", "root": "ad", "fault_type": "resource",
      "propagation_path": [["ad", "frontend"]], "categories": ["silent"]},
     {"flag": "adManualGc", "variant": "on", "kind": "Boolean", "root": "ad", "fault_type": "resource",
-     "propagation_path": [["ad", "frontend"]], "categories": ["silent"]},
+     "propagation_path": [["ad", "frontend"]], "categories": ["cascading", "silent"]},
     {"flag": "cartFailure", "variant": "10%", "kind": "Float", "root": "cart", "fault_type": "misconfig",
      "propagation_path": [["cart", "checkout"], ["checkout", "frontend"]], "categories": ["cascading", "partial"]},
     {"flag": "cartFailure", "variant": "50%", "kind": "Float", "root": "cart", "fault_type": "misconfig",
      "propagation_path": [["cart", "checkout"], ["checkout", "frontend"]], "categories": ["cascading", "partial"]},
     {"flag": "emailMemoryLeak", "variant": "100x", "kind": "Int", "root": "email", "fault_type": "resource",
-     "propagation_path": [["email", "checkout"]], "categories": ["silent"]},
+     "propagation_path": [["email", "checkout"]], "categories": ["cascading", "silent"]},
     {"flag": "emailMemoryLeak", "variant": "1000x", "kind": "Int", "root": "email", "fault_type": "resource",
-     "propagation_path": [["email", "checkout"]], "categories": ["silent"]},
+     "propagation_path": [["email", "checkout"]], "categories": ["cascading", "silent"]},
     {"flag": "paymentFailure", "variant": "10%", "kind": "Float", "root": "payment", "fault_type": "error",
      "propagation_path": [["payment", "checkout"], ["checkout", "frontend"]], "categories": ["cascading", "noisy"]},
     {"flag": "paymentFailure", "variant": "50%", "kind": "Float", "root": "payment", "fault_type": "error",
@@ -156,11 +158,11 @@ SCENARIOS = [
      "fault_type": "latency",
      "propagation_path": [["product-catalog", "frontend"], ["product-catalog", "recommendation"],
                           ["product-catalog", "checkout"]],
-     "categories": ["cascading"]},
+     "categories": ["cascading", "silent"]},
     {"flag": "recommendationCacheFailure", "variant": "on", "kind": "Boolean", "root": "recommendation",
-     "fault_type": "resource", "propagation_path": [["recommendation", "frontend"]], "categories": ["silent"]},
+     "fault_type": "resource", "propagation_path": [["recommendation", "frontend"]], "categories": ["cascading"]},
     {"flag": "intlShippingSlowdown", "variant": "10sec", "kind": "Int", "root": "shipping", "fault_type": "latency",
-     "propagation_path": [["shipping", "checkout"], ["checkout", "frontend"]], "categories": ["partial"]},
+     "propagation_path": [["shipping", "checkout"], ["checkout", "frontend"]], "categories": ["cascading", "silent", "partial"]},
     # Kendi servisimiz quote-gateway (deploy/otel-demo/flagd-extras.json). Varyantlar c adımındaki ölçümden (Eren
     # onayı 2026-10-28): gecikme eşiği normal p95 + 20 ms (30 ms ≈ güç 1,5; 100 ms ≈ 5); sızıntı 384 KB/istek 10 dk'da
     # ~39 MiB (OOM yok, sınır 128M), 1024 KB/istek ~105 MiB (OOM). Yol ve kategoriler kalibrasyondan (HANDOFF
@@ -1243,6 +1245,8 @@ def run_incident(entry: dict, night: Path, log, first: bool, checked: dict | Non
     noise = BY_ID[entry["noise_layer"]] if entry.get("noise_layer") else None
     ia = next((x for x in INFRA_ANSWERS if infra and (x["fault"], x["target"]) == (entry["fault"], root)),
               {"propagation_path": [], "categories": []})
+    # noise_layer'lı vaka = senaryonun kategorileri + noisy (DECISIONS 2026-10-29 "Flag kategorileri")
+    cats = ia["categories"] if infra else s["categories"]
     iid = new_incident_id()
     work = night / iid
     snap = work / "model_view" if dry else SNAPSHOTS / iid
@@ -1256,7 +1260,7 @@ def run_incident(entry: dict, night: Path, log, first: bool, checked: dict | Non
                    "injection_start": None, "injection_end": None, "root_cause_service": root,
                    "fault_type": INFRA_FAULTS[entry["fault"]]["fault_type"] if infra else s["fault_type"],
                    "propagation_path": ia["propagation_path"] if infra else s["propagation_path"],
-                   "categories": ia["categories"] if infra else s["categories"]},
+                   "categories": cats + (["noisy"] if noise and "noisy" not in cats else [])},
         "window": None, "checks": {}, "valid": False, "invalid_reasons": [], "marks": [],
         "run": {"list_entry": entry, "versions": versions(), "guards": checked or guards(), "times": {}, "containers": {},
                 "collector_restarted": False, "restarts_in_window": [], "expected_restarts": [],
