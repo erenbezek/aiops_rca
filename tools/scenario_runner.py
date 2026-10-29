@@ -96,10 +96,17 @@ MIN_SWAP_FREE_GB = 1  # DECISIONS 2026-10-27 (Jaeger): boş swap bunun altınday
 # elle sil. AIOPS_MAX_MONITORING_GB yalnız kasıtlı kırmızı için (düşük sahte sınır).
 MAX_MONITORING_GB = float(os.environ.get("AIOPS_MAX_MONITORING_GB", "40"))
 MONITORING_VOLUMES = ("otel-demo_prometheus-data", "otel-demo_jaeger-data", "otel-demo_opensearch-data")
-# Snapshot kökü (V1, Eren onayı 2026-10-25): toplam ≤ 20 GB (~85 vaka, ~0,23 GB/vaka); aşılırsa koşu başlamaz.
-# AIOPS_MAX_SNAPSHOT_GB yalnız kasıtlı kırmızı için.
+# Snapshot kökü (V1, Eren onayı 2026-10-25; sınır DECISIONS 2026-10-29: 20 → 30 GB, pilotlar 9,79 GB + V3 ~10,4 GB
+# + telafi): aşılırsa koşu başlamaz. AIOPS_MAX_SNAPSHOT_GB yalnız kasıtlı kırmızı için.
 SNAPSHOTS = Path.home() / "cerebrum2" / "snapshots"
-MAX_SNAPSHOT_GB = float(os.environ.get("AIOPS_MAX_SNAPSHOT_GB", "20"))
+MAX_SNAPSHOT_GB = float(os.environ.get("AIOPS_MAX_SNAPSHOT_GB", "30"))
+# Liste başı korumaları (DECISIONS 2026-10-29 "Gece öncesi korumalar", V3): yalnız ilk vakadan önce, demo kapalıyken.
+# Boş swap ≥ 2 GB (gece içindeki 1 GB koruması ayrıca kalır); izleme volume'leri + büyüme × listenin tahmini süresi
+# < MAX_MONITORING_GB. Tahmin vaka başına sabit 35 dk (ısınma 5 + normal ≤ 14 + hata 10 + kuyruk ≤ 3 + kapanış ve
+# kesim ~3; kayıtlardaki en uzun vaka 34,0 dk); büyüme D2 ölçümü (kayıtlarda ~0,30 GB/vaka: ~1,7 kat kötümser).
+MIN_SWAP_FREE_START_GB = 2
+MONITORING_GB_PER_H = 0.85
+INCIDENT_EST_MIN = 35
 CHARGE_LIMIT = 80
 POWER_PROFILE = "balanced"
 HOT_C, HOT_S = 95, 60
@@ -383,6 +390,24 @@ def guards() -> dict:
                         + ("docker rm -f aiops-netem; " if netem else "") + "tools/otel_demo.sh down")
     g["problems"] = problems
     return g
+
+
+def start_guards(n_entries: int, g: dict) -> dict:
+    """Liste başı korumaları; `g` = aynı anda ölçülen `guards()` (swap ve izleme değerleri orada, burada tekrar yok).
+    Döner: tahmin, eşikler ve sorunlar (`problems` boşsa geçti)."""
+    hours = n_entries * INCIDENT_EST_MIN / 60
+    mon, swap = g.get("monitoring_gb"), g.get("swap_free_gb")
+    raw = None if mon is None else mon + MONITORING_GB_PER_H * hours  # karşılaştırma yuvarlanmadan, kayıt yuvarlanır
+    estimate_h, projected = round(hours, 2), None if raw is None else round(raw, 2)
+    problems = []
+    if swap is None or swap < MIN_SWAP_FREE_START_GB:
+        problems.append(f"start: swap free {swap} GB < {MIN_SWAP_FREE_START_GB} (demo down)")
+    if raw is None or raw >= MAX_MONITORING_GB:
+        problems.append(f"start: monitoring volumes {mon} GB + {MONITORING_GB_PER_H} GB/h x {estimate_h} h "
+                        f"({n_entries} incidents x {INCIDENT_EST_MIN} min) = {projected} GB, want < {MAX_MONITORING_GB:g}")
+    return {"estimate_h": estimate_h, "monitoring_projected_gb": projected,
+            "min_swap_free_start_gb": MIN_SWAP_FREE_START_GB, "max_monitoring_gb": MAX_MONITORING_GB,
+            "monitoring_gb_per_h": MONITORING_GB_PER_H, "incident_est_min": INCIDENT_EST_MIN, "problems": problems}
 
 
 def session_pids(sid: int) -> list[int]:
@@ -1202,8 +1227,9 @@ def revert_fault(state: dict) -> dict:
     return state
 
 
-def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
-    """Tek vaka. Döner: etiket (geçerli ya da değil); geçerliyse snapshot SNAPSHOTS'ta, etiket INCIDENTS'ta."""
+def run_incident(entry: dict, night: Path, log, first: bool, checked: dict | None = None) -> dict:
+    """Tek vaka. Döner: etiket (geçerli ya da değil); geçerliyse snapshot SNAPSHOTS'ta, etiket INCIDENTS'ta.
+    `checked`: listenin ilk vakasında döngünün denetlediği korumalar (`start` dahil); yoksa burada ölçülür."""
     sys.path.insert(0, str(REPO / "src"))
     import c2_measure as cm  # noqa: PLC0415
     import incident_checks as ic  # noqa: PLC0415
@@ -1232,7 +1258,7 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
                    "propagation_path": ia["propagation_path"] if infra else s["propagation_path"],
                    "categories": ia["categories"] if infra else s["categories"]},
         "window": None, "checks": {}, "valid": False, "invalid_reasons": [], "marks": [],
-        "run": {"list_entry": entry, "versions": versions(), "guards": guards(), "times": {}, "containers": {},
+        "run": {"list_entry": entry, "versions": versions(), "guards": checked or guards(), "times": {}, "containers": {},
                 "collector_restarted": False, "restarts_in_window": [], "expected_restarts": [],
                 "suspended_s": None, "max_pkg_temp_c": None, "memory": {}, "anonymous_volumes_removed": {},
                 "duration_s": None, "snapshot_bytes": None, "overheat": False, "baseline_failed": False,
@@ -1592,10 +1618,14 @@ def cmd_incidents(list_path: Path) -> int:
         status, first = 0, True
         for entry in entries:
             g = guards()
-            if g["problems"]:
-                log(f"STOP before {entry}: guards: {'; '.join(g['problems'])}")
+            if first:  # liste başı korumaları: yalnız bir kez; sorunlar normal korumalarınkiyle birlikte yazılır
+                g["start"] = start_guards(len(entries), g)
+                log(f"start guards {g['start']}")
+            problems = g["problems"] + (g["start"]["problems"] if first else [])
+            if problems:
+                log(f"STOP before {entry}: guards: {'; '.join(problems)}")
                 return 1
-            label = run_incident(entry, night, log, first)
+            label = run_incident(entry, night, log, first, g if first else None)
             first = False
             if signals_deferred.signals:
                 return stop_code()

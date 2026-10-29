@@ -136,7 +136,9 @@ Sadece Eren'in onayladığı isimler.
 | `~/cerebrum2/incident_runs/` | Vaka üretimi çalışma dosyaları, gece başına `<UTC>-<liste>/`: `runner.log`, `ism.json`, her denemenin etiketi `<incident_id>.json`, vaka klasöründe bellek ve konteyner dökümleri; geçersiz vakanın snapshot'ı `<incident_id>/model_view/`'a taşınır; repo dışı |
 | `ism.json` | Gece klasöründe OpenSearch ISM kontrolü (her `otel-logs` indeksinde `otel-logs-retention` mı) |
 | `fault_type`, `propagation_path`, `categories` | `SCENARIOS`'taki doğru cevap alanları (INCIDENT_CATALOG tablosunun aynısı) |
-| `MAX_SNAPSHOT_GB`, `AIOPS_MAX_SNAPSHOT_GB` | Snapshot kökünün üst sınırı (20 GB; korumada `snapshot_gb`) / yalnız kasıtlı kırmızı için ezen ortam değişkeni |
+| `MAX_SNAPSHOT_GB`, `AIOPS_MAX_SNAPSHOT_GB` | Snapshot kökünün üst sınırı (30 GB, DECISIONS 2026-10-29; korumada `snapshot_gb`) / yalnız kasıtlı kırmızı için ezen ortam değişkeni |
+| `start_guards`, `run.guards.start` | Koşucu: liste başı korumaları, yalnız ilk vakadan önce (boş swap ve izleme tahmini; DECISIONS 2026-10-29) / ilk etiketin `run.guards`'ında sonuçları: `estimate_h`, `monitoring_projected_gb`, eşikler, `problems` (swap ve izleme ölçümleri `run.guards`'ta, tekrar yazılmaz) |
+| `MIN_SWAP_FREE_START_GB`, `MONITORING_GB_PER_H`, `INCIDENT_EST_MIN` | Liste başı eşikleri: demo kapalıyken boş swap ≥ 2 GB / izleme büyümesi 0,85 GB/sa (D2) / vaka başına tahmini süre 35 dk |
 | `incidents` | `scenario_runner.py` komutu: bir listedeki vakaları sırayla üretir (V1 akışı) |
 | `tools/incident_checks.py` | Vaka kontrolleri: `operation_rows`, `symptom_check`, `baseline_check`, `event_check`, `monitoring_health` |
 | `operation_rows`, `symptom_check`, `event_check` | Servis + span adı başına istek/hata/süre / servis ve işlem düzeyinde belirti (en güçlü sinyal) / enjeksiyon döneminde olay var mı (en az M istek) |

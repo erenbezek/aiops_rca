@@ -278,6 +278,65 @@ def test_min_swap_threshold_decision():
     assert sr.MIN_SWAP_FREE_GB == 1
 
 
+# --- liste başı korumaları (DECISIONS 2026-10-29 "Gece öncesi korumalar", V3) ---
+
+def test_start_guard_decisions():
+    assert (sr.MIN_SWAP_FREE_START_GB, sr.MONITORING_GB_PER_H, sr.INCIDENT_EST_MIN) == (2, 0.85, 35)
+    assert sr.MAX_MONITORING_GB == 40 and sr.MAX_SNAPSHOT_GB == 30  # ortam değişkeni yokken (CI)
+
+
+@pytest.mark.parametrize("swap,mon,n,blocked", [
+    (2.0, 15.5, 20, []),                    # bugünkü değerler: 15,5 + 0,85 × 11,67 = 25,42
+    (1.99, 15.5, 20, ["swap"]),             # eşiğin hemen altı
+    (None, 15.5, 20, ["swap"]),             # ölçülemedi
+    (3.0, 30.08, 20, []),                   # 39,9967 < 40 (yuvarlanınca 40,0; karşılaştırma yuvarlanmadan)
+    (3.0, 30.1, 20, ["monitoring"]),        # 40,0167 ≥ 40
+    (3.0, None, 20, ["monitoring"]),        # ölçülemedi
+    (1.0, 39.6, 1, ["swap", "monitoring"]),  # 39,6 + 0,85 × 0,58 = 40,1
+])
+def test_start_guards(swap, mon, n, blocked):
+    st = sr.start_guards(n, {"swap_free_gb": swap, "monitoring_gb": mon})
+    assert st["estimate_h"] == round(n * 35 / 60, 2)
+    assert [p.split()[1] for p in st["problems"]] == blocked
+    assert "swap_free_gb" not in st and "monitoring_gb" not in st  # ölçümler guards'ta, burada tekrar yok
+
+
+def run_list(monkeypatch, tmp_path, n, swap, mon):
+    no_side_effects(monkeypatch)
+    monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
+    monkeypatch.setattr(sr, "versions", lambda: {})
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
+    monkeypatch.setattr(sr, "guards", lambda: {"problems": [], "swap_free_gb": swap, "monitoring_gb": mon})
+    calls = []
+
+    def one(entry, night, log, first, checked=None):
+        calls.append(checked)
+        return {"valid": True, "run": {"leakage_found": False, "fault_state": None, "baseline_failed": False,
+                                       "overheat": False, "coverage_short": False}}
+    monkeypatch.setattr(sr, "run_incident", one)
+    lst = tmp_path / "l.json"
+    lst.write_text(json.dumps([dict(PAUSE, target="cart")] * n))
+    code = sr.cmd_incidents(lst)
+    (night,) = (tmp_path / "runs").iterdir()
+    return code, calls, (night / "runner.log").read_text()
+
+
+def test_start_guards_block_list(monkeypatch, tmp_path, fresh_stop):
+    code, calls, log = run_list(monkeypatch, tmp_path, 20, 1.5, 15.5)
+    assert code == 1 and calls == []
+    assert "STOP before" in log and "start: swap free 1.5 GB < 2" in log
+
+
+def test_start_guards_only_first_and_in_first_label(monkeypatch, tmp_path, fresh_stop):
+    code, calls, log = run_list(monkeypatch, tmp_path, 3, 2.5, 15.5)
+    assert code == 0 and len(calls) == 3
+    first = calls[0]
+    assert first["swap_free_gb"] == 2.5 and first["start"]["estimate_h"] == 1.75
+    assert first["start"]["monitoring_projected_gb"] == round(15.5 + 0.85 * 1.75, 2) and first["start"]["problems"] == []
+    assert calls[1:] == [None, None]  # sonraki vakalar korumayı kendileri ölçer, start yok
+    assert log.count("start guards") == 1
+
+
 def test_cpu_usec_reads_cpu_stat(monkeypatch):
     monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "abc\n", ""))
     stat = "usage_usec 123456789\nuser_usec 100\nsystem_usec 23\n"
@@ -495,11 +554,11 @@ def test_stop_ends_night_with_signal_code(monkeypatch, tmp_path, fresh_stop):
     no_side_effects(monkeypatch)
     monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
     monkeypatch.setattr(sr, "versions", lambda: {})
-    monkeypatch.setattr(sr, "guards", lambda: {"problems": []})
+    monkeypatch.setattr(sr, "guards", lambda: {"problems": [], "swap_free_gb": 3.0, "monitoring_gb": 15.5})
     monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
     ran = []
 
-    def one(entry, night, log, first):
+    def one(entry, night, log, first, checked=None):
         ran.append(entry["target"])
         with sr.signals_deferred():  # vaka içinde durduruldu, temizlendi, etiket yazıldı
             sr.signals_deferred.handle(signal.SIGTERM, None)
