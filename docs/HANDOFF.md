@@ -1983,3 +1983,79 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - opensearch `latest` imajında sürüm kayabilir.
   - Saklamanın veriyi silmesi ~2 Kasım'dan sonra gözlenecek (PROJECT "Kalıcı depolama" satırı).
 - **Sıradaki:** V3 bileşim kartı (planlama), sonra Proje 1 model koşuları ve sonuç tablosu.
+
+## 2026-10-29 · Planlama → Uygulama (V3 resmî set: bileşim, dev/test, geceler)
+- Dal `task/vaka-v3` (main `68b429c`'den; planlamanın commit'leri üstte). Kararlar DECISIONS 2026-10-29 (V3 bileşimi, `heldout`, belirtisiz vaka, snapshot sınırı 30 GB, gece öncesi koruma). Eren onaylı.
+- **Amaç:** resmî set 40 vaka (19 dev, 21 test) iki gecede kaydedilir. Bileşim ve dev/test bölümü kayıttan önce sabittir, sonuca göre değişmez. Testin bir kısmı (6 birim) geliştirmede hiç görülmemiş çiftlerden oluşur.
+- Önce 3–5 maddelik planını yaz, Eren onaylasın. Yeni paket yok, upstream'e dokunma. Her adımın sonunda rapor ver ve dur.
+- Onaylı adlar: set değeri `heldout`; listeler `incident_lists/v3_night1.json`, `v3_night2.json`, `v3_retry.json`.
+
+### Bileşim (40 vaka; varyantlar katalogdaki seçilmiş olanlar)
+
+| Grup | Dev (19) | Test (21) |
+|---|---|---|
+| Demo flag'leri | 11'in her biri 1 kez: adFailure, adHighCpu, adManualGc, cartFailure %50, emailMemoryLeak 1000x, paymentFailure %50, paymentUnreachable, productCatalogFailure, productCatalogLockContention, recommendationCacheFailure, intlShippingSlowdown 10sec | 6: cartFailure %50, intlShippingSlowdown 10sec, productCatalogFailure, recommendationCacheFailure, paymentUnreachable, adHighCpu |
+| Altyapı | 5 (her tipten bir hedef): networkDelay cart 50ms, packetLoss shipping 10%, cpuThrottle product-catalog 0.09, containerPause cart, containerStop recommendation | 10: dev'deki 5 çift (yeni koşu) + **yalnız testte** 5: networkDelay quote 50ms, packetLoss currency 10%, cpuThrottle recommendation 0.03, containerPause quote, containerStop currency |
+| quote-gateway | misroute, slowdown 30ms | misroute, slowdown 30ms, **yalnız testte**: memoryLeak 384kb |
+| Gürültü (`noise_layer` = flood) | flood + quoteGatewaySlowdown 30ms (ikili denenmedi; dev'de bakılabilir) | flood + paymentFailure %50, flood + productCatalogLockContention (pilotta denendi) |
+
+- Testte kendi hatalarımız 13/21; karar çağıranda (zor vaka, `checks.symptom.deciding.level == caller`) beklenen 8.
+- Güç notu (sonuca göre değişmez): test 21 vakada bir vaka ~5 puan, %95 aralığı ~±20 puan. Testte iki yöntem arasında ~20 puandan küçük fark tek başına ayrılamaz; sonuç tablosu bunu yazar.
+
+### Geliştirmeye kapalı pilotlar (`heldout`)
+Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout` olur; Proje 1 geliştirmesi (istem, daraltma, model boyutu seçimi, takma ad alt kümesi) yalnız `pilot` ve `dev` okur.
+
+| Birim | Pilot etiketleri |
+|---|---|
+| networkDelay quote | `inc-1811ae30`, `inc-d60dcc58`, `inc-e8b2a872` |
+| packetLoss currency | `inc-d1709db7`, `inc-b4665f44` |
+| cpuThrottle recommendation | `inc-7e70c5c4`, `inc-6d85f68b` |
+| containerPause quote | `inc-58493603`, `inc-e23c74cb` |
+| containerStop currency | `inc-569a664d` |
+| quoteGatewayMemoryLeak | `inc-ff3a6614`, `inc-660f7c44`, `inc-aec7e4ea` |
+
+- Gece klasörlerinde (`~/cerebrum2/incident_runs/*/`) bu birimlerin geçersiz etiket ve snapshot'ları da var (ör. `*-systemd_stop`, `*-quote_gateway*`, `*-v2*`). Hepsi bulunur, aynı şekilde işaretlenir, liste rapora.
+- Sınır (bilerek kabul): INCIDENT_CATALOG ve HANDOFF bu çiftlerin belirtisini yazıyor (ör. "karar çağıran: quote-gateway→quote p99"). Yasak veriye uygulanır, dokümana uygulanamaz; aynı hata tipinin dev'deki çifti zaten benzer bilgiyi veriyor.
+
+### V3a · Hazırlık (gece yok)
+1. **`heldout` işareti:** yukarıdaki 13 etiket ve gece klasörlerindeki eşleri. `tests/test_catalog.py`'ye test: ayrılan 6 birimden birine ait her pilot etiketin seti `heldout`, başka hiçbir etiketin seti `heldout` değil. Kasıtlı kırmızı: bir etiket `pilot`'a geri alınınca test kırmızı. GLOSSARY'ye `heldout`.
+2. **Snapshot sınırı 30 GB** (`MAX_SNAPSHOT_GB` varsayılanı). Bugün 9,79 GB + V3 ~10,4 GB + telafi.
+3. **Gece öncesi korumalar** (koşucunun başlangıç korumalarına; yalnız listenin başında denetlenir, gece içinde mevcut 1 GB boş swap koruması kalır; ölçütler önceden yazılı):
+   - Demo kapalıyken boş swap ≥ 2 GB. Altındaysa koşu başlamaz; Eren yeniden başlatır. (Bugün 2,99 GB; kalibrasyon gecesinde en düşük 2,07 GB; gece içindeki 1 GB koruması kalır.)
+   - İzleme volume toplamı + 0,85 GB/sa × listenin tahmini süresi < 40 GB. Tahmini süre hesabını uygulama önerir (ör. vaka türüne göre geçmiş süreler), Eren onaylar. Bugün 15,5 GB (jaeger-data 14,13 GB, ~2 Kasım'a kadar büyür); iki gece sonra ~33 GB beklenir.
+   - Değerler `run.guards`'a yazılır. Kasıtlı kırmızı: düşük sahte eşikle koşucu başlamaz.
+4. **Flag kategorileri için kanıt** (pilot snapshot'larından; demo flag'lerinin 11'i + flood'lu 2 vaka; koşu yok):
+   - Çağıran kontrolü: katalog yolundaki çağıranlarda belirti (`caller_symptom_check`, altyapıdaki gibi).
+   - Hata span'i ve hata logu (severity ≥ ERROR): kök neden ve çağıran zincirinde normal ↔ enjeksiyon sayıları.
+   - Tablo rapora; katalog değişmez. **Dur.** Planlama kategori tablosunu tanımlarla önerir, Eren onaylar.
+   - Tanımlar (ölçmeden önce yazılı): `cascading` ve `silent` DECISIONS 2026-10-28'deki gibi (ölçülür). `noisy` = vakada yanıltıcı sinyal var: `noise_layer` açık ya da senaryo kök nedenle ilgisiz bir alanla sahte korelasyon üretiyor (paymentFailure `loyalty_level=gold`). `partial` = hata, mekanizması gereği kök neden servisinin yalnız belirli bir istek türünü bozar (tek ürün, yurt dışı sipariş, tek işlem); rastgele oranla seçilen istekler (adFailure, paymentFailure %50) `partial` değildir. `noisy` ve `partial` mekanizmadan, ölçülmez.
+   - Onaydan sonra: `SCENARIOS`, INCIDENT_CATALOG flag tablosu, `test_catalog.py` güncellenir; koşucu `noise_layer`'lı vakanın `categories`'ine `noisy` ekler. Bu adım gecelerden önce biter (etiket kategoriyi kayıt anında alır).
+5. **Listeler** (`set: dev|test` her girişte):
+   - Gece başına 20 vaka (~10,3 sa): 1. gece 10 dev + 10 test, 2. gece 9 dev + 11 test.
+   - Dev'de ve testte olan aynı altyapı çiftinin iki koşusu farklı gecelerde.
+   - Riskli vakalar gecenin sonunda: 1. gece sonu flood + quoteGatewaySlowdown (dev), flood + paymentFailure (test); 2. gece sonu flood + productCatalogLockContention (test), en son quoteGatewayMemoryLeak 384kb (test).
+   - Geri kalan sıra sabit tohumla karıştırılır (dev ve test iç içe; saat etkisi sete bağlanmasın); tohum ve üretim yolu rapora.
+   - Koşucunun liste denetiminden geçer, commit. **Rapor ver ve dur;** planlama listeleri bileşim tablosuyla karşılaştırır.
+
+### V3b · İki gece (Eren başlatır: `systemctl --user start aiops-incidents@v3_night1`)
+- Her geceden önce: şarj sınırı 80, priz, demo kapalı, kalıntı yok, boş swap ve izleme toplamı (korumalar), `pytest` yeşil.
+- Ölçütler (her gece; önceden yazılı):
+  - Her vaka geçerli/geçersiz ve sebebiyle kayıtlı. Koruma geceyi durdurursa sebep kayıtlı, kalan vakalar telafi listesine.
+  - Geçerli oran ≥ %80 (≥ 16/20). Altındaysa sonraki geceden önce planlama.
+  - Sızıntı 0; değilse gece durur (koşucu zaten durur).
+  - Jaeger her vakada OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0. Swap tepesi, Go yığını tepesi, en düşük boş swap kayda.
+- **Test vakalarına yalnız otomatik kontroller bakar:** raporda test vakaları için yalnız geçerli/geçersiz, sebep, `verdict` sayıları, `deciding.level` sayıları, sızıntı sonucu, izleme sağlığı. Sinyal adı, değer ya da güç yazılmaz; test snapshot'ı açılmaz (planlama da açmaz). Dev vakaları tam ayrıntıyla.
+- Belirtisiz ya da sınırda geçerli vaka sette kalır, işaretlenir (DECISIONS 2026-10-29); sayısı set başına rapora.
+  - Bir gecede testte 3'ten fazla belirtisiz ya da sınırda geçerli vaka → sonraki geceden önce planlama. Set değişmez.
+  - Sonuç tablosunun "yalnız belirtili" sütunu vakanın kendi kontrolünden gelir (`checks.symptom.verdict`, işareti `marks`'ta), `silent` kategorisinden değil.
+- Her gece sonunda rapor ver ve dur.
+
+### V3c · Telafi
+- Geçersiz ve koşulamamış vakalar `v3_retry`'da bir kez (aynı birim, aynı set). İkinci kez geçersiz çıkan birim setten düşer, rapora.
+- Son set ölçütleri: dev + test ≥ 30 geçerli vaka. Testte `cascading`, `silent`, `noisy`, `partial` her biri en az bir vaka; ayrılan 6 birimden en az 4'ü geçerli. Tutmazsa değerlendirmeden önce planlama karar verir (kendiliğinden yerine koyma yok).
+- Hangi sonuç neyi değiştirir: geçerli oran < %80 ya da sızıntı > 0 → gece tekrarı öncesi düzeltme; kategori ya da `heldout` eksikliği → planlama kararı; belirtisiz vaka sayısı → set değişmez, tabloda ikinci sütun; bir gecede testte > 3 → sonraki geceden önce planlama.
+
+### Bitince
+- PROJECT bitti ölçütleri: "En az 30 vakalık snapshot seti" ve "Vaka çeşitliliği" satırları kanıtla (etiket sayıları). INCIDENT_CATALOG'a V3 bileşim özeti ve destek etiketleri. ARCHITECTURE gerekmiyorsa dokunma.
+- PR açıklaması sade; push'tan önce PR durumuna bak. PR planlama kontrolünden sonra.
+- Kapsam dışı: değerlendirme (modele ne verileceği, Proje 1 yükleyicisi; yükleyici `heldout` ve `test`'i geliştirmede okumayacak, o kartta), yeni hata tipi ya da yeni çift kalibrasyonu, 03:00 taban düşüşünün araştırılması (tekrarlarsa rapora).
