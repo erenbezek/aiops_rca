@@ -2149,3 +2149,20 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - 1. gecede quote-gateway ağırlıklı (misroute ×2, slowdown ×2, flood + slowdown); 2. gecede 11 flag vakası. Kart bunu sınırlamıyor; tohumun sonucu.
   - 2. gecede adHighCpu dev ve test arka arkaya (3. ve 4. sıra).
   - V3b'den önce: şarj sınırı 80, priz, demo kapalı, `pytest` yeşil; liste başı koruması swap ve izleme tahminini kendisi denetler.
+
+## 2026-10-29 · Planlama → Uygulama (V3a 4–5 kontrolü; liste düzeltmesi)
+- 4. madde uygun:
+  - `SCENARIOS`'taki 20 giriş kategori kararıyla aynı.
+  - Repodaki bütün flag etiketleri katalogla uyuşuyor (flood'lularda `noisy`).
+  - Katalog notları yerinde. pytest 409/409.
+- 5. madde: listeler kart tablosuyla birebir aynı (planlama kendi kodlamasıyla karşılaştırdı: 40/40, eksik ve fazla yok). Sayılar, gece sonları ve ortak altyapı çiftleri karta uygun.
+- **Kart düzeltmesi (planlamanın boşluğu; Eren onaylı):**
+  - "Kopyalar farklı gecelerde" kuralı yalnız altyapı çiftleri için yazılmıştı. İki sette olan 13 birimin 8'i aynı gecede çıktı (cartFailure, intlShippingSlowdown, productCatalogFailure, paymentUnreachable, adHighCpu, quoteGatewayMisroute, quoteGatewaySlowdown 30ms). Tür dağılımı da dengesiz: 2. gecede 13 demo flag'i, 1. gecede 6.
+  - Kötü bir gece (C2'deki nedeni bulunmamış yavaşlama, 03:00 taban düşüşü) tür ve birimle karışmasın diye kural genişliyor: iki sette olan 13 birimin her biri (5 altyapı çifti, 6 demo flag'i, quoteGatewayMisroute, quoteGatewaySlowdown 30ms) dev ve test kopyasıyla farklı gecelerde.
+  - Geri kalan 10 tekil birim (dev'e özel 5 demo flag'i: adFailure, adManualGc, emailMemoryLeak, paymentFailure, productCatalogLockContention; yalnız testteki 5 altyapı çifti) gece başına 2 ya da 3.
+  - Gece sonları, gece başına sayılar (10+10, 9+11) ve tohum (`20261029`) aynı.
+- Yapılacak:
+  - Listeleri yeniden üret.
+  - `test_v3_lists.py`'deki "ortak çiftler ayrı gecede" sınamasını 13 birime genişlet; kasıtlı kırmızı: bir ortak demo flag'inin iki kopyası aynı geceye alınınca test kırmızı.
+  - Üreticinin yeni sha256'sı ve gece başına tür dağılımı (demo / altyapı / quote-gateway) rapora.
+  - Rapor ver ve dur. Planlama listeleri yeniden karşılaştırır; sonra V3b.
