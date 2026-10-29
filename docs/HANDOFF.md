@@ -2092,3 +2092,60 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Kanıt kaydı (betiğin yolu, iki sha256, özet tablo) uygulamanın 4. madde HANDOFF kaydında.
   - `~/cerebrum2/analysis/` onaylı (Eren); GLOSSARY'ye.
   - Listeler kartın 5. adımındaki gibi. Rapor ver ve dur.
+
+## 2026-10-29 · Uygulama → Planlama (V3a 1–5: heldout, korumalar, kategoriler, listeler)
+- Commit'ler: 1. madde `cb48625`, 2. madde `5601a97`, 4.–5. madde bu kaydın commit'i. pytest 409/409.
+- **1 · `heldout`:**
+  - Repoda 13 etiket `set: heldout` (kartın listesi). Eşleşme (senaryo/hata, kök neden servisi) ile, varyanttan bağımsız.
+  - Gece klasörlerinde 15 etiket aynı şekilde:
+    - `20261026T1719Z-v2b/`: `inc-569a664d`, `inc-6d85f68b`, `inc-7e70c5c4`, `inc-b4665f44`, `inc-d1709db7`, `inc-d60dcc58`, `inc-e23c74cb`, `inc-e8b2a872`.
+    - `20261027T2255Z-quote_gateway/`: `inc-1811ae30`, `inc-58493603`, `inc-aec7e4ea`, `inc-ff3a6614`.
+    - `20261028T2127Z-quote_gateway_leak/`: `inc-660f7c44`.
+    - `20261026T0327Z-v2_dry/`: `inc-bcdd2841` (containerStop currency), `inc-f4920395` (containerPause quote). Kuru deneme vakaları; kartın listesinde yok, birime ait oldukları için işaretlendi. Snapshot'ları gece klasöründe (`model_view/`).
+  - Bu birimlerin geçersiz etiketi yok; `*-systemd_stop` geceleri containerPause cart. Snapshot'larda set alanı yok (işaret etikette), dokunulmadı.
+  - Test `test_heldout_only_in_held_units` (6 birimin etiketi yalnız `heldout`/`test`; `heldout` yalnız bu birimlerde; her birimin en az bir etiketi var). Kasıtlı kırmızı 2/2.
+- **2 · Sınırlar ve liste başı korumaları:**
+  - `MAX_SNAPSHOT_GB` 30.
+  - `start_guards`: yalnız ilk vakadan önce; boş swap ≥ 2 GB, izleme + 0,85 GB/sa × vaka × 35 dk < 40 GB (karşılaştırma yuvarlanmadan).
+  - Sorunlar normal korumalarınkiyle tek ret mesajında. İlk etiketin `run.guards`'ı denetlenen ölçüm, `start` onun içinde.
+  - O günkü değerler: swap 3,04 GB, izleme 15,54 GB, snapshot 9,79 GB; 20 vakalık gece tahmini 25,46 GB.
+  - Canlı kasıtlı kırmızı (`AIOPS_MAX_MONITORING_GB=20`, 20 vakalık geçici liste): çıkış 1, demo açılmadı, mesajda tahmin satırı. Gece klasörü `20261029T0222Z-redtest_start/` (yalnız `runner.log`).
+- **3 · Kategori kanıtı (kayıt):**
+  - Betik `~/cerebrum2/analysis/v3a_categories.py`, sha256 `076e921c3e679d4472111d4ed4c0c7a08c7638352325df9aa82489660ab81918`.
+  - Çıktı `~/cerebrum2/analysis/v3a_categories.out` (tablo + 14 vakanın ham JSON'u), sha256 `b05c808e312caeecacbc285dd74dcbcc97ff3897d6c7d9297c08369e93a9e1db`.
+  - Çalıştırma `<repo>/.venv/bin/python v3a_categories.py <repo>`. Alarm etiketteki `injection_start` (saniye).
+  - Özet (zincirde artış = servis, ERROR span normal→enj / ERROR log normal→enj; frontend-proxy hariç):
+
+| Vaka | Senaryo | Zincirde hata artışı | Çağıran kontrolü (güç) | cascading | silent adayı |
+|---|---|---|---|---|---|
+| `inc-12813456` | adFailure on | ad 0→25/0→0; frontend 0→100/0→25 | symptomatic (2,3) | evet | hayır |
+| `inc-09516b21` | adHighCpu on | yok | no_symptom (0,18) | hayır | evet |
+| `inc-110f3aba` | adManualGc on | yok | symptomatic (126) | evet | evet |
+| `inc-ef72f574` | cartFailure 50% | cart 0→5/0→5; checkout 0→27/0→0 | symptomatic (40) | evet | hayır |
+| `inc-072897d4` | emailMemoryLeak 1000x | yok | symptomatic (4,2) | evet | evet |
+| `inc-48be145f` | intlShippingSlowdown 10sec | yok | symptomatic (500) | evet | evet |
+| `inc-8ceb7ae5` | paymentFailure 50% | payment, checkout, frontend 0→24/0→0 | symptomatic (9,6) | evet | hayır |
+| `inc-93c4ca55` | paymentFailure 50% | payment, checkout, frontend 0→34/0→0 | symptomatic (12,6) | evet | hayır |
+| `inc-07533a0a` | paymentUnreachable on | checkout 0→58/0→0; frontend 0→116/0→29 | symptomatic (20) | evet | hayır |
+| `inc-b03ccffb` | productCatalogFailure on | product-catalog 0→273/0→0; frontend 0→1092/0→273; checkout 0→20/0→0 | symptomatic (3,4) | evet | hayır |
+| `inc-0f31ed0e` | productCatalogLockContention on | yok | symptomatic (1496) | evet | evet |
+| `inc-78df5642` | recommendationCacheFailure on | frontend 0→86/0→26 | symptomatic (807) | evet | hayır |
+| `inc-af671750` | paymentFailure 50% + flood | payment, checkout, frontend 0→22/0→0 | symptomatic (7,6) | evet | hayır |
+| `inc-f20daed8` | productCatalogLockContention on + flood | yok | symptomatic (1475) | evet | evet |
+
+- **4 · Kategoriler:**
+  - `SCENARIOS`'ta 7 giriş (6 senaryo; emailMemoryLeak iki varyant) planlamanın tablosuna göre; INCIDENT_CATALOG flag tablosu (kategori sütunu, LockContention ve recommendationCacheFailure satırlarında zincir dışı frontend-proxy/frontend-web notu, tablonun altında kanıt paragrafı); altyapı bölümündeki "gözden geçirilecek" ifadesi kapandı.
+  - Koşucu `noise_layer`'lı vakaya `noisy` ekler (zaten varsa tekrar yok). Test `test_noise_layer_adds_noisy`.
+  - Geriye dönük 7 etiket: `inc-12813456`, `inc-110f3aba`, `inc-072897d4`, `inc-48be145f`, `inc-0f31ed0e`, `inc-78df5642`, `inc-f20daed8` (flood: cascading, silent, noisy). `inc-af671750` (paymentFailure + flood) zaten `cascading, noisy`, değişmedi. Gece klasörlerindeki kopyalar değişmedi (V2'deki gibi).
+  - Test `test_flag_labels_follow_catalog_categories`: her flag etiketinin kategorisi koşucudakiyle aynı (+ `noisy`).
+- **5 · Listeler:** `incident_lists/v3_night1.json` (10 dev + 10 test), `v3_night2.json` (9 dev + 11 test).
+  - Üretici `~/cerebrum2/analysis/v3_lists.py`, sha256 `5c84583440fe0ca5675e9643668a5fd13a5dbd253f00fd1ce65706f55fde29d8`, tohum `20261029` (`random.Random`), çalıştırma `python3 v3_lists.py <repo>`.
+  - Yöntem: 5 ortak altyapı çifti karıştırılır, ilk k'sının (k = 3: networkDelay cart, packetLoss shipping, cpuThrottle product-catalog) dev kopyası 1. gecede, test kopyası 2. gecede; kalan ikisinin (containerPause cart, containerStop recommendation) tersi. Geri kalan 13 dev ve 13 test karıştırılıp sayıları tutturacak şekilde bölünür; her gecenin gövdesi karıştırılır, sonuna sabit son eklenir.
+  - Gece sonları: 1. gece flood + quoteGatewaySlowdown (dev), flood + paymentFailure (test); 2. gece flood + productCatalogLockContention (test), quoteGatewayMemoryLeak 384kb (test).
+  - `tests/test_v3_lists.py` kart tablosunu kendi içinde yazılı tutar (üreticiye bakmaz); `HELDOUT_UNITS` `test_catalog.py`'den. Sınadıkları: bileşim birebir, gece başına sayılar ve son, ortak çiftler ayrı gecede, ayrılan 6 birim yalnız testte ve birer kez, koşucunun liste denetimi.
+  - Kasıtlı kırmızılar 7/7: gece sonunda iki giriş yer değiştirdi; geceler arası dev↔test; giriş silindi; ayrılan birim dev'e; bilinmeyen senaryo (koşucu 2 döner); koşucuda `noisy` kuralı yok; etiket kategorisi geri alındı.
+- Adlar (Eren onaylı): `~/cerebrum2/analysis/`, `start_guards`, `MIN_SWAP_FREE_START_GB`, `MONITORING_GB_PER_H`, `INCIDENT_EST_MIN`, `run.guards.start` (alanlar), `checked`, `HELDOUT_UNITS`, `tests/test_v3_lists.py`; GLOSSARY'de. ARCHITECTURE dosya tablosu güncel.
+- **Dikkat:**
+  - 1. gecede quote-gateway ağırlıklı (misroute ×2, slowdown ×2, flood + slowdown); 2. gecede 11 flag vakası. Kart bunu sınırlamıyor; tohumun sonucu.
+  - 2. gecede adHighCpu dev ve test arka arkaya (3. ve 4. sıra).
+  - V3b'den önce: şarj sınırı 80, priz, demo kapalı, `pytest` yeşil; liste başı koruması swap ve izleme tahminini kendisi denetler.

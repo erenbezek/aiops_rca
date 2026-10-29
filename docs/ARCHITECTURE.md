@@ -134,13 +134,15 @@ flowchart LR
 | `deploy/replay/otelcol-replay.yml` | Yeniden oynatma collector'ı: `otlpjsonfile` alıcıları, `transform/backend_compat` ve upstream exporter kopyaları; izinli farklar `block_on_overflow` ve Jaeger paketi 2048 span |
 | `tests/test_replay_config.py` | `otelcol-replay.yml`'daki kopyalar kaynaklarıyla aynı mı (`REPLAY_ONLY` dışında), alıcılar yalnız dosya mı; upstream klonu yoksa (CI) exporter testi atlanır |
 | `tools/incident_checks.py` | Vaka kontrolleri (C2 ölçüsüyle aynı): işlem düzeyi belirti, olay, taban sağlık, izleme sağlığı |
-| `tests/test_catalog.py` | Koşucunun doğru cevap alanları INCIDENT_CATALOG tablolarıyla aynı mı: flag senaryoları (`SCENARIOS`) ve altyapı hataları (`INFRA_ANSWERS`, `INFRA_FAULTS`, `PARAM_RE`; her satırın destek vakası geçerli ve belirtili) |
+| `tests/test_catalog.py` | Koşucunun doğru cevap alanları INCIDENT_CATALOG tablolarıyla aynı mı: flag senaryoları (`SCENARIOS`) ve altyapı hataları (`INFRA_ANSWERS`, `INFRA_FAULTS`, `PARAM_RE`; her satırın destek vakası geçerli ve belirtili); flag etiketlerinin kategorileri katalogla aynı (`noise_layer`'lı vakada + `noisy`); `heldout` yalnız ayrılan 6 birimde (`HELDOUT_UNITS`) |
 | `tests/test_incident_checks.py` | `incident_checks.py` kurallarının sınırları (sahte OTLP girdileriyle) ve V1a eşik değerleri |
 | `incident_lists/pilot.json` | Pilot gece listesi: 11 katalog senaryosu (kalibre varyant) + flood'lu 2 vaka |
 | `incident_lists/v2_dry.json`, `v2b.json`, `v2c.json` | V2 listeleri: altyapı hatası kuru denemesi (6) / kalibrasyon gecesi (16) / bellek kısa koşusu (1) |
 | `deploy/netem/Dockerfile` | Ağ hatası yardımcı imajı (GHCR `ghcr.io/erenbezek/aiops-netem`, digest'le sabit; sabit alpine + iproute2, giriş `tc`); hedefin ağ ad alanında yalnız NET_ADMIN ile koşar |
 | `deploy/systemd/aiops-incidents@.service` | Gece koşusu birim şablonu (örnek adı = liste adı): koşucu ana süreç, `KillMode=mixed` (SIGTERM yalnız koşucuya), `TimeoutStopSec=300`, `Restart=no`; kurulum `systemctl --user link` |
-| `tests/test_infra_faults.py` | Altyapı hatalarının Docker'sız testleri: dondurmanın kaydı, parametre biçimleri, zaman kalıbı, çağıran kuralı, temizlik doğrulaması, boş swap koruması, liste denetimi |
+| `tests/test_infra_faults.py` | Altyapı hatalarının Docker'sız testleri: dondurmanın kaydı, parametre biçimleri, zaman kalıbı, çağıran kuralı, temizlik doğrulaması, boş swap koruması, liste başı korumaları, `noise_layer`'lı vakada `noisy`, liste denetimi |
+| `tests/test_v3_lists.py` | V3 gece listeleri kart tablosuyla birebir aynı mı (bileşim, gece sayıları ve sonları, ortak altyapı çiftleri ayrı gecede, ayrılan birimler yalnız testte, koşucunun liste denetimi) |
+| `incident_lists/v3_night1.json`, `v3_night2.json` | V3 resmî set listeleri (20 + 20 vaka, girişte `set: dev\|test`); repo dışı üretici `~/cerebrum2/analysis/v3_lists.py`, tohum HANDOFF'ta |
 | `services/quote-gateway/` | Kendi Python servisimiz `quote-gateway` (Flask + requests, OTel otomatik, OpenFeature + flagd): shipping'in fiyat isteğini quote'a iletir; `gateway.py` iş mantığı, `app.py` Flask ve flag'ler, `requirements.txt` sabit, `Dockerfile` (imaj GHCR `ghcr.io/erenbezek/aiops-quote-gateway`, digest'le sabit) |
 | `deploy/otel-demo/flagd-extras.json` | quote-gateway flag'leri; `otel_demo.sh up` upstream flag dosyasıyla birleştirir |
 | `tests/test_quote_gateway.py` | quote-gateway iş mantığı, flag birleştirme, koşucunun yeni flag'leri açıp kapatması |
