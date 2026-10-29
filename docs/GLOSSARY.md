@@ -198,5 +198,7 @@ Sadece Eren'in onayladığı isimler.
 | `session_pids` | Koşucu: bir oturumdaki yaşayan süreçler (`/proc`); uyku engeli zincirini çıkışta kapatmak için |
 | `incident_lists/systemd_stop.json` | systemd kartı canlı kontrol listesi (containerPause cart, 1 vaka) |
 | `incident_lists/v3_night1.json`, `v3_night2.json`, `v3_retry.json` | V3 resmî set listeleri: 1. gece (10 dev + 10 test) / 2. gece (9 dev + 11 test) / telafi (V3c); her girişte `set` |
+| `v3_night2a` | 2. gece listesinin ilk parçası (`v3_night2`'nin 1–15. girişleri, 15 vaka) |
+| `v3_night2b` | 2. gece listesinin kalan parçası (16–20. girişler, 5 vaka) |
 | `tests/test_v3_lists.py` | V3 gece listelerinin kart tablosuyla birebir karşılaştırması (bileşim, gece sayıları, gece sonları, ortak çiftler ayrı gecede, ayrılan birimler yalnız testte, koşucunun liste denetimi) |
 | `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi); yol ve sha256 HANDOFF'ta |

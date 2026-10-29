@@ -123,6 +123,14 @@ def test_heldout_units_only_in_test():
     assert seen == Counter({u: 1 for u in HELDOUT_UNITS})
 
 
+def test_night2_parts_equal_night2():
+    # 2. gece iki parçada koşulur (DECISIONS 2026-10-29 "2. gece iki parçada"): 2a (1–15) + 2b (16–20) art arda,
+    # giriş giriş ve sırayla v3_night2. v3_night2 kart tablosunun listesi olarak kalır, kendisi koşulmaz.
+    a, b = (json.loads((LISTS / f"v3_night2{p}.json").read_text(encoding="utf-8")) for p in "ab")
+    assert (len(a), len(b)) == (15, 5)
+    assert a + b == NIGHTS["v3_night2"]
+
+
 @pytest.mark.parametrize("name", COUNTS)
 def test_runner_accepts_list(monkeypatch, tmp_path, name):
     # Koşucunun liste denetimi: geçerli liste korumaya kadar gider (koruma burada durdurur: 1); reddedilen liste 2.
