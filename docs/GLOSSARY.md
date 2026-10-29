@@ -188,3 +188,9 @@ Sadece Eren'in onayladığı isimler.
 | `merge_flag_files`, `FLAGD_EXTRAS` | `otel_demo.sh`: upstream flag dosyasıyla `flagd-extras.json`'ı birleştiren fonksiyon / bizim flag dosyamızın yolu |
 | `parse_items`, `CACHE_TTL_S`, `CACHE_MAX_ENTRIES`, `retained_bytes` | `gateway.py`: `numberOfItems` kontrolü / önbellek ömrü (1 sn) / kayıt sınırı (64) / sızıntıda tutulan toplam bayt |
 | `UPSTREAM`, `ALT_UPSTREAM`, `TIMEOUT_S`, `PORT` | `app.py`: quote adresi (`QUOTE_ADDR`) / yanlış yapılandırmanın hedefi (`http://quote-svc:8090`) / iletim zaman aşımı (10 sn) / dinlenen port |
+| `task/systemd-unit`, `deploy/systemd/aiops-incidents@.service`, `aiops-incidents@<ad>` | systemd kartının dalı / gece koşusu birim şablonu / örnek: `<ad>` = `incident_lists/<ad>.json` |
+| `Stopped`, `signals_deferred` | Koşucu: SIGTERM/SIGINT ile durdurulan vakanın hatası / korunan bölüm (içeride gelen sinyal not edilir, çıkışta `Stopped`) |
+| `inhibited()`, `INHIBIT_WHO`, `INHIBIT_WHY` | Koşucu: bizim systemd uyku engelimiz listede mi / engelin kimliği / kabul edilen neden metinleri |
+| `leftovers()`, `leftovers` (koruma alanı), `DEMO_PROJECT` | Koşucu: önceki koşudan kalan demo (`otel-demo` projesi) ya da `aiops-netem` konteynerleri; varsa koşu başlamaz / demonun compose proje adı |
+| `session_pids` | Koşucu: bir oturumdaki yaşayan süreçler (`/proc`); uyku engeli zincirini çıkışta kapatmak için |
+| `incident_lists/systemd_stop.json` | systemd kartı canlı kontrol listesi (containerPause cart, 1 vaka) |

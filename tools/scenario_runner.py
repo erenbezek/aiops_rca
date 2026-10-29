@@ -9,7 +9,13 @@ Kullanım:
   python tools/scenario_runner.py run <id>... | all    koşuları sırayla yürütür (gnome-session-inhibit ve
                                                        systemd-inhibit altında)
   python tools/scenario_runner.py incidents <liste>    vaka üretimi (V1): listedeki vakaları sırayla üretir
-                                                       (`incident_lists/*.json`; aynı engeller altında)
+                                                       (`incident_lists/*.json`; uyku engelleri yan süreçte)
+
+Gece koşusu systemd birimiyle (DECISIONS 2026-10-29 "Gece koşusu için systemd birimi"; örnek adı = liste adı):
+  systemctl --user link ~/cerebrum2/aiops_rca/deploy/systemd/aiops-incidents@.service   (bir kez)
+  systemctl --user start aiops-incidents@<ad>      incident_lists/<ad>.json
+  systemctl --user stop aiops-incidents@<ad>       güvenli durdurma: hata geri alınır, flag kapanır, demo kapanır
+  systemctl --user status aiops-incidents@<ad>; journalctl --user -u aiops-incidents@<ad>; gece klasöründe runner.log
 
 Koşu başına (`~/cerebrum2/c2_runs/<senaryo>_<varyant>_<deneme>/`, repo dışı, cevap içerir):
   korumalar → `otel_demo.sh up --raw` → 22 konteyner (V2 sonrası 23: + quote-gateway) (6 dk içinde olmazsa collector yeniden başlatılır, 4 dk daha)
@@ -38,7 +44,18 @@ konteyner sayısı (`CONTAINERS`) tutmadı, taban sağlık (enjeksiyon yapılmaz
 döndürme, sızıntı (gece durur), olay yok. Belirtisiz / sınırda vaka geçerli, `marks`'ta işaretli.
 Taban sağlık, ısınma ve döndürmede bir kez daha.
 
-Çıkış kodu: 0 bütün koşular geçerli, 1 en az biri geçersiz ya da sıra durdu, 2 kullanım hatası.
+Durdurma (`incidents`): SIGTERM ya da SIGINT gelince yarıdaki vaka "stopped by SIGTERM" sebebiyle geçersiz kaydedilir,
+var olan temizlik yolundan geçilir (hata geri alınır, flag kapanır, demo kapanır), sıradaki vakaya geçilmez. Hata
+uygulama, flag açma/kapama, geri alma, temizlik ve etiket yazımı korunan bölümdedir (`signals_deferred`): orada gelen
+sinyal yalnız not edilir, bölüm bitince işlenir; temizlik sırasında gelen ikinci sinyal temizliği kesmez, kayda geçer.
+Snapshot kesimi sırasında gelen durdurmada yarım snapshot, geçersiz vakalardaki gibi gece klasörüne taşınır.
+Kapanma ya da oturumdan çıkış: SIGTERM gelir ama temizlik yarıda kesilir (kullanıcı yöneticisi kapanışta 5 sn verir: /usr/lib/systemd/system/user@.service.d/timeout.conf); kalıntı
+kalabilir, sonraki koşu kalıntı denetiminde başlamaz, elle temizlenir.
+Başlangıç kontrolü: demo konteyneri ya da `aiops-netem` yardımcı konteyneri varsa (kalıntı: duraklatılmış konteyner,
+CPU sınırı, netem kuralı konteynerle yaşar) koşu başlamaz; elle temizlik komutu yazılır, koşucu silmez.
+
+Çıkış kodu: 0 bütün koşular geçerli, 1 en az biri geçersiz ya da sıra durdu, 2 kullanım hatası, 128 + sinyal
+numarası sinyalle durduruldu (143 SIGTERM, 130 SIGINT).
 """
 from __future__ import annotations
 
@@ -48,6 +65,7 @@ import random
 import re
 import secrets
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -91,6 +109,9 @@ SUSPEND_MAX_S = 60
 # GNOME boşta uyutması systemd-inhibit'i dinlemiyor (gece koşusu 2026-10-24: 2 saat uyudu). `--inhibit` listesi
 # iki nokta üst üsteyle ayrılır (yardım metni virgül diyor ama virgüllü liste yok sayılıyor).
 GNOME_INHIBIT = ["gnome-session-inhibit", "--inhibit", "suspend:idle", "--reason", "aiops_rca scenario_runner"]
+INHIBIT_WHO = "aiops_rca scenario_runner"
+INHIBIT_WHY = ("incident runs", "C2 scenario runs", "storage card")  # incidents / run / tools/storage_check.py
+DEMO_PROJECT = "otel-demo"  # demonun compose proje adı (klon klasörü); kalıntı denetimi bu etiketle
 
 # C2 (DECISIONS 2026-10-23): 11 katalog senaryosu, üçü iki seviyede, + loadGeneratorFloodHomepage = 15 koşu.
 # kind: flagd Resolve<kind>; context: doğrulamada flagd'ye giden bağlam; target: defaultVariant yerine yazılan
@@ -183,6 +204,49 @@ class Overheat(Invalid):
     pass
 
 
+class Stopped(Invalid):
+    """Koşu SIGTERM ya da SIGINT ile durduruldu (systemctl stop, Ctrl-C); vaka bu sebeple geçersiz.
+
+    Kapanma ya da oturumdan çıkışta da SIGTERM gelir, ama temizlik yarıda kesilir (kullanıcı yöneticisi kapanışta 5 sn verir: /usr/lib/systemd/system/user@.service.d/timeout.conf);
+    demoda kalıntı kalabilir, sonraki koşu kalıntı denetiminde başlamaz."""
+
+
+class signals_deferred:
+    """Korunan bölüm: içerideyken gelen SIGTERM/SIGINT yalnız not edilir, bölümden çıkarken `Stopped` fırlatılır.
+
+    Bekletme bayrakla (pthread_sigmask değil): sinyal izleme iş parçacığına düşebilir, Python işleyicisi yine ana iş
+    parçacığında çalışır. Korunan bölüm dışında işleyici `Stopped`'ı hemen fırlatır. `Stopped` süreç başına bir kez
+    fırlatılır; sonraki sinyaller (temizlik sırasında ikinci sinyal) yalnız `signals`'a eklenir. Bölümden başka bir
+    hatayla çıkılıyorsa o hata korunur; bekleyen durdurmayı `check` ya da döngü işler."""
+    signals: list[str] = []
+    depth = 0
+    raised = False
+
+    @classmethod
+    def handle(cls, signum, frame) -> None:
+        cls.signals.append(signal.Signals(signum).name)
+        if cls.depth == 0 and not cls.raised:
+            cls.raised = True
+            raise Stopped(f"stopped by {cls.signals[0]}")
+
+    @classmethod
+    def check(cls) -> None:
+        """Bekleyen, henüz fırlatılmamış durdurma varsa (korunan bölüm dışında) fırlatır."""
+        if cls.signals and not cls.raised and cls.depth == 0:
+            cls.raised = True
+            raise Stopped(f"stopped by {cls.signals[0]}")
+
+    def __enter__(self) -> "signals_deferred":
+        type(self).depth += 1
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        type(self).depth -= 1
+        if exc_type is None:
+            type(self).check()
+        return False
+
+
 # --- makine -------------------------------------------------------------------------------------------------
 
 def read(path: str) -> str | None:
@@ -198,6 +262,18 @@ def pkg_temp_c() -> float | None:
             value = read(f"{zone}/temp")
             return int(value) / 1000 if value else None
     return None
+
+
+def inhibited() -> bool:
+    """Bizim systemd engelimiz (sleep, block) şu an listede mi: kimlik "aiops_rca …" ve neden metni bizimkilerden biri
+    (incidents, C2 run, storage_check)."""
+    try:
+        out = subprocess.run(["systemd-inhibit", "--list", "--no-pager", "--no-legend"],
+                             capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return any(line.startswith("aiops_rca ") and any(why in line for why in INHIBIT_WHY) and "sleep" in line
+               and line.rstrip().endswith("block") for line in out.splitlines())
 
 
 def gnome_inhibited() -> bool:
@@ -266,8 +342,9 @@ def guards() -> dict:
         "snapshot_gb": round(snap_gb, 2),
         "swap_free_gb": swap_gb,
         "power_profile": profile,
-        "inhibited": os.environ.get("SCENARIO_RUNNER_INHIBITED") == "1",
+        "inhibited": inhibited(),
         "gnome_inhibited": gnome_inhibited(),
+        "leftovers": leftovers(),
     }
     problems = []
     if g["ac_online"] != "1":
@@ -292,8 +369,61 @@ def guards() -> dict:
         problems.append("not under systemd-inhibit")
     if not g["gnome_inhibited"]:
         problems.append("no gnome-session-inhibit suspend inhibitor")
+    if g["leftovers"] is None:
+        problems.append("leftover check failed (docker ps)")
+    elif g["leftovers"]:
+        demo_left = [c for c in g["leftovers"] if c["name"] != "aiops-netem"]
+        paused = [c["name"] for c in demo_left if c["paused"]]
+        limited = [c["name"] for c in demo_left if c["nano_cpus"]]
+        netem = len(demo_left) < len(g["leftovers"])
+        problems.append(f"leftovers from a previous run: {len(demo_left)} demo containers (paused: "
+                        f"{', '.join(paused) or 'none'}; cpu limit: {', '.join(limited) or 'none'}); aiops-netem: "
+                        f"{'present' if netem else 'none'}; clean up by hand: "
+                        + "".join(f"docker unpause {n}; " for n in paused)
+                        + ("docker rm -f aiops-netem; " if netem else "") + "tools/otel_demo.sh down")
     g["problems"] = problems
     return g
+
+
+def session_pids(sid: int) -> list[int]:
+    """Oturumu `sid` olan, yaşayan (zombi olmayan) süreçler (`/proc/<pid>/stat`: durum, ppid, pgrp, oturum)."""
+    out = []
+    for d in Path("/proc").iterdir():
+        if not d.name.isdigit():
+            continue
+        try:
+            fields = (d / "stat").read_text().rsplit(")", 1)[1].split()
+        except (OSError, IndexError):
+            continue
+        if int(fields[3]) == sid and fields[0] != "Z":
+            out.append(int(d.name))
+    return out
+
+
+def leftovers() -> list[dict] | None:
+    """Demo projesinin konteynerleri (her durumda) ve `aiops-netem` yardımcı konteyneri. Boş liste: temiz; okunamazsa
+    None. netem kuralı ve CPU sınırı konteynerle yaşar: konteyner yoksa onlar da yok."""
+    try:
+        ids = []
+        for flt in (f"label=com.docker.compose.project={DEMO_PROJECT}", "name=^aiops-netem$"):
+            p = subprocess.run(["docker", "ps", "-aq", "--filter", flt], capture_output=True, text=True, timeout=30)
+            if p.returncode != 0:
+                return None
+            ids += p.stdout.split()
+        if not ids:
+            return []
+        fmt = "{{.Name}}\t{{.State.Status}}\t{{.State.Paused}}\t{{.HostConfig.NanoCpus}}"
+        p = subprocess.run(["docker", "inspect", "--format", fmt, *dict.fromkeys(ids)],
+                           capture_output=True, text=True, timeout=30)
+        if p.returncode != 0:
+            return None
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    out = []
+    for line in p.stdout.splitlines():
+        name, state, paused, nano = line.split("\t")
+        out.append({"name": name.lstrip("/"), "state": state, "paused": paused == "true", "nano_cpus": int(nano)})
+    return sorted(out, key=lambda c: c["name"])
 
 
 class Monitor(threading.Thread):
@@ -1129,240 +1259,268 @@ def run_incident(entry: dict, night: Path, log, first: bool) -> dict:
     normal_ns = flag_on_ns = flag_off_ns = up_ns = None
     jaeger_cpu_start = (None, None)
     try:
-        log(f"{iid} {entry}; guards {run['guards']}")
-        if run["guards"]["problems"]:
-            raise Invalid("guards: " + "; ".join(run["guards"]["problems"]))
-        mark("start")
-        monitor.start()
-        if demo("up", log, raw=False) != 0:
-            raise Invalid("otel_demo.sh up failed")
-        up_ns = mark("demo_up")
-        if first:
-            time.sleep(10)
-            ism = ism_explain()
-            (night / "ism.json").write_text(json.dumps(ism, ensure_ascii=False, indent=1) + "\n")
-            log(f"ISM {ism.get('indices')} pass {ism.get('pass')}")
-        subprocess.run(["docker", "restart", "otel-collector"], capture_output=True)
-        run["collector_restarted"] = True
-        mark("collector_restarted")
-        end = time.monotonic() + WAIT_CONTAINERS_S[1]
-        n = container_count()
-        while n != CONTAINERS and time.monotonic() < end:
-            time.sleep(10)
+        try:
+            log(f"{iid} {entry}; guards {run['guards']}")
+            if run["guards"]["problems"]:
+                raise Invalid("guards: " + "; ".join(run["guards"]["problems"]))
+            mark("start")
+            monitor.start()
+            if demo("up", log, raw=False) != 0:
+                raise Invalid("otel_demo.sh up failed")
+            up_ns = mark("demo_up")
+            if first:
+                time.sleep(10)
+                ism = ism_explain()
+                (night / "ism.json").write_text(json.dumps(ism, ensure_ascii=False, indent=1) + "\n")
+                log(f"ISM {ism.get('indices')} pass {ism.get('pass')}")
+            subprocess.run(["docker", "restart", "otel-collector"], capture_output=True)
+            run["collector_restarted"] = True
+            mark("collector_restarted")
+            end = time.monotonic() + WAIT_CONTAINERS_S[1]
             n = container_count()
-        run["containers"]["after_collector_restart"] = n
-        if n != CONTAINERS:
-            raise Invalid(f"container count {n}, want {CONTAINERS}")
-        wait(WARMUP_S - (utc_ns() - up_ns) / 1e9)
-        run["scheduler"] = scheduler_state()
-        if run["scheduler"] != "stopped":
-            raise Invalid(f"flagd-ui scheduler {run['scheduler']}")
-        for f in ([] if infra else [s]) + ([noise] if noise else []):
-            before = resolve(f)
-            if not isinstance(before, dict) or before.get("variant") != "off":
-                raise Invalid(f"flag {f['flag']} not off before normal: {before}")
-        start_state = containers()
-        (work / "containers_start.txt").write_text(json.dumps(start_state, indent=1) + "\n")
-        normal_ns = mark("normal_start")
-        jaeger_cpu_start = (_cpu_usec("jaeger"), time.monotonic())
-        slept_before = sleep_offset_s()
-        wait(run["schedule"]["normal_s"])
+            while n != CONTAINERS and time.monotonic() < end:
+                time.sleep(10)
+                n = container_count()
+            run["containers"]["after_collector_restart"] = n
+            if n != CONTAINERS:
+                raise Invalid(f"container count {n}, want {CONTAINERS}")
+            wait(WARMUP_S - (utc_ns() - up_ns) / 1e9)
+            run["scheduler"] = scheduler_state()
+            if run["scheduler"] != "stopped":
+                raise Invalid(f"flagd-ui scheduler {run['scheduler']}")
+            for f in ([] if infra else [s]) + ([noise] if noise else []):
+                before = resolve(f)
+                if not isinstance(before, dict) or before.get("variant") != "off":
+                    raise Invalid(f"flag {f['flag']} not off before normal: {before}")
+            start_state = containers()
+            (work / "containers_start.txt").write_text(json.dumps(start_state, indent=1) + "\n")
+            normal_ns = mark("normal_start")
+            jaeger_cpu_start = (_cpu_usec("jaeger"), time.monotonic())
+            slept_before = sleep_offset_s()
+            wait(run["schedule"]["normal_s"])
 
-        # Taban sağlık: normal dönemin verisi (dosya), C2 analiziyle aynı ölçü; alarm = şimdi.
-        alarm = utc_ns()
-        recent = [f for f in sorted((TELEMETRY / "filtered").glob("*.jsonl"))
-                  if f.stat().st_mtime_ns >= normal_ns - 60 * 10**9]
-        rows_now = cm.service_rows(summarize(recent, Window(alarm))[0])
-        checks["baseline_health"] = {**ic.baseline_check(rows_now), "measured_at": iso(alarm)}
-        log(f"{iid} baseline {checks['baseline_health']}")
-        if not checks["baseline_health"]["pass"] and not dry:
-            run["baseline_failed"] = True
-            raise Invalid(f"baseline health: frontend p95 {checks['baseline_health']['frontend_p95_ms']} ms > "
-                          f"{checks['baseline_health']['threshold_ms']} ms")
+            # Taban sağlık: normal dönemin verisi (dosya), C2 analiziyle aynı ölçü; alarm = şimdi.
+            alarm = utc_ns()
+            recent = [f for f in sorted((TELEMETRY / "filtered").glob("*.jsonl"))
+                      if f.stat().st_mtime_ns >= normal_ns - 60 * 10**9]
+            rows_now = cm.service_rows(summarize(recent, Window(alarm))[0])
+            checks["baseline_health"] = {**ic.baseline_check(rows_now), "measured_at": iso(alarm)}
+            log(f"{iid} baseline {checks['baseline_health']}")
+            if not checks["baseline_health"]["pass"] and not dry:
+                run["baseline_failed"] = True
+                raise Invalid(f"baseline health: frontend p95 {checks['baseline_health']['frontend_p95_ms']} ms > "
+                              f"{checks['baseline_health']['threshold_ms']} ms")
 
-        run["containers"]["at_flag_on"] = container_count()
-        if infra:
-            run["target_ips"] = {"before": (_inspect(root) or {}).get("ips"), "after": None}
-            flag_on_ns = mark(f"fault_on_{entry['fault']}")
-            fault_state = run["fault_state"] = apply_fault(entry["fault"], root, entry["param"])
-            log(f"{iid} fault {entry['fault']} on {root} ({entry['param']}): applied {fault_state['applied_ok']} "
-                f"{json.dumps(fault_state['applied'])}")
-            if not fault_state["applied_ok"]:
-                raise Invalid(f"fault not applied: {fault_state['applied']}")
-        for f in ([] if infra else [s]) + ([noise] if noise else []):
-            flags_on.append(f)
-            written, verified, answer = set_flag(f, f["variant"])
-            times[f"flag_on_write_{f['flag']}"], times[f"flag_on_verified_{f['flag']}"] = iso(written), iso(verified)
-            log(f"{iid} flag on {f['flag']}={f['variant']}: verified {iso(verified)} {json.dumps(answer)}")
-            if verified is None:
-                raise Invalid(f"flag on {f['flag']} not verified")
-            if f is s:
-                flag_on_ns = written
-        label["answer"]["injection_start"] = iso(flag_on_ns)
-        wait(DRY_FAULT_S if dry else FLAG_S)
-        run["containers"]["at_flag_off"] = container_count()
-        for f in list(flags_on):
-            written, verified, answer = set_flag(f, "off")
-            flags_on.remove(f)
-            times[f"flag_off_write_{f['flag']}"], times[f"flag_off_verified_{f['flag']}"] = iso(written), iso(verified)
-            log(f"{iid} flag off {f['flag']}: verified {iso(verified)} {json.dumps(answer)}")
-            if f is s:
-                flag_off_ns = written
-            if verified is None:
-                raise Invalid(f"flag off {f['flag']} not verified")
-        if infra:
-            flag_off_ns = mark(f"fault_off_{entry['fault']}")
-            revert_fault(fault_state)
-            run["target_ips"]["after"] = (fault_state["after"] or {}).get("ips")
-            log(f"{iid} fault reverted: verified {fault_state['verified']} {json.dumps(fault_state['reverted'])}")
-            if not fault_state["verified"]:
-                raise Invalid(f"cleanup not verified: {fault_state['reverted']} {fault_state['after']}")
-        label["answer"]["injection_end"] = iso(flag_off_ns)
-        wait(run["schedule"]["tail_s"] - (utc_ns() - flag_off_ns) / 1e9)
-        mark("tail_end")
-        run["suspended_s"] = round(sleep_offset_s() - slept_before, 1)
-
-        end_state = containers()
-        (work / "containers_end.txt").write_text(json.dumps(end_state, indent=1) + "\n")
-        target_restarts = not infra or entry["fault"] in ("containerStop", "containerPause", "memoryLimit")
-        expected = {root} if root and target_restarts else set()
-        run["restarts_in_window"], run["expected_restarts"] = split_restarts(start_state, end_state, expected)
-        reasons = []
-        if run["suspended_s"] > SUSPEND_MAX_S:
-            reasons.append(f"machine slept {run['suspended_s']} s between normal start and tail end")
-        if run["restarts_in_window"]:
-            reasons.append("unexpected restart/stop in window: "
-                           + ", ".join(e["container"] for e in run["restarts_in_window"]))
-        if reasons:
-            raise Invalid("; ".join(reasons))
-        label["valid"] = True
-    except Overheat as e:
-        run["overheat"] = True
-        label["invalid_reasons"].append(str(e))
-        log(f"{iid} INVALID: {e}")
-    except Invalid as e:
-        label["invalid_reasons"].append(str(e))
-        log(f"{iid} INVALID: {e}")
-    except Exception as e:  # beklenmeyen hata da kayda girer, demo kapatılır
-        label["invalid_reasons"].append(f"error: {type(e).__name__}: {e}")
-        log(f"{iid} ERROR: {type(e).__name__}: {e}")
-    finally:
-        for f in list(flags_on):
-            try:
-                written, verified, _ = set_flag(f, "off")
-                times[f"flag_off_write_{f['flag']}"] = iso(written)
-                log(f"{iid} flag off {f['flag']} after abort: verified {iso(verified)}")
+            run["containers"]["at_flag_on"] = container_count()
+            if infra:
+                run["target_ips"] = {"before": (_inspect(root) or {}).get("ips"), "after": None}
+                with signals_deferred():  # uygulanmış ama kaydı tutulmamış hata kalmasın
+                    flag_on_ns = mark(f"fault_on_{entry['fault']}")
+                    fault_state = run["fault_state"] = apply_fault(entry["fault"], root, entry["param"])
+                    log(f"{iid} fault {entry['fault']} on {root} ({entry['param']}): applied {fault_state['applied_ok']} "
+                        f"{json.dumps(fault_state['applied'])}")
+                if not fault_state["applied_ok"]:
+                    raise Invalid(f"fault not applied: {fault_state['applied']}")
+            for f in ([] if infra else [s]) + ([noise] if noise else []):
+                with signals_deferred():
+                    flags_on.append(f)
+                    written, verified, answer = set_flag(f, f["variant"])
+                    times[f"flag_on_write_{f['flag']}"], times[f"flag_on_verified_{f['flag']}"] = iso(written), iso(verified)
+                    log(f"{iid} flag on {f['flag']}={f['variant']}: verified {iso(verified)} {json.dumps(answer)}")
+                if verified is None:
+                    raise Invalid(f"flag on {f['flag']} not verified")
+                if f is s:
+                    flag_on_ns = written
+            label["answer"]["injection_start"] = iso(flag_on_ns)
+            wait(DRY_FAULT_S if dry else FLAG_S)
+            run["containers"]["at_flag_off"] = container_count()
+            for f in list(flags_on):
+                with signals_deferred():
+                    written, verified, answer = set_flag(f, "off")
+                    flags_on.remove(f)
+                    times[f"flag_off_write_{f['flag']}"], times[f"flag_off_verified_{f['flag']}"] = iso(written), iso(verified)
+                    log(f"{iid} flag off {f['flag']}: verified {iso(verified)} {json.dumps(answer)}")
                 if f is s:
                     flag_off_ns = written
-            except Exception as e:
-                log(f"{iid} flag off {f['flag']} after abort failed: {e}")
-        if fault_state and "exit" in (fault_state["applied"] or {}) and fault_state["reverted"] is None:
+                if verified is None:
+                    raise Invalid(f"flag off {f['flag']} not verified")
+            if infra:
+                with signals_deferred():
+                    flag_off_ns = mark(f"fault_off_{entry['fault']}")
+                    revert_fault(fault_state)
+                    run["target_ips"]["after"] = (fault_state["after"] or {}).get("ips")
+                    log(f"{iid} fault reverted: verified {fault_state['verified']} {json.dumps(fault_state['reverted'])}")
+                if not fault_state["verified"]:
+                    raise Invalid(f"cleanup not verified: {fault_state['reverted']} {fault_state['after']}")
+            label["answer"]["injection_end"] = iso(flag_off_ns)
+            wait(run["schedule"]["tail_s"] - (utc_ns() - flag_off_ns) / 1e9)
+            mark("tail_end")
+            run["suspended_s"] = round(sleep_offset_s() - slept_before, 1)
+
+            end_state = containers()
+            (work / "containers_end.txt").write_text(json.dumps(end_state, indent=1) + "\n")
+            target_restarts = not infra or entry["fault"] in ("containerStop", "containerPause", "memoryLimit")
+            expected = {root} if root and target_restarts else set()
+            run["restarts_in_window"], run["expected_restarts"] = split_restarts(start_state, end_state, expected)
+            reasons = []
+            if run["suspended_s"] > SUSPEND_MAX_S:
+                reasons.append(f"machine slept {run['suspended_s']} s between normal start and tail end")
+            if run["restarts_in_window"]:
+                reasons.append("unexpected restart/stop in window: "
+                               + ", ".join(e["container"] for e in run["restarts_in_window"]))
+            if reasons:
+                raise Invalid("; ".join(reasons))
+            label["valid"] = True
+        except Overheat as e:
+            run["overheat"] = True
+            label["invalid_reasons"].append(str(e))
+            log(f"{iid} INVALID: {e}")
+        except Invalid as e:
+            label["invalid_reasons"].append(str(e))
+            log(f"{iid} INVALID: {e}")
+        except Exception as e:  # beklenmeyen hata da kayda girer, demo kapatılır
+            label["invalid_reasons"].append(f"error: {type(e).__name__}: {e}")
+            log(f"{iid} ERROR: {type(e).__name__}: {e}")
+        finally:
             try:
-                flag_off_ns = flag_off_ns or utc_ns()
-                revert_fault(fault_state)
-                log(f"{iid} fault reverted after abort: verified {fault_state['verified']}")
-            except Exception as e:
-                log(f"{iid} fault revert after abort failed: {e}")
-        if "start" in times:
-            run["memory"] = {c: cgroup_memory(c) for c in ("jaeger", "otel-collector")}
-            if up_ns:  # Jaeger'in kendi Go yığını (collector üzerinden Prometheus'a gelir), demo açık kaldığı süre
-                heap = prom_max('otelcol_process_runtime_heap_alloc_bytes{job="jaeger"}', (utc_ns() - up_ns) / 1e9)
-                run["memory"]["jaeger_heap_peak_mib"] = round(heap / 2**20, 1) if heap is not None else None
-            if normal_ns:  # normal başından buraya (demo kapanmadan önce)
-                usec, t_start = jaeger_cpu_start
-                usec_end = _cpu_usec("jaeger")
-                run["memory"]["jaeger_cpu_avg_cores"] = (
-                    round((usec_end - usec) / 1e6 / (time.monotonic() - t_start), 3)
-                    if usec is not None and usec_end is not None and usec_end >= usec else None)
-                since = (utc_ns() - normal_ns) / 1e9
-                run["export_failures"] = {}
-                for k, qs in EXPORT_FAILURE_QUERIES.items():
-                    vals = [prom_increase(q, since) for q in qs]
-                    run["export_failures"][k] = None if None in vals else round(sum(vals), 1)
-            anon = anonymous_volumes()
-            if demo("down", log) == 0:
-                run["anonymous_volumes_removed"] = remove_volumes(anon)
-                log(f"{iid} anonymous volumes removed {run['anonymous_volumes_removed']}")
-            mark("demo_down")
-        monitor.stop_event.set()
-        if monitor.is_alive():
-            monitor.join(timeout=60)
-        run["max_pkg_temp_c"] = monitor.max_temp
-        run["memory"]["collector_sampled_peak_mib"] = monitor.peak_mem_mib
-        run["memory"]["jaeger_anon_peak_mib"] = monitor.jaeger_anon_peak_mib
-        run["memory"]["jaeger_swap_peak_mib"] = monitor.jaeger_swap_peak_mib
-        run["min_swap_free_gb"] = monitor.min_swap_free_gb
+                with signals_deferred():  # temizlik sinyalle kesilmez; ikinci sinyal kayda geçer
+                    for f in list(flags_on):
+                        try:
+                            written, verified, _ = set_flag(f, "off")
+                            times[f"flag_off_write_{f['flag']}"] = iso(written)
+                            log(f"{iid} flag off {f['flag']} after abort: verified {iso(verified)}")
+                            if f is s:
+                                flag_off_ns = written
+                        except Exception as e:
+                            log(f"{iid} flag off {f['flag']} after abort failed: {e}")
+                    if fault_state and "exit" in (fault_state["applied"] or {}) and fault_state["reverted"] is None:
+                        try:
+                            flag_off_ns = flag_off_ns or utc_ns()
+                            revert_fault(fault_state)
+                            log(f"{iid} fault reverted after abort: verified {fault_state['verified']}")
+                        except Exception as e:
+                            log(f"{iid} fault revert after abort failed: {e}")
+                    if "start" in times:
+                        run["memory"] = {c: cgroup_memory(c) for c in ("jaeger", "otel-collector")}
+                        if up_ns:  # Jaeger'in kendi Go yığını (collector üzerinden Prometheus'a gelir), demo açık kaldığı süre
+                            heap = prom_max('otelcol_process_runtime_heap_alloc_bytes{job="jaeger"}', (utc_ns() - up_ns) / 1e9)
+                            run["memory"]["jaeger_heap_peak_mib"] = round(heap / 2**20, 1) if heap is not None else None
+                        if normal_ns:  # normal başından buraya (demo kapanmadan önce)
+                            usec, t_start = jaeger_cpu_start
+                            usec_end = _cpu_usec("jaeger")
+                            run["memory"]["jaeger_cpu_avg_cores"] = (
+                                round((usec_end - usec) / 1e6 / (time.monotonic() - t_start), 3)
+                                if usec is not None and usec_end is not None and usec_end >= usec else None)
+                            since = (utc_ns() - normal_ns) / 1e9
+                            run["export_failures"] = {}
+                            for k, qs in EXPORT_FAILURE_QUERIES.items():
+                                vals = [prom_increase(q, since) for q in qs]
+                                run["export_failures"][k] = None if None in vals else round(sum(vals), 1)
+                        anon = anonymous_volumes()
+                        if demo("down", log) == 0:
+                            run["anonymous_volumes_removed"] = remove_volumes(anon)
+                            log(f"{iid} anonymous volumes removed {run['anonymous_volumes_removed']}")
+                        mark("demo_down")
+                    monitor.stop_event.set()
+                    if monitor.is_alive():
+                        monitor.join(timeout=60)
+                    run["max_pkg_temp_c"] = monitor.max_temp
+                    run["memory"]["collector_sampled_peak_mib"] = monitor.peak_mem_mib
+                    run["memory"]["jaeger_anon_peak_mib"] = monitor.jaeger_anon_peak_mib
+                    run["memory"]["jaeger_swap_peak_mib"] = monitor.jaeger_swap_peak_mib
+                    run["min_swap_free_gb"] = monitor.min_swap_free_gb
+
+            except Stopped as e:  # sinyal temizlik sırasında geldi: temizlik bitti, vaka durduruldu
+                label["valid"] = False
+                label["invalid_reasons"].append(str(e))
+                log(f"{iid} INVALID: {e} (during cleanup)")
+    except Stopped as e:  # except gövdesinde gelen ilk sinyal; temizlik yukarıda yapıldı
+        label["valid"] = False
+        label["invalid_reasons"].append(str(e))
+        log(f"{iid} INVALID: {e}")
+    if len(signals_deferred.signals) > 1:
+        label["invalid_reasons"].append(f"signals during cleanup (cleanup not interrupted): "
+                                       f"{signals_deferred.signals[1:]}")
+        log(f"{iid} signals during cleanup: {signals_deferred.signals[1:]}")
 
     if label["valid"]:
-        lo, hi = normal_ns - WINDOW_MARGIN_NS[0], flag_off_ns + run["schedule"]["tail_s"] * 10**9
-        label["window"] = {"start": iso(lo), "end": iso(hi)}
-        checks["coverage"] = cut_snapshot(lo, hi, work, snap, normal_ns)
-        mark("snapshot_cut")
-        short = [k for k, v in checks["coverage"].items() if not v["covered"]]
-        if short:
-            run["coverage_short"] = True
-            label["invalid_reasons"].append(f"window shortened by rotation: {short}")
         try:
-            findings = scan_model_view(snap)
-            checks["leakage"] = {"findings": len(findings), "first": [str(f) for f in findings[:5]]}
-        except LeakageInputError as e:
-            checks["leakage"] = {"findings": None, "error": str(e)}
-        if checks["leakage"]["findings"] != 0:
-            run["leakage_found"] = True
-            label["invalid_reasons"].append(f"leakage: {checks['leakage']}")
-        w = Window(flag_on_ns)
-        paths = sorted(snap.glob("*.jsonl"))
-        rows = cm.service_rows(summarize(paths, w)[0])
-        ops = ic.operation_rows([snap / "traces.jsonl"], w)
-        if root and infra and entry["fault"] in ("containerStop", "containerPause"):
-            # Hedefin kendi span'leri kesilir: belirti ve olay çağıranların hedefe giden istemci span'lerinde.
-            ips = tuple(sorted(set((run["target_ips"] or {}).get("before") or [])
-                               | set((run["target_ips"] or {}).get("after") or [])))
-            callers, rpcs = ic.caller_rows([snap / "traces.jsonl"], w, root, ips)
-            checks["symptom"] = {**ic.caller_symptom_check(callers, root), "matched_ips": list(ips),
-                                 "matched_rpc_services": rpcs}
-            checks["event"] = ic.event_check(checks["symptom"], rows)
-            if checks["event"]["applied"] and not checks["event"]["pass"]:
-                label["invalid_reasons"].append(f"no event: {checks['event']}")
-            if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
-                label["marks"].append(checks["symptom"]["verdict"])
-        elif root and infra and entry["fault"] in NETEM_WORD:
-            # Ağ hatası: hedefin kendisi ve çağıranları; güçlü olan karar verir. Olay hedefin kendi isteğiyle
-            # (DECISIONS 2026-10-27 "Ağ hatalarında belirti").
-            own = checks["symptom_target"] = ic.symptom_check(rows, ops, root)
-            ips = tuple(sorted(set((run["target_ips"] or {}).get("before") or [])
-                               | set((run["target_ips"] or {}).get("after") or [])))
-            callers, rpcs = ic.caller_rows([snap / "traces.jsonl"], w, root, ips)
-            checks["symptom_callers"] = {**ic.caller_symptom_check(callers, root), "matched_ips": list(ips),
-                                         "matched_rpc_services": rpcs}
-            checks["symptom"] = ic.stronger_symptom(own, checks["symptom_callers"])
-            checks["event"] = ic.event_check(own, rows)
-            if checks["event"]["applied"] and not checks["event"]["pass"]:
-                label["invalid_reasons"].append(f"no event: {checks['event']}")
-            if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
-                label["marks"].append(checks["symptom"]["verdict"])
-        elif root:
-            checks["symptom"] = ic.symptom_check(rows, ops, root)
-            checks["event"] = ic.event_check(checks["symptom"], rows)
-            if checks["event"]["applied"] and not checks["event"]["pass"]:
-                label["invalid_reasons"].append(f"no event: {checks['event']}")
-            if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
-                label["marks"].append(checks["symptom"]["verdict"])
-        checks["monitoring_health"] = ic.monitoring_health(snap / "metrics.jsonl", normal_ns, flag_off_ns)
-        run["snapshot_bytes"] = sum(f.stat().st_size for f in snap.iterdir())
-        label["valid"] = not label["invalid_reasons"]
-        if not label["valid"] and not dry:
-            shutil.move(snap, work / "model_view")  # geçersiz snapshot kökte kalmaz (sızıntılı olabilir)
-            log(f"{iid} INVALID after cut: {label['invalid_reasons']}; snapshot moved to {work / 'model_view'}")
-    run["duration_s"] = round(time.monotonic() - t0)
-    text = json.dumps(label, ensure_ascii=False, indent=1) + "\n"
-    (night / f"{iid}.json").write_text(text)
-    if label["valid"] and not dry:
-        INCIDENTS.mkdir(exist_ok=True)
-        (INCIDENTS / f"{iid}.json").write_text(text)
-    what = f"{entry['fault']}:{root}:{entry['param']}" if infra else entry["scenario"]
-    log(f"{iid} {what}: {'VALID' if label['valid'] else 'INVALID'} marks {label['marks']} "
-        f"symptom {checks.get('symptom', {}).get('verdict')} duration {run['duration_s']} s")
+            lo, hi = normal_ns - WINDOW_MARGIN_NS[0], flag_off_ns + run["schedule"]["tail_s"] * 10**9
+            label["window"] = {"start": iso(lo), "end": iso(hi)}
+            checks["coverage"] = cut_snapshot(lo, hi, work, snap, normal_ns)
+            mark("snapshot_cut")
+            short = [k for k, v in checks["coverage"].items() if not v["covered"]]
+            if short:
+                run["coverage_short"] = True
+                label["invalid_reasons"].append(f"window shortened by rotation: {short}")
+            try:
+                findings = scan_model_view(snap)
+                checks["leakage"] = {"findings": len(findings), "first": [str(f) for f in findings[:5]]}
+            except LeakageInputError as e:
+                checks["leakage"] = {"findings": None, "error": str(e)}
+            if checks["leakage"]["findings"] != 0:
+                run["leakage_found"] = True
+                label["invalid_reasons"].append(f"leakage: {checks['leakage']}")
+            w = Window(flag_on_ns)
+            paths = sorted(snap.glob("*.jsonl"))
+            rows = cm.service_rows(summarize(paths, w)[0])
+            ops = ic.operation_rows([snap / "traces.jsonl"], w)
+            if root and infra and entry["fault"] in ("containerStop", "containerPause"):
+                # Hedefin kendi span'leri kesilir: belirti ve olay çağıranların hedefe giden istemci span'lerinde.
+                ips = tuple(sorted(set((run["target_ips"] or {}).get("before") or [])
+                                   | set((run["target_ips"] or {}).get("after") or [])))
+                callers, rpcs = ic.caller_rows([snap / "traces.jsonl"], w, root, ips)
+                checks["symptom"] = {**ic.caller_symptom_check(callers, root), "matched_ips": list(ips),
+                                     "matched_rpc_services": rpcs}
+                checks["event"] = ic.event_check(checks["symptom"], rows)
+                if checks["event"]["applied"] and not checks["event"]["pass"]:
+                    label["invalid_reasons"].append(f"no event: {checks['event']}")
+                if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
+                    label["marks"].append(checks["symptom"]["verdict"])
+            elif root and infra and entry["fault"] in NETEM_WORD:
+                # Ağ hatası: hedefin kendisi ve çağıranları; güçlü olan karar verir. Olay hedefin kendi isteğiyle
+                # (DECISIONS 2026-10-27 "Ağ hatalarında belirti").
+                own = checks["symptom_target"] = ic.symptom_check(rows, ops, root)
+                ips = tuple(sorted(set((run["target_ips"] or {}).get("before") or [])
+                                   | set((run["target_ips"] or {}).get("after") or [])))
+                callers, rpcs = ic.caller_rows([snap / "traces.jsonl"], w, root, ips)
+                checks["symptom_callers"] = {**ic.caller_symptom_check(callers, root), "matched_ips": list(ips),
+                                             "matched_rpc_services": rpcs}
+                checks["symptom"] = ic.stronger_symptom(own, checks["symptom_callers"])
+                checks["event"] = ic.event_check(own, rows)
+                if checks["event"]["applied"] and not checks["event"]["pass"]:
+                    label["invalid_reasons"].append(f"no event: {checks['event']}")
+                if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
+                    label["marks"].append(checks["symptom"]["verdict"])
+            elif root:
+                checks["symptom"] = ic.symptom_check(rows, ops, root)
+                checks["event"] = ic.event_check(checks["symptom"], rows)
+                if checks["event"]["applied"] and not checks["event"]["pass"]:
+                    label["invalid_reasons"].append(f"no event: {checks['event']}")
+                if checks["symptom"]["verdict"] in ("no_symptom", "borderline", "not_measurable"):
+                    label["marks"].append(checks["symptom"]["verdict"])
+            checks["monitoring_health"] = ic.monitoring_health(snap / "metrics.jsonl", normal_ns, flag_off_ns)
+            run["snapshot_bytes"] = sum(f.stat().st_size for f in snap.iterdir())
+            label["valid"] = not label["invalid_reasons"]
+            if not label["valid"] and not dry:
+                shutil.move(snap, work / "model_view")  # geçersiz snapshot kökte kalmaz (sızıntılı olabilir)
+                log(f"{iid} INVALID after cut: {label['invalid_reasons']}; snapshot moved to {work / 'model_view'}")
+        except Stopped as e:  # snapshot kesimi ya da kontroller sırasında: geçersiz yolla aynı
+            label["valid"] = False
+            label["invalid_reasons"].append(str(e))
+            if snap.exists() and not dry:
+                shutil.move(snap, work / "model_view")
+            log(f"{iid} INVALID: {e} (during snapshot/checks); partial snapshot in {work}")
+    with signals_deferred():  # etiket yarım yazılmasın; burada gelen sinyal döngüde işlenir
+        run["duration_s"] = round(time.monotonic() - t0)
+        text = json.dumps(label, ensure_ascii=False, indent=1) + "\n"
+        (night / f"{iid}.json").write_text(text)
+        if label["valid"] and not dry:
+            INCIDENTS.mkdir(exist_ok=True)
+            (INCIDENTS / f"{iid}.json").write_text(text)
+        what = f"{entry['fault']}:{root}:{entry['param']}" if infra else entry["scenario"]
+        log(f"{iid} {what}: {'VALID' if label['valid'] else 'INVALID'} marks {label['marks']} "
+            f"symptom {checks.get('symptom', {}).get('verdict')} duration {run['duration_s']} s")
     return label
 
 
@@ -1373,11 +1531,6 @@ def cleanup_failed(label: dict) -> bool:
 
 
 def cmd_incidents(list_path: Path) -> int:
-    if os.environ.get("SCENARIO_RUNNER_INHIBITED") != "1":
-        env = dict(os.environ, SCENARIO_RUNNER_INHIBITED="1")
-        cmd = [*GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
-               "--who=aiops_rca scenario_runner", "--why=incident runs", sys.executable, *sys.argv]
-        return subprocess.run(cmd, env=env).returncode
     entries = json.loads(list_path.read_text(encoding="utf-8"))
     def bad(e: dict) -> bool:
         if e.get("noise_layer") and e["noise_layer"] not in BY_ID:
@@ -1411,42 +1564,87 @@ def cmd_incidents(list_path: Path) -> int:
         log_file.write(line + "\n")
         log_file.flush()
 
-    log(f"list {list_path} ({len(entries)} entries); versions {versions()}")
-    status, first = 0, True
-    for entry in entries:
-        g = guards()
-        if g["problems"]:
-            log(f"STOP before {entry}: guards: {'; '.join(g['problems'])}")
-            return 1
-        label = run_incident(entry, night, log, first)
-        first = False
-        if label["run"]["leakage_found"]:
-            log("STOP: leakage found (may be systematic); night stopped")
-            return 1
-        if cleanup_failed(label):
-            log("STOP: fault cleanup not verified (may affect the next incident); night stopped")
-            return 1
-        # Taban sağlık, ısınma ya da döndürme: bir kez daha (kart; C2 kuralı).
-        if label["run"]["baseline_failed"] or label["run"]["overheat"] or label["run"]["coverage_short"]:
-            if label["run"]["overheat"]:
-                log("overheat: waiting to cool, then one more attempt")
-                wait_cool()
+    # Durdurma: SIGTERM (systemctl stop) ve SIGINT (Ctrl-C) yarıdaki vakayı temizlik yolundan geçirir. Kapanma ya da
+    # oturumdan çıkışta temizlik kesilir (kullanıcı yöneticisi 5 sn verir); sonraki koşu kalıntı denetiminde başlamaz.
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, signals_deferred.handle)
+    # Uyku engelleri yan süreçte: koşucu ana süreç kalır, SIGTERM yalnız ona gider (birimde KillMode=mixed). Engel
+    # koşucu çıkana kadar durur (`tail --pid`), koşucu çökse bile kendiliğinden kalkar; ayrı oturum: Ctrl-C ona gitmez.
+    holder = None
+    try:
+        holder = subprocess.Popen([*GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
+                                   f"--who={INHIBIT_WHO}", f"--why={INHIBIT_WHY[0]}", "tail", f"--pid={os.getpid()}",
+                                   "-f", "/dev/null"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError as e:
+        log(f"inhibitor could not start: {e}")
+    end = time.monotonic() + 10
+    while time.monotonic() < end and not (inhibited() and gnome_inhibited()):
+        time.sleep(0.5)
+
+    def stop_code() -> int:
+        sigs = signals_deferred.signals
+        log(f"STOP: {sigs[0]} received; night stopped, no further incidents (signals {sigs})")
+        return 128 + signal.Signals[sigs[0]].value
+
+    try:
+        log(f"list {list_path} ({len(entries)} entries); versions {versions()}")
+        status, first = 0, True
+        for entry in entries:
             g = guards()
             if g["problems"]:
-                log(f"STOP before retry of {entry}: guards: {'; '.join(g['problems'])}")
+                log(f"STOP before {entry}: guards: {'; '.join(g['problems'])}")
                 return 1
-            label = run_incident(entry, night, log, False)
+            label = run_incident(entry, night, log, first)
+            first = False
+            if signals_deferred.signals:
+                return stop_code()
             if label["run"]["leakage_found"]:
                 log("STOP: leakage found (may be systematic); night stopped")
                 return 1
             if cleanup_failed(label):
                 log("STOP: fault cleanup not verified (may affect the next incident); night stopped")
                 return 1
-        if not label["valid"]:
-            status = 1
-    log("list done")
-    log_file.close()
-    return status
+            # Taban sağlık, ısınma ya da döndürme: bir kez daha (kart; C2 kuralı).
+            if label["run"]["baseline_failed"] or label["run"]["overheat"] or label["run"]["coverage_short"]:
+                if label["run"]["overheat"]:
+                    log("overheat: waiting to cool, then one more attempt")
+                    wait_cool()
+                g = guards()
+                if g["problems"]:
+                    log(f"STOP before retry of {entry}: guards: {'; '.join(g['problems'])}")
+                    return 1
+                label = run_incident(entry, night, log, False)
+                if signals_deferred.signals:
+                    return stop_code()
+                if label["run"]["leakage_found"]:
+                    log("STOP: leakage found (may be systematic); night stopped")
+                    return 1
+                if cleanup_failed(label):
+                    log("STOP: fault cleanup not verified (may affect the next incident); night stopped")
+                    return 1
+            if not label["valid"]:
+                status = 1
+        log("list done")
+        return status
+    except Stopped:  # vaka dışında (korumalar, bekleme) ya da etiket yazıldıktan sonra gelen sinyal
+        return stop_code()
+    finally:
+        # Engel zincirini koşucu kendisi kapatır: çıkışta birimde süreç kalmaz, systemd'nin son SIGKILL'i kimseye
+        # gitmez. Süreç grubu yetmez (gnome-session-inhibit çocuğunu ayrı grupta başlatır); oturum koşucunun açtığı
+        # oturumdur, içinde yalnız gnome-session-inhibit, systemd-inhibit ve tail var.
+        if holder is not None:
+            for pid in session_pids(holder.pid):
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+            end = time.monotonic() + 5
+            while time.monotonic() < end and (holder.poll() is None or session_pids(holder.pid)):
+                time.sleep(0.1)
+            if session_pids(holder.pid):
+                log(f"inhibitor processes still alive after 5 s: {session_pids(holder.pid)}")
+        log_file.close()
 
 
 def main(argv: list[str]) -> int:
