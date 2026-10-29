@@ -267,7 +267,7 @@ def test_swap_free_gb_reads_meminfo(monkeypatch):
 def test_swap_guard(monkeypatch, free, blocked):
     monkeypatch.setattr(sr, "swap_free_gb", lambda: free)
     for name, value in (("monitoring_gb", 1.0), ("snapshot_gb", 1.0), ("gnome_inhibited", True),
-                        ("pkg_temp_c", 40.0)):
+                        ("pkg_temp_c", 40.0), ("inhibited", True), ("leftovers", [])):
         monkeypatch.setattr(sr, name, lambda v=value: v)
     g = sr.guards()
     assert g["swap_free_gb"] == free
@@ -301,13 +301,21 @@ def test_prom_increase_empty_is_zero_error_is_none(monkeypatch, reply, want):
     assert sr.prom_increase("x_total", 600) == want
 
 
+def no_side_effects(monkeypatch):
+    """cmd_incidents'in süreç düzeyindeki yan etkileri: uyku engeli yan süreci, sinyal işleyicisi, engel listesi."""
+    monkeypatch.setattr(sr.subprocess, "Popen", lambda *a, **k: None)
+    monkeypatch.setattr(sr.signal, "signal", lambda *a, **k: None)
+    monkeypatch.setattr(sr, "inhibited", lambda: True)
+    monkeypatch.setattr(sr, "gnome_inhibited", lambda: True)
+
+
 # --- liste denetimi: frontend yalnız memoryLimit'te hedef olabilir (DECISIONS 2026-10-27, V2c bellek) ---
 
 @pytest.mark.parametrize("fault,param,want", [("memoryLimit", "0.9", 1), ("cpuThrottle", "0.1", 2),
                                               ("containerStop", "on", 2), ("networkDelay", "50ms", 2)])
 def test_frontend_target_only_for_memory(monkeypatch, tmp_path, fault, param, want):
     # Geçerli liste koruma adımına kadar gider (koruma burada durdurur: 1); reddedilen liste 2 döner.
-    monkeypatch.setenv("SCENARIO_RUNNER_INHIBITED", "1")
+    no_side_effects(monkeypatch)
     monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
     monkeypatch.setattr(sr, "versions", lambda: {})
     monkeypatch.setattr(sr, "guards", lambda: {"problems": ["test stop"]})
@@ -316,3 +324,262 @@ def test_frontend_target_only_for_memory(monkeypatch, tmp_path, fault, param, wa
     lst = tmp_path / "l.json"
     lst.write_text(json.dumps([{"fault": fault, "target": "frontend", "param": param, "noise_layer": None}]))
     assert sr.cmd_incidents(lst) == want
+
+
+# --- güvenli durdurma (DECISIONS 2026-10-29 "Gece koşusu için systemd birimi"): signals_deferred, Stopped ---
+
+import os  # noqa: E402
+import signal  # noqa: E402
+import threading  # noqa: E402
+import time  # noqa: E402
+
+
+@pytest.fixture
+def fresh_stop(monkeypatch):
+    monkeypatch.setattr(sr.signals_deferred, "signals", [])
+    monkeypatch.setattr(sr.signals_deferred, "depth", 0)
+    monkeypatch.setattr(sr.signals_deferred, "raised", False)
+
+
+def test_real_signal_in_protected_section_raises_on_exit(fresh_stop):
+    old = signal.signal(signal.SIGTERM, sr.signals_deferred.handle)
+    try:
+        reached_end = False
+        with pytest.raises(sr.Stopped, match="stopped by SIGTERM"):
+            with sr.signals_deferred():
+                os.kill(os.getpid(), signal.SIGTERM)
+                time.sleep(0.05)  # işleyici burada çalışır; yalnız not alır
+                reached_end = True
+        assert reached_end and sr.signals_deferred.signals == ["SIGTERM"]
+    finally:
+        signal.signal(signal.SIGTERM, old)
+
+
+def test_signal_outside_protected_section_raises_at_once(fresh_stop):
+    with pytest.raises(sr.Stopped, match="stopped by SIGINT"):
+        sr.signals_deferred.handle(signal.SIGINT, None)
+
+
+def test_signal_from_other_thread_still_deferred(fresh_stop):
+    # İşleyici hangi iş parçacığına düşerse düşsün Python'da ana iş parçacığında çalışır; bayrak yine tutar.
+    old = signal.signal(signal.SIGTERM, sr.signals_deferred.handle)
+    try:
+        with pytest.raises(sr.Stopped):
+            with sr.signals_deferred():
+                t = threading.Thread(target=lambda: os.kill(os.getpid(), signal.SIGTERM))
+                t.start()
+                t.join()
+                time.sleep(0.05)
+    finally:
+        signal.signal(signal.SIGTERM, old)
+
+
+def test_second_signal_noted_never_raised_twice(fresh_stop):
+    with pytest.raises(sr.Stopped):
+        sr.signals_deferred.handle(signal.SIGTERM, None)
+    with sr.signals_deferred():  # temizlik
+        sr.signals_deferred.handle(signal.SIGTERM, None)
+    sr.signals_deferred.handle(signal.SIGINT, None)  # korunan bölüm dışında da fırlatılmaz
+    assert sr.signals_deferred.signals == ["SIGTERM", "SIGTERM", "SIGINT"]
+
+
+def test_other_exception_kept_stop_left_pending(fresh_stop):
+    with pytest.raises(ValueError):
+        with sr.signals_deferred():
+            sr.signals_deferred.handle(signal.SIGTERM, None)
+            raise ValueError("x")
+    with pytest.raises(sr.Stopped):
+        sr.signals_deferred.check()
+
+
+class InstantEvent(threading.Event):
+    def wait(self, timeout=None):  # run_incident'in beklemeleri (ısınma, normal dönem) testte anında biter
+        return self.is_set()
+
+
+class DummyMonitor:
+    def __init__(self, *a):
+        self.hot, self.stop_event = InstantEvent(), threading.Event()
+        self.max_temp = self.peak_mem_mib = self.jaeger_anon_peak_mib = None
+        self.jaeger_swap_peak_mib = self.min_swap_free_gb = None
+
+    def start(self):
+        pass
+
+    def is_alive(self):
+        return False
+
+
+def fake_incident_world(monkeypatch, tmp_path, calls):
+    """run_incident'in dış dünyası: demo, Docker, Prometheus, flagd; çağrılar `calls`'a."""
+    for name, value in (("guards", {"problems": []}), ("versions", {}), ("container_count", sr.CONTAINERS),
+                        ("scheduler_state", "stopped"), ("containers", {}), ("_cpu_usec", 0),
+                        ("sleep_offset_s", 0.0), ("cgroup_memory", {}), ("prom_max", None), ("prom_increase", 0.0),
+                        ("anonymous_volumes", []), ("remove_volumes", {}), ("_inspect", {"ips": ["172.18.0.9"]})):
+        monkeypatch.setattr(sr, name, lambda *a, v=value, **k: v)
+    monkeypatch.setattr(sr, "Monitor", DummyMonitor)
+    monkeypatch.setattr(sr, "demo", lambda cmd, log, raw=True: calls.append(f"demo {cmd}") or 0)
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
+    for name in ("TELEMETRY", "SNAPSHOTS", "INCIDENTS"):
+        monkeypatch.setattr(sr, name, tmp_path / name.lower())
+    (tmp_path / "telemetry" / "filtered").mkdir(parents=True)
+
+    def revert(state):
+        calls.append("revert")
+        state.update(reverted={"exit": 0}, verified=True, after={"ips": ["172.18.0.9"]})
+        return state
+    monkeypatch.setattr(sr, "revert_fault", revert)
+
+
+PAUSE = {"fault": "containerPause", "target": "cart", "param": "on", "noise_layer": None, "dry": True}
+
+
+def run_stopped(tmp_path, monkeypatch):
+    night = tmp_path / "night"
+    night.mkdir()
+    lines = []
+    label = sr.run_incident(PAUSE, night, lines.append, False)
+    return label, lines, night
+
+
+def test_sigterm_while_applying_fault_reverts_and_downs(monkeypatch, tmp_path, fresh_stop):
+    calls = []
+    fake_incident_world(monkeypatch, tmp_path, calls)
+
+    def apply(fault, target, param):  # sinyal hata uygulanırken gelir: korunan bölüm, hata yine kaydedilir
+        sr.signals_deferred.handle(signal.SIGTERM, None)
+        calls.append("apply")
+        return {"fault": fault, "target": target, "param": param, "applied": {"exit": 0}, "applied_ok": True,
+                "reverted": None, "verified": None, "after": None}
+    monkeypatch.setattr(sr, "apply_fault", apply)
+    label, lines, night = run_stopped(tmp_path, monkeypatch)
+    assert calls == ["demo up", "apply", "revert", "demo down"]
+    assert not label["valid"] and label["invalid_reasons"] == ["stopped by SIGTERM"]
+    assert (night / f"{label['incident_id']}.json").exists() and not (tmp_path / "incidents").exists()
+
+
+def test_sigterm_while_waiting_downs_without_fault(monkeypatch, tmp_path, fresh_stop):
+    calls = []
+    fake_incident_world(monkeypatch, tmp_path, calls)
+    monkeypatch.setattr(sr, "scheduler_state", lambda: sr.signals_deferred.handle(signal.SIGTERM, None))
+    monkeypatch.setattr(sr, "apply_fault", lambda *a: pytest.fail("fault must not be applied"))
+    label, lines, _ = run_stopped(tmp_path, monkeypatch)
+    assert calls == ["demo up", "demo down"] and label["invalid_reasons"] == ["stopped by SIGTERM"]
+
+
+def test_second_signal_during_cleanup_recorded(monkeypatch, tmp_path, fresh_stop):
+    calls = []
+    fake_incident_world(monkeypatch, tmp_path, calls)
+    monkeypatch.setattr(sr, "scheduler_state", lambda: sr.signals_deferred.handle(signal.SIGTERM, None))
+    monkeypatch.setattr(sr, "demo", lambda cmd, log, raw=True: (
+        calls.append(f"demo {cmd}"), cmd == "down" and sr.signals_deferred.handle(signal.SIGINT, None))[0] or 0)
+    label, lines, _ = run_stopped(tmp_path, monkeypatch)
+    assert calls == ["demo up", "demo down"]  # ikinci sinyal temizliği kesmedi
+    assert label["invalid_reasons"] == ["stopped by SIGTERM",
+                                        "signals during cleanup (cleanup not interrupted): ['SIGINT']"]
+
+
+def test_first_signal_during_cleanup_finishes_cleanup(monkeypatch, tmp_path, fresh_stop):
+    # Vaka başka sebeple biter (zamanlayıcı açık), ilk sinyal temizlikte (`down`) gelir: temizlik sonuna kadar gider.
+    calls = []
+    fake_incident_world(monkeypatch, tmp_path, calls)
+    monkeypatch.setattr(sr, "scheduler_state", lambda: "running")
+    monkeypatch.setattr(sr, "demo", lambda cmd, log, raw=True: (
+        calls.append(f"demo {cmd}"), cmd == "down" and sr.signals_deferred.handle(signal.SIGTERM, None))[0] or 0)
+    label, lines, _ = run_stopped(tmp_path, monkeypatch)
+    assert "demo_down" in label["run"]["times"]
+    assert label["invalid_reasons"] == ["flagd-ui scheduler running", "stopped by SIGTERM"]
+
+
+def test_stop_ends_night_with_signal_code(monkeypatch, tmp_path, fresh_stop):
+    no_side_effects(monkeypatch)
+    monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
+    monkeypatch.setattr(sr, "versions", lambda: {})
+    monkeypatch.setattr(sr, "guards", lambda: {"problems": []})
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
+    ran = []
+
+    def one(entry, night, log, first):
+        ran.append(entry["target"])
+        with sr.signals_deferred():  # vaka içinde durduruldu, temizlendi, etiket yazıldı
+            sr.signals_deferred.handle(signal.SIGTERM, None)
+        return {"valid": False, "run": {"leakage_found": False, "fault_state": None, "baseline_failed": True,
+                                        "overheat": False, "coverage_short": False}}
+
+    def one_safe(*a):
+        try:
+            return one(*a)
+        except sr.Stopped:
+            return {"valid": False, "run": {"leakage_found": False, "fault_state": None, "baseline_failed": True,
+                                            "overheat": False, "coverage_short": False}}
+    monkeypatch.setattr(sr, "run_incident", one_safe)
+    lst = tmp_path / "l.json"
+    lst.write_text(json.dumps([dict(PAUSE, target="cart"), dict(PAUSE, target="quote")]))
+    assert sr.cmd_incidents(lst) == 128 + signal.SIGTERM
+    assert ran == ["cart"]  # sıradaki vakaya ve taban sağlık tekrarına geçilmedi
+
+
+def test_stop_between_incidents_returns_signal_code(monkeypatch, tmp_path, fresh_stop):
+    no_side_effects(monkeypatch)
+    monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
+    monkeypatch.setattr(sr, "versions", lambda: {})
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
+    monkeypatch.setattr(sr, "guards", lambda: sr.signals_deferred.handle(signal.SIGINT, None))
+    monkeypatch.setattr(sr, "run_incident", lambda *a: pytest.fail("must not run"))
+    lst = tmp_path / "l.json"
+    lst.write_text(json.dumps([PAUSE]))
+    assert sr.cmd_incidents(lst) == 128 + signal.SIGINT
+
+
+# --- kalıntı ve uyku engeli denetimi ---
+
+def guards_with(monkeypatch, left):
+    monkeypatch.setattr(sr, "swap_free_gb", lambda: 3.0)
+    for name, value in (("monitoring_gb", 1.0), ("snapshot_gb", 1.0), ("gnome_inhibited", True),
+                        ("pkg_temp_c", 40.0), ("inhibited", True), ("leftovers", left)):
+        monkeypatch.setattr(sr, name, lambda v=value: v)
+    return [p for p in sr.guards()["problems"] if p.startswith("leftover")]
+
+
+def test_leftovers_block_start_with_cleanup_command(monkeypatch):
+    left = [{"name": "cart", "state": "running", "paused": True, "nano_cpus": 0},
+            {"name": "aiops-netem", "state": "exited", "paused": False, "nano_cpus": 0},
+            {"name": "recommendation", "state": "running", "paused": False, "nano_cpus": 30_000_000}]
+    (p,) = guards_with(monkeypatch, left)
+    assert "cart (running, paused)" in p and "recommendation (running, cpu limit)" in p
+    assert p.endswith("clean up by hand: docker unpause cart; docker rm -f aiops-netem; tools/otel_demo.sh down")
+    assert guards_with(monkeypatch, []) == []
+    assert guards_with(monkeypatch, None) == ["leftover check failed (docker ps)"]
+
+
+def test_leftovers_reads_demo_project_and_netem(monkeypatch):
+    seen = []
+
+    def fake(cmd, **k):
+        seen.append(cmd)
+        if cmd[:2] == ["docker", "ps"]:
+            out = "a1\nb2\n" if "otel-demo" in cmd[-1] else "c3\n"
+        else:
+            out = "/cart\trunning\ttrue\t0\n/quote\texited\tfalse\t0\n/aiops-netem\trunning\tfalse\t0\n"
+        return sr.subprocess.CompletedProcess(cmd, 0, out, "")
+    monkeypatch.setattr(sr.subprocess, "run", fake)
+    got = sr.leftovers()
+    assert [c["name"] for c in got] == ["aiops-netem", "cart", "quote"] and got[1]["paused"]
+    assert ["label=com.docker.compose.project=otel-demo", "name=^aiops-netem$"] == [c[-1] for c in seen[:2]]
+
+
+LIST_OURS = ("aiops_rca scenario_runner    1000 eren 1737589 systemd-inhibit sleep:idle:handle-lid-switch"
+             "        incident runs        block\n")
+
+
+@pytest.mark.parametrize("out,want", [
+    (LIST_OURS, True),
+    (LIST_OURS.replace("incident runs", "something else"), False),   # neden metni bizimki değil
+    (LIST_OURS.replace("scenario_runner", "storage_check").replace("incident runs", "storage card watch"), True),
+    (LIST_OURS.replace("aiops_rca", "otherapp"), False),
+    (LIST_OURS.replace("block", "delay"), False),
+    (LIST_OURS.replace("sleep:idle:handle-lid-switch", "idle"), False),
+    ("ModemManager 0 root 1115 ModemManager sleep ModemManager needs to reset devices delay\n", False)])
+def test_inhibited_matched_by_our_reason(monkeypatch, out, want):
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, out, ""))
+    assert sr.inhibited() is want

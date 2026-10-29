@@ -1,0 +1,25 @@
+# Gece koşusu (vaka üretimi) birim şablonu (DECISIONS 2026-10-29 "Gece koşusu için systemd birimi").
+# Örnek adı = liste adı: aiops-incidents@quote_gateway_leak → incident_lists/quote_gateway_leak.json.
+#   kurulum (bir kez):  systemctl --user link ~/cerebrum2/aiops_rca/deploy/systemd/aiops-incidents@.service
+#   başlatma:           systemctl --user start aiops-incidents@<ad>     (Eren başlatır; zamanlayıcı yok)
+#   güvenli durdurma:   systemctl --user stop aiops-incidents@<ad>
+#   durum ve günlük:    systemctl --user status aiops-incidents@<ad>; journalctl --user -u aiops-incidents@<ad>;
+#                       gece klasöründe runner.log (~/cerebrum2/incident_runs/<UTC>-<ad>/)
+# Koşucu ana süreçtir; uyku engellerini (systemd-inhibit, gnome-session-inhibit) yan süreçte kendisi alır ve o süreç
+# koşucu çıkana kadar durur. KillMode=mixed: SIGTERM yalnız koşucuya gider; koşucu yarıdaki vakayı temizler (hata geri
+# alınır, flag kapanır, demo kapanır) ve 143 ile çıkar, birim "failed" görünür. Kalanlar TimeoutStopSec sonunda SIGKILL.
+# Oturum kapanırsa kullanıcı birimleri durur (linger yok; Eren oturumu açık bırakır).
+
+[Unit]
+Description=aiops_rca incident runs: incident_lists/%i.json
+
+[Service]
+Type=exec
+WorkingDirectory=%h/cerebrum2/aiops_rca
+ExecStart=%h/cerebrum2/aiops_rca/.venv/bin/python tools/scenario_runner.py incidents incident_lists/%i.json
+Restart=no
+KillMode=mixed
+KillSignal=SIGTERM
+# Temizliğin en uzun süresine göre (HANDOFF 2026-10-29 systemd c): ölçülen temizlik 36–43 sn (hata ve flag yok);
+# canlı ölçümle kesinleşir.
+TimeoutStopSec=300
