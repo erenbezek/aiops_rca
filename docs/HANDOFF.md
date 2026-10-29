@@ -2244,3 +2244,15 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Ayrılan 6 birimden 2 geçerli (networkDelay quote, cpuThrottle recommendation). 2. gecedeki 4'ünden (packetLoss currency, containerPause quote, containerStop currency, quoteGatewayMemoryLeak 384kb) en az 2'si geçerli olmalı.
 - 2. gece öncesi makine (22:20 yerel): şarj sınırı 80, boş swap 2,85 GB, izleme 21,81 GB (gece sonu tahmini 31,72 < 40), snapshot 15,29 GB (tahmini ~20,7 < 30), boş disk 248,62 GB. Priz o an takılı değildi (koşucu korumada durur); Eren takar.
 - Sıradaki: Eren 2. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night2`). Gece sonunda uygulama raporu aynı ölçütlerle, sonra planlama kontrolü.
+
+## 2026-10-29 · Planlama → Uygulama (V3b 2. gece iki parça)
+- Neden: DECISIONS 2026-10-29 "2. gece iki parçada". Ölçüm protokolü değişmez, yalnız liste bölünür (Eren: 15 + 5).
+- Yapılacak:
+  1. `incident_lists/v3_night2a.json` = `v3_night2.json`'un 1–15. girişleri; `v3_night2b.json` = 16–20. girişleri. Girişler ve sıra aynı. `v3_night2.json` kalır (kart tablosunun listesi; kendisi koşulmaz).
+  2. `tests/test_v3_lists.py`'e test: `v3_night2a` + `v3_night2b` giriş giriş `v3_night2`'ye eşit. Mevcut testlerin anlamı değişmez.
+  3. GLOSSARY (Eren onaylı): `v3_night2a` → 2. gece listesinin ilk parçası (15 vaka); `v3_night2b` → kalan parçası (5 vaka). Mevcut V3 liste satırına eklenebilir.
+  4. Koşucuya ve birime dokunulmaz. HANDOFF kısa kayıt; commit + push `task/vaka-v3`.
+  5. Makine kontrolü: priz, şarj sınırı 80, boş swap ≥ 2 GB, demo kapalı, birim boşta. Sonra Eren `systemctl --user start aiops-incidents@v3_night2a`.
+- Bitti sayılır: iki dosya var, art arda `v3_night2`; pytest hepsi geçer; makine hazır.
+- Parçalar arası: 1. parça "list done" ile ve çıkış 0 ile bittiyse Eren 2. parçayı başlatır (`aiops-incidents@v3_night2b`). 2. parça sırasında makine boşta kalır. STOP ile bittiyse 2. parça başlamaz, planlama.
+- Rapor: iki parça bitince tek "2. gece" raporu (iki gece klasörü), kartın V3b ölçütleriyle. Geçerli ≥ 16/20 toplamda; test için yalnız otomatik kontroller. Liste başı korumaları her parçada ayrı çalışır.

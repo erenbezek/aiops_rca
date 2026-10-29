@@ -86,4 +86,4 @@ Kendi Python servisi quote-gateway yapıldı (`task/quote-gateway`, 2026-10-29):
 Gece koşusu systemd biriminde (`task/systemd-unit`, 2026-10-29): `systemctl --user start aiops-incidents@<liste>`; `systemctl stop`'ta temizlenir, canlıda geçti (~65 sn, SIGKILL yok); kapanmada kesilir, sonraki koşu başlamaz (kalıntı denetimi).
 V3 resmî set sürüyor (`task/vaka-v3`, kart HANDOFF 2026-10-29): 40 vaka (19 dev / 21 test), iki gece. V3a hazırlık bitti (`heldout`, sınırlar, flag kategorileri, listeler). 1. gece 20/20 geçerli (bir taban sağlık yeniden denemesiyle), sızıntı 0, Jaeger temiz. Etiketler `incidents/`'ta.
 1. gece planlamada kontrol edildi (rapor birebir tuttu).
-Sıradaki: 2. gece (`v3_night2`); gerekirse V3c telafi listesi.
+Sıradaki: 2. gece iki parçada (`v3_night2a` 15 vaka bu gece, `v3_night2b` 5 vaka ertesi gün); gerekirse V3c telafi listesi.
