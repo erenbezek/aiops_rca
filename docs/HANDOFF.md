@@ -2059,3 +2059,36 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - PROJECT bitti ölçütleri: "En az 30 vakalık snapshot seti" ve "Vaka çeşitliliği" satırları kanıtla (etiket sayıları). INCIDENT_CATALOG'a V3 bileşim özeti ve destek etiketleri. ARCHITECTURE gerekmiyorsa dokunma.
 - PR açıklaması sade; push'tan önce PR durumuna bak. PR planlama kontrolünden sonra.
 - Kapsam dışı: değerlendirme (modele ne verileceği, Proje 1 yükleyicisi; yükleyici `heldout` ve `test`'i geliştirmede okumayacak, o kartta), yeni hata tipi ya da yeni çift kalibrasyonu, 03:00 taban düşüşünün araştırılması (tekrarlarsa rapora).
+
+## 2026-10-29 · Planlama → Uygulama (V3a 3: kategori kararı)
+- 3. madde kontrol edildi:
+  - Betik önceden yazılı kurala uyuyor.
+  - Planlama 5 vakayı (recommendationCacheFailure, productCatalogLockContention, intlShippingSlowdown, emailMemoryLeak, adManualGc) repo kodunu kullanmadan saydı; zincir servislerinde sayılar aynı.
+  - `.out` sha256 rapordakiyle aynı.
+  - Raporda iki küçük hata: farklı çıkan senaryo 6 (5 değil); recommendationCacheFailure'da cascading de eksikti.
+- Karar (Eren onaylı; DECISIONS 2026-10-29 "Flag kategorileri" ve bileşim düzeltmesi):
+
+| Senaryo | Kategori |
+|---|---|
+| adFailure | cascading |
+| adHighCpu | silent |
+| adManualGc | cascading, silent |
+| cartFailure %50 | cascading, partial |
+| emailMemoryLeak 1000x | cascading, silent |
+| intlShippingSlowdown 10sec | cascading, silent, partial |
+| paymentFailure %50 | cascading, noisy |
+| paymentUnreachable | cascading |
+| productCatalogFailure | cascading, partial |
+| productCatalogLockContention | cascading, silent |
+| recommendationCacheFailure | cascading |
+
+  - `noise_layer`'lı vaka = senaryonun kategorileri + `noisy`.
+  - Bileşim değişmedi; testte dört kategori de var.
+- 4. maddede:
+  - `SCENARIOS`, INCIDENT_CATALOG flag tablosu (kategori sütunu ve kanıt), `test_catalog.py`.
+  - Katalogda productCatalogLockContention ve recommendationCacheFailure satırlarına not: frontend-proxy (ve LockContention'da frontend-web) hata span'leri var, zincir dışı.
+  - 14 pilot flag etiketinin `answer.categories`'i geriye dönük güncellenir; flood'lu ikisine `noisy`. Değişen etiketler rapora.
+  - Koşucu `noise_layer`'lı vakaya `noisy` ekler (+ test).
+  - Kanıt kaydı (betiğin yolu, iki sha256, özet tablo) uygulamanın 4. madde HANDOFF kaydında.
+  - `~/cerebrum2/analysis/` onaylı (Eren); GLOSSARY'ye.
+  - Listeler kartın 5. adımındaki gibi. Rapor ver ve dur.
