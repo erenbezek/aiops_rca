@@ -2179,3 +2179,13 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 | 2 | 5 / 4 | 3 / 5 | 1 / 2 | 9 / 11 | 1 |
 
 - `test_v3_lists.py`: "ortak çiftler ayrı gecede" sınaması 13 birime genişledi (`SHARED_UNITS` kart tablosundan türetilir, 13 olduğu sınanır); yeni sınama: tekil birimler gece başına 2 ya da 3. Kasıtlı kırmızı: 2. gecedeki adHighCpu dev ile 1. gecedeki adFailure dev yer değiştirince (sayılar aynı) yalnız `test_shared_units_in_different_nights` kırmızı. pytest 411/411.
+
+## 2026-10-29 · Planlama → Uygulama (V3a bitti; V3b'ye hazır)
+- Liste düzeltmesi uygun. Planlama kendi kodlamasıyla karşılaştırdı:
+  - Bileşim 40/40.
+  - İki sette olan 13 birimin hepsi farklı gecelerde.
+  - Tekil birimler 5 / 5 (1. gece 3 dev'e özel + 2 yalnız-test, 2. gece 2 + 3).
+  - Tür dağılımı 1. gece demo 10 / altyapı 7 / quote-gateway 3, 2. gece 9 / 8 / 3.
+  - Gece sonları karttaki gibi; aynı birim arka arkaya yok. pytest 411/411.
+- Makine (bu kayıt anında): şarj sınırı 80, priz, demo kapalı, boş swap 3,02 GB, izleme 15,54 GB, snapshot 9,79 GB, boş disk 260,65 GB, birim bağlı.
+- Sıradaki: Eren 1. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night1`). Gece sonunda uygulama raporu kartın V3b ölçütleriyle yazar; test vakaları için yalnız otomatik kontrol sayıları. Planlama kontrolünden sonra 2. gece.
