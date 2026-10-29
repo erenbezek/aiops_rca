@@ -2189,3 +2189,43 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Gece sonları karttaki gibi; aynı birim arka arkaya yok. pytest 411/411.
 - Makine (bu kayıt anında): şarj sınırı 80, priz, demo kapalı, boş swap 3,02 GB, izleme 15,54 GB, snapshot 9,79 GB, boş disk 260,65 GB, birim bağlı.
 - Sıradaki: Eren 1. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night1`). Gece sonunda uygulama raporu kartın V3b ölçütleriyle yazar; test vakaları için yalnız otomatik kontrol sayıları. Planlama kontrolünden sonra 2. gece.
+
+## 2026-10-29 · Uygulama → Planlama (V3b 1. gece)
+- Koşu: `aiops-incidents@v3_night1`, 05:51–16:45 yerel (02:51Z–13:45Z), repo `d5abaff`. Gece klasörü `~/cerebrum2/incident_runs/20261029T0251Z-v3_night1/`. Birim çıkışı 0.
+- Rapor betiği repo dışında, salt okur (etiketlerden; test snapshot'ı açılmaz). Betik `v3b_night_report.py`, sha256 `2bd7bdb1d7bd14b7d1256a5e1a9115976d85407a051708ccc97303b656014926`. Çıktı sha256 `e801326ec1158d29cf22d0da504c8bb6ca7b2202520c4be0ceb087bf3d8a6154`.
+- Kart ölçütleri:
+
+| Ölçüt | Sonuç |
+|---|---|
+| Her vaka geçerli/geçersiz ve sebebiyle kayıtlı | ✓ 21 deneme, 20 giriş |
+| Geçerli oran ≥ 16/20 | ✓ 20/20 giriş (denemelere göre 20/21) |
+| Sızıntı 0 | ✓ 0 |
+| Jaeger: OOM / yeniden başlama / gönderim hatası / reddedilen | ✓ 0 / 0 / 0 / 0, her vakada |
+| Belirtisiz ya da sınırda geçerli vaka | dev 0, test 0 |
+
+- Tek geçersiz deneme: `inc-3bcdff8e` (test, containerStop recommendation).
+  - Sebep: taban sağlık, frontend p95 ölçülemedi (`None`).
+  - Ölçüm 06:45:45Z'de. Süzülmüş traces dosyası 06:45:46,4Z'de döndü (`traces-2026-10-29T06-45-46.403-size.jsonl`). Koşucu dosya listesini aldıktan sonra `traces.jsonl` yeni ve boş dosyaya dönmüş olmalı. Diğer 20 vakada taban p95 23,8–29,2 ms (sınır 50,6).
+  - Koşucu kurala göre bir kez daha denedi: `inc-4508a3f4` geçerli.
+  - **Açık not (planlama karar verir):** taban ölçümü dosya döndürmesiyle yarışabiliyor. Bu yarış daha önce kayıtlı değil. Bedeli şimdilik bir yeniden deneme (~18 dk). Koda dokunulmadı.
+  - Geçersiz etiket tasarım gereği yalnız gece klasöründe, repoya girmedi.
+- Dev (10/10 geçerli, hepsi `symptomatic`, işaret 0). `deciding`: service 6, caller 2, operation 2.
+
+| Vaka | Giriş | Karar (düzey, sinyal, güç) | Kategoriler |
+|---|---|---|---|
+| `inc-ac820869` | paymentFailure 50% | service error_rate 12,31 | cascading, noisy |
+| `inc-5cb2c977` | packetLoss shipping 10% | caller POST p99 123,99 | cascading, silent |
+| `inc-4a62b9bb` | productCatalogLockContention | operation ListProducts p99 1478,27 | cascading, silent |
+| `inc-0c4902c3` | adFailure | service new_warn_log 3,2 | cascading |
+| `inc-234d34cf` | paymentUnreachable | service error_rate 20,0 | cascading |
+| `inc-b4d12a5e` | quoteGatewaySlowdown 30ms | service p95 1,53 | cascading, silent |
+| `inc-d9ea423d` | intlShippingSlowdown 10sec | operation POST /ship-order p99 500,12 | cascading, silent, partial |
+| `inc-73ac64e9` | networkDelay cart 50ms | caller EmptyCart p99 10,48 | cascading, silent |
+| `inc-bfbbd586` | recommendationCacheFailure | service p99 39,10 | cascading |
+| `inc-ae15665a` | quoteGatewaySlowdown 30ms + flood | service p99 1,5 | cascading, silent, noisy |
+
+- Test: 11 deneme, 10 geçerli. `verdict` symptomatic 10; `deciding.level` service 4, operation 3, caller 3; işaret 0; belirtisiz/sınırda 0. Geçerli vakalar: `inc-d3869549`, `a519be4f`, `4508a3f4`, `e4d29c6d`, `402b4b2d`, `810ca9d1`, `240a614f`, `e763eeaf`, `6a0eb829`, `7d5db017`.
+- Gece boyu tepe değerler (kayıt): Jaeger swap tepesi en çok 1228,5 MiB; Go yığını tepesi en çok 4044,1 MiB; en düşük boş swap 1,82 GB; tepe sıcaklık 81 °C. Vaka süresi 1761–2043 sn.
+- Repo: 20 geçerli etiket `incidents/`'a eklendi (gece klasöründekilerle birebir aynı). pytest 411/411.
+- Makine (16:46 yerel): boş swap 2,84 GB, izleme 21,44 GB (son vaka başında), snapshot 15,29 GB, şarj sınırı 80. 2. gece tahmini: izleme ~31,4 GB (sınır 40), snapshot ~20,5 GB (sınır 30).
+- Sıradaki: planlama kontrolü, sonra Eren 2. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night2`).
