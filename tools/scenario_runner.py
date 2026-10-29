@@ -1547,11 +1547,12 @@ def cmd_incidents(list_path: Path) -> int:
         signal.signal(sig, signals_deferred.handle)
     # Uyku engelleri yan süreçte: koşucu ana süreç kalır, SIGTERM yalnız ona gider (birimde KillMode=mixed). Engel
     # koşucu çıkana kadar durur (`tail --pid`), koşucu çökse bile kendiliğinden kalkar; ayrı oturum: Ctrl-C ona gitmez.
+    holder = None
     try:
-        subprocess.Popen([*GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
-                          f"--who={INHIBIT_WHO}", f"--why={INHIBIT_WHY[0]}", "tail", f"--pid={os.getpid()}", "-f",
-                          "/dev/null"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, start_new_session=True)
+        holder = subprocess.Popen([*GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
+                                   f"--who={INHIBIT_WHO}", f"--why={INHIBIT_WHY[0]}", "tail", f"--pid={os.getpid()}",
+                                   "-f", "/dev/null"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
         log(f"inhibitor could not start: {e}")
     end = time.monotonic() + 10
@@ -1606,6 +1607,21 @@ def cmd_incidents(list_path: Path) -> int:
     except Stopped:  # vaka dışında (korumalar, bekleme) ya da etiket yazıldıktan sonra gelen sinyal
         return stop_code()
     finally:
+        # Engel grubunu koşucu kendisi kapatır (ayrı oturum: grup yalnız gnome-session-inhibit, systemd-inhibit, tail);
+        # çıkışta birimde süreç kalmaz, systemd'nin son SIGKILL'i kimseye gitmez.
+        if holder is not None:
+            try:
+                os.killpg(holder.pid, signal.SIGTERM)
+                end = time.monotonic() + 5
+                while time.monotonic() < end:
+                    holder.poll()
+                    os.killpg(holder.pid, 0)
+                    time.sleep(0.1)
+                log("inhibitor group still alive after 5 s")
+            except ProcessLookupError:
+                pass
+            except OSError as e:
+                log(f"inhibitor group could not be stopped: {e}")
         log_file.close()
 
 

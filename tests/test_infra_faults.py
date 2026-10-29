@@ -531,6 +531,33 @@ def test_stop_between_incidents_returns_signal_code(monkeypatch, tmp_path, fresh
     assert sr.cmd_incidents(lst) == 128 + signal.SIGINT
 
 
+def test_runner_closes_inhibitor_group_on_exit(monkeypatch, tmp_path, fresh_stop):
+    # Birimde süreç kalmasın: koşucu çıkarken engel grubuna (ayrı oturum) SIGTERM gönderir.
+    no_side_effects(monkeypatch)
+
+    class Holder:
+        pid = 4242
+
+        def poll(self):
+            return None
+    monkeypatch.setattr(sr.subprocess, "Popen", lambda *a, **k: Holder())
+    sent = []
+
+    def killpg(pid, sig):
+        sent.append((pid, sig))
+        if sig == 0:
+            raise ProcessLookupError
+    monkeypatch.setattr(sr.os, "killpg", killpg)
+    monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
+    monkeypatch.setattr(sr, "versions", lambda: {})
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
+    monkeypatch.setattr(sr, "guards", lambda: {"problems": ["test stop"]})
+    lst = tmp_path / "l.json"
+    lst.write_text(json.dumps([PAUSE]))
+    assert sr.cmd_incidents(lst) == 1
+    assert sent == [(4242, signal.SIGTERM), (4242, 0)]
+
+
 # --- kalıntı ve uyku engeli denetimi ---
 
 def guards_with(monkeypatch, left):
