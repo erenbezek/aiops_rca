@@ -49,6 +49,8 @@ var olan temizlik yolundan geçilir (hata geri alınır, flag kapanır, demo kap
 uygulama, flag açma/kapama, geri alma, temizlik ve etiket yazımı korunan bölümdedir (`signals_deferred`): orada gelen
 sinyal yalnız not edilir, bölüm bitince işlenir; temizlik sırasında gelen ikinci sinyal temizliği kesmez, kayda geçer.
 Snapshot kesimi sırasında gelen durdurmada yarım snapshot, geçersiz vakalardaki gibi gece klasörüne taşınır.
+Kapanma ya da oturumdan çıkış: SIGTERM gelir ama temizlik yarıda kesilir (kullanıcı yöneticisi kapanışta 5 sn verir: /usr/lib/systemd/system/user@.service.d/timeout.conf); kalıntı
+kalabilir, sonraki koşu kalıntı denetiminde başlamaz, elle temizlenir.
 Başlangıç kontrolü: demo konteyneri ya da `aiops-netem` yardımcı konteyneri varsa (kalıntı: duraklatılmış konteyner,
 CPU sınırı, netem kuralı konteynerle yaşar) koşu başlamaz; elle temizlik komutu yazılır, koşucu silmez.
 
@@ -203,7 +205,10 @@ class Overheat(Invalid):
 
 
 class Stopped(Invalid):
-    """Koşu SIGTERM ya da SIGINT ile durduruldu (systemctl stop, kapanma, Ctrl-C); vaka bu sebeple geçersiz."""
+    """Koşu SIGTERM ya da SIGINT ile durduruldu (systemctl stop, Ctrl-C); vaka bu sebeple geçersiz.
+
+    Kapanma ya da oturumdan çıkışta da SIGTERM gelir, ama temizlik yarıda kesilir (kullanıcı yöneticisi kapanışta 5 sn verir: /usr/lib/systemd/system/user@.service.d/timeout.conf);
+    demoda kalıntı kalabilir, sonraki koşu kalıntı denetiminde başlamaz."""
 
 
 class signals_deferred:
@@ -1559,7 +1564,8 @@ def cmd_incidents(list_path: Path) -> int:
         log_file.write(line + "\n")
         log_file.flush()
 
-    # Durdurma: SIGTERM (systemctl stop, kapanma) ve SIGINT (Ctrl-C) yarıdaki vakayı temizlik yolundan geçirir.
+    # Durdurma: SIGTERM (systemctl stop) ve SIGINT (Ctrl-C) yarıdaki vakayı temizlik yolundan geçirir. Kapanma ya da
+    # oturumdan çıkışta temizlik kesilir (kullanıcı yöneticisi 5 sn verir); sonraki koşu kalıntı denetiminde başlamaz.
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, signals_deferred.handle)
     # Uyku engelleri yan süreçte: koşucu ana süreç kalır, SIGTERM yalnız ona gider (birimde KillMode=mixed). Engel

@@ -192,4 +192,5 @@ Sadece Eren'in onayladığı isimler.
 | `Stopped`, `signals_deferred` | Koşucu: SIGTERM/SIGINT ile durdurulan vakanın hatası / korunan bölüm (içeride gelen sinyal not edilir, çıkışta `Stopped`) |
 | `inhibited()`, `INHIBIT_WHO`, `INHIBIT_WHY` | Koşucu: bizim systemd uyku engelimiz listede mi / engelin kimliği / kabul edilen neden metinleri |
 | `leftovers()`, `leftovers` (koruma alanı), `DEMO_PROJECT` | Koşucu: önceki koşudan kalan demo (`otel-demo` projesi) ya da `aiops-netem` konteynerleri; varsa koşu başlamaz / demonun compose proje adı |
+| `session_pids` | Koşucu: bir oturumdaki yaşayan süreçler (`/proc`); uyku engeli zincirini çıkışta kapatmak için |
 | `incident_lists/systemd_stop.json` | systemd kartı canlı kontrol listesi (containerPause cart, 1 vaka) |

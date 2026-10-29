@@ -17,7 +17,7 @@ flowchart LR
     raw[("OTLP dosyası (süzülmüş)<br/>~/cerebrum2/telemetry/filtered/")]
     rawu[("süzülmemiş kopya<br/>telemetry/raw/ (sadece --raw)")]
     mon[("Kalıcı izleme sistemi<br/>Prometheus, Jaeger, OpenSearch<br/>isimli volume, 7 gün, ≤ 40 GB")]
-    cut["Snapshot kesici<br/>scenario_runner.py incidents<br/>(dosyadan, vaka penceresi)"]
+    cut["Snapshot kesici<br/>scenario_runner.py incidents<br/>(dosyadan, vaka penceresi;<br/>systemd birimi aiops-incidents@liste)"]
     snap[("snapshot'lar<br/>~/cerebrum2/snapshots/inc-…/<br/>— git dışı, ≤ 20 GB")]
     labels[("etiketler<br/>incidents/inc-….json — repoda")]
     ichk["tools/incident_checks.py<br/>(belirti, olay, taban sağlık)"]
@@ -139,6 +139,7 @@ flowchart LR
 | `incident_lists/pilot.json` | Pilot gece listesi: 11 katalog senaryosu (kalibre varyant) + flood'lu 2 vaka |
 | `incident_lists/v2_dry.json`, `v2b.json`, `v2c.json` | V2 listeleri: altyapı hatası kuru denemesi (6) / kalibrasyon gecesi (16) / bellek kısa koşusu (1) |
 | `deploy/netem/Dockerfile` | Ağ hatası yardımcı imajı (GHCR `ghcr.io/erenbezek/aiops-netem`, digest'le sabit; sabit alpine + iproute2, giriş `tc`); hedefin ağ ad alanında yalnız NET_ADMIN ile koşar |
+| `deploy/systemd/aiops-incidents@.service` | Gece koşusu birim şablonu (örnek adı = liste adı): koşucu ana süreç, `KillMode=mixed` (SIGTERM yalnız koşucuya), `TimeoutStopSec=300`, `Restart=no`; kurulum `systemctl --user link` |
 | `tests/test_infra_faults.py` | Altyapı hatalarının Docker'sız testleri: dondurmanın kaydı, parametre biçimleri, zaman kalıbı, çağıran kuralı, temizlik doğrulaması, boş swap koruması, liste denetimi |
 | `services/quote-gateway/` | Kendi Python servisimiz `quote-gateway` (Flask + requests, OTel otomatik, OpenFeature + flagd): shipping'in fiyat isteğini quote'a iletir; `gateway.py` iş mantığı, `app.py` Flask ve flag'ler, `requirements.txt` sabit, `Dockerfile` (imaj GHCR `ghcr.io/erenbezek/aiops-quote-gateway`, digest'le sabit) |
 | `deploy/otel-demo/flagd-extras.json` | quote-gateway flag'leri; `otel_demo.sh up` upstream flag dosyasıyla birleştirir |

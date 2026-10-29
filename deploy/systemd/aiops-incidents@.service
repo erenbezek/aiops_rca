@@ -8,7 +8,9 @@
 # Koşucu ana süreçtir; uyku engellerini (systemd-inhibit, gnome-session-inhibit) yan süreçte kendisi alır ve o süreç
 # koşucu çıkana kadar durur. KillMode=mixed: SIGTERM yalnız koşucuya gider; koşucu yarıdaki vakayı temizler (hata geri
 # alınır, flag kapanır, demo kapanır) ve 143 ile çıkar, birim "failed" görünür. Kalanlar TimeoutStopSec sonunda SIGKILL.
-# Oturum kapanırsa kullanıcı birimleri durur (linger yok; Eren oturumu açık bırakır).
+# systemctl stop'ta temizlenir; kapanmada ya da oturumdan çıkışta kesilir: kullanıcı yöneticisi kapanışta 5 sn verir
+# (/usr/lib/systemd/system/user@.service.d/timeout.conf), temizlik ~65 sn sürer. Demoda kalıntı kalabilir, sonraki koşu
+# kalıntı denetiminde başlamaz ve elle temizlik komutunu yazar. Linger yok; Eren oturumu açık bırakır.
 
 [Unit]
 Description=aiops_rca incident runs: incident_lists/%i.json
@@ -20,6 +22,7 @@ ExecStart=%h/cerebrum2/aiops_rca/.venv/bin/python tools/scenario_runner.py incid
 Restart=no
 KillMode=mixed
 KillSignal=SIGTERM
-# Temizliğin en uzun süresine göre (HANDOFF 2026-10-29 systemd c): ölçülen temizlik 36–43 sn (hata ve flag yok);
-# canlı ölçümle kesinleşir.
+# Temizliğin en uzun süresine göre (HANDOFF 2026-10-29 systemd c): canlıda durdurma 64–68 sn (containerPause: geri
+# alma 30 sn, çoğu yeniden başlama kararlılık beklemesi STABLE_S; down 34–38 sn), ilk dakikalarda 33 sn. 300 sn ~4,5 kat
+# pay: netem docker run (120 sn) ve Prometheus sorgularının zaman aşımları üst üste binerse temizlik uzar.
 TimeoutStopSec=300

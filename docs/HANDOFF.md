@@ -1937,3 +1937,29 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
 - PROJECT DevOps tablosunda "Otomasyon betikleri" satırı; ARCHITECTURE dosya tablosu.
 - Rapor ver ve dur. PR planlama kontrolünden sonra.
 - Kapsam dışı: zamanlayıcı, yarıda kalan listeye devam etme (V3 kartında listeler gece başına bölünür), linger (oturum kapanırsa kullanıcı birimleri durur; Eren oturumu açık bırakır, yalnız not).
+
+## 2026-10-29 · Uygulama → Planlama (systemd birimi ve güvenli durdurma a–d)
+- **a · Birim** `deploy/systemd/aiops-incidents@.service` (örnek adı = liste adı):
+  - `ExecStart`: `.venv` Python'u ile `tools/scenario_runner.py incidents incident_lists/%i.json`, `WorkingDirectory=%h/cerebrum2/aiops_rca`; ortam `systemd-run --user` ile aynı (kullanıcı yöneticisi).
+  - `Restart=no`, `KillMode=mixed` (SIGTERM yalnız koşucuya), `TimeoutStopSec=300`.
+  - Koşucu artık ana süreç, kendini yeniden çalıştırmıyor. Uyku engelleri yan süreçte: `gnome-session-inhibit … systemd-inhibit … tail --pid=<koşucu>`, ayrı oturumda (Ctrl-C ona gitmez). Koşucu çıkarken bu oturumdaki süreçlere SIGTERM gönderir ve bitmelerini bekler; çökse bile `tail --pid` biter, engel kalkar.
+  - `inhibited` koruması artık engel listesinden (`systemd-inhibit --list`): kimlik "aiops_rca …", neden metni bizimkilerden biri (incidents, C2 `run`, `storage_check`). `storage_check.py` de koşucunun korumalarını kullandığı için onun metni de kabul edilir.
+  - Kurulum `systemctl --user link …` (yapıldı). Komutlar koşucunun başlığında ve birim dosyasında.
+- **b · Güvenli durdurma:**
+  - SIGTERM/SIGINT işleyicisi; bekletme bayrakla (`signals_deferred`, Eren: `pthread_sigmask` izleme iş parçacığı yüzünden tutmaz). Korunan bölümler: hata uygulama, flag açma/kapama, geri alma, `finally` temizliği, etiket yazımı. Korunan bölümde gelen sinyal not edilir, çıkışta `Stopped`; `Stopped` süreç başına bir kez, ikinci sinyal temizliği kesmez, sebeplere "signals during cleanup …" olarak yazılır.
+  - Durdurulan vaka "stopped by SIGTERM" ile geçersiz; sıradaki vakaya ve tekrar denemeye geçilmez; çıkış 128 + sinyal (143 / 130), birim `failed`.
+  - Snapshot kesimi ya da kontroller sırasında gelen durdurma: yarım snapshot geçersiz yoldaki gibi gece klasörüne (`<gece>/<vaka>/model_view`) taşınır; kopyalama bitmeden geldiyse yarım kopya gece klasöründeki `filtered/`'da kalır. İkisi de snapshot kökünün ve `incidents/`'ın dışında; etiket yalnız gece klasöründe.
+  - Kalıntı denetimi (`guards()`, her vakadan önce): `otel-demo` projesinin konteynerleri (her durumda) ya da `aiops-netem` varsa başlamaz. Mesaj: konteyner sayısı, duraklatılmış ve CPU sınırlı olanlar, netem; elle temizlik komutu (`docker unpause …`, `docker rm -f aiops-netem`, `tools/otel_demo.sh down`). netem kuralı ve CPU sınırı konteynerle yaşar; ayrıca `tc` taraması yok.
+  - Testler: gerçek SIGTERM ile korunan bölüm (başka iş parçacığından da); hata uygulanırken SIGTERM → geri alma ve `down`; beklerken SIGTERM → hata yok, `down`; temizlikte ilk ve ikinci sinyal temizliği kesmez; döngü 143/130 ile çıkar; engel oturumu kapatılır; `/proc` okuması zombileri saymaz; kalıntı reddi ve mesaj; engel eşleşmesi. Kasıtlı kırmızılar (8): hata uygulama ve temizlik korumasız, döngü durdurmayı denetlemiyor, kalıntı kapalı, neden metni yok, engel grubu kapatılmıyor, oturuma SIGTERM yok, zombi sayılıyor; her biri yalnız kendi testini düşürdü. pytest 386/386.
+- **c · Canlı kontrol** (liste `incident_lists/systemd_stop.json`, containerPause cart; prizde, şarj sınırı 80):
+  - İlk deneme (`9eb7eba`): temizlik ve diğer şartlar geçti, ama koşucu çıktıktan sonra systemd engel zincirine SIGKILL gönderdi (`KillMode=mixed`'in son öldürmesi). Düzeltme 1: koşucu engel grubunu kapatır. İkinci deneme: `systemd-inhibit` ve `tail` yine SIGKILL aldı; sebep `gnome-session-inhibit`'in çocuğunu ayrı süreç grubunda başlatması (PGID'ler ölçüldü). Düzeltme 2 (`5d48726`): süreç grubu yerine oturum.
+  - İkinci denemede geçenler: yeniden başlatma (korumalar geçti, kalıntı yok, demo temiz kalktı; ilk 2 dk'da durduruldu, 33,2 sn, 143) ve kalıntı reddi (demo açık + cart duraklatılmış → başlamadı, çıkış 1; elle geri alındı).
+  - Son deneme (`5d48726`, ilk bölüm): `inhibited` ve `gnome_inhibited` true; cart duraklatıldıktan sonra `systemctl --user stop`: geri alma doğrulandı, demo 0, netem 0, engel ve süreç 0; vaka "stopped by SIGTERM" ile geçersiz (etiket yalnız gece klasöründe); birim `failed`, çıkış 143; journalctl'da SIGKILL yok; durdurma 67,7 sn.
+  - `TimeoutStopSec=300`: ölçülen durdurma 64–68 sn (geri alma 30 sn, çoğu `STABLE_S` kararlılık beklemesi; `down` 34–38 sn), ilk dakikalarda 33 sn; ~4,5 kat pay zaman aşımlarının üst üste binmesi için.
+  - CI bu dalda PR açılınca koşar (iş akışları yalnız PR ve main'de).
+- **d · Kayıtlar:** PROJECT "Otomasyon betikleri" `[x]`, "Şu an"; ARCHITECTURE birim satırı ve diyagram; GLOSSARY (onaylı adlar `9eb7eba`'da).
+- **Onaylı ad:** `session_pids` (oturumdaki yaşayan süreçler; engel zincirini kapatmak için; GLOSSARY).
+- **Dikkat:**
+  - Kalıntı denetimi demo açıkken de koşuyu reddeder; gece başlamadan önce demo kapalı olmalı.
+  - `systemctl stop`'ta temizlenir; kapanmada kesilir, sonraki koşu başlamaz. Kapanma ya da oturumdan çıkışta da SIGTERM gelir, ama Ubuntu'nun kullanıcı yöneticisi kapanışta 5 sn veriyor (`/usr/lib/systemd/system/user@.service.d/timeout.conf`, `user@1000.service` `TimeoutStopUSec=5s`); temizlik ~65 sn sürdüğü için yarıda kesilir, demoda kalıntı (duraklatılmış konteyner, CPU sınırı, netem) kalabilir. Sonraki koşu kalıntı denetiminde başlamaz ve elle temizlik komutunu yazar. Linger yok (kart: yalnız not). (Planlama kontrolü.)
+  - Gece klasörlerinde bu kontrolün beş gecesi (`*-systemd_stop`) ve geçersiz etiketleri kaldı; silinmedi.
