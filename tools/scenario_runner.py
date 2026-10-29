@@ -367,15 +367,32 @@ def guards() -> dict:
     if g["leftovers"] is None:
         problems.append("leftover check failed (docker ps)")
     elif g["leftovers"]:
-        paused = [c["name"] for c in g["leftovers"] if c["paused"]]
-        problems.append("leftovers from a previous run: " + ", ".join(
-            f"{c['name']} ({c['state']}{', paused' if c['paused'] else ''}{', cpu limit' if c['nano_cpus'] else ''})"
-            for c in g["leftovers"]) + "; clean up by hand: "
-            + "".join(f"docker unpause {n}; " for n in paused)
-            + ("docker rm -f aiops-netem; " if any(c["name"] == "aiops-netem" for c in g["leftovers"]) else "")
-            + "tools/otel_demo.sh down")
+        demo_left = [c for c in g["leftovers"] if c["name"] != "aiops-netem"]
+        paused = [c["name"] for c in demo_left if c["paused"]]
+        limited = [c["name"] for c in demo_left if c["nano_cpus"]]
+        netem = len(demo_left) < len(g["leftovers"])
+        problems.append(f"leftovers from a previous run: {len(demo_left)} demo containers (paused: "
+                        f"{', '.join(paused) or 'none'}; cpu limit: {', '.join(limited) or 'none'}); aiops-netem: "
+                        f"{'present' if netem else 'none'}; clean up by hand: "
+                        + "".join(f"docker unpause {n}; " for n in paused)
+                        + ("docker rm -f aiops-netem; " if netem else "") + "tools/otel_demo.sh down")
     g["problems"] = problems
     return g
+
+
+def session_pids(sid: int) -> list[int]:
+    """Oturumu `sid` olan, yaşayan (zombi olmayan) süreçler (`/proc/<pid>/stat`: durum, ppid, pgrp, oturum)."""
+    out = []
+    for d in Path("/proc").iterdir():
+        if not d.name.isdigit():
+            continue
+        try:
+            fields = (d / "stat").read_text().rsplit(")", 1)[1].split()
+        except (OSError, IndexError):
+            continue
+        if int(fields[3]) == sid and fields[0] != "Z":
+            out.append(int(d.name))
+    return out
 
 
 def leftovers() -> list[dict] | None:
@@ -1607,21 +1624,20 @@ def cmd_incidents(list_path: Path) -> int:
     except Stopped:  # vaka dışında (korumalar, bekleme) ya da etiket yazıldıktan sonra gelen sinyal
         return stop_code()
     finally:
-        # Engel grubunu koşucu kendisi kapatır (ayrı oturum: grup yalnız gnome-session-inhibit, systemd-inhibit, tail);
-        # çıkışta birimde süreç kalmaz, systemd'nin son SIGKILL'i kimseye gitmez.
+        # Engel zincirini koşucu kendisi kapatır: çıkışta birimde süreç kalmaz, systemd'nin son SIGKILL'i kimseye
+        # gitmez. Süreç grubu yetmez (gnome-session-inhibit çocuğunu ayrı grupta başlatır); oturum koşucunun açtığı
+        # oturumdur, içinde yalnız gnome-session-inhibit, systemd-inhibit ve tail var.
         if holder is not None:
-            try:
-                os.killpg(holder.pid, signal.SIGTERM)
-                end = time.monotonic() + 5
-                while time.monotonic() < end:
-                    holder.poll()
-                    os.killpg(holder.pid, 0)
-                    time.sleep(0.1)
-                log("inhibitor group still alive after 5 s")
-            except ProcessLookupError:
-                pass
-            except OSError as e:
-                log(f"inhibitor group could not be stopped: {e}")
+            for pid in session_pids(holder.pid):
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+            end = time.monotonic() + 5
+            while time.monotonic() < end and (holder.poll() is None or session_pids(holder.pid)):
+                time.sleep(0.1)
+            if session_pids(holder.pid):
+                log(f"inhibitor processes still alive after 5 s: {session_pids(holder.pid)}")
         log_file.close()
 
 

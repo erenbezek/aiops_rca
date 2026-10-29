@@ -531,23 +531,20 @@ def test_stop_between_incidents_returns_signal_code(monkeypatch, tmp_path, fresh
     assert sr.cmd_incidents(lst) == 128 + signal.SIGINT
 
 
-def test_runner_closes_inhibitor_group_on_exit(monkeypatch, tmp_path, fresh_stop):
-    # Birimde süreç kalmasın: koşucu çıkarken engel grubuna (ayrı oturum) SIGTERM gönderir.
+def test_runner_closes_inhibitor_session_on_exit(monkeypatch, tmp_path, fresh_stop):
+    # Birimde süreç kalmasın: koşucu çıkarken engel oturumundaki her sürece SIGTERM gönderir, bitmelerini bekler.
     no_side_effects(monkeypatch)
+    alive = {4242, 4250, 4251}  # gnome-session-inhibit, systemd-inhibit (ayrı grup), tail
 
     class Holder:
         pid = 4242
 
         def poll(self):
-            return None
+            return None if 4242 in alive else 0
     monkeypatch.setattr(sr.subprocess, "Popen", lambda *a, **k: Holder())
+    monkeypatch.setattr(sr, "session_pids", lambda sid: sorted(alive) if sid == 4242 else [])
     sent = []
-
-    def killpg(pid, sig):
-        sent.append((pid, sig))
-        if sig == 0:
-            raise ProcessLookupError
-    monkeypatch.setattr(sr.os, "killpg", killpg)
+    monkeypatch.setattr(sr.os, "kill", lambda pid, sig: (sent.append((pid, sig)), alive.discard(pid)))
     monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
     monkeypatch.setattr(sr, "versions", lambda: {})
     monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
@@ -555,7 +552,17 @@ def test_runner_closes_inhibitor_group_on_exit(monkeypatch, tmp_path, fresh_stop
     lst = tmp_path / "l.json"
     lst.write_text(json.dumps([PAUSE]))
     assert sr.cmd_incidents(lst) == 1
-    assert sent == [(4242, signal.SIGTERM), (4242, 0)]
+    assert sent == [(4242, signal.SIGTERM), (4250, signal.SIGTERM), (4251, signal.SIGTERM)] and not alive
+
+
+def test_session_pids_reads_proc_and_skips_zombies(monkeypatch, tmp_path):
+    for pid, stat in (("10", "10 (tail) S 9 9 77 0"), ("11", "11 (sys inhibit) S 1 11 77 0"),
+                      ("12", "12 (z) Z 1 12 77 0"), ("13", "13 (other) S 1 13 99 0"), ("self", "")):
+        (tmp_path / pid).mkdir()
+        (tmp_path / pid / "stat").write_text(stat)
+    real = sr.Path
+    monkeypatch.setattr(sr, "Path", lambda p, *a: tmp_path if p == "/proc" else real(p, *a))
+    assert sorted(sr.session_pids(77)) == [10, 11]
 
 
 # --- kalıntı ve uyku engeli denetimi ---
@@ -573,8 +580,12 @@ def test_leftovers_block_start_with_cleanup_command(monkeypatch):
             {"name": "aiops-netem", "state": "exited", "paused": False, "nano_cpus": 0},
             {"name": "recommendation", "state": "running", "paused": False, "nano_cpus": 30_000_000}]
     (p,) = guards_with(monkeypatch, left)
-    assert "cart (running, paused)" in p and "recommendation (running, cpu limit)" in p
-    assert p.endswith("clean up by hand: docker unpause cart; docker rm -f aiops-netem; tools/otel_demo.sh down")
+    assert p == ("leftovers from a previous run: 2 demo containers (paused: cart; cpu limit: recommendation); "
+                 "aiops-netem: present; clean up by hand: docker unpause cart; docker rm -f aiops-netem; "
+                 "tools/otel_demo.sh down")
+    (p,) = guards_with(monkeypatch, [dict(left[0], paused=False)])
+    assert p == ("leftovers from a previous run: 1 demo containers (paused: none; cpu limit: none); "
+                 "aiops-netem: none; clean up by hand: tools/otel_demo.sh down")
     assert guards_with(monkeypatch, []) == []
     assert guards_with(monkeypatch, None) == ["leftover check failed (docker ps)"]
 
