@@ -2166,3 +2166,16 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - `test_v3_lists.py`'deki "ortak çiftler ayrı gecede" sınamasını 13 birime genişlet; kasıtlı kırmızı: bir ortak demo flag'inin iki kopyası aynı geceye alınınca test kırmızı.
   - Üreticinin yeni sha256'sı ve gece başına tür dağılımı (demo / altyapı / quote-gateway) rapora.
   - Rapor ver ve dur. Planlama listeleri yeniden karşılaştırır; sonra V3b.
+
+## 2026-10-29 · Uygulama → Planlama (V3a liste düzeltmesi)
+- Listeler planlamanın düzeltmesine göre yeniden üretildi (tohum `20261029` aynı).
+  - Üretici `~/cerebrum2/analysis/v3_lists.py`, yeni sha256 `daa4d9245ecce095e7148862a1edbc8a3f535c883f2f065aff4f75a48c9aa134` (önceki kayıttaki `5c845834…` geçersiz).
+  - Yöntem: gece başına sayılardan a + d1 = 9 ve t1 = 5 − d1 (a = dev kopyası 1. gecede olan ortak birim, d1 = 1. gecedeki dev'e özel flag, t1 = 1. gecedeki yalnız-test altyapı çifti). d1 tohumla 2 ya da 3; bu tohumda d1 = 3, a = 6, t1 = 2. 13 ortak birim, 5 dev'e özel flag ve 5 yalnız-test çifti ayrı ayrı karıştırılıp bu sayılarla bölünür, gövdeler karıştırılır, gece sonları sabit.
+- Gece başına tür dağılımı (dev / test; flood'lu vakalar kendi türünde):
+
+| Gece | Demo flag'i | Altyapı | quote-gateway | Toplam | Flood |
+|---|---|---|---|---|---|
+| 1 | 6 / 4 | 2 / 5 | 2 / 1 | 10 / 10 | 2 |
+| 2 | 5 / 4 | 3 / 5 | 1 / 2 | 9 / 11 | 1 |
+
+- `test_v3_lists.py`: "ortak çiftler ayrı gecede" sınaması 13 birime genişledi (`SHARED_UNITS` kart tablosundan türetilir, 13 olduğu sınanır); yeni sınama: tekil birimler gece başına 2 ya da 3. Kasıtlı kırmızı: 2. gecedeki adHighCpu dev ile 1. gecedeki adFailure dev yer değiştirince (sayılar aynı) yalnız `test_shared_units_in_different_nights` kırmızı. pytest 411/411.

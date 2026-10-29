@@ -3,6 +3,8 @@ V3 kartı: bileşim tablosu ve V3a 5. adım; DECISIONS 2026-10-29 "V3 bileşimi"
 
 Bileşim kayıttan önce sabit, sonuca göre değişmez: bir giriş eklenir, silinir, setler ya da geceler arasında yer
 değiştirirse kırmızı. Ayrılan 6 birim (`HELDOUT_UNITS`, tanımı `test_catalog.py`'de) yalnız testte.
+İki sette olan 13 birimin dev ve test kopyaları farklı gecelerde; tekil 10 birim gece başına 2 ya da 3 (düzeltme:
+HANDOFF 2026-10-29 "V3a 4–5 kontrolü; liste düzeltmesi").
 Listeler repo dışındaki üreticiyle yazıldı (`~/cerebrum2/analysis/v3_lists.py`, tohum HANDOFF'ta); bu test üreticiye
 değil, karta bakar.
 """
@@ -88,10 +90,27 @@ def test_night_counts_and_tail(name):
     assert all(key(e) not in TAILS[name] for e in entries[:-len(TAILS[name])])
 
 
-def test_shared_infra_pairs_in_different_nights():
-    where = {(key(e)[1:4], e["set"]): name for name, entries in NIGHTS.items() for e in entries if "fault" in e}
-    for p in SHARED:
-        assert where[(p, "dev")] != where[(p, "test")], p
+# İki sette olan birimler (setsiz anahtar; flood'lu girişler ayrı birim): 5 altyapı çifti, 6 demo flag'i,
+# quoteGatewayMisroute, quoteGatewaySlowdown 30ms. Düzeltme: HANDOFF 2026-10-29 "V3a 4–5 kontrolü; liste düzeltmesi".
+SHARED_UNITS = {k[:5] for k in DEV} & {k[:5] for k in TEST}
+# Tekil birimler (gece sonundakiler hariç): dev'e özel 5 demo flag'i, yalnız testteki 5 altyapı çifti.
+TAIL_KEYS = {k for t in TAILS.values() for k in t}
+SINGLES = {"dev": [k for k in DEV if k[:5] not in SHARED_UNITS and k not in TAIL_KEYS],
+           "test": [k for k in TEST if k[:5] not in SHARED_UNITS and k not in TAIL_KEYS]}
+
+
+def test_shared_units_in_different_nights():
+    assert len(SHARED_UNITS) == 13 and {len(v) for v in SINGLES.values()} == {5}
+    where = {key(e): name for name, entries in NIGHTS.items() for e in entries}
+    for u in SHARED_UNITS:
+        assert where[(*u, "dev")] != where[(*u, "test")], u
+
+
+@pytest.mark.parametrize("name", COUNTS)
+def test_single_units_two_or_three_per_night(name):
+    keys = [key(e) for e in NIGHTS[name]]
+    for set_, singles in SINGLES.items():
+        assert sum(k in singles for k in keys) in (2, 3), (name, set_)
 
 
 def test_heldout_units_only_in_test():
