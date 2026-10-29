@@ -1963,3 +1963,23 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - Kalıntı denetimi demo açıkken de koşuyu reddeder; gece başlamadan önce demo kapalı olmalı.
   - `systemctl stop`'ta temizlenir; kapanmada kesilir, sonraki koşu başlamaz. Kapanma ya da oturumdan çıkışta da SIGTERM gelir, ama Ubuntu'nun kullanıcı yöneticisi kapanışta 5 sn veriyor (`/usr/lib/systemd/system/user@.service.d/timeout.conf`, `user@1000.service` `TimeoutStopUSec=5s`); temizlik ~65 sn sürdüğü için yarıda kesilir, demoda kalıntı (duraklatılmış konteyner, CPU sınırı, netem) kalabilir. Sonraki koşu kalıntı denetiminde başlamaz ve elle temizlik komutunu yazar. Linger yok (kart: yalnız not). (Planlama kontrolü.)
   - Gece klasörlerinde bu kontrolün beş gecesi (`*-systemd_stop`) ve geçersiz etiketleri kaldı; silinmedi.
+
+## 2026-10-29 · Planlama notları (V3 için)
+- Durum: main `68b429c` (systemd PR #27 merge, CI yeşil). Dal `task/vaka-v3` V3 bileşim kartı için açıldı; bu kayıttan sonra planlama ve uygulama oturumları yenilenir.
+- **Jaeger belleği:** quote-gateway sızıntı kısa koşusunda (`inc-660f7c44`) swap tepesi 940 MiB (`swap.peak` 1230), anon 1953 MiB. jaeger-data 13,25 GB ve saklama süresi dolana kadar (~2 Kasım) büyür; 1 GB boş swap koruması geceyi durdurabilir. V3 gecesinden önce boş swap ve jaeger-data boyutu kontrol edilir.
+- **1024 KB sızıntı kırılgan:** OOM 9,5. dakikada, pencere 10 dk. V3'e 384 KB varyantı girer.
+- **Kategoriler:** katalogdan gelir (Eren: her vakada ölçülmez). V3 kartında flag tablosu elle gözden geçirilir. Zor vaka ölçüsü `checks.symptom.deciding.level == caller`.
+- **Taban sağlık:** quote-gateway kalibrasyon gecesinde 03:00–03:35 düşüş (100 ms vakaları geçersiz, sebep bulunamadı); tekrarlarsa araştırılır. Pilde eşiği geçiyor (56,3 ms); koşular prizde.
+- **V3 boyutu:** ~40 vaka, ~21 saat. Listeler gece başına bölünür (yarıda kalan listeye devam yok); dev/test ayrımı kartta.
+- **systemd:**
+  - Gece başlamadan demo kapalı olmalı (kalıntı denetimi açık demoyu da reddeder).
+  - Kapanmada ya da oturumdan çıkışta temizlik kesilir (kullanıcı yöneticisi 5 sn); oturum açık kalır, linger yok.
+  - `inhibited()` storage_check'in engel metnini de kabul eder: ikisi aynı anda koşarsa bizim engelimiz olmasa da koruma geçebilir. Aynı anda koşturulmaz.
+  - `*-systemd_stop` ile biten beş gece klasörü silinmedi.
+- **Küçük notlar:**
+  - Yerelde eski imajlar `aiops-quote-gateway:1` ve `aiops-netem:1` duruyor (koşular GHCR digest'iyle).
+  - Dal koruması yok; `ci.yml`'deki yorum korumayı anlatıyor, API "Branch not protected" dönüyor.
+  - `tools/trial_alias.py --help` çalışmıyor.
+  - opensearch `latest` imajında sürüm kayabilir.
+  - Saklamanın veriyi silmesi ~2 Kasım'dan sonra gözlenecek (PROJECT "Kalıcı depolama" satırı).
+- **Sıradaki:** V3 bileşim kartı (planlama), sonra Proje 1 model koşuları ve sonuç tablosu.
