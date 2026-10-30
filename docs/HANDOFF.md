@@ -2545,3 +2545,33 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - LLM çağrı katmanı ve daraltma bu kartta yok (P1c).
   - Demo gerekmez; her şey dosyadan. Ortam riski bu kartı etkilemez.
 - Sıradaki: P1b BARO kartı (planlama).
+
+## 2026-10-30 · Planlama → Uygulama (P1b: BARO baseline)
+- Ne zaman: P1a birleştikten sonra, ayrı dal ve PR (dal adı o zaman önerilir).
+- Kararlar: DECISIONS 2026-10-30 ("BARO uygulaması", "BARO girdisi"). P1a'nın erişim, şema, puanlama ve koşu kaydı aynen kullanılır.
+- Yapılacak:
+  1. **Tablo** (yöntem modülü P1a'daki `methods/` altında; adlar önerilir):
+     - 10 sn ızgara. Zaman sütunu `time` = kova başı (unix saniye). Sütunlar `<servis>_<metrik>`, sırası deterministik (servis adı, sonra sabit metrik sırası).
+     - Konteyner metrikleri: CPU, bellek (bayt; RCAEval'in `_mem` dönüşümüyle MB), ağ alma ve gönderme (sayaç farkından hız).
+     - İzlerden (servisin server span'leri): gecikme p50 ve p90 (ms), istek sayısı, hata sayısı. Boş kovada sayılar 0, gecikme eksik.
+     - Aday kümesi kural baseline'ıyla aynı (izleme araçları ve rutin servisler dışarıda).
+     - Pencere: alarmdan önce 10 dk normal, sonra 10 dk anomali; bölme `time < alarm`.
+  2. **Port:** RCAEval `baro(data, inject_time, dataset=<None olmayan; "causalrca-sock-shop" değil>, dk_select_useful=False)` davranışı:
+     - `drop_time`, `drop_constant`, `convert_mem_mb`; iki bölümün ortak sütunları.
+     - Sütun başına normal dönemde medyan ve çeyrekler arası aralık (sklearn `RobustScaler` gibi; aralık 0 ise ölçek 1). Anomali dönemindeki en büyük z sütunun puanı. Sütunlar puana göre azalan sırada.
+     - Eksik değerde RCAEval ne yapıyorsa o (port kendi kuralını uydurmaz).
+  3. **Cevap:** sütun sırasından servis sırası (ilk görünüş). Tam 3 aday, `confidence` null, `evidence_path` [servis], `unsure` false. Koşu `eval_responses/`'ta.
+  4. **Eşitlik kontrolü:**
+     - Repo dışı geçici sanal ortam: RCAEval (sürüm ya da commit kayda) + numpy, pandas, scikit-learn.
+     - 5 dev vakasının tablosu iki uygulamada. En az ikisi eksik değerli: containerStop recommendation (`inc-230c9d46`) ve containerPause cart (`inc-9292257f`).
+     - Bitince ortam silinir; paket sürümleri kayda.
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - Tablo tanımı ve eksik değer davranışı koşmadan önce raporlandı.
+  - **Eşitlik:** 5 vakada sütun sırası birebir aynı, puanlar |fark| ≤ 1e-9. Tutmazsa port düzeltilir (referans RCAEval); tablo ve kural değişmez.
+  - **Koşu:** pilot + dev (43) üzerinde şemaya uygun tam 3 aday; iki koşu birebir aynı. Sonuç tablosu HANDOFF'a, yorumsuz.
+  - CI örneklerinde BARO'nun beklenen çıktısı; pytest yeşil; PR koşusu yeşil.
+  - Geçici ortam silindi; RCAEval ve paket sürümleri kayda.
+- Dikkat:
+  - Test seti okunmaz.
+  - Dev'de ayar yok (ızgara, sütunlar, pencere sabit).
+  - Proje bağımlılığı eklenmez; RCAEval'den başka paket gerekirse önce sorulur.

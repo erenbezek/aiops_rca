@@ -88,4 +88,4 @@ Kendi Python servisi quote-gateway yapıldı (`task/quote-gateway`, 2026-10-29):
 Gece koşusu systemd biriminde (`task/systemd-unit`, 2026-10-29): `systemctl --user start aiops-incidents@<liste>`; `systemctl stop`'ta temizlenir, canlıda geçti (~65 sn, SIGKILL yok); kapanmada kesilir, sonraki koşu başlamaz (kalıntı denetimi).
 V3 resmî set kapandı (`task/vaka-v3`, 2026-10-30): 36 geçerli vaka (dev 18, test 18), etiketler `incidents/`'ta. 1. gece 20/20, 2. gece 16/20; V3c'nin taban ölçümü iki kez kaldı, kalan 4 giriş düştü (DECISIONS). Açık risk: 30 Ekim sabahından beri product-catalog yavaş (kök bilinmiyor); canlı demodan önce çözülmeli.
 V3 kapanışı birleşti (PR #28). product-catalog bellek sınaması sonuçsuz; müdahale sınaması canlı demo kartında.
-Sıradaki: Proje 1. Kart bölümü P1a–P1e (DECISIONS 2026-10-30). P1a (değerlendirme çatısı + kural baseline) kartı `task/p1-eval`'de.
+Sıradaki: Proje 1. Kart bölümü P1a–P1e (DECISIONS 2026-10-30). P1a (değerlendirme çatısı + kural baseline) `task/p1-eval`'de sürüyor; P1b (BARO) kartı yazıldı, P1a'dan sonra.
