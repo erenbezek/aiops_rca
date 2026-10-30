@@ -2264,3 +2264,53 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Makine (22:2x yerel): priz 1, şarj sınırı 80 (pil %80), boş swap 2,85 GB, demo kapalı (0 konteyner), `aiops-incidents@` birimi boşta, kalıntı yok. İzleme 21,81 GB, snapshot 15,29 GB, boş disk 248,6 GB. 2a liste başı tahmini: 15 × 35 dk = 8,75 sa → izleme ~29,2 GB (sınır 40).
 - Not: eski `aiops-incidents@systemd_stop` örneği `failed` durumunda listeleniyor (birim sınamasından kalma); koşuyu etkilemez, dokunulmadı.
 - Sıradaki: Eren `systemctl --user start aiops-incidents@v3_night2a`.
+
+## 2026-10-30 · Uygulama → Planlama (V3b 2. gece: 2a + 2b)
+- Koşular (repo `d767c1d`, gece klasörleri `~/cerebrum2/incident_runs/`):
+  - `20261029T1925Z-v3_night2a`: 22:25–06:26 yerel. `list done`, çıkış 0.
+  - `20261030T0559Z-v3_night2b`: 08:59. İlk vakadan önce `STOP … not on AC power` (priz takılı değildi). Vaka yok, demo açılmadı; klasörde yalnız `runner.log`.
+  - `20261030T0600Z-v3_night2b`: 09:00–10:35. Eren'in kararıyla `systemctl stop` ile durduruldu (aşağıda). Temiz kapandı: SIGTERM, demo kapalı, kalıntı yok, birim `failed` (143).
+- Rapor betiği aynı (`~/cerebrum2/analysis/v3b_night_report.py`, sha256 `2bd7bdb1…4926`; 1. gecenin çıktısı da oraya kopyalandı). Çıktılar: 2a `c47fd8d5…62f8`, 2b `c6843f28…4b15`.
+- Kart ölçütleri (iki parçanın toplamı):
+
+| Ölçüt | Sonuç |
+|---|---|
+| Her vaka geçerli/geçersiz ve sebebiyle kayıtlı | ✓ 20 deneme (2a 15, 2b 5), 18 giriş denendi; 2 giriş koşulmadı |
+| Geçerli oran ≥ 16/20 | ✓ 16/20 giriş, tam sınırda (2a 15/15, 2b 1/5) |
+| Sızıntı 0 | ✓ 0 |
+| Jaeger: OOM / yeniden başlama / gönderim hatası / reddedilen | ✓ 0 / 0 / 0 / 0, her vakada |
+| Belirtisiz ya da sınırda geçerli vaka | dev 0, test 0 |
+
+- V3c'ye kalan girişler:
+  - quoteGatewayMisroute (dev): taban 408,1 ms (`inc-6d1f8ddd`), yeniden denemede 179,8 ms (`inc-bf625c86`).
+  - recommendationCacheFailure (test): taban 54,7 ms (`inc-c5aa3715`). Yeniden denemesi `inc-7087ede6` normal dönemin 3. dakikasında durdurmayla kesildi ("stopped by SIGTERM"); arıza verilmemişti.
+  - Koşulmadı: flood + productCatalogLockContention (test), quoteGatewayMemoryLeak 384kb (test).
+- **2b taban yavaşlaması (neden bilinmiyor):**
+  - Taban p95 sırası: 25,8 ms (2b'nin 1. vakası) → 408,1 → 179,8 → 54,7 ms. Önceki 36 vakada 23,8–29,2 ms.
+  - Yeniden denemenin normal dönemi (`inc-bf625c86`, dev; 06:58–07:08Z, `filtered/traces.jsonl`, `Window(07:08:39Z)` öncesi) servis p95: checkout 738, frontend 179,8, product-catalog 159, recommendation 153, frontend-proxy 118 ms. Diğerleri 0–12 ms. Yavaşlık product-catalog'da başlıyor, onu çağıranlara yayılıyor.
+  - Elenenler:
+    - Flag'ler her `up`'ta kapalı başlıyor.
+    - Jaeger'de OOM yok; CPU 0,18–0,34 çekirdek, önceki vakalar düzeyinde.
+    - En düşük boş swap 2,14 GB. Güç profili balanced. Isınma koruması tetiklenmedi (tepe 80–84 °C).
+    - `chrome` süreçleri demonun yük üreticisinin başsız Playwright tarayıcısı, Eren'in tarayıcısı değil (uygulama önce yanlış yorumladı, düzeltildi).
+  - Önceki vaka containerPause quote'tu; demo her vakada yeniden kuruluyor ve product-catalog quote'u çağırmıyor, bağ kanıtı yok. C2'deki "nedeni bulunmamış yavaşlama"ya benziyor.
+  - **Durdurma gerekçesi:** kalan 3 giriş testteydi. Taban sınırın hemen altında geçerse test vakası bozuk koşulda "geçerli" sayılırdı; testte bunu sonradan ayıklamanın yolu yok. Kalan girişler V3c'de temiz koşulda koşulsun.
+- Dev (8/8 geçerli, hepsi `symptomatic`, işaret 0). `deciding`: service 3, operation 3, caller 2.
+
+| Vaka | Giriş | Karar (düzey, sinyal, güç) | Kategoriler |
+|---|---|---|---|
+| `inc-8069b709` | emailMemoryLeak 1000x | service p99 2,18 | cascading, silent |
+| `inc-320c56f9` | adHighCpu | service cpu_pct 79,19 | silent |
+| `inc-d6d5f1b2` | productCatalogFailure | operation GetProduct error_rate 2,01 | cascading, partial |
+| `inc-ac155a23` | cartFailure 50% | operation EmptyCart p95 20042,72 | cascading, partial |
+| `inc-fa775703` | cpuThrottle product-catalog 0.09 | operation GetProduct p99 59,05 | cascading, silent |
+| `inc-86d286ea` | adManualGc | service p99 125,74 | cascading, silent |
+| `inc-230c9d46` | containerStop recommendation | caller ListRecommendations p99 1550,33 | cascading |
+| `inc-9292257f` | containerPause cart | caller GetCart p99 29813,89 | cascading |
+
+- Test: 10 deneme, 8 geçerli. `verdict` symptomatic 8; `deciding.level` caller 5, service 2, operation 1; işaret 0; belirtisiz/sınırda 0. Geçerli vakalar: `inc-d70ec1a9`, `986ae88a`, `0383450c`, `b4ceb83b`, `901ecfb4`, `c6ae4086`, `27e7ae46`, `01e8bcf7`.
+- Tepe değerler (kayıt): Jaeger swap tepesi en çok 1337,2 MiB; Go yığını tepesi en çok 4210,0 MiB; en düşük boş swap 1,79 GB; tepe sıcaklık 87 °C (2a, adHighCpu; ısınma koruması tetiklenmedi).
+- V3 toplamı (iki gece): 36 geçerli (dev 18, test 18). Son set ölçütlerinin (≥ 30; testte dört kategori, ayrılan 6 birimin ≥ 4'ü) kontrolü planlamada.
+- Depolama (Eren'in sorusu, 2026-10-30): izleme volume'ları 30,7 GB'a çıktı (1. gece başında 15,5; durdurma sonrası 27,21), snapshot 19,4 GB (73 vaka), imajlar 19,9 GB, boş disk ~238 GB. Büyüme Jaeger'in 7 günlük saklamasından; 40 GB koruması diski koruyor. Uygulamanın önerisi (karar planlamada): V3 kapanınca izleme volume'larını boşaltmak (veri seti ve yeniden oynatma snapshot'larda); saklama süresi V3 sürerken değişmesin.
+- Repo: 16 geçerli etiket `incidents/`'a eklendi (gece klasörleriyle birebir). pytest 412/412.
+- Planlamaya soru: V3c'den önce demo normal koşullarda ayağa kaldırılıp taban p95'in ~25 ms'e döndüğü ölçülsün mü? Uygulamanın önerisi evet, ölçmeden yeni koşu yok.
