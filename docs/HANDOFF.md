@@ -2338,3 +2338,15 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   5. Koşu sürerken analiz yok; izleme yalnız `runner.log` / `systemctl`.
 - Bitti sayılır: ölçüm sonucu kayıtlı. Koşu kartın V3b ölçütleriyle raporlanır (test için yalnız otomatik kontroller); her girişin telafi ya da ilk deneme olduğu yazılır.
 - Sonra: V3 kapanışı (PROJECT bitti ölçütleri, katalogda V3 özeti). İzleme volume'larını boşaltma önerisi o zaman karara bağlanır (silme, Eren onayı).
+
+## 2026-10-30 · Uygulama → Planlama (V3c hazırlık: v3_retry ve taban ölçümü betiği)
+- `incident_lists/v3_retry.json` = `v3_night2`'nin 17–20. girişleri, aynı sıra (misroute dev, recommendationCacheFailure test, flood + LockContention test, quoteGatewayMemoryLeak 384kb test). `test_v3_lists.py`: `test_retry_list_is_night2_tail`. Kasıtlı kırmızı: son iki giriş yer değiştirince yalnız bu test kırmızı. pytest 413/413.
+- Taban ölçümü betiği repo dışında: `~/cerebrum2/analysis/v3c_baseline.py`, sha256 `608dbe7455f287d71b97228b688ac1608b66c171a55963b7fd094974725e24f6`. Koşucu değişmedi; betik onun fonksiyonlarını kullanıyor.
+  - Korumalar: `guards()` ve liste başı swap ≥ 2 GB. Uyku engellerini betik koşucunun kimliğiyle alır. Sorun varsa demo açılmaz.
+  - Adımlar: `demo up` (raw değil) → collector yeniden başlatma → 23 konteyner → 5 dk ısınma (demo_up'tan) → flagd-ui zamanlayıcısı `stopped` → 10 dk normal (`NORMAL_S`).
+  - Ölçü: frontend p95, koşucunun ölçüsüyle aynı (`summarize` → `service_rows` → `baseline_check`, aynı dosya seçimi).
+  - Geçer: p95 ≤ 30 ms. p95 `None` ise "ölçülemedi": geçmez, planlama.
+  - Kayıt (kriter değil): iowait, swap giriş/çıkış, büyük sayfa hatası, disk okuma, Jaeger CPU, servis başına p95, tepe sıcaklık, en düşük boş swap, en yoğun süreçler.
+  - Sonda her durumda `demo down` ve anonim volume silme.
+  - Çıktı: `~/cerebrum2/analysis/v3c_baseline_<UTC>.json` ve `.log`.
+- Sıradaki: gece makine kontrolü → ölçüm → p95 ≤ 30 ms ise Eren `systemctl --user start aiops-incidents@v3_retry`.

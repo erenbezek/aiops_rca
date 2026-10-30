@@ -131,6 +131,13 @@ def test_night2_parts_equal_night2():
     assert a + b == NIGHTS["v3_night2"]
 
 
+def test_retry_list_is_night2_tail():
+    # V3c telafi listesi (DECISIONS 2026-10-30 "v3_retry"): v3_night2'nin 17–20. girişleri, aynı sıra. İlk ikisi 2. gecede
+    # geçersizdi (telafi), son ikisi koşulmadı (ilk deneme).
+    retry = json.loads((LISTS / "v3_retry.json").read_text(encoding="utf-8"))
+    assert retry == NIGHTS["v3_night2"][16:20]
+
+
 @pytest.mark.parametrize("name", COUNTS)
 def test_runner_accepts_list(monkeypatch, tmp_path, name):
     # Koşucunun liste denetimi: geçerli liste korumaya kadar gider (koruma burada durdurur: 1); reddedilen liste 2.
