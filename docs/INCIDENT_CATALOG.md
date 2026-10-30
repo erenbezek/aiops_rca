@@ -131,3 +131,52 @@ zayıf; altındaysa (ya da açılış tepesinin altındaysa) açılışta OOM d�
 
 Her senaryo için: seçilen varyantla belirti 5-10 dakikalık pencerede görünüyor mu, beklenen yayılım yolu gerçekten görünüyor mu. Varyantlar (yüzde, çarpan) bu ölçümle seçilir ve buraya yazılır.
 Geçme ölçütü: kök neden servisinde en az bir sinyalde (hata oranı, gecikme, CPU/bellek) normal döneme göre görünür sapma.
+
+## V3 resmî set (kapandı 2026-10-30)
+
+36 geçerli vaka: dev 18, test 18. Etiketler `incidents/`'ta (`set: dev` / `set: test`), snapshot'lar
+`~/cerebrum2/snapshots/`. Kart HANDOFF 2026-10-29, kapanış DECISIONS 2026-10-30 ("V3 kapandı"). Test vakaları için
+burada yalnız bileşim ve otomatik kontrol sayıları var; sinyal adı, değer ve güç yazılmaz.
+
+| Set | Vaka | Demo flag'i | Altyapı | quote-gateway | cascading | silent | partial | noisy |
+|---|---|---|---|---|---|---|---|---|
+| dev | 18 | 11 | 5 | 2 | 17 | 10 | 3 | 2 |
+| test | 18 | 6 | 10 | 2 | 17 | 8 | 3 | 1 |
+
+Bir vaka birden çok kategoride olabilir. Flood'lu (`noise_layer`) vaka, senaryonun kategorileri + `noisy`.
+
+- **Dev:**
+  - Demo: adFailure, adHighCpu, adManualGc, cartFailure 50%, emailMemoryLeak 1000x, intlShippingSlowdown 10sec,
+    paymentFailure 50%, paymentUnreachable, productCatalogFailure, productCatalogLockContention,
+    recommendationCacheFailure.
+  - Altyapı: networkDelay cart 50ms, packetLoss shipping 10%, cpuThrottle product-catalog 0.09, containerPause cart,
+    containerStop recommendation.
+  - quote-gateway: quoteGatewaySlowdown 30ms, quoteGatewaySlowdown 30ms + flood.
+- **Test:**
+  - Demo: adHighCpu, cartFailure 50%, intlShippingSlowdown 10sec, paymentUnreachable, productCatalogFailure,
+    paymentFailure 50% + flood.
+  - Altyapı: dev'deki 5 çift; ayrıca networkDelay quote 50ms, packetLoss currency 10%, cpuThrottle recommendation 0.03,
+    containerPause quote, containerStop currency.
+  - quote-gateway: quoteGatewayMisroute, quoteGatewaySlowdown 30ms.
+- Yalnız testte olan 6 birimden (`HELDOUT_UNITS`) 5'i sette. quoteGatewayMemoryLeak 384kb düştü.
+- Otomatik kontroller (36 vaka):
+  - `verdict` hepsinde `symptomatic`. Belirtisiz, sınırda ya da işaretli vaka 0.
+  - `deciding.level`: dev service 9, operation 5, caller 4; test caller 8, service 6, operation 4.
+  - Sızıntı 0. Jaeger OOM, yeniden başlama, gönderim hatası ve reddedilen her vakada 0.
+- Koşular:
+  - 1. gece (`v3_night1`): 20/20. Bir taban sağlık yeniden denemesi oldu (dosya döndürme yarışı).
+  - 2. gece: `v3_night2a` 15/15, `v3_night2b` 1/5. 2b'de taban sağlık üç kez düştü, koşu durduruldu.
+  - V3c (`v3_retry`) koşulmadı: iki taban ölçümü kaldı (frontend p95 36,6 ms ve yeniden başlatma sonrası 392,2 ms;
+    sınır 30).
+- Düşen 4 giriş (`v3_retry.json`, koşulmamış olarak repoda):
+  - quoteGatewayMisroute (dev) ve recommendationCacheFailure (test): 2. gecede taban sağlıkta geçersiz.
+  - flood + productCatalogLockContention (test) ve quoteGatewayMemoryLeak 384kb (test): hiç koşulmadı.
+- Bilinen boşluklar:
+  - Testte sızıntı vakası yok.
+  - Testte noisy yalnız 1 vaka.
+  - Dev'de misroute yok.
+  - Test 18 vaka; oran ölçümünde güç ~±23 puan (21 vakada ±21 olurdu).
+- Ortam riski (DECISIONS 2026-10-30 "Ortam sorunu açık risk"):
+  - 2026-10-30 sabahından beri canlı demoda product-catalog yavaş (normal p95 13–17 ms → 30–354 ms).
+  - Set bundan önce üretildi. Proje 1 snapshot'larla çalıştığı için etkilenmez.
+  - Canlı demo kullanılmadan (Proje 2'nin canlı tarafı) önce çözülmeli.
