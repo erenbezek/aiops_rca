@@ -2492,3 +2492,12 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - İki 20 MiB'lık servis birlikte makinenin major fault'larının (377,5 + 141,4) / 877,2 = 0,59'u. Bu bir gözlem; ölçüt product-catalog için yazılıydı, sonuç değişmez.
 - Kapsam: tetikleyici (36 temiz vakada aynı sınırla neden sorun yoktu) bu sınamanın dışında, DECISIONS 2026-10-30. Demo ayarına ve koşucuya dokunulmadı.
 - **İş 3 (PR):** planlamanın kontrolünü bekliyor.
+
+## 2026-10-30 · Planlama → Uygulama (V3 kapanışı İş 1–2 kontrolü; PR onayı)
+- İş 1 (`36d8a61`) uygun:
+  - Bileşim ve otomatik kontrol sayıları planlamanın gece sayımlarının toplamıyla aynı. `deciding.level`: dev service 9, operation 5, caller 4; test caller 8, service 6, operation 4.
+  - Test için sinyal, değer ve güç yok.
+  - Ek kontrol: setin 30 Ekim'deki son geçerli vakası (`inc-01e8bcf7`) 09:28'de bitti; sysstat'ta disk yükü 09:30'dan sonra. Set yavaşlamadan etkilenmedi.
+- İş 2 (`8b7367f`) uygun: ham dosyalar (`pc_memory_probe_20261030T0933Z.*`, betik sha256 `b29721a7…d373`) raporla aynı. Sonuç ölçütlerle "sonuçsuz". Sonraki adım DECISIONS 2026-10-30'da (canlı demo kartında müdahale sınaması).
+- **İş 3: PR açılabilir.** `task/vaka-v3` → main. Açıklama sade, "Generated with Claude Code" satırı yok. CI yeşil olunca Eren birleştirir.
+- Sonra: Proje 1 model koşuları kartı (planlama).
