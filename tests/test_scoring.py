@@ -105,3 +105,19 @@ def test_service_edges_from_spans(tmp_path):
     edges, names = service_edges([p])
     assert edges == Counter({("frontend", "checkout"): 1, ("checkout", "payment"): 1})
     assert names == {"frontend", "checkout", "payment"}
+
+
+def test_metric_containers_known_names(tmp_path):
+    # Tanınan adlar: izlerdeki servisler ∪ metrik konteyner adları, izleme araçları hariç (planlama onayı, P1a 5).
+    from aiops_rca.call_graph import metric_containers
+
+    def rm(name):
+        return {"resource": {"attributes": [{"key": "container.name", "value": {"stringValue": name}}]},
+                "scopeMetrics": []}
+    p = tmp_path / "metrics.jsonl"
+    p.write_text(json.dumps({"resourceMetrics": [rm("astronomy-db"), rm("jaeger"), rm("cart")]}) + "\n")
+    names = metric_containers([p])
+    assert names == {"astronomy-db", "cart"}
+    a = answer(["payment", "astronomy-db", "cart"])
+    assert score_case(a, LABEL, EDGES, KNOWN)["unmatched"] == ["astronomy-db"]  # yalnız izlerden: eşleşmez
+    assert score_case(a, LABEL, EDGES, KNOWN | names)["unmatched"] == []

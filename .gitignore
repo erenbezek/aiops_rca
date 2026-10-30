@@ -11,4 +11,6 @@ build/
 
 # Büyük / üretilen veri
 snapshots/
+# CI örnekleri (kırpılmış, birkaç MB; P1a) repoda
+!tests/fixtures/snapshots/
 llm_cache/

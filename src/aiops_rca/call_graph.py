@@ -3,13 +3,16 @@
 Kenar (A, B): üst span A servisinde, alt span B servisinde (A ≠ B), yani A B'yi çağırdı (Kafka'da üretici → tüketici).
 Bütün snapshot penceresi okunur (`traces.jsonl`). Üst span'i snapshot'ta olmayan span (pencere kesimi) kenar vermez.
 Sayı = o kenarı veren alt span sayısı. Aynı geçişte izlerde görülen servis adları da döner (ad eşleme için).
+
+Tanınan adlar (puanlamada ad eşleme; DECISIONS 2026-10-30, planlama onayı): izlerdeki servisler ∪ metriklerdeki konteyner
+adları (`container.name`), izleme araçları (`TOOLING_CONTAINERS`) hariç. Ör. astronomy-db izlerde yok, metriklerde var.
 """
 from __future__ import annotations
 
 from collections import Counter
 from pathlib import Path
 
-from aiops_rca.signals import iter_lines, resource_attr
+from aiops_rca.signals import TOOLING_CONTAINERS, iter_lines, resource_attr
 
 
 def service_edges(trace_paths: list[Path]) -> tuple[Counter, set[str]]:
@@ -36,3 +39,13 @@ def service_edges(trace_paths: list[Path]) -> tuple[Counter, set[str]]:
             edges[(p, svc)] += 1
     return edges, set(span_svc.values()) | {svc for _, svc in children}
 
+
+def metric_containers(metric_paths: list[Path]) -> set[str]:
+    """Metriklerdeki konteyner adları (`container.name`), izleme araçları hariç."""
+    out = set()
+    for doc in iter_lines(metric_paths):
+        for rm in doc.get("resourceMetrics", []):
+            name = resource_attr(rm.get("resource", {}), "container.name")
+            if name and name not in TOOLING_CONTAINERS:
+                out.add(name)
+    return out

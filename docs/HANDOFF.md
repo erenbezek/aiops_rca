@@ -2671,3 +2671,37 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - `match_service` yalnız izlerdeki adları ve kökü tanıdığı için bu ad `unmatched` sayıldı.
   - top-1/top-3 değişmez (kök hiçbir vakada astronomy-db değil). Tablodaki hiçbir sütun bundan etkilenmez.
   - Öneri: bilinen adlara görünümdeki metrik konteyner adları da eklensin.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 5. adım: ad eşleme, CI örnekleri, ham log boyutu)
+- **Ad eşleme (planlama onayı):** tanınan adlar = izlerdeki servisler ∪ metriklerdeki konteyner adları, izleme araçları hariç (`call_graph.metric_containers`). Test: `test_metric_containers_known_names`.
+  - İki resmî koşu yeniden puanlandı; yanıtlar yeniden üretilmedi.
+  - Set tablosu birebir aynı. Değişen alanlar yalnız `matched` ve `unmatched`: eşleşmeyen ad 7 → 0 (`astronomy-db`).
+- **CI örnekleri:** `tests/fixtures/snapshots/`. 4 pilot vaka, toplam 4,31 MB, sızıntı taraması dördünde 0 bulgu.
+
+  | Vaka | Giriş | İz seyreltme (1/K) |
+  |---|---|---|
+  | `inc-8ceb7ae5` | paymentFailure 50% | 50 |
+  | `inc-2dd806a2` | quoteGatewaySlowdown 30ms | 49 |
+  | `inc-0f31ed0e` | productCatalogLockContention | 36 |
+  | `inc-2e5706ab` | networkDelay cart 50ms | 48 |
+
+  - Üretici `~/cerebrum2/analysis/p1a_fixtures.py`, sha256 `8a93b81bd2d0b1a5c177c4ce9d6f12e8112937938a60bdbffd1cf5ae6d4ec144`. Kırpma:
+    - alarm ± 10 dk; metriklerde CPU hızı için ayrıca 60 sn öncesi;
+    - izler iz kimliğinin sha256'sına göre seyreltilir, tam izler tutulur;
+    - WARN+ loglar; yalnız konteyner CPU ve bellek metrikleri;
+    - kaynak özniteliği yalnız `service.name` / `container.name` (makine bilgisi yok).
+  - `.gitignore`: `!tests/fixtures/snapshots/`. Kökteki `snapshots/` hâlâ dışarıda.
+- **Beklenen çıktı ve test:** `tests/fixtures/rule_expected.json` + `tests/test_rule_fixtures.py`. Karşılaştırılanlar: kural cevapları, puanlar, set tablosu (süreler hariç) ve her servisin her sinyalinin gücü.
+  - Kırpılmış vakada kuralın cevabı tam vakadakinden farklı olabilir; örnek kendi beklenen çıktısıyla sınanır. Örneklerde top-1 2/4, top-3 4/4.
+  - Kasıtlı kırmızı, üç ayrı deneme (her birinden sonra geri alındı): p95 eşiği 1,5 → 1,4; CPU +5 → +4 puan; hata oranı +0,05 → +0,04. Üçünde de test kırmızı.
+  - p95 ve CPU değişikliklerinde kuralın ilk 3'ü aynı kaldı, yalnız güçler değişti. Güçlerin beklenen çıktıya eklenme nedeni bu.
+- **Uygulamanın hatası (düzeltildi):** kasıtlı kırmızı sırasında `__pycache__` bayat kaldı.
+  - Düzenleme dosya boyutunu değiştirmedi ve geri alma aynı saniyede oldu; Python eski bayt kodunu kullandı. Bu yüzden beklenen çıktının bir sürümü yanlış kodla üretildi.
+  - Önbellek silindi, `PYTHONDONTWRITEBYTECODE=1` ile yeniden üretildi; `signals.py` HEAD ile aynı.
+  - Daha önceki sonuçlar etkilenmedi: 1. adımın eşitliği geri almadan sonra fark 0 verdi; resmî koşular ve yeniden puanlama bu adımdaki düzenlemelerden önce.
+- **Ham log boyutu (kayıt, ölçüt değil; dev 18 vaka):** betik `~/cerebrum2/analysis/p1a_rawlog_size.py` (`4a9598bc…68e8`), çıktı `.out` (`88cade2e…da2c`).
+  - Pencere (alarm ± 10 dk) toplamı: en az 167,2 M, medyan 212,2 M, en çok 244,9 M karakter; ~token = karakter / 4, medyan ~53 M.
+  - Yalnız logs: medyan 43,3 M karakter (32,4–48,2 M).
+  - Snapshot dosyalarının tamamı: traces 139–192 M, metrics 44–54 M, logs 46–63 M karakter.
+- pytest 457/457. GLOSSARY: `metric_containers()`, `rule_expected.json`, `signal_strengths`, `test_rule_fixtures.py`. ARCHITECTURE tablosu güncel.
+- Sıradaki: planlama kontrolü, sonra PR (`task/p1-eval` → main).

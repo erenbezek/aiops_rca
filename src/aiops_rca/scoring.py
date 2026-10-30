@@ -1,8 +1,9 @@
 """Puanlama (HANDOFF 2026-10-30 P1a kartı 4. madde; DECISIONS 2026-10-30 "Kalibrasyon ölçüsü", "Kanıt geçerliliği",
 "P1a kararları").
 
-- Ad eşleme (tek yer, `match_service`): boşluklar sadeleşir, küçük harf, `_` ve boşluk `-` olur; bilinen adlardan
-  (snapshot izlerindeki servisler + etiketin kökü) biriyle aynıysa o ad, değilse eşleşmez (yanlış sayılır).
+- Ad eşleme (tek yer, `match_service`): boşluklar sadeleşir, küçük harf, `_` ve boşluk `-` olur; tanınan adlardan
+  (izlerdeki servisler ∪ metriklerdeki konteyner adları, izleme araçları hariç; + etiketin kökü) biriyle aynıysa o ad,
+  değilse eşleşmez (yanlış sayılır).
 - top-1: 1. aday kök neden. top-3: kök neden üç adaydan birinde. Şemaya uymayan cevap: ikisi de yanlış.
 - Kanıt geçerliliği (1. adayın yolu): yolun her ardışık kenarı (A, B), izlerde iki yönden birinde görülen bir
   servisler arası çağrıysa (B A'yı çağırdı: `reverse`, senkron yayılım; A B'yi çağırdı: `forward`, Kafka) geçerli.

@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 from aiops_rca.answer import Answer, validate_answer
-from aiops_rca.call_graph import service_edges
+from aiops_rca.call_graph import metric_containers, service_edges
 from aiops_rca.cases import DEFAULT_SETS, INCIDENTS, SNAPSHOTS, load_cases, load_labels
 from aiops_rca.methods.rule import rule_baseline
 from aiops_rca.runs import EVAL_RESPONSES, append_response, new_run, read_run
@@ -52,7 +52,9 @@ def cmd_score(run_dir: Path, final_test: bool, *, incidents: Path = INCIDENTS, s
     rows = []
     for r in responses:
         label = labels[r["incident_id"]]
-        edges, known = service_edges([snapshots / r["incident_id"] / "traces.jsonl"])
+        view = snapshots / r["incident_id"]
+        edges, traced = service_edges([view / "traces.jsonl"])
+        known = traced | metric_containers(sorted(view.glob("metrics*.jsonl")))
         answer = Answer.from_dict(r["answer"]) if r["schema_valid"] else None
         rows.append({"incident_id": r["incident_id"], "set": label["set"], **score_case(answer, label, edges, known),
                      "duration_s": r["duration_s"], "tokens": r["tokens"]})

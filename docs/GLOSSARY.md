@@ -15,7 +15,8 @@ Sadece Eren'in onayladığı isimler.
 | `api_smoke_test` | API duman testi: aday modellerin teknik uygunluk kontrolü (`tools/api_smoke_test.py`) |
 | `llm_cache/` | Geliştirme denemelerinin LLM cevapları; git dışı |
 | `eval_responses/` | Resmî değerlendirme koşusunun LLM cevapları; repoda tutulur |
-| `tests/fixtures/snapshots/` | CI için 3-5 incident'lık sabit snapshot alt kümesi; repoda tutulur |
+| `tests/fixtures/snapshots/` | CI için 3-5 incident'lık sabit snapshot alt kümesi; repoda tutulur. P1a'da 4 pilot vaka, kırpılmış (pencere, seyreltilmiş izler, kuralın ve puanlamanın alanları), toplam ≤ 5 MB |
+| `tests/fixtures/rule_expected.json`, `signal_strengths`, `tests/test_rule_fixtures.py` | Örneklerde kural baseline'ın beklenen çıktısı (cevaplar, puanlar, set tablosu; süreler hariç) / içindeki her servisin her sinyalinin gücü (ölçü katmanı regresyonu) / bunu CI'da yeniden üreten test |
 | `docs/OTEL_DEMO.md` | OpenTelemetry Demo keşif notları: modlar, bellek, senaryolar, sızıntı yolları |
 | `docs/INCIDENT_CATALOG.md` | Enjekte edilecek hatalar, doğru cevap kuralı, beklenen belirti ve yayılım yolları |
 | `noise_layer` | Gürültü katmanı: asıl hatayla aynı anda açılan, yanıltıcı ama kök neden olmayan etki (ör. trafik seli) |
@@ -25,7 +26,7 @@ Sadece Eren'in onayladığı isimler.
 | `src/aiops_rca/cases.py`, `load_cases()`, `load_labels()`, `Case`, `--final-test` | Vaka erişimi (P1a): geçerli `pilot` + `dev` varsayılan, `test` yalnız son koşu bayrağıyla, `heldout` hiç / etiketin cevap alanları yalnız puanlama için / yöntemin gördüğü vaka (`incident_id`, `view`, `alarm_ns`) / test setini açan bayrak |
 | `src/aiops_rca/answer.py`, `Answer`, `Candidate`, `validate_answer()`, `N_CANDIDATES` | Cevap şeması (bütün yöntemlerde aynı): tam 3 sıralı aday + `unsure` / doğrulayıcı / aday sayısı (3) |
 | `candidates[]`: `service`, `confidence`, `evidence_path`, `rationale`; `unsure` | Cevap alanları: aday servis, güven (0–1 ya da üçünde de null), kökten belirtiye servis listesi (adayla başlar), kısa gerekçe; "emin değilim" bayrağı |
-| `src/aiops_rca/call_graph.py`, `service_edges()` | Snapshot izlerinden servisler arası çağrı kenarları (üst span → alt span) ve izlerdeki servis adları |
+| `src/aiops_rca/call_graph.py`, `service_edges()`, `metric_containers()` | Snapshot izlerinden servisler arası çağrı kenarları (üst span → alt span) ve izlerdeki servis adları / metriklerdeki konteyner adları (izleme araçları hariç; ad eşlemede tanınan adlara eklenir) |
 | `src/aiops_rca/scoring.py`, `match_service()`, `evidence()`, `label_overlap()`, `score_case()`, `score_table()` | Puanlama: ad eşlemenin tek yeri / 1. adayın yolunun kanıt geçerliliği / etiket yoluyla örtüşme (yönlü) / vaka puanı / set başına özet |
 | `top1`, `top3`, `evidence_valid`, `label_path_overlap`, `brier`, `selective_accuracy`, `coverage` | Puan alanları; `evidence_valid` null = kenarsız yol (ayrı sayılır) |
 | `schema_valid`, `matched`, `unmatched`, `evidence_edges` (`seen`: `forward` / `reverse` / `both` / null) | Puan satırının ek alanları: şemaya uygun mu, eşleşen ve eşleşmeyen adlar, yolun kenarları ve izlerde görüldükleri yön (`reverse`: sonraki servis öncekini çağırdı, senkron yayılım; `forward`: önceki sonrakini çağırdı, Kafka) |
@@ -215,4 +216,4 @@ Sadece Eren'in onayladığı isimler.
 | `v3_night2a` | 2. gece listesinin ilk parçası (`v3_night2`'nin 1–15. girişleri, 15 vaka) |
 | `v3_night2b` | 2. gece listesinin kalan parçası (16–20. girişler, 5 vaka) |
 | `tests/test_v3_lists.py` | V3 gece listelerinin kart tablosuyla birebir karşılaştırması (bileşim, gece sayıları, gece sonları, ortak çiftler ayrı gecede, ayrılan birimler yalnız testte, koşucunun liste denetimi) |
-| `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi); yol ve sha256 HANDOFF'ta |
+| `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi; P1a: `p1a_equality.py`, `p1a_path_check.py`, `p1a_fixtures.py` CI örneği üreticisi, `p1a_rawlog_size.py`); yol ve sha256 HANDOFF'ta |
