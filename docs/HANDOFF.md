@@ -2459,3 +2459,36 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
     - **Sonuçsuz:** frontend p95 ≤ 30 ms (yavaşlık o sırada yok) ya da ikisinin arası. Planlama bakar.
   - Sonuç HANDOFF'a: sayılar, ölçüt sonucu, sha256'lar. Demo ayarına ya da koşucuya dokunulmaz.
 - **İş 3: PR.** İş 1 ve 2 bitip planlama kontrol ettikten sonra açılır. `task/vaka-v3` → main. Açıklama sade, "Generated with Claude Code" satırı yok.
+
+## 2026-10-30 · Uygulama → Planlama (V3 kapanışı İş 1–2: katalog özeti, product-catalog bellek sınaması)
+- **İş 1:** `docs/INCIDENT_CATALOG.md` sonuna "V3 resmî set (kapandı 2026-10-30)" eklendi (`36d8a61`).
+  - Bileşim tablosu: dev/test, tür, kategori. Sayılar planlamanınkiyle aynı.
+  - Set başına girişler. Ayrılan birimler 5/6.
+  - Otomatik kontrol sayıları.
+  - Koşular, düşen 4 giriş, bilinen boşluklar, ortam riski.
+  - Test vakaları için sinyal, değer ve güç yok.
+- **İş 2: sınama sonucu SONUÇSUZ (ölçütlerin arası).**
+  - Betik: `~/cerebrum2/analysis/pc_memory_probe.py`, sha256 `b29721a7ca4607bc8076d9de109ad827033370f25144322097ee3b8a840fd373`. Koşmadan önce sentetik verilerle 5 durumda sınandı.
+  - Ölçütlerin okunuşu betiğin açıklamasında, sonuçtan önce yazıldı:
+    - doluluk = normal dönemde en büyük `memory.current` / `memory.max`;
+    - olay artışı = normal sonu − başı;
+    - major fault payı = product-catalog cgroup pgmajfault artışı / makine pgmajfault artışı.
+  - Çıktılar: `pc_memory_probe_20261030T0933Z.json` (`078a7279…20fd`), `.log` (`6c85be58…9ff1`), `_samples.tsv` (16 örnek, dakikada bir).
+  - Akış: 12:33–12:49 yerel (demo_up 09:33:37Z, normal 09:38:37–09:48:37Z). 23 konteyner, zamanlayıcı `stopped`. Sonda kalıntı yok, volume silindi. Makine boşta: swap 4,29 GB boş, Claude masaüstü kapalı.
+- Ölçütler (normal dönem):
+
+| Ölçüt | Eşik | Ölçülen | Tuttu mu |
+|---|---|---|---|
+| frontend p95 (yavaşlık var mı) | > 30 ms | 42,4 ms (product-catalog p95 32,8) | evet, yavaşlık vardı |
+| `memory.events` max artışı | > 0 | +22 031 (10 dk); high 0, oom 0, oom_kill 0 | evet |
+| Doluluk | ≥ 0,95 | 0,991 (en büyük 20 783 104 / 20 971 520 B) | evet |
+| Major fault payı | ≥ 0,50 | 0,43 (product-catalog 377,5/sn, makine 877,2/sn) | **hayır** |
+
+- Diğer sayılar (kayıt):
+  - `docker inspect`: product-catalog ve checkout `Memory` 20 MiB, `MemorySwap` 40 MiB (swap'a 20 MiB izin).
+  - `memory.high` "max". product-catalog `memory.swap.current` 8,1–9,5 MiB. anon 9,0 MiB, file 8,1–9,1 MiB. `workingset_refault_file` normal dönemde +1 021 124 sayfa. CPU 0,146 çekirdek.
+  - İlk örnek (demo_up anı): `memory.current` 16,9 MiB, swap 7,2 MiB, `events.max` 176. Sınıra dayanma ve swap kullanımı konteynerin açılışından başlıyor. `events.max` ısınma ve normal boyunca dakikada ~2100–2400 artıyor, birikerek kötüleşmiyor.
+  - Kontrol (checkout, aynı 20 MiB sınır): doluluk 0,974, `events.max` +7260, major fault 141,4/sn.
+  - İki 20 MiB'lık servis birlikte makinenin major fault'larının (377,5 + 141,4) / 877,2 = 0,59'u. Bu bir gözlem; ölçüt product-catalog için yazılıydı, sonuç değişmez.
+- Kapsam: tetikleyici (36 temiz vakada aynı sınırla neden sorun yoktu) bu sınamanın dışında, DECISIONS 2026-10-30. Demo ayarına ve koşucuya dokunulmadı.
+- **İş 3 (PR):** planlamanın kontrolünü bekliyor.
