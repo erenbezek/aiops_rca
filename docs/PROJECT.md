@@ -86,4 +86,5 @@ Kendi Python servisi quote-gateway yapıldı (`task/quote-gateway`, 2026-10-29):
 Gece koşusu systemd biriminde (`task/systemd-unit`, 2026-10-29): `systemctl --user start aiops-incidents@<liste>`; `systemctl stop`'ta temizlenir, canlıda geçti (~65 sn, SIGKILL yok); kapanmada kesilir, sonraki koşu başlamaz (kalıntı denetimi).
 V3 resmî set sürüyor (`task/vaka-v3`, kart HANDOFF 2026-10-29): 40 vaka (19 dev / 21 test), iki gece. V3a hazırlık bitti. 1. gece 20/20 geçerli (planlamada kontrol edildi). 2. gece (2a + 2b) 16/20: 2b'de taban sağlık üç kez düştü (product-catalog yavaşlaması, neden bilinmiyor), koşu durduruldu. Toplam 36 geçerli (dev 18, test 18), etiketler `incidents/`'ta.
 2. gece planlamada kontrol edildi.
-Sıradaki: V3c (`v3_retry`, 4 giriş) gece, makine boşta; önce taban ölçümü (p95 ≤ 30 ms), geçerse koşu.
+V3c taban ölçümü gündüz kaldı (36,6 ms; product-catalog yavaşlaması, kök bilinmiyor).
+Sıradaki: makine yeniden başlatılır, tek ölçüm; geçerse `v3_retry`, kalırsa V3 36 vakayla kapanır.

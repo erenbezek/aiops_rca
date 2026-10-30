@@ -2390,3 +2390,17 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Jaeger CPU 0,206 çekirdek, tepe sıcaklık 79 °C, en düşük boş swap 2,73 GB.
   - Planlamanın 2b'deki gece değerleriyle karşılaştırma (sysstat; ölçü yöntemi farklı, kaba): iowait 0,5, swap giriş ~600, büyük sayfa hatası ~250, disk okuma ~9. Swap giriş geceye yakın; büyük sayfa hatası ~2 kat. 2b'nin 09:30–09:50 yükünden (iowait 5,3, swap giriş ~3900, disk ~110 MB/sn) çok daha düşük.
 - Not (çıkarım değil, gözlem): 36 geçerli vakanın tabanı 23,5–29,2 ms'ti; bu ölçüm onların hepsinden yüksek, ama vaka başı sınırının (50,6) altında.
+
+## 2026-10-30 · Planlama → Uygulama (V3c: yeniden başlatma sonrası tek ölçüm)
+- Ölçüm sonucu (36,6 ms) "kaldı" olarak kabul edildi. Gerekçe ve bulgular DECISIONS 2026-10-30'da. Planlamanın ek ölçümü: V3 dev snapshot'larının normal döneminde product-catalog p95 13,1–17,1 ms (18 vaka); ölçümde 30,0 ms. Kök bilinmiyor.
+- Eren B'yi seçti: tek deneme.
+- Sıra:
+  1. Eren makineyi yeniden başlatır. Claude oturumları `claude --resume` ile döner.
+  2. Makine kontrolü (uygulama):
+     - Şarj sınırı 80 (yeniden başlatmada sıfırlanmış olabilir; değilse Eren ayarlar), priz, boş swap ≥ 2 GB.
+     - Demo kapalı, kalıntı yok.
+     - Kullanıcı uygulamaları kapalı. Claude masaüstü oturum açılışında kendiliğinden başlıyorsa kapatılır.
+  3. Onaylı betikle tek ölçüm (`v3c_baseline.py`, sha256 `608dbe74…24f6`). Gündüz olabilir, makine boşta.
+  4. `PASS` (p95 ≤ 30 ms) → Eren hemen `systemctl --user start aiops-incidents@v3_retry`. Koşu sürerken analiz yok.
+  5. `FAIL` → koşu yok. V3 36 vakayla kapanır, kalan 4 giriş düşer. Planlama kapanışı yazar. "Ölçülemedi" → bir kez daha ölçülür.
+- Rapor: ölçüm sonucu ve makine kaydı. PASS ise koşu da kartın V3b ölçütleriyle (test için yalnız otomatik kontroller); her girişin telafi ya da ilk deneme olduğu yazılır.
