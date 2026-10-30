@@ -2748,3 +2748,14 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Test seti okunmaz. Dev'de model koşulmaz (P1d).
   - Demo gerekmez.
   - Kesme kuralı, K ve öne alma kuralı koşmadan önce yazılı.
+
+## 2026-10-30 · Uygulama → Planlama (P1b 1. adım: BARO tablosu)
+- `methods/baro.py` `baro_table(case)`: alarm − 600 sn'den başlayan 120 kova × 10 sn. Sütunlar `<servis>_{cpu,mem,net_rx,net_tx,latency,requests,errors}`; tanım modül belgesinde ve DECISIONS 2026-10-30 "BARO girdisi düzeltmesi"nde. Eksik değerler NaN kalır; RCAEval ön adımları (sonsuz → NaN, `ffill`, `fillna(0)`) 2. adımda portun önünde.
+- RCAEval `main.py` (GitHub main, sha256 `f116bc88a3eecdcde87111292f59504337eb9c4e13e978104af001f6c4a4acca`) uygulamada da okundu. Ön adımlar planlamanın düzeltmesiyle aynı.
+- `tests/test_baro.py` (4 test, sentetik): ızgara ve 60/60, sütun sırası ve dışlamalar, CPU hızı (pencere öncesi noktayla), sayaç geri düşmesi, arayüz toplamı, p90, boş kova. pytest 461/461.
+- Gerçek dev vakaları (her biri ~1,2 sn, 113 sütun, 17 servis):
+  - `inc-ac820869`: 7 sütunda NaN var.
+  - `inc-230c9d46` (containerStop recommendation): 13 sütunda NaN var; recommendation'ın sütunları anomali döneminin 58–59 kovasında NaN.
+  - `inc-9292257f` (containerPause cart): 14 sütunda NaN var; cart gecikmesi anomali döneminin 60 kovasının hepsinde NaN.
+  - checkout, payment ve email gecikmesi seyrek trafik yüzünden sık NaN.
+- Planlama kontrol etti (bir dev vakasında 7 hücre bağımsız kodla aynı).

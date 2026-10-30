@@ -31,6 +31,10 @@ Sadece Eren'in onayladığı isimler.
 | `top1`, `top3`, `evidence_valid`, `label_path_overlap`, `brier`, `selective_accuracy`, `coverage` | Puan alanları; `evidence_valid` null = kenarsız yol (ayrı sayılır) |
 | `schema_valid`, `matched`, `unmatched`, `evidence_edges` (`seen`: `forward` / `reverse` / `both` / null) | Puan satırının ek alanları: şemaya uygun mu, eşleşen ve eşleşmeyen adlar, yolun kenarları ve izlerde görüldükleri yön (`reverse`: sonraki servis öncekini çağırdı, senkron yayılım; `forward`: önceki sonrakini çağırdı, Kafka) |
 | `src/aiops_rca/methods/`, `methods/rule.py`, `rule_baseline` | Kök neden yöntemleri paketi (yöntem `Case` alır, cevap + ham çıktı döner) / kural baseline: C2'nin basit kuralı olduğu gibi, güven null, kenarsız yol |
+| `src/aiops_rca/methods/baro.py`, `baro_table()`, `baro_rank()`, `baro_baseline`, `METHODS["baro"]` | BARO yöntemi (P1b): vaka görünümünden 10 sn'lik tablo / RCAEval `baro`'sunun saf Python portu (sütun sırası ve puanlar) / yöntem (`--method baro`) |
+| `_cpu`, `_mem`, `_net_rx`, `_net_tx`, `_latency`, `_requests`, `_errors` | BARO tablosunun sütun ekleri (`<servis>_<ek>`): CPU (çekirdek yüzdesi), bellek (bayt; RCAEval MB'a çevirir), ağ alma/gönderme (bayt/sn), gecikme p90 (ms), istek ve hata sayısı |
+| `BUCKET_S`, `HALF_S`, `N_BUCKETS`, `METRICS`, `CONTAINER_METRICS`, `NET_RX`, `NET_TX` | `methods/baro.py` sabitleri: kova (10 sn), yarım pencere (600 sn), kova sayısı (120), metrik sırası, metrik adı → ek, ağ sayaçlarının adları |
+| `task/p1-baro` | Proje 1 P1b dalı: BARO baseline |
 | `src/aiops_rca/runs.py`, `new_run()`, `append_response()`, `read_run()`, `EVAL_RESPONSES` | Koşu kaydı: koşu klasörü `<UTC>-<yöntem>/` açar / vaka cevabını ekler / koşuyu okur / resmî koşu kökü (`eval_responses/`) |
 | `run.json`, `responses.jsonl`, `scores.json` | Koşu klasörünün dosyaları: koşu ayarları ve sürüm / vaka başına cevap / puanlar ve set özeti (`evaluate score` yazar) |
 | `repo_clean`, `schema_errors`, `raw_output` | Kayıt alanları: koşu başında kod ağacı temiz mi (`eval_responses/` hariç) / şema hataları / yöntemin ham çıktısı |
