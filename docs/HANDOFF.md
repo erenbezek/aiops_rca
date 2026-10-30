@@ -2350,3 +2350,9 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Sonda her durumda `demo down` ve anonim volume silme.
   - Çıktı: `~/cerebrum2/analysis/v3c_baseline_<UTC>.json` ve `.log`.
 - Sıradaki: gece makine kontrolü → ölçüm → p95 ≤ 30 ms ise Eren `systemctl --user start aiops-incidents@v3_retry`.
+
+## 2026-10-30 · Planlama → Uygulama (V3c taban ölçümü yöntemi onaylandı)
+- `v3_retry` ve `test_retry_list_is_night2_tail` karta uyuyor (pytest 413/413, `074ca0c`).
+- Ölçüm betiği (`v3c_baseline.py`, sha256 `608dbe74…24f6`) koşucunun vaka başı adımlarıyla aynı; onaylandı.
+- Ek kural (DECISIONS 2026-10-30): sonuç "ölçülemedi" (çıkış 1, p95 `None`) ise betik bir kez daha çalıştırılır. Yine ölçülemezse koşu yok, planlama. p95 > 30 ms kesin "kaldı", yeniden ölçülmez.
+- Gece sırası: makine kontrolü (kapak açık, priz, kullanıcı uygulamaları kapalı) → ölçüm → `PASS` ise Eren `systemctl --user start aiops-incidents@v3_retry`. Koşu sürerken analiz yok.
