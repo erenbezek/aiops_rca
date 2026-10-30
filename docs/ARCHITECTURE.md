@@ -105,6 +105,11 @@ flowchart LR
 | `src/aiops_rca/__init__.py` | Paket işareti (boş) |
 | `src/aiops_rca/leakage.py` | Sızıntı testi: `model_view` klasöründe cevabı ele veren izleri arar; CLI `python -m aiops_rca.leakage <klasör>`, çıkış kodu 0/1/2 |
 | `src/aiops_rca/signals.py` | Vaka sinyalleri (`tools/`'tan taşındı, P1a): pencere, dosya okuma, servis satırları, sinyaller ve güç, basit kural (`rule_check`), işlem ve çağıran satırları; `trial_summary`, `c2_measure`, `incident_checks` bu adları buradan içe aktarır |
+| `src/aiops_rca/cases.py` | Vaka erişimi: `load_cases()` (yönteme yalnız `incident_id`, `view`, `alarm_ns`), `load_labels()` (puanlama için); `test` yalnız `final_test`, `heldout` hiç |
+| `src/aiops_rca/answer.py` | Cevap şeması ve doğrulayıcı (tam 3 aday, güven, kanıt yolu, gerekçe, `unsure`) |
+| `src/aiops_rca/call_graph.py` | Snapshot izlerinden servisler arası çağrı kenarları |
+| `src/aiops_rca/scoring.py` | Puanlama: ad eşleme, top-1/top-3, kanıt geçerliliği, etiket yoluyla örtüşme, Brier, seçici doğruluk, kapsama, set özeti |
+| `tests/test_cases.py`, `tests/test_answer.py`, `tests/test_scoring.py` | Erişim korumaları, şema ve puanlama birim testleri (sahte verilerle) |
 | `tests/test_leakage.py` | Sızıntı testinin testleri (kart ölçütleri, kural biçimleri, girdi hataları) |
 | `tests/fixtures/leakage/` | Sahte OTLP JSON dosyaları: `leak_*.jsonl` (OTEL_DEMO.md sızıntı tablosu), `clean_*.jsonl` (temiz, yanlış alarm adayları) |
 | `docs/PROJECT.md` | Ne, neden, bitti ölçütü, kapsam dışı, şu an |

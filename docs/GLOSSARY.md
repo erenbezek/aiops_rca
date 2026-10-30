@@ -22,6 +22,13 @@ Sadece Eren'in onayladığı isimler.
 | `src/aiops_rca/` | Projenin Python paketi (src düzeni) |
 | `src/aiops_rca/leakage.py` | Sızıntı testi: modele verilecek görünümde cevabı ele veren iz arar |
 | `src/aiops_rca/signals.py` | Vaka sinyalleri modülü: pencere, servis satırları, sinyaller ve güç, basit kural, işlem ve çağıran satırları (P1a'da `tools/`'tan taşındı) |
+| `src/aiops_rca/cases.py`, `load_cases()`, `load_labels()`, `Case`, `--final-test` | Vaka erişimi (P1a): geçerli `pilot` + `dev` varsayılan, `test` yalnız son koşu bayrağıyla, `heldout` hiç / etiketin cevap alanları yalnız puanlama için / yöntemin gördüğü vaka (`incident_id`, `view`, `alarm_ns`) / test setini açan bayrak |
+| `src/aiops_rca/answer.py`, `Answer`, `Candidate`, `validate_answer()`, `N_CANDIDATES` | Cevap şeması (bütün yöntemlerde aynı): tam 3 sıralı aday + `unsure` / doğrulayıcı / aday sayısı (3) |
+| `candidates[]`: `service`, `confidence`, `evidence_path`, `rationale`; `unsure` | Cevap alanları: aday servis, güven (0–1 ya da üçünde de null), kökten belirtiye servis listesi (adayla başlar), kısa gerekçe; "emin değilim" bayrağı |
+| `src/aiops_rca/call_graph.py`, `service_edges()` | Snapshot izlerinden servisler arası çağrı kenarları (üst span → alt span) ve izlerdeki servis adları |
+| `src/aiops_rca/scoring.py`, `match_service()`, `evidence()`, `label_overlap()`, `score_case()`, `score_table()` | Puanlama: ad eşlemenin tek yeri / 1. adayın yolunun kanıt geçerliliği / etiket yoluyla örtüşme (yönlü) / vaka puanı / set başına özet |
+| `top1`, `top3`, `evidence_valid`, `label_path_overlap`, `brier`, `selective_accuracy`, `coverage` | Puan alanları; `evidence_valid` null = kenarsız yol (ayrı sayılır) |
+| `schema_valid`, `matched`, `unmatched`, `evidence_edges` (`seen`: `forward` / `reverse` / `both` / null) | Puan satırının ek alanları: şemaya uygun mu, eşleşen ve eşleşmeyen adlar, yolun kenarları ve izlerde görüldükleri yön (`reverse`: sonraki servis öncekini çağırdı, senkron yayılım; `forward`: önceki sonrakini çağırdı, Kafka) |
 | `tests/fixtures/leakage/` | Sızıntı testinin sahte OTLP JSON dosyaları |
 | `gen_leakage_fixtures` | Sızıntı testinin sahte dosyalarını üreten betik (`tools/gen_leakage_fixtures.py`) |
 | `leak_<kaynak>.jsonl`, `clean_symptoms.jsonl`, `clean_false_alarms.jsonl` | Sızıntı testi sahte dosyaları: sızıntı tablosunun bir satırı / normal trafik ve gerçekçi belirtiler / yanlış alarm adayları |

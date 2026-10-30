@@ -2589,3 +2589,15 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Sonuç: taşımadan önce de sonra da fark 0.
   - Kasıtlı kırmızı: p95 eşiği geçici olarak 1,5 → 1,4 yapılınca 41/43 vakada fark çıktı, geri alınınca 0.
 - pytest 413/413 (koşucu testleri dahil). GLOSSARY: `src/aiops_rca/signals.py`, `task/p1-eval`. ARCHITECTURE tablosu ve diyagram düğümü güncellendi.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 2. adım: erişim, şema, puanlama)
+- `cases.py` (`load_cases`, `load_labels`, `Case`), `answer.py` (`Answer`, `Candidate`, `validate_answer`; tam 3 aday), `call_graph.py` (`service_edges`), `scoring.py` (`match_service`, `evidence`, `label_overlap`, `score_case`, `score_table`).
+- Kartın açık bıraktığı iki okuma (planlama farklı düşünürse düzeltilir):
+  - Kanıt geçerliliği ve örtüşme 1. adayın yolunda ölçülür.
+  - Örtüşme yönlü: ters kenar etiket kenarı sayılmaz. Kanıt geçerliliği iki yönü de kabul eder, yön `seen` alanında.
+- Testler: `test_cases.py`, `test_answer.py`, `test_scoring.py` (37 test, sahte verilerle). pytest 450/450.
+- Kasıtlı kırmızı (üç ayrı deneme, her birinden sonra geri alındı):
+  - `heldout` koruması kaldırılınca 2 test kırmızı.
+  - `test` koruması kaldırılınca 1 test kırmızı.
+  - `Case`'e etiket alanı eklenince 1 test kırmızı.
+- GLOSSARY ve ARCHITECTURE güncel.
