@@ -26,94 +26,21 @@ referansı 25,3 ms (15 geçerli koşunun normal dönem frontend p95 medyanı).
 from __future__ import annotations
 
 import sys
-from collections import defaultdict
 from pathlib import Path
-from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import c2_measure as cm  # noqa: E402
-from trial_summary import INCOMING_KINDS, STATUS_ERROR, Window, iter_lines, resource_attr  # noqa: E402
+# İşlem ve çağıran satırları pakette (DECISIONS 2026-10-30 "P1a kararları"); adlar buradan da içe aktarılabilir.
+from aiops_rca.signals import (  # noqa: E402, F401
+    INCOMING_KINDS, STATUS_ERROR, Window, iter_lines, resource_attr, SPAN_KIND_CLIENT, _rpc_service, _span_attrs,
+    caller_rows, operation_rows,
+)
 
 MIN_OP_REQUESTS = 10
 BASELINE_P95_MS = 25.3
 BASELINE_FACTOR = 2
 RESOURCE_SIGNALS = ("cpu_pct", "mem_mb")
-SPAN_KIND_CLIENT = 3
-
-
-def operation_rows(paths: list[Path], window: Window) -> dict:
-    """(servis, span adı) → {"before"|"after": [istek, hata, süreler (ns)]}; yalnız gelen span'ler."""
-    ops = defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})
-    for doc in iter_lines(paths):
-        for rs in doc.get("resourceSpans", []):
-            svc = resource_attr(rs.get("resource", {}), "service.name")
-            for ss in rs.get("scopeSpans", []):
-                for sp in ss.get("spans", []):
-                    t = int(sp.get("startTimeUnixNano", 0))
-                    side = window.side(t)
-                    if side is None or svc is None or sp.get("kind") not in INCOMING_KINDS:
-                        continue
-                    row = ops[(svc, sp.get("name", ""))][side]
-                    row[0] += 1
-                    if sp.get("status", {}).get("code") == STATUS_ERROR:
-                        row[1] += 1
-                    row[2].append(int(sp.get("endTimeUnixNano", t)) - t)
-    return dict(ops)
-
-
-def _span_attrs(sp: dict, keys: tuple[str, ...]) -> dict:
-    return {a["key"]: next(iter(a["value"].values()), None) for a in sp.get("attributes", []) if a["key"] in keys}
-
-
-def _rpc_service(a: dict) -> str | None:
-    method = a.get("rpc.method") or ""
-    return a.get("rpc.service") or (method.rsplit("/", 1)[0] if "/" in method else None)
-
-
-def caller_rows(paths: list[Path], window: Window, target: str, ips: tuple[str, ...] = ()) -> tuple[dict, list]:
-    """(çağıran, span adı) → {"before"|"after": [istek, hata, süreler]}: çağıranların hedefe giden istemci span'leri.
-    Döner: (satırlar, hedefin gRPC servis adları)."""
-    rpc_services, groups = set(), defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})
-    keys = ("server.address", "net.peer.name", "http.url", "url.full", "rpc.service", "rpc.method")
-    for doc in iter_lines(paths):
-        for rs in doc.get("resourceSpans", []):
-            svc = resource_attr(rs.get("resource", {}), "service.name")
-            for ss in rs.get("scopeSpans", []):
-                for sp in ss.get("spans", []):
-                    kind = sp.get("kind")
-                    if svc == target and kind in INCOMING_KINDS:
-                        rpc = _rpc_service(_span_attrs(sp, ("rpc.service", "rpc.method")))
-                        if rpc:
-                            rpc_services.add(rpc)
-                        continue
-                    if kind != SPAN_KIND_CLIENT or svc is None:
-                        continue
-                    t = int(sp.get("startTimeUnixNano", 0))
-                    side = window.side(t)
-                    if side is None:
-                        continue
-                    a = _span_attrs(sp, keys)
-                    peer = a.get("server.address") or a.get("net.peer.name")
-                    if not peer and (a.get("http.url") or a.get("url.full")):
-                        try:
-                            peer = urlsplit(a.get("http.url") or a.get("url.full")).hostname
-                        except ValueError:
-                            peer = None
-                    row = groups[(svc, sp.get("name", ""), peer, _rpc_service(a))][side]
-                    row[0] += 1
-                    if sp.get("status", {}).get("code") == STATUS_ERROR:
-                        row[1] += 1
-                    row[2].append(int(sp.get("endTimeUnixNano", t)) - t)
-    names = {target, *ips}
-    out = defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})
-    for (svc, name, peer, rpc), r in groups.items():
-        if peer in names or (rpc and rpc in rpc_services):
-            for side in ("before", "after"):
-                o = out[(svc, name)][side]
-                o[0] += r[side][0]
-                o[1] += r[side][1]
-                o[2].extend(r[side][2])
-    return dict(out), sorted(rpc_services)
 
 
 def caller_symptom_check(callers: dict, target: str, m: int = MIN_OP_REQUESTS) -> dict:

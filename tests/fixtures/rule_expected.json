@@ -1,0 +1,731 @@
+{
+ "responses": [
+  {
+   "answer": {
+    "candidates": [
+     {
+      "confidence": null,
+      "evidence_path": [
+       "product-catalog"
+      ],
+      "rationale": "score 3: p95_ms, p99_ms, request_drop; max strength 1389.065",
+      "service": "product-catalog"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "frontend"
+      ],
+      "rationale": "score 3: p95_ms, p99_ms, request_drop; max strength 1388.895",
+      "service": "frontend"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "frontend-proxy"
+      ],
+      "rationale": "score 2: p99_ms, request_drop; max strength 748.57",
+      "service": "frontend-proxy"
+     }
+    ],
+    "unsure": false
+   },
+   "incident_id": "inc-0f31ed0e",
+   "raw_output": "[{\"max_strength\": 1389.065, \"score\": 3, \"service\": \"product-catalog\", \"signals\": [\"p95_ms\", \"p99_ms\", \"request_drop\"]}, {\"max_strength\": 1388.895, \"score\": 3, \"service\": \"frontend\", \"signals\": [\"p95_ms\", \"p99_ms\", \"request_drop\"]}, {\"max_strength\": 748.57, \"score\": 2, \"service\": \"frontend-proxy\", \"signals\": [\"p99_ms\", \"request_drop\"]}]",
+   "schema_errors": [],
+   "schema_valid": true,
+   "tokens": null
+  },
+  {
+   "answer": {
+    "candidates": [
+     {
+      "confidence": null,
+      "evidence_path": [
+       "shipping"
+      ],
+      "rationale": "score 2: p95_ms, p99_ms; max strength 1.69",
+      "service": "shipping"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "quote-gateway"
+      ],
+      "rationale": "score 2: p95_ms, p99_ms; max strength 1.635",
+      "service": "quote-gateway"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "frontend-proxy"
+      ],
+      "rationale": "score 1: p99_ms; max strength 1.02",
+      "service": "frontend-proxy"
+     }
+    ],
+    "unsure": false
+   },
+   "incident_id": "inc-2dd806a2",
+   "raw_output": "[{\"max_strength\": 1.69, \"score\": 2, \"service\": \"shipping\", \"signals\": [\"p95_ms\", \"p99_ms\"]}, {\"max_strength\": 1.635, \"score\": 2, \"service\": \"quote-gateway\", \"signals\": [\"p95_ms\", \"p99_ms\"]}, {\"max_strength\": 1.02, \"score\": 1, \"service\": \"frontend-proxy\", \"signals\": [\"p99_ms\"]}]",
+   "schema_errors": [],
+   "schema_valid": true,
+   "tokens": null
+  },
+  {
+   "answer": {
+    "candidates": [
+     {
+      "confidence": null,
+      "evidence_path": [
+       "frontend"
+      ],
+      "rationale": "score 2: p95_ms, p99_ms; max strength 19.68",
+      "service": "frontend"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "frontend-proxy"
+      ],
+      "rationale": "score 2: p95_ms, p99_ms; max strength 13.9",
+      "service": "frontend-proxy"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "cart"
+      ],
+      "rationale": "score 2: p95_ms, p99_ms; max strength 7.61",
+      "service": "cart"
+     }
+    ],
+    "unsure": false
+   },
+   "incident_id": "inc-2e5706ab",
+   "raw_output": "[{\"max_strength\": 19.68, \"score\": 2, \"service\": \"frontend\", \"signals\": [\"p95_ms\", \"p99_ms\"]}, {\"max_strength\": 13.9, \"score\": 2, \"service\": \"frontend-proxy\", \"signals\": [\"p95_ms\", \"p99_ms\"]}, {\"max_strength\": 7.61, \"score\": 2, \"service\": \"cart\", \"signals\": [\"p95_ms\", \"p99_ms\"]}]",
+   "schema_errors": [],
+   "schema_valid": true,
+   "tokens": null
+  },
+  {
+   "answer": {
+    "candidates": [
+     {
+      "confidence": null,
+      "evidence_path": [
+       "payment"
+      ],
+      "rationale": "score 1: new_warn_log; max strength 2.4",
+      "service": "payment"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "ad"
+      ],
+      "rationale": "score 0: none; max strength 0",
+      "service": "ad"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "astronomy-db"
+      ],
+      "rationale": "score 0: none; max strength 0",
+      "service": "astronomy-db"
+     }
+    ],
+    "unsure": false
+   },
+   "incident_id": "inc-8ceb7ae5",
+   "raw_output": "[{\"max_strength\": 2.4, \"score\": 1, \"service\": \"payment\", \"signals\": [\"new_warn_log\"]}, {\"max_strength\": 0, \"score\": 0, \"service\": \"ad\", \"signals\": []}, {\"max_strength\": 0, \"score\": 0, \"service\": \"astronomy-db\", \"signals\": []}]",
+   "schema_errors": [],
+   "schema_valid": true,
+   "tokens": null
+  }
+ ],
+ "scores": [
+  {
+   "confidence": null,
+   "evidence_edges": [],
+   "evidence_valid": null,
+   "incident_id": "inc-0f31ed0e",
+   "label_path_overlap": 0.0,
+   "matched": [
+    "product-catalog",
+    "frontend",
+    "frontend-proxy"
+   ],
+   "schema_valid": true,
+   "set": "pilot",
+   "tokens": null,
+   "top1": true,
+   "top3": true,
+   "unmatched": [],
+   "unsure": false
+  },
+  {
+   "confidence": null,
+   "evidence_edges": [],
+   "evidence_valid": null,
+   "incident_id": "inc-2dd806a2",
+   "label_path_overlap": 0.0,
+   "matched": [
+    "shipping",
+    "quote-gateway",
+    "frontend-proxy"
+   ],
+   "schema_valid": true,
+   "set": "pilot",
+   "tokens": null,
+   "top1": false,
+   "top3": true,
+   "unmatched": [],
+   "unsure": false
+  },
+  {
+   "confidence": null,
+   "evidence_edges": [],
+   "evidence_valid": null,
+   "incident_id": "inc-2e5706ab",
+   "label_path_overlap": 0.0,
+   "matched": [
+    "frontend",
+    "frontend-proxy",
+    "cart"
+   ],
+   "schema_valid": true,
+   "set": "pilot",
+   "tokens": null,
+   "top1": false,
+   "top3": true,
+   "unmatched": [],
+   "unsure": false
+  },
+  {
+   "confidence": null,
+   "evidence_edges": [],
+   "evidence_valid": null,
+   "incident_id": "inc-8ceb7ae5",
+   "label_path_overlap": 0.0,
+   "matched": [
+    "payment",
+    "ad",
+    "astronomy-db"
+   ],
+   "schema_valid": true,
+   "set": "pilot",
+   "tokens": null,
+   "top1": true,
+   "top3": true,
+   "unmatched": [],
+   "unsure": false
+  }
+ ],
+ "signal_strengths": {
+  "inc-0f31ed0e": {
+   "ad": {
+    "cpu_pct": 0.019,
+    "error_rate": 0.0,
+    "mem_mb": 0.099,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.06,
+    "p99_ms": -0.06
+   },
+   "astronomy-db": {
+    "cpu_pct": -0.009,
+    "mem_mb": -0.213
+   },
+   "cart": {
+    "cpu_pct": -0.059,
+    "error_rate": 0.0,
+    "mem_mb": -0.104,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.005,
+    "p99_ms": -0.06,
+    "request_drop": 1.429
+   },
+   "checkout": {
+    "cpu_pct": 0.023,
+    "mem_mb": -0.137,
+    "new_warn_log": 0.0
+   },
+   "currency": {
+    "cpu_pct": 0.006,
+    "error_rate": 0.0,
+    "mem_mb": -0.961,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+   },
+   "email": {
+    "cpu_pct": -0.008,
+    "mem_mb": -0.234,
+    "new_warn_log": 0.0
+   },
+   "frontend": {
+    "cpu_pct": -0.59,
+    "error_rate": 0.0,
+    "mem_mb": 0.217,
+    "new_warn_log": 0.0,
+    "p95_ms": 130.25,
+    "p99_ms": 1388.895,
+    "request_drop": 1.303
+   },
+   "frontend-proxy": {
+    "cpu_pct": -0.185,
+    "error_rate": 0.408,
+    "mem_mb": -0.301,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.805,
+    "p99_ms": 748.57,
+    "request_drop": 1.246
+   },
+   "image-provider": {
+    "cpu_pct": 0.037,
+    "error_rate": 0.0,
+    "mem_mb": -0.707,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": -0.05,
+    "request_drop": 0.921
+   },
+   "payment": {
+    "cpu_pct": -0.027,
+    "mem_mb": 0.093,
+    "new_warn_log": 0.0
+   },
+   "product-catalog": {
+    "cpu_pct": -0.658,
+    "error_rate": 0.0,
+    "mem_mb": 0.13,
+    "new_warn_log": 0.0,
+    "p95_ms": 1272.57,
+    "p99_ms": 1389.065,
+    "request_drop": 1.127
+   },
+   "quote": {
+    "cpu_pct": -0.003,
+    "mem_mb": 0.101,
+    "new_warn_log": 0.0
+   },
+   "recommendation": {
+    "cpu_pct": -0.045,
+    "error_rate": 0.0,
+    "mem_mb": 0.054,
+    "new_warn_log": 0.0,
+    "p95_ms": 129.02,
+    "p99_ms": 129.02
+   },
+   "shipping": {
+    "cpu_pct": 0.065,
+    "mem_mb": -0.328,
+    "new_warn_log": 0.0
+   },
+   "telemetry-docs": {
+    "cpu_pct": -0.001,
+    "error_rate": 0.0,
+    "mem_mb": 0.044,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+   },
+   "valkey-cart": {
+    "cpu_pct": -0.001,
+    "mem_mb": 0.202
+   }
+  },
+  "inc-2dd806a2": {
+   "ad": {
+    "cpu_pct": 0.055,
+    "error_rate": 0.0,
+    "mem_mb": -0.305,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.035,
+    "p99_ms": -0.035
+   },
+   "astronomy-db": {
+    "cpu_pct": 0.004,
+    "mem_mb": 0.01
+   },
+   "cart": {
+    "cpu_pct": -0.024,
+    "error_rate": 0.0,
+    "mem_mb": -0.856,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.02,
+    "p99_ms": -0.015,
+    "request_drop": 0.476
+   },
+   "checkout": {
+    "cpu_pct": -0.025,
+    "mem_mb": -0.151,
+    "new_warn_log": 0.0
+   },
+   "currency": {
+    "cpu_pct": 0.062,
+    "error_rate": 0.0,
+    "mem_mb": 0.063,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+   },
+   "email": {
+    "cpu_pct": -0.005,
+    "mem_mb": -0.28,
+    "new_warn_log": 0.0
+   },
+   "frontend": {
+    "cpu_pct": -0.04,
+    "error_rate": 0.0,
+    "mem_mb": -0.22,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.74,
+    "p99_ms": 0.522,
+    "request_drop": 0.3
+   },
+   "frontend-proxy": {
+    "cpu_pct": -0.004,
+    "error_rate": 0.0,
+    "mem_mb": -1.446,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.115,
+    "p99_ms": 1.02,
+    "request_drop": 0.127
+   },
+   "image-provider": {
+    "cpu_pct": 0.069,
+    "error_rate": 0.0,
+    "mem_mb": -2.225,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0,
+    "request_drop": -0.536
+   },
+   "payment": {
+    "cpu_pct": 0.006,
+    "mem_mb": -0.041,
+    "new_warn_log": 0.0
+   },
+   "product-catalog": {
+    "cpu_pct": -0.013,
+    "error_rate": 0.0,
+    "mem_mb": 0.205,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.64,
+    "p99_ms": 0.75,
+    "request_drop": -0.169
+   },
+   "quote": {
+    "cpu_pct": -0.015,
+    "error_rate": 0.0,
+    "mem_mb": -0.366,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.015,
+    "p99_ms": 0.015
+   },
+   "quote-gateway": {
+    "cpu_pct": 0.03,
+    "error_rate": 0.0,
+    "mem_mb": -0.877,
+    "new_warn_log": 0.0,
+    "p95_ms": 1.635,
+    "p99_ms": 1.635
+   },
+   "recommendation": {
+    "cpu_pct": 0.028,
+    "error_rate": 0.0,
+    "mem_mb": -0.758,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.43,
+    "p99_ms": -0.43
+   },
+   "shipping": {
+    "cpu_pct": 0.038,
+    "error_rate": 0.0,
+    "mem_mb": -1.003,
+    "new_warn_log": 0.0,
+    "p95_ms": 1.69,
+    "p99_ms": 1.69
+   },
+   "telemetry-docs": {
+    "cpu_pct": 0.0,
+    "error_rate": 0.0,
+    "mem_mb": 0.009,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+   },
+   "valkey-cart": {
+    "cpu_pct": 0.061,
+    "mem_mb": -0.074
+   }
+  },
+  "inc-2e5706ab": {
+   "ad": {
+    "cpu_pct": -0.032,
+    "error_rate": 0.0,
+    "mem_mb": 0.093,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.01,
+    "p99_ms": 0.01
+   },
+   "astronomy-db": {
+    "cpu_pct": -0.01,
+    "mem_mb": 0.099
+   },
+   "cart": {
+    "cpu_pct": -0.018,
+    "error_rate": 0.0,
+    "mem_mb": 0.109,
+    "new_warn_log": 0.0,
+    "p95_ms": 7.56,
+    "p99_ms": 7.61
+   },
+   "checkout": {
+    "cpu_pct": 0.125,
+    "mem_mb": 1.051,
+    "new_warn_log": 0.0
+   },
+   "currency": {
+    "cpu_pct": 0.035,
+    "error_rate": 0.0,
+    "mem_mb": 0.538,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.005,
+    "p99_ms": 0.005
+   },
+   "email": {
+    "cpu_pct": 0.003,
+    "mem_mb": 0.179,
+    "new_warn_log": 0.0
+   },
+   "frontend": {
+    "cpu_pct": 0.027,
+    "error_rate": 0.0,
+    "mem_mb": 0.144,
+    "new_warn_log": 0.0,
+    "p95_ms": 14.425,
+    "p99_ms": 19.68,
+    "request_drop": -0.053
+   },
+   "frontend-proxy": {
+    "cpu_pct": 0.014,
+    "error_rate": 0.0,
+    "mem_mb": 0.328,
+    "new_warn_log": 0.0,
+    "p95_ms": 4.58,
+    "p99_ms": 13.9,
+    "request_drop": 0.01
+   },
+   "image-provider": {
+    "cpu_pct": 0.033,
+    "error_rate": 0.0,
+    "mem_mb": -0.772,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0,
+    "request_drop": 0.121
+   },
+   "payment": {
+    "cpu_pct": 0.02,
+    "mem_mb": 0.29,
+    "new_warn_log": 0.0
+   },
+   "product-catalog": {
+    "cpu_pct": 0.329,
+    "error_rate": 0.0,
+    "mem_mb": 1.113,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.25,
+    "p99_ms": 0.16,
+    "request_drop": 0.167
+   },
+   "quote": {
+    "cpu_pct": 0.015,
+    "mem_mb": -0.228,
+    "new_warn_log": 0.0
+   },
+   "recommendation": {
+    "cpu_pct": -0.01,
+    "error_rate": 0.0,
+    "mem_mb": 0.042,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.17,
+    "p99_ms": 0.17
+   },
+   "shipping": {
+    "cpu_pct": 0.037,
+    "mem_mb": 0.212,
+    "new_warn_log": 0.0
+   },
+   "telemetry-docs": {
+    "cpu_pct": -0.002,
+    "mem_mb": 0.282,
+    "new_warn_log": 0.0
+   },
+   "valkey-cart": {
+    "cpu_pct": 0.001,
+    "mem_mb": -0.132
+   }
+  },
+  "inc-8ceb7ae5": {
+   "ad": {
+    "cpu_pct": -0.042,
+    "error_rate": 0.0,
+    "mem_mb": 0.101,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.005,
+    "p99_ms": -0.005
+   },
+   "astronomy-db": {
+    "cpu_pct": 0.002,
+    "mem_mb": -0.04
+   },
+   "cart": {
+    "cpu_pct": -0.039,
+    "error_rate": 0.0,
+    "mem_mb": 0.135,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.01,
+    "p99_ms": 0.0
+   },
+   "checkout": {
+    "cpu_pct": 0.042,
+    "mem_mb": 0.142,
+    "new_warn_log": 0.0
+   },
+   "currency": {
+    "cpu_pct": -0.003,
+    "error_rate": 0.0,
+    "mem_mb": -0.112,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+   },
+   "email": {
+    "cpu_pct": 0.001,
+    "mem_mb": 0.43,
+    "new_warn_log": 0.0
+   },
+   "frontend": {
+    "cpu_pct": -0.053,
+    "error_rate": 0.0,
+    "mem_mb": 0.122,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.28,
+    "p99_ms": -0.532,
+    "request_drop": -0.479
+   },
+   "frontend-proxy": {
+    "cpu_pct": 0.029,
+    "error_rate": 0.0,
+    "mem_mb": 0.185,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.145,
+    "p99_ms": -0.435,
+    "request_drop": -0.137
+   },
+   "image-provider": {
+    "cpu_pct": 0.016,
+    "error_rate": 0.0,
+    "mem_mb": 0.139,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0,
+    "request_drop": 0.561
+   },
+   "payment": {
+    "cpu_pct": -0.003,
+    "mem_mb": 0.263,
+    "new_warn_log": 2.4
+   },
+   "product-catalog": {
+    "cpu_pct": 0.081,
+    "error_rate": 0.0,
+    "mem_mb": 0.033,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.335,
+    "p99_ms": -0.165,
+    "request_drop": -0.655
+   },
+   "quote": {
+    "cpu_pct": 0.011,
+    "error_rate": 0.0,
+    "mem_mb": 0.145,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+   },
+   "recommendation": {
+    "cpu_pct": 0.02,
+    "error_rate": 0.0,
+    "mem_mb": 0.02,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.235,
+    "p99_ms": 0.235
+   },
+   "shipping": {
+    "cpu_pct": 0.029,
+    "error_rate": 0.0,
+    "mem_mb": 0.089,
+    "new_warn_log": 0.0,
+    "p95_ms": -0.08,
+    "p99_ms": -0.08
+   },
+   "telemetry-docs": {
+    "cpu_pct": 0.023,
+    "error_rate": 0.0,
+    "mem_mb": 0.155,
+    "new_warn_log": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+   },
+   "valkey-cart": {
+    "cpu_pct": 0.028,
+    "mem_mb": -0.121
+   }
+  }
+ },
+ "table": {
+  "all": {
+   "brier": null,
+   "brier_n": 0,
+   "coverage": 1.0,
+   "evidence_invalid": 0,
+   "evidence_null": 4,
+   "evidence_valid": 0,
+   "label_path_overlap_mean": 0.0,
+   "label_path_overlap_n": 4,
+   "n": 4,
+   "schema_invalid": 0,
+   "selective_accuracy": 0.5,
+   "tokens_input": null,
+   "tokens_output": null,
+   "top1": 2,
+   "top1_rate": 0.5,
+   "top3": 4,
+   "top3_rate": 1.0
+  },
+  "pilot": {
+   "brier": null,
+   "brier_n": 0,
+   "coverage": 1.0,
+   "evidence_invalid": 0,
+   "evidence_null": 4,
+   "evidence_valid": 0,
+   "label_path_overlap_mean": 0.0,
+   "label_path_overlap_n": 4,
+   "n": 4,
+   "schema_invalid": 0,
+   "selective_accuracy": 0.5,
+   "tokens_input": null,
+   "tokens_output": null,
+   "top1": 2,
+   "top1_rate": 0.5,
+   "top3": 4,
+   "top3_rate": 1.0
+  }
+ }
+}

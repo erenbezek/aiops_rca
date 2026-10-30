@@ -2501,3 +2501,220 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - İş 2 (`8b7367f`) uygun: ham dosyalar (`pc_memory_probe_20261030T0933Z.*`, betik sha256 `b29721a7…d373`) raporla aynı. Sonuç ölçütlerle "sonuçsuz". Sonraki adım DECISIONS 2026-10-30'da (canlı demo kartında müdahale sınaması).
 - **İş 3: PR açılabilir.** `task/vaka-v3` → main. Açıklama sade, "Generated with Claude Code" satırı yok. CI yeşil olunca Eren birleştirir.
 - Sonra: Proje 1 model koşuları kartı (planlama).
+
+## 2026-10-30 · Planlama → Uygulama (P1a: değerlendirme çatısı ve kural baseline)
+- Amaç: bütün yöntemler (kural, BARO, LLM ayarları) aynı vakalarda, aynı girdiyle ve aynı puanlamayla ölçülsün. Ölçme cetveli model koşmadan önce sabitlenir.
+- Kararlar: DECISIONS 2026-10-30 (Proje 1 kart bölümü, kalibrasyon, kanıt geçerliliği, alarm zamanı, kural baseline). Dal `task/p1-eval` (Eren onaylı; GLOSSARY'ye eklenir).
+- Yapılacak (kod `src/aiops_rca/`, DECISIONS 2026-10-15). Modül, komut ve alan adları İngilizce önerilir; Eren onaylar, GLOSSARY'ye girer.
+  1. **Vaka erişimi:**
+     - Etiketler `incidents/`, görünüm `~/cerebrum2/snapshots/<id>/` (`model_view`).
+     - Varsayılan yalnız geçerli `pilot` (25) ve `dev` (18). `test` yalnız açık bir son koşu ayarıyla okunur; `heldout` hiç okunmaz.
+     - Yönteme etiket verilmez: yöntem yalnız görünümü ve alarm zamanını alır.
+  2. **Sinyaller:** servis başına alarmdan önceki 10 dk ve sonraki 10 dk.
+     - Hata oranı, p95, p99, CPU, bellek, istek sayısı, yeni WARN+ log; çağıran tarafı (istemci span'leri, `caller_rows` mantığı).
+     - Mevcut ölçüler (`tools/trial_summary.py`, `c2_measure.py`, `incident_checks.py`) paketten kullanılır ya da pakete taşınır. Taşınırsa koşucu davranışı ve eski sonuçlar aynı kalır (eşitlik testi).
+  3. **Cevap şeması** (bütün yöntemlerde aynı):
+     - Sıralı 3 aday. Her adayda servis, güven (0–1), kanıt yolu (kökten belirtiye servis listesi), kısa gerekçe.
+     - "Emin değilim" bayrağı.
+     - Güven veremeyen yöntem alanı boş bırakır; kalibrasyona girmez.
+  4. **Puanlama:**
+     - top-1, top-3. Ad eşleme kuralı tek yerde.
+     - Kanıt geçerliliği: yolun her kenarı vakanın snapshot penceresindeki izlerde görülen bir servisler arası çağrı mı.
+     - Etiket yoluyla örtüşme: etiket kenarlarının yoldaki payı; rapor.
+     - Kalibrasyon: Brier (top-1 güveni ile top-1 doğruluğu), seçici doğruluk ve kapsama.
+     - Süre; token (varsa).
+     - Set başına özet tablo; kayıtlardan tek komutla yeniden üretilir.
+  5. **Koşu kaydı:**
+     - Yöntem, model kimliği, sağlayıcı, temperature, ayarlar, tarih, repo commit.
+     - Vaka başına cevap, ham çıktı, süre, token.
+     - Resmî koşular `eval_responses/` (repo), denemeler `llm_cache/` (git dışı). P1a'da yalnız kural baseline koşar.
+  6. **Kural baseline:** C2 kartındaki "basit kural kontrolü" (HANDOFF 2026-10-23, 4. madde) ve güç formülü (HANDOFF 2026-10-24).
+     - Puan = eşiği aşan sinyal sayısı; eşitlikte güç. İzleme araçları puanlanmaz; `astronomy-db` ve `valkey-cart` yalnız CPU ve bellekle puanlanır.
+     - Dev'de ayarlanmaz. Kuralın kesin tanımını ve eşiklerin kaynağını koşmadan önce raporla.
+  7. **CI:** kırpılmış küçük sabit örnekler (3–5 pilot vaka, `tests/fixtures/snapshots/`) ve kural baseline'ın beklenen çıktısı; CI aynısını üretir. Boyut önerisi uygulamadan (birkaç MB).
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - **Erişim:** `test` bayraksız okunamaz, `heldout` hiç okunamaz, yöntem etikete erişemez. Testlerle; kasıtlı kırmızı (koruma kaldırılınca test kırmızı).
+  - **Puanlama:** sahte cevaplarla birim testleri: top-1/top-3, ad eşleme, geçerli/geçersiz yol, örtüşme, Brier, seçici doğruluk, "emin değilim".
+  - **Ölçü sağlaması:** pilot + dev'in her vakasında etiketin kendi yayılım yolu kanıt geçerliliği ölçüsünden geçer. Geçmeyen varsa dur ve yaz (ölçü mü etiket mi).
+  - **Kural baseline:** pilot + dev (43 vaka) üzerinde koştu. Her vakada şemaya uygun cevap; iki koşu birebir aynı. Sonuç tablosu HANDOFF'a, sayılarla, yorumsuz.
+  - **Uyumluluk:** taşınan ölçüler eski sonuçları aynı üretir; koşucu testleri yeşil.
+  - CI örnekleri ve beklenen çıktı repoda; pytest yeşil; PR koşusu yeşil.
+  - Kayıt (ölçüt değil): dev vakalarında ham log boyutu (karakter, yaklaşık token); P1c/P1d bütçesi için.
+- Dikkat:
+  - Test seti bu kartta okunmaz, koşulmaz.
+  - LLM çağrı katmanı ve daraltma bu kartta yok (P1c).
+  - Demo gerekmez; her şey dosyadan. Ortam riski bu kartı etkilemez.
+- Sıradaki: P1b BARO kartı (planlama).
+
+## 2026-10-30 · Planlama → Uygulama (P1b: BARO baseline)
+- Ne zaman: P1a birleştikten sonra, ayrı dal ve PR (dal adı o zaman önerilir).
+- Kararlar: DECISIONS 2026-10-30 ("BARO uygulaması", "BARO girdisi"). P1a'nın erişim, şema, puanlama ve koşu kaydı aynen kullanılır.
+- Yapılacak:
+  1. **Tablo** (yöntem modülü P1a'daki `methods/` altında; adlar önerilir):
+     - 10 sn ızgara. Zaman sütunu `time` = kova başı (unix saniye). Sütunlar `<servis>_<metrik>`, sırası deterministik (servis adı, sonra sabit metrik sırası).
+     - Konteyner metrikleri: CPU, bellek (bayt; RCAEval'in `_mem` dönüşümüyle MB), ağ alma ve gönderme (sayaç farkından hız).
+     - İzlerden (servisin server span'leri): gecikme p50 ve p90 (ms), istek sayısı, hata sayısı. Boş kovada sayılar 0, gecikme eksik.
+     - Aday kümesi kural baseline'ıyla aynı (izleme araçları ve rutin servisler dışarıda).
+     - Pencere: alarmdan önce 10 dk normal, sonra 10 dk anomali; bölme `time < alarm`.
+  2. **Port:** RCAEval `baro(data, inject_time, dataset=<None olmayan; "causalrca-sock-shop" değil>, dk_select_useful=False)` davranışı:
+     - `drop_time`, `drop_constant`, `convert_mem_mb`; iki bölümün ortak sütunları.
+     - Sütun başına normal dönemde medyan ve çeyrekler arası aralık (sklearn `RobustScaler` gibi; aralık 0 ise ölçek 1). Anomali dönemindeki en büyük z sütunun puanı. Sütunlar puana göre azalan sırada.
+     - Eksik değerde RCAEval ne yapıyorsa o (port kendi kuralını uydurmaz).
+  3. **Cevap:** sütun sırasından servis sırası (ilk görünüş). Tam 3 aday, `confidence` null, `evidence_path` [servis], `unsure` false. Koşu `eval_responses/`'ta.
+  4. **Eşitlik kontrolü:**
+     - Repo dışı geçici sanal ortam: RCAEval (sürüm ya da commit kayda) + numpy, pandas, scikit-learn.
+     - 5 dev vakasının tablosu iki uygulamada. En az ikisi eksik değerli: containerStop recommendation (`inc-230c9d46`) ve containerPause cart (`inc-9292257f`).
+     - Bitince ortam silinir; paket sürümleri kayda.
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - Tablo tanımı ve eksik değer davranışı koşmadan önce raporlandı.
+  - **Eşitlik:** 5 vakada sütun sırası birebir aynı, puanlar |fark| ≤ 1e-9. Tutmazsa port düzeltilir (referans RCAEval); tablo ve kural değişmez.
+  - **Koşu:** pilot + dev (43) üzerinde şemaya uygun tam 3 aday; iki koşu birebir aynı. Sonuç tablosu HANDOFF'a, yorumsuz.
+  - CI örneklerinde BARO'nun beklenen çıktısı; pytest yeşil; PR koşusu yeşil.
+  - Geçici ortam silindi; RCAEval ve paket sürümleri kayda.
+- Dikkat:
+  - Test seti okunmaz.
+  - Dev'de ayar yok (ızgara, sütunlar, pencere sabit).
+  - Proje bağımlılığı eklenmez; RCAEval'den başka paket gerekirse önce sorulur.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 1. adım: ölçüler pakete taşındı)
+- `src/aiops_rca/signals.py`, kart 2. madde ve DECISIONS 2026-10-30 "P1a kararları". Kaynak blokları betikle olduğu gibi aktarıldı, kod elle yazılmadı. Taşınanlar:
+  - `trial_summary`: pencere ve okuma çekirdeği (`Window`, `iter_lines`, `summarize`, sabitler).
+  - `c2_measure`: `service_rows`, `signals`, güç, `classify`, `rule_check`.
+  - `incident_checks`: `operation_rows`, `caller_rows`.
+- Üç `tools/` modülü aynı adları paketten içe aktarıyor. Koşucu ve systemd birimi değişmedi; venv'siz Python da içe aktarabiliyor (`src` yolu ekli).
+- Eşitlik testi:
+  - Betik `~/cerebrum2/analysis/p1a_equality.py`, sha256 `5c5e2db3a3de70d798bb5b72b3d7309fa88ba5a8c205dd721e310c3a6ea1d720`.
+  - Referans taşımadan önceki koddan (`3649565`): `p1a_equality_ref.json`, sha256 `0bfb6d2d21bfb75176540d5e43499b5330355f1c27f451d6cce920936bd6d09f`. 43 vaka (geçerli pilot 25 + dev 18; test ve heldout okunmadı).
+  - Vaka başına karşılaştırılanlar: `summarize` ve kapsama, `service_rows`, bütün servislerin sinyalleri, `rule_check(kök)`, `operation_rows`, `caller_rows(kök)`.
+  - Sonuç: taşımadan önce de sonra da fark 0.
+  - Kasıtlı kırmızı: p95 eşiği geçici olarak 1,5 → 1,4 yapılınca 41/43 vakada fark çıktı, geri alınınca 0.
+- pytest 413/413 (koşucu testleri dahil). GLOSSARY: `src/aiops_rca/signals.py`, `task/p1-eval`. ARCHITECTURE tablosu ve diyagram düğümü güncellendi.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 2. adım: erişim, şema, puanlama)
+- `cases.py` (`load_cases`, `load_labels`, `Case`), `answer.py` (`Answer`, `Candidate`, `validate_answer`; tam 3 aday), `call_graph.py` (`service_edges`), `scoring.py` (`match_service`, `evidence`, `label_overlap`, `score_case`, `score_table`).
+- Kartın açık bıraktığı iki okuma (planlama farklı düşünürse düzeltilir):
+  - Kanıt geçerliliği ve örtüşme 1. adayın yolunda ölçülür.
+  - Örtüşme yönlü: ters kenar etiket kenarı sayılmaz. Kanıt geçerliliği iki yönü de kabul eder, yön `seen` alanında.
+- Testler: `test_cases.py`, `test_answer.py`, `test_scoring.py` (37 test, sahte verilerle). pytest 450/450.
+- Kasıtlı kırmızı (üç ayrı deneme, her birinden sonra geri alındı):
+  - `heldout` koruması kaldırılınca 2 test kırmızı.
+  - `test` koruması kaldırılınca 1 test kırmızı.
+  - `Case`'e etiket alanı eklenince 1 test kırmızı.
+- GLOSSARY ve ARCHITECTURE güncel.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 3. adım: ölçü sağlaması geçti)
+- Betik `~/cerebrum2/analysis/p1a_path_check.py`, sha256 `60ac2beb0788ac15f38da18ace5a28c427b973ae7c0f37de9c184272c3b0a6b5`; çıktı `p1a_path_check.out` (`f786a968c93326fabc51e67280154a20daa28d1613af609d47ea2f68eb6eacb7`).
+  - Paketteki ölçüyü kullanır: `scoring.evidence` ve `call_graph.service_edges`.
+  - Kenar başına karar verir, çünkü etiket yolu dallanabilen bir kenar listesi.
+  - Test ve heldout okunmadı.
+- Sonuç: 43 vaka (pilot 25 + dev 18). **42 geçti, 0 geçmedi.** 1 vaka kenarsız (`inc-d8f67a48`, pilot memoryLimit frontend; etiket yolu boş). Sınanan kenar 82.
+- Kenarların hepsi `reverse`: sonraki servis öncekini çağırıyor, yani senkron yayılım. Kenar başına 42–7337 çağrı. Etiketlerde Kafka kenarı yok.
+- Gerçek veride geçersiz örnek (`inc-ac820869`, payment): payment → checkout → frontend geçerli; payment → frontend, payment → cart ve eşleşmeyen ad (`paymentsvc`) geçersiz.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 4a: kural baseline, koşu kaydı, CLI)
+- `methods/rule.py` (`rule_baseline`): `signals.rule_check` olduğu gibi kullanılıyor.
+  - Cevap tam 3 aday; `confidence` null, `evidence_path` [servis], `unsure` false.
+  - Gerekçe: puan, eşiği aşan sinyaller, en büyük güç. Ham çıktı: `rule_check` ilk 3.
+- `runs.py`: koşu klasörü `<UTC>-<yöntem>/`, aynı saniyede başlayan ikinci koşu `-2` alır. İçinde `run.json` ve `responses.jsonl`. `repo_clean` hesabında `eval_responses/` sayılmaz.
+- `evaluate.py`: `run --method rule [--sets] [--final-test] [--root]` ve `score <klasör> [--final-test]`. `score`, `scores.json` yazar ve Markdown tabloyu basar.
+- `tests/test_evaluate.py`: sahte snapshot üzerinde uçtan uca test.
+  - Kural koşusu ve şema.
+  - İki koşu süre hariç aynı.
+  - Kayıtlardan puanlama.
+  - CLI `test` setini bayraksız, `heldout`'u bayrakla da reddeder (çıkış 2).
+- Testte bulunan hata: aynı saniyede başlayan iki koşu aynı klasöre yazıyordu, düzeltildi. pytest 454/454.
+- Deneme koşusu geçici klasöre yapıldı (`eval_responses/` değil): 43/43 cevap şemaya uygun. Resmî koşu 4b'de, bu commit'ten.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 4b: kural baseline resmî koşusu)
+- İki koşu yapıldı: `eval_responses/20261030T104544Z-rule` ve `20261030T104651Z-rule`.
+  - İkisi de commit `27ca76b`'den, `repo_clean: true`, setler pilot + dev, 43 vaka.
+  - 43/43 cevap şemaya uygun.
+  - İki koşunun `responses.jsonl`'ı ve `scores.json`'ı süre dışında birebir aynı.
+- sha256 (1. koşu): `responses.jsonl` `c82b46c2…9171`, `run.json` `524e0f58…491e`, `scores.json` `92f6c2b8…e0ca`.
+- Tabloyu yeniden üretmek için: `python -m aiops_rca.evaluate score eval_responses/20261030T104544Z-rule`. Tablo (1. koşu):
+
+| Set | Vaka | top-1 | top-3 | Kanıt geçerli | Kanıt geçersiz | Kenarsız | Örtüşme | Brier | Seçici doğruluk | Kapsama | Şema dışı | Süre (sn) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| dev | 18 | 9/18 (0.5) | 15/18 (0.833) | 0 | 0 | 18 | 0.0 | — | 0.5 | 1.0 | 0 | 29.436 |
+| pilot | 25 | 13/25 (0.52) | 21/25 (0.84) | 0 | 0 | 25 | 0.0 | — | 0.52 | 1.0 | 0 | 37.636 |
+| toplam | 43 | 22/43 (0.512) | 36/43 (0.837) | 0 | 0 | 43 | 0.0 | — | 0.512 | 1.0 | 0 | 67.072 |
+
+- Kural güven vermiyor, Brier boş. Yolları tek servislik, bu yüzden kanıt geçerliliği 43 vakada null, örtüşme 0.
+- top-1'i kaçıran 21 vaka (kök, kuralın 3 adayı, top-3'te mi):
+
+| Vaka | Set | Giriş | Kök | Kuralın adayları | top-3 |
+|---|---|---|---|---|---|
+| `inc-01a609bb` | pilot | containerStop recommendation on | recommendation | frontend, recommendation, product-catalog | evet |
+| `inc-01dd32ce` | pilot | networkDelay cart 200ms | cart | checkout, frontend-proxy, frontend | hayır |
+| `inc-0f31ed0e` | pilot | productCatalogLockContention_on | product-catalog | recommendation, product-catalog, frontend | evet |
+| `inc-230c9d46` | dev | containerStop recommendation on | recommendation | frontend, recommendation, product-catalog | evet |
+| `inc-2a87f603` | pilot | containerPause cart on | cart | checkout, frontend, frontend-proxy | hayır |
+| `inc-2e5706ab` | pilot | networkDelay cart 50ms | cart | checkout, frontend-proxy, frontend | hayır |
+| `inc-3967c278` | pilot | cpuThrottle product-catalog 0.09 | product-catalog | frontend, product-catalog, frontend-proxy | evet |
+| `inc-48be145f` | pilot | intlShippingSlowdown_10sec | shipping | checkout, shipping, ad | evet |
+| `inc-4a62b9bb` | dev | productCatalogLockContention_on | product-catalog | recommendation, product-catalog, frontend | evet |
+| `inc-73ac64e9` | dev | networkDelay cart 50ms | cart | checkout, frontend-proxy, frontend | hayır |
+| `inc-79cab5da` | pilot | cpuThrottle product-catalog 0.045 | product-catalog | frontend, product-catalog, frontend-proxy | evet |
+| `inc-9292257f` | dev | containerPause cart on | cart | checkout, frontend, frontend-proxy | hayır |
+| `inc-ac155a23` | dev | cartFailure_50pct | cart | checkout, ad, astronomy-db | hayır |
+| `inc-b03ccffb` | pilot | productCatalogFailure_on | product-catalog | frontend, checkout, product-catalog | evet |
+| `inc-b4d12a5e` | dev | quoteGatewaySlowdown_30ms | quote-gateway | checkout, shipping, quote-gateway | evet |
+| `inc-d6d5f1b2` | dev | productCatalogFailure_on | product-catalog | frontend, checkout, product-catalog | evet |
+| `inc-d8f67a48` | pilot | memoryLimit frontend 0.9 | frontend | ad, astronomy-db, cart | hayır |
+| `inc-d9ea423d` | dev | intlShippingSlowdown_10sec | shipping | checkout, shipping, ad | evet |
+| `inc-ef72f574` | pilot | cartFailure_50pct | cart | checkout, cart, ad | evet |
+| `inc-f20daed8` | pilot | productCatalogLockContention_on + flood | product-catalog | checkout, recommendation, product-catalog | evet |
+| `inc-fa775703` | dev | cpuThrottle product-catalog 0.09 | product-catalog | frontend, frontend-proxy, product-catalog | evet |
+
+- **Açık not (puanlama, düzeltme önerisi aşağıda):**
+  - 7 vakada kuralın adaylarından biri `astronomy-db`. Bu konteyner metriklerde var, izlerde servis olarak yok.
+  - `match_service` yalnız izlerdeki adları ve kökü tanıdığı için bu ad `unmatched` sayıldı.
+  - top-1/top-3 değişmez (kök hiçbir vakada astronomy-db değil). Tablodaki hiçbir sütun bundan etkilenmez.
+  - Öneri: bilinen adlara görünümdeki metrik konteyner adları da eklensin.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 5. adım: ad eşleme, CI örnekleri, ham log boyutu)
+- **Ad eşleme (planlama onayı):** tanınan adlar = izlerdeki servisler ∪ metriklerdeki konteyner adları, izleme araçları hariç (`call_graph.metric_containers`). Test: `test_metric_containers_known_names`.
+  - İki resmî koşu yeniden puanlandı; yanıtlar yeniden üretilmedi.
+  - Set tablosu birebir aynı. Değişen alanlar yalnız `matched` ve `unmatched`: eşleşmeyen ad 7 → 0 (`astronomy-db`).
+- **CI örnekleri:** `tests/fixtures/snapshots/`. 4 pilot vaka, toplam 4,31 MB, sızıntı taraması dördünde 0 bulgu.
+
+  | Vaka | Giriş | İz seyreltme (1/K) |
+  |---|---|---|
+  | `inc-8ceb7ae5` | paymentFailure 50% | 50 |
+  | `inc-2dd806a2` | quoteGatewaySlowdown 30ms | 49 |
+  | `inc-0f31ed0e` | productCatalogLockContention | 36 |
+  | `inc-2e5706ab` | networkDelay cart 50ms | 48 |
+
+  - Üretici `~/cerebrum2/analysis/p1a_fixtures.py`, sha256 `8a93b81bd2d0b1a5c177c4ce9d6f12e8112937938a60bdbffd1cf5ae6d4ec144`. Kırpma:
+    - alarm ± 10 dk; metriklerde CPU hızı için ayrıca 60 sn öncesi;
+    - izler iz kimliğinin sha256'sına göre seyreltilir, tam izler tutulur;
+    - WARN+ loglar; yalnız konteyner CPU ve bellek metrikleri;
+    - kaynak özniteliği yalnız `service.name` / `container.name` (makine bilgisi yok).
+  - `.gitignore`: `!tests/fixtures/snapshots/`. Kökteki `snapshots/` hâlâ dışarıda.
+- **Beklenen çıktı ve test:** `tests/fixtures/rule_expected.json` + `tests/test_rule_fixtures.py`. Karşılaştırılanlar: kural cevapları, puanlar, set tablosu (süreler hariç) ve her servisin her sinyalinin gücü.
+  - Kırpılmış vakada kuralın cevabı tam vakadakinden farklı olabilir; örnek kendi beklenen çıktısıyla sınanır. Örneklerde top-1 2/4, top-3 4/4.
+  - Kasıtlı kırmızı, üç ayrı deneme (her birinden sonra geri alındı): p95 eşiği 1,5 → 1,4; CPU +5 → +4 puan; hata oranı +0,05 → +0,04. Üçünde de test kırmızı.
+  - p95 ve CPU değişikliklerinde kuralın ilk 3'ü aynı kaldı, yalnız güçler değişti. Güçlerin beklenen çıktıya eklenme nedeni bu.
+- **Uygulamanın hatası (düzeltildi):** kasıtlı kırmızı sırasında `__pycache__` bayat kaldı.
+  - Düzenleme dosya boyutunu değiştirmedi ve geri alma aynı saniyede oldu; Python eski bayt kodunu kullandı. Bu yüzden beklenen çıktının bir sürümü yanlış kodla üretildi.
+  - Önbellek silindi, `PYTHONDONTWRITEBYTECODE=1` ile yeniden üretildi; `signals.py` HEAD ile aynı.
+  - Daha önceki sonuçlar etkilenmedi: 1. adımın eşitliği geri almadan sonra fark 0 verdi; resmî koşular ve yeniden puanlama bu adımdaki düzenlemelerden önce.
+- **Ham log boyutu (kayıt, ölçüt değil; dev 18 vaka):** betik `~/cerebrum2/analysis/p1a_rawlog_size.py` (`4a9598bc…68e8`), çıktı `.out` (`88cade2e…da2c`).
+  - Pencere (alarm ± 10 dk) toplamı: en az 167,2 M, medyan 212,2 M, en çok 244,9 M karakter; ~token = karakter / 4, medyan ~53 M.
+  - Yalnız logs: medyan 43,3 M karakter (32,4–48,2 M).
+  - Snapshot dosyalarının tamamı: traces 139–192 M, metrics 44–54 M, logs 46–63 M karakter.
+- pytest 457/457. GLOSSARY: `metric_containers()`, `rule_expected.json`, `signal_strengths`, `test_rule_fixtures.py`. ARCHITECTURE tablosu güncel.
+- Sıradaki: planlama kontrolü, sonra PR (`task/p1-eval` → main).
+
+## 2026-10-30 · Planlama → Uygulama (P1a kontrolü; PR onayı)
+- P1a 1–5 kartla uyumlu. Planlamanın bağımsız kontrolleri:
+  - Tablo kayıtlardan tek komutla birebir aynı (`scores.json` sha aynı). Test seti bayraksız reddediliyor.
+  - Bağımsız sayım (planlamanın betiği, cevaplar + etiketler): top-1 22/43, top-3 36/43. Kayıtlarda yalnız pilot ve dev, her cevapta tam 3 aday.
+  - Çağrı kenarları bağımsız kodla, üç dev vakasında (`inc-ac820869`, `inc-5cb2c977`, `inc-b4d12a5e`): etiket kenarlarının hepsi izlerde, hepsi ters yönde. Vaka başına 19 yönlü kenar; rastgele bir servis çiftinin kenar olma olasılığı ~%15, ölçü ayırt edici.
+  - CI örneklerinin dördü `pilot`; toplam 4,31 MB.
+  - Yeniden puanlamada yalnız `matched` / `unmatched` değişti.
+  - Önbellek silinip HEAD koduyla kural koşusu yeniden yapıldı: 43 cevap resmî koşuyla birebir aynı (süre hariç). Uygulamanın bayat bayt kodu hatası sonuçları etkilememiş. pytest önbelleksiz 457/457.
+- Uygulamanın iki yorumu onaylı: kanıt geçerliliği 1. adayın yolunda; örtüşme yönlü.
+- **P1c'ye bulgu:** ham log dev penceresinde (alarm ± 10 dk) medyan ~212 M karakter (~53 M token, OTLP JSON); yalnız loglar ~43 M karakter. Satır biçiminde birkaç kat küçülse de bağlamın binlerce katı. Sonuç tablosundaki "ham log" koşulu yeniden tanımlanmalı; seçenekler P1c kartında.
+- **PR açılabilir:** `task/p1-eval` → main. Açıklama sade, "Generated with Claude Code" satırı yok. CI yeşil olunca Eren birleştirir.
+- Sonra: P1b (BARO, kart yukarıda) yeni dalda; dal adı uygulama önerir.

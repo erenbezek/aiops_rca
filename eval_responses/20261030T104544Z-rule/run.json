@@ -1,0 +1,15 @@
+{
+ "method": "rule",
+ "model_id": null,
+ "provider": null,
+ "temperature": null,
+ "settings": {},
+ "sets": [
+  "pilot",
+  "dev"
+ ],
+ "started_at": "2026-10-30T10:45:44Z",
+ "repo_commit": "27ca76b379c560156c5550e926fdd409e6cf4ac1",
+ "repo_clean": true,
+ "n_cases": 43
+}
