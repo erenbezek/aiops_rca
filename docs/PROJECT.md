@@ -89,4 +89,5 @@ Gece koşusu systemd biriminde (`task/systemd-unit`, 2026-10-29): `systemctl --u
 V3 resmî set kapandı (`task/vaka-v3`, 2026-10-30): 36 geçerli vaka (dev 18, test 18), etiketler `incidents/`'ta. 1. gece 20/20, 2. gece 16/20; V3c'nin taban ölçümü iki kez kaldı, kalan 4 giriş düştü (DECISIONS). Açık risk: 30 Ekim sabahından beri product-catalog yavaş (kök bilinmiyor); canlı demodan önce çözülmeli.
 V3 kapanışı birleşti (PR #28). product-catalog bellek sınaması sonuçsuz; müdahale sınaması canlı demo kartında.
 Proje 1 P1a bitti (`task/p1-eval`, 2026-10-30): değerlendirme çatısı (`src/aiops_rca/`: erişim, şema, puanlama, koşu kaydı) ve kural baseline'ı; pilot + dev'de top-1 22/43, top-3 36/43 (`eval_responses/`). Ham log penceresi ~53 M token: "ham log" koşulu P1c'de yeniden tanımlanacak.
-Sıradaki: P1a PR'ı, sonra P1b (BARO). P1c kartı planlamada.
+P1a birleşti (PR #29).
+Sıradaki: P1b (BARO, `task/p1-baro`), sonra P1c (girdi seviyeleri ham / özet / daraltma, LLM katmanı; kart HANDOFF'ta).

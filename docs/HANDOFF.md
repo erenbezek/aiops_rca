@@ -2718,3 +2718,33 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - **P1c'ye bulgu:** ham log dev penceresinde (alarm ± 10 dk) medyan ~212 M karakter (~53 M token, OTLP JSON); yalnız loglar ~43 M karakter. Satır biçiminde birkaç kat küçülse de bağlamın binlerce katı. Sonuç tablosundaki "ham log" koşulu yeniden tanımlanmalı; seçenekler P1c kartında.
 - **PR açılabilir:** `task/p1-eval` → main. Açıklama sade, "Generated with Claude Code" satırı yok. CI yeşil olunca Eren birleştirir.
 - Sonra: P1b (BARO, kart yukarıda) yeni dalda; dal adı uygulama önerir.
+
+## 2026-10-30 · Planlama → Uygulama (P1c: girdi seviyeleri, daraltma, LLM katmanı)
+- Ne zaman: P1b birleştikten sonra, ayrı dal ve PR (dal adı uygulama önerir).
+- Kararlar: DECISIONS 2026-10-30 ("Ham log yeniden tanımlandı", "Girdi bütçesi", "Daraltma", "LLM ayarları"). P1a'nın erişim, şema, puanlama ve koşu kaydı aynen kullanılır.
+- Yapılacak (adlar önerilir, Eren onaylar, GLOSSARY'ye):
+  1. **LLM katmanı** pakete (`tools/trial_ask_models.py`'den):
+     - Beş model, sabit kimliklerle. OpenAI uyumlu uç noktalar, `json_schema` `strict`, temperature 0.
+     - Yerel sunucu bir kez açılır: digest'le sabit imaj, bağlam 8192, 4 iş parçacığı. Groq aralığı korunur.
+     - Taşıma hatasında (ör. 503) tek yeniden deneme, kayda. Şema dışı cevap yeniden sorulmaz, `schema_valid: false` olarak kaydedilir.
+     - Token ve süre kaydı. Denemeler `llm_cache/`, resmî koşular `eval_responses/`. API anahtarları `keys.env`'den, CI'a girmez.
+  2. **Üç girdi seviyesi** (deterministik):
+     - **ham:** alarm ± 10 dk WARN+ log satırları ve hata span'leri; metin satırı (zaman, servis, mesaj ya da span adı), zaman sırasıyla, hesaplanmış sayı yok. Sığmazsa kesme kuralı: uygulama önerir, Eren onaylar, koşmadan önce. Dev'de ayarlanmaz.
+     - **özet:** bütün servislerin önce/sonra sinyal tablosu (denemelerdeki biçim, `signals.py`'den).
+     - **daraltma:** 3. adımın ilk 5 adayı, aralarındaki çağrı kenarları, aday başına işlem düzeyi ve çağıran tarafı sinyalleri, en sık log mesajları.
+     - Her girdi istem dahil ≤ 6K token, yerel tokenizer ile ölçülür. Aşan girdi koşulmaz, kayda geçer.
+     - Takma ad üç seviyede (`trial_alias` mantığı), ad ve sızıntı kontrolüyle.
+  3. **Daraltma:** ayar yalnız pilot vakalarında. Kuralın kesin tanımı (öne alma dahil) dev'e bakmadan önce yazılır. Sonra dev'de bir kez "kök ilk 5'te mi".
+  4. **İstem ve duman koşusu:**
+     - Yeni şemaya göre istem metni (sistem + kullanıcı; seviyeye göre yalnız veri bloğu ve tarifi değişir) Eren'e önerilir. Onaydan önce model koşmaz.
+     - Duman: 5 model × 3 seviye × 2 pilot vaka (birinde takma ad).
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - **LLM katmanı:** sahte sunucuyla birim testleri (şema dönüşümü, şema dışı kaydı, yeniden deneme, token ve süre). CI'da ağ yok.
+  - **Girdiler:** üç seviye iki üretimde birebir aynı. Pilot 25 + dev 18 vakanın hepsinde ≤ 6K token (sayılar kayda). Takma adlı girdilerde gerçek ad yok, sızıntı 0.
+  - **Daraltma:** pilotta ayar kaydı ve pilotta ilk 5 oranı. **Dev'de ilk 5'te kök ≥ 15/18.** Tutmazsa planlama; dev'e göre ayar yapılmaz.
+  - **Duman:** istem Eren onaylı. Cevapların şemaya uygunluk oranı kayda; şema dışı varsa nedeni yazılır. Süreler kayda. Doğruluk yorumlanmaz.
+  - pytest yeşil; PR koşusu yeşil.
+- Dikkat:
+  - Test seti okunmaz. Dev'de model koşulmaz (P1d).
+  - Demo gerekmez.
+  - Kesme kuralı, K ve öne alma kuralı koşmadan önce yazılı.
