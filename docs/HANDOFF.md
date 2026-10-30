@@ -2624,3 +2624,50 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - CLI `test` setini bayraksız, `heldout`'u bayrakla da reddeder (çıkış 2).
 - Testte bulunan hata: aynı saniyede başlayan iki koşu aynı klasöre yazıyordu, düzeltildi. pytest 454/454.
 - Deneme koşusu geçici klasöre yapıldı (`eval_responses/` değil): 43/43 cevap şemaya uygun. Resmî koşu 4b'de, bu commit'ten.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 4b: kural baseline resmî koşusu)
+- İki koşu yapıldı: `eval_responses/20261030T104544Z-rule` ve `20261030T104651Z-rule`.
+  - İkisi de commit `27ca76b`'den, `repo_clean: true`, setler pilot + dev, 43 vaka.
+  - 43/43 cevap şemaya uygun.
+  - İki koşunun `responses.jsonl`'ı ve `scores.json`'ı süre dışında birebir aynı.
+- sha256 (1. koşu): `responses.jsonl` `c82b46c2…9171`, `run.json` `524e0f58…491e`, `scores.json` `92f6c2b8…e0ca`.
+- Tabloyu yeniden üretmek için: `python -m aiops_rca.evaluate score eval_responses/20261030T104544Z-rule`. Tablo (1. koşu):
+
+| Set | Vaka | top-1 | top-3 | Kanıt geçerli | Kanıt geçersiz | Kenarsız | Örtüşme | Brier | Seçici doğruluk | Kapsama | Şema dışı | Süre (sn) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| dev | 18 | 9/18 (0.5) | 15/18 (0.833) | 0 | 0 | 18 | 0.0 | — | 0.5 | 1.0 | 0 | 29.436 |
+| pilot | 25 | 13/25 (0.52) | 21/25 (0.84) | 0 | 0 | 25 | 0.0 | — | 0.52 | 1.0 | 0 | 37.636 |
+| toplam | 43 | 22/43 (0.512) | 36/43 (0.837) | 0 | 0 | 43 | 0.0 | — | 0.512 | 1.0 | 0 | 67.072 |
+
+- Kural güven vermiyor, Brier boş. Yolları tek servislik, bu yüzden kanıt geçerliliği 43 vakada null, örtüşme 0.
+- top-1'i kaçıran 21 vaka (kök, kuralın 3 adayı, top-3'te mi):
+
+| Vaka | Set | Giriş | Kök | Kuralın adayları | top-3 |
+|---|---|---|---|---|---|
+| `inc-01a609bb` | pilot | containerStop recommendation on | recommendation | frontend, recommendation, product-catalog | evet |
+| `inc-01dd32ce` | pilot | networkDelay cart 200ms | cart | checkout, frontend-proxy, frontend | hayır |
+| `inc-0f31ed0e` | pilot | productCatalogLockContention_on | product-catalog | recommendation, product-catalog, frontend | evet |
+| `inc-230c9d46` | dev | containerStop recommendation on | recommendation | frontend, recommendation, product-catalog | evet |
+| `inc-2a87f603` | pilot | containerPause cart on | cart | checkout, frontend, frontend-proxy | hayır |
+| `inc-2e5706ab` | pilot | networkDelay cart 50ms | cart | checkout, frontend-proxy, frontend | hayır |
+| `inc-3967c278` | pilot | cpuThrottle product-catalog 0.09 | product-catalog | frontend, product-catalog, frontend-proxy | evet |
+| `inc-48be145f` | pilot | intlShippingSlowdown_10sec | shipping | checkout, shipping, ad | evet |
+| `inc-4a62b9bb` | dev | productCatalogLockContention_on | product-catalog | recommendation, product-catalog, frontend | evet |
+| `inc-73ac64e9` | dev | networkDelay cart 50ms | cart | checkout, frontend-proxy, frontend | hayır |
+| `inc-79cab5da` | pilot | cpuThrottle product-catalog 0.045 | product-catalog | frontend, product-catalog, frontend-proxy | evet |
+| `inc-9292257f` | dev | containerPause cart on | cart | checkout, frontend, frontend-proxy | hayır |
+| `inc-ac155a23` | dev | cartFailure_50pct | cart | checkout, ad, astronomy-db | hayır |
+| `inc-b03ccffb` | pilot | productCatalogFailure_on | product-catalog | frontend, checkout, product-catalog | evet |
+| `inc-b4d12a5e` | dev | quoteGatewaySlowdown_30ms | quote-gateway | checkout, shipping, quote-gateway | evet |
+| `inc-d6d5f1b2` | dev | productCatalogFailure_on | product-catalog | frontend, checkout, product-catalog | evet |
+| `inc-d8f67a48` | pilot | memoryLimit frontend 0.9 | frontend | ad, astronomy-db, cart | hayır |
+| `inc-d9ea423d` | dev | intlShippingSlowdown_10sec | shipping | checkout, shipping, ad | evet |
+| `inc-ef72f574` | pilot | cartFailure_50pct | cart | checkout, cart, ad | evet |
+| `inc-f20daed8` | pilot | productCatalogLockContention_on + flood | product-catalog | checkout, recommendation, product-catalog | evet |
+| `inc-fa775703` | dev | cpuThrottle product-catalog 0.09 | product-catalog | frontend, frontend-proxy, product-catalog | evet |
+
+- **Açık not (puanlama, düzeltme önerisi aşağıda):**
+  - 7 vakada kuralın adaylarından biri `astronomy-db`. Bu konteyner metriklerde var, izlerde servis olarak yok.
+  - `match_service` yalnız izlerdeki adları ve kökü tanıdığı için bu ad `unmatched` sayıldı.
+  - top-1/top-3 değişmez (kök hiçbir vakada astronomy-db değil). Tablodaki hiçbir sütun bundan etkilenmez.
+  - Öneri: bilinen adlara görünümdeki metrik konteyner adları da eklensin.
