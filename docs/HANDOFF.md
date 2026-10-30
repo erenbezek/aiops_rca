@@ -2442,3 +2442,20 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Sınanmadı: product-catalog'un `memory.events` / `memory.current` / `memory.swap.current` değerleri hiçbir koşuda kaydedilmedi (koşucu yalnız Jaeger ve collector'ı izliyor).
   - Sınamanın yolu: demo açıkken product-catalog cgroup'unun `memory.current`, `memory.swap.current`, `memory.events` (high/max) değerlerini dakikada bir okumak. Bu bir okuma, demo değişmez.
   - Upstream'de checkout da 20M.
+
+## 2026-10-30 · Planlama → Uygulama (V3 kapanışı; product-catalog bellek sınaması)
+- V3 kapandı: 36 geçerli (dev 18, test 18). Kural, düşen 4 giriş ve boşluklar DECISIONS 2026-10-30'da. PROJECT bitti ölçütlerinden "30 vakalık set" ve "Vaka çeşitliliği" işaretlendi.
+- Son set (planlama, etiketlerden):
+  - Dev: demo 11, altyapı 5, quote-gateway 2. Kategoriler: cascading 17, silent 10, partial 3, noisy 2.
+  - Test: altyapı 10, demo 6, quote-gateway 2. Kategoriler: cascading 17, silent 8, partial 3, noisy 1. Ayrılan 6 birimden 5'i.
+  - Sızıntı 0, belirtisiz/sınırda 0, işaret 0.
+- **İş 1: katalogda V3 özeti** (`docs/INCIDENT_CATALOG.md`). Bileşim tablosu (dev/test, tür, kategori), düşen 4 giriş ve nedeni, bilinen boşluklar. Test vakalarının sinyal adı, değer ve gücü yazılmaz. Commit + push.
+- **İş 2: product-catalog bellek sınaması** (salt okuma; demo ayarı değişmez).
+  - Betik repo dışında (`~/cerebrum2/analysis/`, sha256 kayda). Demoyu koşucunun yoluyla açar; korumalar, 5 dk ısınma, 10 dk normal dönem; sonda demo kapanır, volume'ler silinir. Makine boşta.
+  - Kayıt (60 sn'de bir, product-catalog ve kontrol için checkout cgroup'u): `memory.current`, `memory.max`, `memory.high`, `memory.swap.current`, `memory.events` (high, max, oom, oom_kill), `memory.stat` (anon, file, pgmajfault, workingset_refault_file), `cpu.stat` usage. Ayrıca `docker inspect` bellek ve swap sınırları, frontend ve product-catalog p95 (taban ölçüsüyle aynı), makine major fault hızı.
+  - Ölçütler (sonuçtan önce yazılı; normal dönem):
+    - **Mekanizma doğrulandı:** product-catalog `memory.events max` (ya da `high`) artıyor, `memory.current` ≥ sınırın %95'i, ve product-catalog cgroup'unun major fault hızı makinenin major fault hızının ≥ %50'si.
+    - **Doğrulanmadı:** `memory.events max` ve `high` artmıyor, `memory.current` < sınırın %80'i.
+    - **Sonuçsuz:** frontend p95 ≤ 30 ms (yavaşlık o sırada yok) ya da ikisinin arası. Planlama bakar.
+  - Sonuç HANDOFF'a: sayılar, ölçüt sonucu, sha256'lar. Demo ayarına ya da koşucuya dokunulmaz.
+- **İş 3: PR.** İş 1 ve 2 bitip planlama kontrol ettikten sonra açılır. `task/vaka-v3` → main. Açıklama sade, "Generated with Claude Code" satırı yok.

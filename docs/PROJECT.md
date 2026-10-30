@@ -17,14 +17,16 @@ kök neden analizinde ne kadar iş görür?
 
 ## Bitti sayılması için
 - [ ] Otomatik vaka üretimi: enjekte et → kaydet → temizle (gece boyu çalışabilir)
-- [ ] En az 30 vakalık snapshot seti; bir kısmı geliştirmede hiç görülmemiş test seti
+- [x] En az 30 vakalık snapshot seti; bir kısmı geliştirmede hiç görülmemiş test seti
+  - V3 (2026-10-30): 36 geçerli vaka, dev 18 / test 18. Testte 5 birim geliştirmede hiç görülmedi (ayrılan). Düşen 4 giriş ve boşluklar DECISIONS 2026-10-30'da.
 - [ ] Sonuç tablosu: baseline'lar, `small_local_model` / `large_api_model` × ham log / daraltma
 - [ ] Ölçütler: top-1/top-3, kanıt geçerliliği, kalibrasyon, süre, token
 - [ ] Canlı demo: hata enjekte et → kanıtlı olay raporu (+ bir sonraki adım önerisi)
 - [ ] CI yeşil: birim testler + sabit snapshot'larda baseline regresyonu + servis imajı (GHCR)
   - Servis imajı (GHCR) tamam (2026-10-29): iki imaj CI'da derlenip main'de gönderiliyor (`images.yml`), koşular digest'le sabit. Açık kalan: baseline regresyonu.
 - [ ] Sızıntı kontrolü: snapshot'larda cevabı ele veren veri yok (flagd vb.), testle doğrulandı
-- [ ] Vaka çeşitliliği: set en az zincirleme hata, sessiz hata (log yok, sadece metrik) ve yanıltıcı gürültü içeriyor
+- [x] Vaka çeşitliliği: set en az zincirleme hata, sessiz hata (log yok, sadece metrik) ve yanıltıcı gürültü içeriyor
+  - V3 test: cascading 17, silent 8, partial 3, noisy 1. Dev: cascading 17, silent 10, partial 3, noisy 2.
 - [ ] Tekrarlanabilirlik:
   - Seviye 1 (her makinede ve CI'da): Sonuç tablosu, repodaki resmî koşu cevapları + etiketler + baseline çıktılarından tek komutla yeniden üretilir
   - Seviye 2 (deneyi baştan koşmak): Tam snapshot seti proje sonunda GitHub Releases'te sıkıştırılmış olarak yayınlandı
@@ -84,7 +86,5 @@ Vaka üretimi V2 yapıldı (`task/vaka-v2`, `task/vaka-v2c`, 2026-10-28): altı 
 Kendi Python servisi quote-gateway yapıldı (`task/quote-gateway`, 2026-10-29): shipping → quote-gateway → quote (Flask, OTel otomatik, flag'ler flagd'den; imaj yerelde `aiops-quote-gateway:1`, 128M, swap kapalı). Üç hata: misroute (cascading), gecikme 30 ms (cascading, silent), sızıntı 384 KB (silent) / 1024 KB (OOM ve yeniden başlama). quote'un iki çifti yeni topolojide belirtili (çağıran eşleşmesi URL'den). Jaeger'de swap şartı kalktı. Pilot set 38 vaka.
 İmajlar GHCR'da (`task/ghcr-ci`, 2026-10-29): `ghcr.io/erenbezek/aiops-quote-gateway` ve `aiops-netem` CI'da derleniyor, main'de `sha-<commit>` etiketiyle gönderiliyor; koşucu ve compose digest'le sabit. Canlı kontrol geçti (girişsiz çekme, 23 konteyner, zincir, netem, taban sağlık 34,0 ms prizde).
 Gece koşusu systemd biriminde (`task/systemd-unit`, 2026-10-29): `systemctl --user start aiops-incidents@<liste>`; `systemctl stop`'ta temizlenir, canlıda geçti (~65 sn, SIGKILL yok); kapanmada kesilir, sonraki koşu başlamaz (kalıntı denetimi).
-V3 resmî set sürüyor (`task/vaka-v3`, kart HANDOFF 2026-10-29): 40 vaka (19 dev / 21 test), iki gece. V3a hazırlık bitti. 1. gece 20/20 geçerli (planlamada kontrol edildi). 2. gece (2a + 2b) 16/20: 2b'de taban sağlık üç kez düştü (product-catalog yavaşlaması, neden bilinmiyor), koşu durduruldu. Toplam 36 geçerli (dev 18, test 18), etiketler `incidents/`'ta.
-2. gece planlamada kontrol edildi.
-V3c taban ölçümü gündüz kaldı (36,6 ms; product-catalog yavaşlaması, kök bilinmiyor).
-Sıradaki: makine yeniden başlatılır, tek ölçüm; geçerse `v3_retry`, kalırsa V3 36 vakayla kapanır.
+V3 resmî set kapandı (`task/vaka-v3`, 2026-10-30): 36 geçerli vaka (dev 18, test 18), etiketler `incidents/`'ta. 1. gece 20/20, 2. gece 16/20; V3c'nin taban ölçümü iki kez kaldı, kalan 4 giriş düştü (DECISIONS). Açık risk: 30 Ekim sabahından beri product-catalog yavaş (kök bilinmiyor); canlı demodan önce çözülmeli.
+Sıradaki: uygulama katalogda V3 özetini yazar ve product-catalog bellek sınamasını yapar; planlama kontrolünden sonra PR. Ardından Proje 1 model koşuları (kart planlamada).
