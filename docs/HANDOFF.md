@@ -2356,3 +2356,37 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Ölçüm betiği (`v3c_baseline.py`, sha256 `608dbe74…24f6`) koşucunun vaka başı adımlarıyla aynı; onaylandı.
 - Ek kural (DECISIONS 2026-10-30): sonuç "ölçülemedi" (çıkış 1, p95 `None`) ise betik bir kez daha çalıştırılır. Yine ölçülemezse koşu yok, planlama. p95 > 30 ms kesin "kaldı", yeniden ölçülmez.
 - Gece sırası: makine kontrolü (kapak açık, priz, kullanıcı uygulamaları kapalı) → ölçüm → `PASS` ise Eren `systemctl --user start aiops-incidents@v3_retry`. Koşu sürerken analiz yok.
+
+## 2026-10-30 · Uygulama → Planlama (V3c taban ölçümü: kaldı)
+- **Sonuç: FAIL, frontend p95 36,6 ms > 30 ms.** Kural gereği kesin "kaldı": yeniden ölçülmedi, `v3_retry` başlamadı. Karar planlamada.
+- **Koşul sapması:** DECISIONS 2026-10-30'daki "gece" şartıyla değil, Eren'in kararıyla gündüz ölçüldü (11:00–11:15 yerel). Eren o saatte müsaitti. Kapak açık, priz takılı, kullanıcı uygulaması yoktu.
+- Claude masaüstü Eren'in isteğiyle ölçümden önce kapatıldı. 4 gündür açıktı; temiz geceler 1 ve 2a'da da açıktı. SIGTERM'e yanıt vermedi ve kendini yeniden başlatmaya çalıştı, SIGKILL ile kapatıldı. İçindeki eski oturum (`scratch-2026-10-26`) aiops_rca dışındaydı.
+- Ölçümden önce kalan arka plan süreçleri: `tracker-miner-fs`, `opencode-cli serve`. İkisi de temiz gecelerde açıktı.
+- Betik `v3c_baseline.py` (sha256 `608dbe74…24f6`, değişmedi). Çıktılar `~/cerebrum2/analysis/v3c_baseline_20261030T0758Z.json` (`75ca7c2a…8ddd`) ve `.log` (`6c7a6638…7590`).
+- Akış:
+  - Korumalar sorunsuz (swap 2,80 GB, izleme 27,21 GB).
+  - demo_up 07:59:05Z → collector 07:59:11Z → 23 konteyner → zamanlayıcı `stopped` → normal 08:04:05–08:14:05Z → demo down 08:14:48Z.
+  - Kalıntı yok, anonim volume silindi.
+- Taban dosyaları: ölçüm penceresinde traces bir kez döndü (08:11:16Z). Dönen dosya seçime girdi, p95 ölçüldü (yarış yok).
+- Servis p95 (normal dönem, 5 ms üstü):
+
+| Servis | p95 ms | İstek |
+|---|---|---|
+| checkout | 59,9 | 31 |
+| frontend | 36,6 | 8666 |
+| product-catalog | 30,0 | 2994 |
+| frontend-proxy | 28,3 | 8720 |
+| recommendation | 25,0 | 477 |
+| shipping | 9,3 | 131 |
+| email | 6,7 | 31 |
+| quote-gateway | 6,4 | 100 |
+
+- 2b'deki sıra (frontend 179,8 / product-catalog 159) ile aynı biçim, daha hafif: yavaşlık yine product-catalog'da ve onu çağıranlarda.
+- Makine (normal dönem, kayıt):
+  - iowait 0,72 %.
+  - swap giriş 615 / çıkış 726 sayfa/sn.
+  - Büyük sayfa hatası 472/sn.
+  - Disk okuma 12,47 MB/sn.
+  - Jaeger CPU 0,206 çekirdek, tepe sıcaklık 79 °C, en düşük boş swap 2,73 GB.
+  - Planlamanın 2b'deki gece değerleriyle karşılaştırma (sysstat; ölçü yöntemi farklı, kaba): iowait 0,5, swap giriş ~600, büyük sayfa hatası ~250, disk okuma ~9. Swap giriş geceye yakın; büyük sayfa hatası ~2 kat. 2b'nin 09:30–09:50 yükünden (iowait 5,3, swap giriş ~3900, disk ~110 MB/sn) çok daha düşük.
+- Not (çıkarım değil, gözlem): 36 geçerli vakanın tabanı 23,5–29,2 ms'ti; bu ölçüm onların hepsinden yüksek, ama vaka başı sınırının (50,6) altında.
