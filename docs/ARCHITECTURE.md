@@ -28,13 +28,13 @@ flowchart LR
     img["İmajlar (GitHub Actions)<br/>.github/workflows/images.yml"]
     ghcr[("GHCR<br/>aiops-quote-gateway, aiops-netem<br/>— digest'le sabit")]
 
-    base["baseline<br/>(kural, BARO)"]
+    base["baseline<br/>(kural: methods/rule.py; BARO)"]
     nar["candidate_narrowing"]
     llm["LLM<br/>small_local_model /<br/>large_api_model"]
     agent["Proje 2 ajanı"]
     cache[("llm_cache/ — git dışı")]
     evr[("eval_responses/")]
-    ev["Değerlendirme<br/>top-1/3, kanıt, kalibrasyon"]
+    ev["Değerlendirme (evaluate score, scoring.py)<br/>top-1/3, kanıt, kalibrasyon"]
     tab["Sonuç tablosu"]
 
     inj --> ortam
@@ -61,7 +61,7 @@ flowchart LR
     llm --> cache
     llm --> evr
     agent --> evr
-    base --> ev
+    base -->|"evaluate run"| evr
     evr --> ev
     ev --> tab
 
@@ -109,6 +109,11 @@ flowchart LR
 | `src/aiops_rca/answer.py` | Cevap şeması ve doğrulayıcı (tam 3 aday, güven, kanıt yolu, gerekçe, `unsure`) |
 | `src/aiops_rca/call_graph.py` | Snapshot izlerinden servisler arası çağrı kenarları |
 | `src/aiops_rca/scoring.py` | Puanlama: ad eşleme, top-1/top-3, kanıt geçerliliği, etiket yoluyla örtüşme, Brier, seçici doğruluk, kapsama, set özeti |
+| `src/aiops_rca/methods/rule.py` | Kural baseline (`rule_baseline`): `signals.rule_check` ilk 3'ü şemadaki cevaba |
+| `src/aiops_rca/runs.py` | Koşu kaydı: `run.json`, `responses.jsonl` (koşu klasörü `<UTC>-<yöntem>/`) |
+| `src/aiops_rca/evaluate.py` | CLI `python -m aiops_rca.evaluate run` / `score`: yöntemi vakalarda koşar ve kaydeder / kayıtlardan puanlar, `scores.json` ve set tablosu |
+| `eval_responses/` | Resmî koşuların kayıtları (repoda) |
+| `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi |
 | `tests/test_cases.py`, `tests/test_answer.py`, `tests/test_scoring.py` | Erişim korumaları, şema ve puanlama birim testleri (sahte verilerle) |
 | `tests/test_leakage.py` | Sızıntı testinin testleri (kart ölçütleri, kural biçimleri, girdi hataları) |
 | `tests/fixtures/leakage/` | Sahte OTLP JSON dosyaları: `leak_*.jsonl` (OTEL_DEMO.md sızıntı tablosu), `clean_*.jsonl` (temiz, yanlış alarm adayları) |

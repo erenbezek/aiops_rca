@@ -2610,3 +2610,17 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Sonuç: 43 vaka (pilot 25 + dev 18). **42 geçti, 0 geçmedi.** 1 vaka kenarsız (`inc-d8f67a48`, pilot memoryLimit frontend; etiket yolu boş). Sınanan kenar 82.
 - Kenarların hepsi `reverse`: sonraki servis öncekini çağırıyor, yani senkron yayılım. Kenar başına 42–7337 çağrı. Etiketlerde Kafka kenarı yok.
 - Gerçek veride geçersiz örnek (`inc-ac820869`, payment): payment → checkout → frontend geçerli; payment → frontend, payment → cart ve eşleşmeyen ad (`paymentsvc`) geçersiz.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 4a: kural baseline, koşu kaydı, CLI)
+- `methods/rule.py` (`rule_baseline`): `signals.rule_check` olduğu gibi kullanılıyor.
+  - Cevap tam 3 aday; `confidence` null, `evidence_path` [servis], `unsure` false.
+  - Gerekçe: puan, eşiği aşan sinyaller, en büyük güç. Ham çıktı: `rule_check` ilk 3.
+- `runs.py`: koşu klasörü `<UTC>-<yöntem>/`, aynı saniyede başlayan ikinci koşu `-2` alır. İçinde `run.json` ve `responses.jsonl`. `repo_clean` hesabında `eval_responses/` sayılmaz.
+- `evaluate.py`: `run --method rule [--sets] [--final-test] [--root]` ve `score <klasör> [--final-test]`. `score`, `scores.json` yazar ve Markdown tabloyu basar.
+- `tests/test_evaluate.py`: sahte snapshot üzerinde uçtan uca test.
+  - Kural koşusu ve şema.
+  - İki koşu süre hariç aynı.
+  - Kayıtlardan puanlama.
+  - CLI `test` setini bayraksız, `heldout`'u bayrakla da reddeder (çıkış 2).
+- Testte bulunan hata: aynı saniyede başlayan iki koşu aynı klasöre yazıyordu, düzeltildi. pytest 454/454.
+- Deneme koşusu geçici klasöre yapıldı (`eval_responses/` değil): 43/43 cevap şemaya uygun. Resmî koşu 4b'de, bu commit'ten.
