@@ -41,7 +41,6 @@ ile aynı hesap: istek, hata oranı, p95, CPU sayaçtan, bellek ortalaması, WAR
 from __future__ import annotations
 
 import json
-import math
 import re
 import sys
 from collections import Counter, defaultdict
@@ -52,10 +51,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from aiops_rca.leakage import FLAGS, LeakageInputError, scan_model_view  # noqa: E402
-from trial_summary import TOOLING_CONTAINERS, CPU_METRIC, MEMORY_METRIC, Window, summarize  # noqa: E402
+# Sinyaller, güç ve basit kural pakette (DECISIONS 2026-10-30 "P1a kararları"); adlar buradan da içe aktarılabilir.
+from aiops_rca.signals import (  # noqa: E402, F401
+    CPU_METRIC, MEMORY_METRIC, TOOLING_CONTAINERS, Window, summarize, DB_SERVICES, ROUTINE_SERVICES, avg, classify,
+    pct, ratio_delta, rule_check, service_rows, signals,
+)
 
-ROUTINE_SERVICES = frozenset({"flagd", "flagd-ui", "load-generator"})
-DB_SERVICES = frozenset({"astronomy-db", "valkey-cart"})
 # Senaryonun beklenen yolu (planlama, Eren onaylı 2026-10-24; OTEL_DEMO sızıntı tablosu): ad, email ve payment
 # flag değerlendirme olayı yaymıyor, bu dört senaryonun izi sadece flagd'de.
 EXPECTED_PATH = {
@@ -111,94 +112,6 @@ def ns(iso_z: str) -> int:
 
 # --- 2. belirti ---------------------------------------------------------------------------------------------
 
-def pct(durations: list[int], q: float) -> float | None:
-    if not durations:
-        return None
-    ordered = sorted(durations)
-    return round(ordered[max(0, math.ceil(q * len(ordered)) - 1)] / 1e6, 1)
-
-
-def avg(values: list[float]) -> float | None:
-    return sum(values) / len(values) if values else None
-
-
-def service_rows(result: dict) -> dict[str, dict]:
-    """Servis başına önce/sonra değerleri (trial_summary.summarize sonucundan)."""
-    rows = defaultdict(dict)
-    for svc, sides in result["spans"].items():
-        for side, (count, errors, durations) in sides.items():
-            r = rows[svc]
-            r[f"requests_{side}"] = count
-            r[f"error_rate_{side}"] = errors / count if count else None
-            r[f"p95_ms_{side}"] = pct(durations, 0.95)
-            r[f"p99_ms_{side}"] = pct(durations, 0.99)
-    for (container, metric), sides in result["resources"].items():
-        for side, values in sides.items():
-            if metric == CPU_METRIC:
-                rows[container][f"cpu_pct_{side}"] = avg(values)
-            elif metric == MEMORY_METRIC:
-                a = avg(values)
-                rows[container][f"mem_mb_{side}"] = a / 2**20 if a is not None else None
-    for (svc, msg), c in result["logs"].items():
-        if c["before"] == 0 and c["after"] > 0:
-            r = rows[svc]
-            if c["after"] > r.get("new_warn_top", (0, ""))[0]:
-                r["new_warn_top"] = (c["after"], msg)
-    return rows
-
-
-def ratio_delta(b, a, ratio: float, delta: float):
-    if b is None or a is None:
-        return None
-    t = max(ratio * b, b + delta)
-    return {"before": round(b, 4), "after": round(a, 4), "threshold": round(t, 4), "strength": round((a - b) / (t - b), 3)}
-
-
-def signals(row: dict, only_resources: bool = False) -> tuple[dict[str, dict], list[str]]:
-    """(sinyal → değerler ve güç, değeri olmayan sinyaller)."""
-    g = row.get
-    out, missing = {}, []
-    if not only_resources:
-        eb, ea = g("error_rate_before"), g("error_rate_after")
-        if eb is not None and ea is not None:
-            out["error_rate"] = {"before": round(eb, 4), "after": round(ea, 4), "threshold": round(eb + 0.05, 4),
-                                 "strength": round((ea - eb) / 0.05, 3)}
-        else:
-            missing.append("error_rate")
-        for p in ("p95_ms", "p99_ms"):
-            s = ratio_delta(g(f"{p}_before"), g(f"{p}_after"), 1.5, 20)
-            if s:
-                out[p] = s
-            else:
-                missing.append(p)
-        rb, ra = g("requests_before"), g("requests_after")
-        if rb is not None and ra is not None and rb >= 20:
-            out["request_drop"] = {"before": rb, "after": ra, "threshold": rb * 0.5,
-                                   "strength": round((rb - ra) / (rb * 0.5), 3)}
-        else:
-            missing.append("request_drop")
-        top = g("new_warn_top", (0, None))
-        out["new_warn_log"] = {"before": 0, "after": top[0], "threshold": 5, "strength": round(top[0] / 5, 3),
-                               "message": top[1]}
-    s = ratio_delta(g("cpu_pct_before"), g("cpu_pct_after"), 1.5, 5)
-    if s:
-        out["cpu_pct"] = s
-    else:
-        missing.append("cpu_pct")
-    mb, ma = g("mem_mb_before"), g("mem_mb_after")
-    if mb is not None and ma is not None and mb > 0:
-        out["mem_mb"] = {"before": round(mb, 1), "after": round(ma, 1), "threshold": round(1.2 * mb, 1),
-                         "strength": round((ma - mb) / (0.2 * mb), 3)}
-    else:
-        missing.append("mem_mb")
-    return out, missing
-
-
-def classify(strength: float) -> str:
-    if strength < 0.8:
-        return "no_symptom"
-    return "borderline" if strength < 1.2 else "symptomatic"
-
 
 def verdict(sig: dict[str, dict], row: dict) -> dict:
     no_cpu = row.get("cpu_pct_before") is None and row.get("cpu_pct_after") is None
@@ -224,22 +137,6 @@ def symptoms(base: Path, flag_on_ns: int, root: str | None) -> tuple[dict, dict]
         out.update({"service": root, "row_found": root in rows, **verdict(sig, row),
                     "signals": sig, "signals_without_value": no_value})
     return out, rows
-
-
-def rule_check(rows: dict[str, dict], root: str | None) -> dict:
-    scored = []
-    for svc, row in rows.items():
-        if svc in TOOLING_CONTAINERS or svc in ROUTINE_SERVICES or svc == "<unknown>":
-            continue
-        sig, _ = signals(row, svc in DB_SERVICES)
-        over = [k for k, s in sig.items() if s["strength"] >= 1]
-        best = max((s["strength"] for k, s in sig.items() if s["strength"] >= 1), default=0)
-        scored.append((len(over), best, svc, over))
-    scored.sort(key=lambda x: (-x[0], -x[1], x[2]))
-    top = [{"service": svc, "score": n, "max_strength": round(b, 3), "signals": over} for n, b, svc, over in scored[:3]]
-    names = [t["service"] for t in top]
-    return {"top3": top, "top1_hit": bool(names) and names[0] == root if root else None,
-            "top3_hit": root in names if root else None}
 
 
 # --- 1. sızıntı ---------------------------------------------------------------------------------------------

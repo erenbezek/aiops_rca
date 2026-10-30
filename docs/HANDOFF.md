@@ -2575,3 +2575,17 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Test seti okunmaz.
   - Dev'de ayar yok (ızgara, sütunlar, pencere sabit).
   - Proje bağımlılığı eklenmez; RCAEval'den başka paket gerekirse önce sorulur.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 1. adım: ölçüler pakete taşındı)
+- `src/aiops_rca/signals.py`, kart 2. madde ve DECISIONS 2026-10-30 "P1a kararları". Kaynak blokları betikle olduğu gibi aktarıldı, kod elle yazılmadı. Taşınanlar:
+  - `trial_summary`: pencere ve okuma çekirdeği (`Window`, `iter_lines`, `summarize`, sabitler).
+  - `c2_measure`: `service_rows`, `signals`, güç, `classify`, `rule_check`.
+  - `incident_checks`: `operation_rows`, `caller_rows`.
+- Üç `tools/` modülü aynı adları paketten içe aktarıyor. Koşucu ve systemd birimi değişmedi; venv'siz Python da içe aktarabiliyor (`src` yolu ekli).
+- Eşitlik testi:
+  - Betik `~/cerebrum2/analysis/p1a_equality.py`, sha256 `5c5e2db3a3de70d798bb5b72b3d7309fa88ba5a8c205dd721e310c3a6ea1d720`.
+  - Referans taşımadan önceki koddan (`3649565`): `p1a_equality_ref.json`, sha256 `0bfb6d2d21bfb75176540d5e43499b5330355f1c27f451d6cce920936bd6d09f`. 43 vaka (geçerli pilot 25 + dev 18; test ve heldout okunmadı).
+  - Vaka başına karşılaştırılanlar: `summarize` ve kapsama, `service_rows`, bütün servislerin sinyalleri, `rule_check(kök)`, `operation_rows`, `caller_rows(kök)`.
+  - Sonuç: taşımadan önce de sonra da fark 0.
+  - Kasıtlı kırmızı: p95 eşiği geçici olarak 1,5 → 1,4 yapılınca 41/43 vakada fark çıktı, geri alınınca 0.
+- pytest 413/413 (koşucu testleri dahil). GLOSSARY: `src/aiops_rca/signals.py`, `task/p1-eval`. ARCHITECTURE tablosu ve diyagram düğümü güncellendi.

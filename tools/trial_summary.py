@@ -30,64 +30,19 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import re
 import sys
-from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-WINDOW_NS = 10 * 60 * 10**9
-EDGE_NS = 60 * 10**9  # pencere uçlarında kayıt aranan aralık
-INCOMING_KINDS = {2, 5}  # SPAN_KIND_SERVER, SPAN_KIND_CONSUMER
-STATUS_ERROR = 2
-SEVERITY_WARN = 13
-TOP_MESSAGES = 10
-MESSAGE_CHARS = 200
-MESSAGE_KEYS = ("exception.message", "err.message", "error.message", "error", "err", "message")
-
-CPU_METRIC = "container.cpu.usage.total"  # birikimli CPU süresi, ns
-MEMORY_METRIC = "container.memory.usage.total"
-# İzleme araçları (Eren, 2026-10-21): özete girmez. flagd, flagd-ui, load-generator collector'da zaten düşüyor.
-TOOLING_CONTAINERS = frozenset({"jaeger", "grafana", "prometheus", "opensearch", "otel-collector", "opamp-server"})
-
-ID_PATTERNS = (
-    (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I), "<id>"),
-    (re.compile(r"\b[0-9a-f]{16,}\b", re.I), "<id>"),
-    (re.compile(r"\d+"), "<n>"),
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+# Pencere ve okuma çekirdeği pakette (DECISIONS 2026-10-30 "P1a kararları"); adlar buradan da içe aktarılabilir.
+from aiops_rca.signals import (  # noqa: E402, F401
+    CPU_METRIC, EDGE_NS, ID_PATTERNS, INCOMING_KINDS, MEMORY_METRIC, MESSAGE_CHARS, MESSAGE_KEYS, SEVERITY_WARN,
+    STATUS_ERROR, TOOLING_CONTAINERS, WINDOW_NS, Window, iter_lines, log_message, normalize, point_value,
+    resource_attr, summarize, value_text,
 )
 
-
-def resource_attr(resource: dict, key: str) -> str | None:
-    for a in resource.get("attributes", []):
-        if a.get("key") == key:
-            return a.get("value", {}).get("stringValue")
-    return None
-
-
-def value_text(value: dict) -> str:
-    if "stringValue" in value:
-        return value["stringValue"]
-    if not value:
-        return ""
-    return json.dumps(value, ensure_ascii=False, sort_keys=True)
-
-
-def log_message(record: dict) -> str:
-    text = value_text(record.get("body", {})).strip()
-    if text:
-        return text
-    attrs = {a.get("key"): a.get("value", {}) for a in record.get("attributes", [])}
-    for key in MESSAGE_KEYS:
-        if key in attrs and value_text(attrs[key]).strip():
-            return value_text(attrs[key]).strip()
-    return "<no message>"
-
-
-def normalize(message: str) -> str:
-    message = " ".join(message.split())
-    for pattern, repl in ID_PATTERNS:
-        message = pattern.sub(repl, message)
-    return message[:MESSAGE_CHARS]
+TOP_MESSAGES = 10
 
 
 def p95_ms(durations_ns: list[int]) -> float | None:
@@ -96,106 +51,6 @@ def p95_ms(durations_ns: list[int]) -> float | None:
     ordered = sorted(durations_ns)
     idx = max(0, math.ceil(0.95 * len(ordered)) - 1)  # en yakın sıra yöntemi
     return round(ordered[idx] / 1e6, 1)
-
-
-def point_value(dp: dict) -> float | None:
-    if "asDouble" in dp:
-        return float(dp["asDouble"])
-    if "asInt" in dp:
-        return float(dp["asInt"])
-    return None
-
-
-class Window:
-    def __init__(self, alarm_ns: int):
-        self.start = alarm_ns - WINDOW_NS
-        self.alarm = alarm_ns
-        self.end = alarm_ns + WINDOW_NS
-
-    def side(self, t: int) -> str | None:
-        if self.start <= t < self.alarm:
-            return "before"
-        if self.alarm <= t < self.end:
-            return "after"
-        return None
-
-
-def iter_lines(paths: list[Path]):
-    for path in paths:
-        with path.open(encoding="utf-8") as f:
-            for n, line in enumerate(f, 1):
-                if line.strip():
-                    try:
-                        yield json.loads(line)
-                    except ValueError as e:
-                        raise ValueError(f"{path}:{n}: {e}") from e
-
-
-def summarize(paths: list[Path], window: Window) -> tuple[dict, dict]:
-    spans = defaultdict(lambda: {"before": [0, 0, []], "after": [0, 0, []]})  # [istek, hata, süreler]
-    logs = defaultdict(Counter)  # (servis, mesaj) -> {before, after}
-    resources = defaultdict(lambda: {"before": [], "after": []})  # (konteyner, metrik) -> değerler
-    cpu_counters = defaultdict(dict)  # konteyner -> {zaman: birikimli CPU ns}
-    edges = {"spans": [False, False], "logs": [False, False], "metrics": [False, False]}
-
-    def mark(signal: str, t: int) -> None:
-        if window.start <= t < window.start + EDGE_NS:
-            edges[signal][0] = True
-        if window.end - EDGE_NS <= t < window.end:
-            edges[signal][1] = True
-
-    for doc in iter_lines(paths):
-        for rs in doc.get("resourceSpans", []):
-            svc = resource_attr(rs.get("resource", {}), "service.name")
-            for ss in rs.get("scopeSpans", []):
-                for sp in ss.get("spans", []):
-                    t = int(sp.get("startTimeUnixNano", 0))
-                    mark("spans", t)
-                    side = window.side(t)
-                    if side is None or svc is None or sp.get("kind") not in INCOMING_KINDS:
-                        continue
-                    row = spans[svc][side]
-                    row[0] += 1
-                    if sp.get("status", {}).get("code") == STATUS_ERROR:
-                        row[1] += 1
-                    row[2].append(int(sp.get("endTimeUnixNano", t)) - t)
-        for rl in doc.get("resourceLogs", []):
-            svc = resource_attr(rl.get("resource", {}), "service.name")
-            for sl in rl.get("scopeLogs", []):
-                for rec in sl.get("logRecords", []):
-                    t = int(rec.get("timeUnixNano", 0)) or int(rec.get("observedTimeUnixNano", 0))
-                    mark("logs", t)
-                    side = window.side(t)
-                    if side is None or rec.get("severityNumber", 0) < SEVERITY_WARN:
-                        continue
-                    logs[(svc or "<unknown>", normalize(log_message(rec)))][side] += 1
-        for rm in doc.get("resourceMetrics", []):
-            container = resource_attr(rm.get("resource", {}), "container.name")
-            for sm in rm.get("scopeMetrics", []):
-                for m in sm.get("metrics", []):
-                    if m.get("name") not in (CPU_METRIC, MEMORY_METRIC):
-                        continue
-                    for dp in (m.get("gauge") or m.get("sum") or {}).get("dataPoints", []):
-                        t = int(dp.get("timeUnixNano", 0))
-                        mark("metrics", t)
-                        side = window.side(t)
-                        value = point_value(dp)
-                        if not container or container in TOOLING_CONTAINERS or value is None:
-                            continue
-                        if m["name"] == CPU_METRIC:
-                            # Pencereden hemen önceki ölçüm de lazım: ilk hız onunla hesaplanır.
-                            if window.start - EDGE_NS <= t < window.end:
-                                cpu_counters[container][t] = value
-                        elif side is not None:
-                            resources[(container, m["name"])][side].append(value)
-    for container, points in cpu_counters.items():
-        ordered = sorted(points.items())
-        for (t1, v1), (t2, v2) in zip(ordered, ordered[1:]):
-            side = window.side(t2)
-            if side is None or v2 < v1:  # sayaç geriye düştü: konteyner yeniden başladı
-                continue
-            resources[(container, CPU_METRIC)][side].append((v2 - v1) / (t2 - t1) * 100)
-    return {"spans": spans, "logs": logs, "resources": resources}, edges
 
 
 def avg_max(values: list[float], scale: float, digits: int) -> tuple[float | None, float | None]:

@@ -21,6 +21,7 @@ Sadece Eren'in onayladığı isimler.
 | `noise_layer` | Gürültü katmanı: asıl hatayla aynı anda açılan, yanıltıcı ama kök neden olmayan etki (ör. trafik seli) |
 | `src/aiops_rca/` | Projenin Python paketi (src düzeni) |
 | `src/aiops_rca/leakage.py` | Sızıntı testi: modele verilecek görünümde cevabı ele veren iz arar |
+| `src/aiops_rca/signals.py` | Vaka sinyalleri modülü: pencere, servis satırları, sinyaller ve güç, basit kural, işlem ve çağıran satırları (P1a'da `tools/`'tan taşındı) |
 | `tests/fixtures/leakage/` | Sızıntı testinin sahte OTLP JSON dosyaları |
 | `gen_leakage_fixtures` | Sızıntı testinin sahte dosyalarını üreten betik (`tools/gen_leakage_fixtures.py`) |
 | `leak_<kaynak>.jsonl`, `clean_symptoms.jsonl`, `clean_false_alarms.jsonl` | Sızıntı testi sahte dosyaları: sızıntı tablosunun bir satırı / normal trafik ve gerçekçi belirtiler / yanlış alarm adayları |
@@ -32,6 +33,7 @@ Sadece Eren'in onayladığı isimler.
 | `positive_control` | Pozitif kontrol: dedektörün bilinen bir sızıntıyı gerçek veride gerçekten bulduğunu gösteren kontrol (süzme kapalı) |
 | `model_view` | Model görünümü: bir incident için yöntemlere verilen veri; etiketler ve cevabı ele veren adlar içermez |
 | `task/<konu>` | Görev kartı dalı; her kart bir dal ve bir PR (ör. `task/line-endings`) |
+| `task/p1-eval` | Proje 1 P1a dalı: değerlendirme çatısı (vaka erişimi, cevap şeması, puanlama, koşu kaydı) ve kural baseline |
 | `.github/workflows/ci.yml` | CI workflow dosyası (GitHub Actions) |
 | `CI` | Workflow adı; GitHub Actions sekmesinde görünür |
 | `test` | CI job'u; main dal korumasında zorunlu kontrol bu adla seçilir |

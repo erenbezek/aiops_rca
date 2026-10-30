@@ -20,7 +20,7 @@ flowchart LR
     cut["Snapshot kesici<br/>scenario_runner.py incidents<br/>(dosyadan, vaka penceresi;<br/>systemd birimi aiops-incidents@liste)"]
     snap[("snapshot'lar<br/>~/cerebrum2/snapshots/inc-…/<br/>— git dışı, ≤ 30 GB")]
     labels[("etiketler<br/>incidents/inc-….json — repoda")]
-    ichk["tools/incident_checks.py<br/>(belirti, olay, taban sağlık)"]
+    ichk["tools/incident_checks.py<br/>(belirti, olay, taban sağlık;<br/>ölçüler src/aiops_rca/signals.py)"]
     fix[("CI alt kümesi<br/>tests/fixtures/snapshots/")]
     view["model_view<br/>(= snapshot klasörü: süzülmüş<br/>pencere + window.json; etiketler hariç)"]
     leak["Sızıntı testi<br/>src/aiops_rca/leakage.py"]
@@ -104,6 +104,7 @@ flowchart LR
 | `pyproject.toml` | Python paket tanımı: `aiops_rca`, `src/` düzeni, Python ≥ 3.12, çalışma zamanı bağımlılığı yok, `[dev]` = `pytest==9.1.1` |
 | `src/aiops_rca/__init__.py` | Paket işareti (boş) |
 | `src/aiops_rca/leakage.py` | Sızıntı testi: `model_view` klasöründe cevabı ele veren izleri arar; CLI `python -m aiops_rca.leakage <klasör>`, çıkış kodu 0/1/2 |
+| `src/aiops_rca/signals.py` | Vaka sinyalleri (`tools/`'tan taşındı, P1a): pencere, dosya okuma, servis satırları, sinyaller ve güç, basit kural (`rule_check`), işlem ve çağıran satırları; `trial_summary`, `c2_measure`, `incident_checks` bu adları buradan içe aktarır |
 | `tests/test_leakage.py` | Sızıntı testinin testleri (kart ölçütleri, kural biçimleri, girdi hataları) |
 | `tests/fixtures/leakage/` | Sahte OTLP JSON dosyaları: `leak_*.jsonl` (OTEL_DEMO.md sızıntı tablosu), `clean_*.jsonl` (temiz, yanlış alarm adayları) |
 | `docs/PROJECT.md` | Ne, neden, bitti ölçütü, kapsam dışı, şu an |
