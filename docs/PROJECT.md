@@ -87,4 +87,5 @@ Kendi Python servisi quote-gateway yapıldı (`task/quote-gateway`, 2026-10-29):
 İmajlar GHCR'da (`task/ghcr-ci`, 2026-10-29): `ghcr.io/erenbezek/aiops-quote-gateway` ve `aiops-netem` CI'da derleniyor, main'de `sha-<commit>` etiketiyle gönderiliyor; koşucu ve compose digest'le sabit. Canlı kontrol geçti (girişsiz çekme, 23 konteyner, zincir, netem, taban sağlık 34,0 ms prizde).
 Gece koşusu systemd biriminde (`task/systemd-unit`, 2026-10-29): `systemctl --user start aiops-incidents@<liste>`; `systemctl stop`'ta temizlenir, canlıda geçti (~65 sn, SIGKILL yok); kapanmada kesilir, sonraki koşu başlamaz (kalıntı denetimi).
 V3 resmî set kapandı (`task/vaka-v3`, 2026-10-30): 36 geçerli vaka (dev 18, test 18), etiketler `incidents/`'ta. 1. gece 20/20, 2. gece 16/20; V3c'nin taban ölçümü iki kez kaldı, kalan 4 giriş düştü (DECISIONS). Açık risk: 30 Ekim sabahından beri product-catalog yavaş (kök bilinmiyor); canlı demodan önce çözülmeli.
-Sıradaki: uygulama katalogda V3 özetini yazar ve product-catalog bellek sınamasını yapar; planlama kontrolünden sonra PR. Ardından Proje 1 model koşuları (kart planlamada).
+V3 kapanışı birleşti (PR #28). product-catalog bellek sınaması sonuçsuz; müdahale sınaması canlı demo kartında.
+Sıradaki: Proje 1. Kart bölümü P1a–P1e (DECISIONS 2026-10-30). P1a (değerlendirme çatısı + kural baseline) kartı `task/p1-eval`'de.

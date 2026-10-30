@@ -2501,3 +2501,47 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - İş 2 (`8b7367f`) uygun: ham dosyalar (`pc_memory_probe_20261030T0933Z.*`, betik sha256 `b29721a7…d373`) raporla aynı. Sonuç ölçütlerle "sonuçsuz". Sonraki adım DECISIONS 2026-10-30'da (canlı demo kartında müdahale sınaması).
 - **İş 3: PR açılabilir.** `task/vaka-v3` → main. Açıklama sade, "Generated with Claude Code" satırı yok. CI yeşil olunca Eren birleştirir.
 - Sonra: Proje 1 model koşuları kartı (planlama).
+
+## 2026-10-30 · Planlama → Uygulama (P1a: değerlendirme çatısı ve kural baseline)
+- Amaç: bütün yöntemler (kural, BARO, LLM ayarları) aynı vakalarda, aynı girdiyle ve aynı puanlamayla ölçülsün. Ölçme cetveli model koşmadan önce sabitlenir.
+- Kararlar: DECISIONS 2026-10-30 (Proje 1 kart bölümü, kalibrasyon, kanıt geçerliliği, alarm zamanı, kural baseline). Dal `task/p1-eval` (Eren onaylı; GLOSSARY'ye eklenir).
+- Yapılacak (kod `src/aiops_rca/`, DECISIONS 2026-10-15). Modül, komut ve alan adları İngilizce önerilir; Eren onaylar, GLOSSARY'ye girer.
+  1. **Vaka erişimi:**
+     - Etiketler `incidents/`, görünüm `~/cerebrum2/snapshots/<id>/` (`model_view`).
+     - Varsayılan yalnız geçerli `pilot` (25) ve `dev` (18). `test` yalnız açık bir son koşu ayarıyla okunur; `heldout` hiç okunmaz.
+     - Yönteme etiket verilmez: yöntem yalnız görünümü ve alarm zamanını alır.
+  2. **Sinyaller:** servis başına alarmdan önceki 10 dk ve sonraki 10 dk.
+     - Hata oranı, p95, p99, CPU, bellek, istek sayısı, yeni WARN+ log; çağıran tarafı (istemci span'leri, `caller_rows` mantığı).
+     - Mevcut ölçüler (`tools/trial_summary.py`, `c2_measure.py`, `incident_checks.py`) paketten kullanılır ya da pakete taşınır. Taşınırsa koşucu davranışı ve eski sonuçlar aynı kalır (eşitlik testi).
+  3. **Cevap şeması** (bütün yöntemlerde aynı):
+     - Sıralı 3 aday. Her adayda servis, güven (0–1), kanıt yolu (kökten belirtiye servis listesi), kısa gerekçe.
+     - "Emin değilim" bayrağı.
+     - Güven veremeyen yöntem alanı boş bırakır; kalibrasyona girmez.
+  4. **Puanlama:**
+     - top-1, top-3. Ad eşleme kuralı tek yerde.
+     - Kanıt geçerliliği: yolun her kenarı vakanın snapshot penceresindeki izlerde görülen bir servisler arası çağrı mı.
+     - Etiket yoluyla örtüşme: etiket kenarlarının yoldaki payı; rapor.
+     - Kalibrasyon: Brier (top-1 güveni ile top-1 doğruluğu), seçici doğruluk ve kapsama.
+     - Süre; token (varsa).
+     - Set başına özet tablo; kayıtlardan tek komutla yeniden üretilir.
+  5. **Koşu kaydı:**
+     - Yöntem, model kimliği, sağlayıcı, temperature, ayarlar, tarih, repo commit.
+     - Vaka başına cevap, ham çıktı, süre, token.
+     - Resmî koşular `eval_responses/` (repo), denemeler `llm_cache/` (git dışı). P1a'da yalnız kural baseline koşar.
+  6. **Kural baseline:** C2 kartındaki "basit kural kontrolü" (HANDOFF 2026-10-23, 4. madde) ve güç formülü (HANDOFF 2026-10-24).
+     - Puan = eşiği aşan sinyal sayısı; eşitlikte güç. İzleme araçları puanlanmaz; `astronomy-db` ve `valkey-cart` yalnız CPU ve bellekle puanlanır.
+     - Dev'de ayarlanmaz. Kuralın kesin tanımını ve eşiklerin kaynağını koşmadan önce raporla.
+  7. **CI:** kırpılmış küçük sabit örnekler (3–5 pilot vaka, `tests/fixtures/snapshots/`) ve kural baseline'ın beklenen çıktısı; CI aynısını üretir. Boyut önerisi uygulamadan (birkaç MB).
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - **Erişim:** `test` bayraksız okunamaz, `heldout` hiç okunamaz, yöntem etikete erişemez. Testlerle; kasıtlı kırmızı (koruma kaldırılınca test kırmızı).
+  - **Puanlama:** sahte cevaplarla birim testleri: top-1/top-3, ad eşleme, geçerli/geçersiz yol, örtüşme, Brier, seçici doğruluk, "emin değilim".
+  - **Ölçü sağlaması:** pilot + dev'in her vakasında etiketin kendi yayılım yolu kanıt geçerliliği ölçüsünden geçer. Geçmeyen varsa dur ve yaz (ölçü mü etiket mi).
+  - **Kural baseline:** pilot + dev (43 vaka) üzerinde koştu. Her vakada şemaya uygun cevap; iki koşu birebir aynı. Sonuç tablosu HANDOFF'a, sayılarla, yorumsuz.
+  - **Uyumluluk:** taşınan ölçüler eski sonuçları aynı üretir; koşucu testleri yeşil.
+  - CI örnekleri ve beklenen çıktı repoda; pytest yeşil; PR koşusu yeşil.
+  - Kayıt (ölçüt değil): dev vakalarında ham log boyutu (karakter, yaklaşık token); P1c/P1d bütçesi için.
+- Dikkat:
+  - Test seti bu kartta okunmaz, koşulmaz.
+  - LLM çağrı katmanı ve daraltma bu kartta yok (P1c).
+  - Demo gerekmez; her şey dosyadan. Ortam riski bu kartı etkilemez.
+- Sıradaki: P1b BARO kartı (planlama).
