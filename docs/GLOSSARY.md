@@ -125,7 +125,8 @@ Sadece Eren'in onayladığı isimler.
 | `window.json` | `model_view` içinde pencere sınırları (`start`, `end`, UTC); başka bilgi yok |
 | `incidents/<incident_id>.json` | Repoda etiket ve koşu kaydı (yalnız geçerli vakalar): `answer`, `window`, `checks`, `valid`, `invalid_reasons`, `marks`, `run` |
 | `answer` | Etiketin doğru cevap bölümü: `scenario`, `variant`, `noise_layer`, `injection_start`, `injection_end`, `root_cause_service`, `fault_type`, `propagation_path` (kenar listesi), `categories` |
-| `set`, `pilot` | Etiketin set alanı (`dev` / `test` / `pilot`) / resmî sete girmeyen pilot vakaların değeri |
+| `set`, `pilot` | Etiketin set alanı (`dev` / `test` / `pilot` / `heldout`) / resmî sete girmeyen pilot vakaların değeri |
+| `heldout`, `HELDOUT_UNITS` | Set değeri: yalnız V3 testinde olan 6 birimin pilot etiketleri, geliştirmede okunmaz (DECISIONS 2026-10-29) / `tests/test_catalog.py`'de bu 6 birim (hata ya da senaryo, kök neden servisi); bu birimlerin etiketi yalnız `heldout` ya da `test` olabilir, `heldout` yalnız bu birimlerde |
 | `checks` | Etiketin kontrol sonuçları: `coverage`, `leakage`, `baseline_health`, `symptom`, `event`, `monitoring_health` |
 | `marks` | Geçerli ama işaretli vaka: `no_symptom`, `borderline`, `not_measurable` (set kararı V3'te) |
 | `run` | Etiketin koşu kaydı: `versions`, `guards`, `times`, `containers`, `duration_s`, `snapshot_bytes`, `list_entry`, `collector_restarted`, `scheduler`, `memory`, `anonymous_volumes_removed`, `overheat`, `baseline_failed`, `coverage_short`, `leakage_found` ve C2'den `restarts_in_window`, `expected_restarts`, `suspended_s`, `max_pkg_temp_c` |
@@ -135,7 +136,9 @@ Sadece Eren'in onayladığı isimler.
 | `~/cerebrum2/incident_runs/` | Vaka üretimi çalışma dosyaları, gece başına `<UTC>-<liste>/`: `runner.log`, `ism.json`, her denemenin etiketi `<incident_id>.json`, vaka klasöründe bellek ve konteyner dökümleri; geçersiz vakanın snapshot'ı `<incident_id>/model_view/`'a taşınır; repo dışı |
 | `ism.json` | Gece klasöründe OpenSearch ISM kontrolü (her `otel-logs` indeksinde `otel-logs-retention` mı) |
 | `fault_type`, `propagation_path`, `categories` | `SCENARIOS`'taki doğru cevap alanları (INCIDENT_CATALOG tablosunun aynısı) |
-| `MAX_SNAPSHOT_GB`, `AIOPS_MAX_SNAPSHOT_GB` | Snapshot kökünün üst sınırı (20 GB; korumada `snapshot_gb`) / yalnız kasıtlı kırmızı için ezen ortam değişkeni |
+| `MAX_SNAPSHOT_GB`, `AIOPS_MAX_SNAPSHOT_GB` | Snapshot kökünün üst sınırı (30 GB, DECISIONS 2026-10-29; korumada `snapshot_gb`) / yalnız kasıtlı kırmızı için ezen ortam değişkeni |
+| `start_guards`, `run.guards.start` | Koşucu: liste başı korumaları, yalnız ilk vakadan önce (boş swap ve izleme tahmini; DECISIONS 2026-10-29) / ilk etiketin `run.guards`'ında sonuçları: `estimate_h`, `monitoring_projected_gb`, eşikler, `problems` (swap ve izleme ölçümleri `run.guards`'ta, tekrar yazılmaz) |
+| `MIN_SWAP_FREE_START_GB`, `MONITORING_GB_PER_H`, `INCIDENT_EST_MIN` | Liste başı eşikleri: demo kapalıyken boş swap ≥ 2 GB / izleme büyümesi 0,85 GB/sa (D2) / vaka başına tahmini süre 35 dk |
 | `incidents` | `scenario_runner.py` komutu: bir listedeki vakaları sırayla üretir (V1 akışı) |
 | `tools/incident_checks.py` | Vaka kontrolleri: `operation_rows`, `symptom_check`, `baseline_check`, `event_check`, `monitoring_health` |
 | `operation_rows`, `symptom_check`, `event_check` | Servis + span adı başına istek/hata/süre / servis ve işlem düzeyinde belirti (en güçlü sinyal) / enjeksiyon döneminde olay var mı (en az M istek) |
@@ -194,3 +197,8 @@ Sadece Eren'in onayladığı isimler.
 | `leftovers()`, `leftovers` (koruma alanı), `DEMO_PROJECT` | Koşucu: önceki koşudan kalan demo (`otel-demo` projesi) ya da `aiops-netem` konteynerleri; varsa koşu başlamaz / demonun compose proje adı |
 | `session_pids` | Koşucu: bir oturumdaki yaşayan süreçler (`/proc`); uyku engeli zincirini çıkışta kapatmak için |
 | `incident_lists/systemd_stop.json` | systemd kartı canlı kontrol listesi (containerPause cart, 1 vaka) |
+| `incident_lists/v3_night1.json`, `v3_night2.json`, `v3_retry.json` | V3 resmî set listeleri: 1. gece (10 dev + 10 test) / 2. gece (9 dev + 11 test) / telafi (V3c); her girişte `set` |
+| `v3_night2a` | 2. gece listesinin ilk parçası (`v3_night2`'nin 1–15. girişleri, 15 vaka) |
+| `v3_night2b` | 2. gece listesinin kalan parçası (16–20. girişler, 5 vaka) |
+| `tests/test_v3_lists.py` | V3 gece listelerinin kart tablosuyla birebir karşılaştırması (bileşim, gece sayıları, gece sonları, ortak çiftler ayrı gecede, ayrılan birimler yalnız testte, koşucunun liste denetimi) |
+| `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi); yol ve sha256 HANDOFF'ta |

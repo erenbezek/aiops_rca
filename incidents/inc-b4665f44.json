@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-b4665f44",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "packetLoss",
   "variant": "30%",

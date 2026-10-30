@@ -1,0 +1,282 @@
+{
+ "incident_id": "inc-e763eeaf",
+ "set": "test",
+ "answer": {
+  "scenario": "cartFailure",
+  "variant": "50%",
+  "noise_layer": null,
+  "injection_start": "2026-10-29T10:18:09Z",
+  "injection_end": "2026-10-29T10:28:10Z",
+  "root_cause_service": "cart",
+  "fault_type": "misconfig",
+  "propagation_path": [
+   [
+    "cart",
+    "checkout"
+   ],
+   [
+    "checkout",
+    "frontend"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "partial"
+  ]
+ },
+ "window": {
+  "start": "2026-10-29T10:02:28Z",
+  "end": "2026-10-29T10:30:21Z"
+ },
+ "checks": {
+  "baseline_health": {
+   "frontend_p95_ms": 24.3,
+   "reference_ms": 25.3,
+   "threshold_ms": 50.6,
+   "pass": true,
+   "measured_at": "2026-10-29T10:18:05Z"
+  },
+  "coverage": {
+   "traces": {
+    "bytes": 183352893,
+    "mb_per_min": 6.57,
+    "oldest_utc": "2026-10-29T08:35:24Z",
+    "covered": true
+   },
+   "metrics": {
+    "bytes": 52520286,
+    "mb_per_min": 1.88,
+    "oldest_utc": "2026-10-29T00:45:06Z",
+    "covered": true
+   },
+   "logs": {
+    "bytes": 59821109,
+    "mb_per_min": 2.14,
+    "oldest_utc": "2026-10-29T01:19:51Z",
+    "covered": true
+   }
+  },
+  "leakage": {
+   "findings": 0,
+   "first": []
+  },
+  "symptom": {
+   "service": "cart",
+   "min_requests": 10,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "operation",
+    "operation": "POST /oteldemo.CartService/EmptyCart",
+    "signal": "p95_ms",
+    "strength": 16080.105,
+    "requests": [
+     28,
+     17
+    ],
+    "values": [
+     4.3,
+     321606.4
+    ]
+   },
+   "service_level": {
+    "level": "service",
+    "signal": "new_warn_log",
+    "strength": 0.6
+   },
+   "operation_level": {
+    "level": "operation",
+    "operation": "POST /oteldemo.CartService/EmptyCart",
+    "signal": "p95_ms",
+    "strength": 16080.105,
+    "requests": [
+     28,
+     17
+    ],
+    "values": [
+     4.3,
+     321606.4
+    ]
+   }
+  },
+  "event": {
+   "applied": true,
+   "pass": true,
+   "requests_after": 17,
+   "basis": "operation POST /oteldemo.CartService/EmptyCart",
+   "min_requests": 10
+  },
+  "monitoring_health": {
+   "opensearch": {
+    "sent_series": 1,
+    "sent": 41409.0,
+    "send_failed": 0.0,
+    "enqueue_failed": 0.0
+   },
+   "exporters": {
+    "file/traces": {
+     "sent": 138945.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/metrics": {
+     "sent": 120335.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/logs": {
+     "sent": 41408.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "debug": {
+     "sent_series": 3,
+     "sent": 300688.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "jaeger_storage_exporter": {
+     "sent_series": 1,
+     "sent": 138214.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "opensearch": {
+     "sent_series": 1,
+     "sent": 41409.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_grpc/jaeger": {
+     "sent_series": 1,
+     "sent": 138945.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_http/prometheus": {
+     "sent_series": 1,
+     "sent": 120335.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    }
+   },
+   "receiver_refused": 0.0
+  }
+ },
+ "valid": true,
+ "invalid_reasons": [],
+ "marks": [],
+ "run": {
+  "list_entry": {
+   "scenario": "cartFailure_50pct",
+   "noise_layer": null,
+   "set": "test"
+  },
+  "versions": {
+   "repo_commit": "d5abaffff0d285c62bfdfb4afb7c6ee33a55d467",
+   "demo_commit": "dedc0178918e260823323b8d95005a8cb924b007",
+   "demo_env": {
+    "IMAGE_VERSION": "3.0.0",
+    "DEMO_VERSION": "latest",
+    "COLLECTOR_CONTRIB_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0",
+    "COLLECTOR_EBPF_PROFILER_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-ebpf-profiler:0.159.0",
+    "FIREPIT_IMAGE": "ghcr.io/florianl/firepit:v0.1.0",
+    "FLAGD_IMAGE": "ghcr.io/open-feature/flagd:v0.16.0",
+    "GRAFANA_IMAGE": "grafana/grafana:13.1.0",
+    "JAEGERTRACING_IMAGE": "quay.io/jaegertracing/jaeger:2.19.0",
+    "POSTGRES_IMAGE": "postgres:18.4",
+    "PROMETHEUS_IMAGE": "quay.io/prometheus/prometheus:v3.13.1",
+    "VALKEY_IMAGE": "ghcr.io/valkey-io/valkey:9.0.4-alpine3.23"
+   }
+  },
+  "guards": {
+   "ac_online": "1",
+   "charge_limit": "80",
+   "battery_pct": "79",
+   "pkg_temp_c": 57.0,
+   "free_disk_gb": 252.8,
+   "monitoring_gb": 19.57,
+   "snapshot_gb": 13.26,
+   "swap_free_gb": 2.78,
+   "power_profile": "balanced",
+   "inhibited": true,
+   "gnome_inhibited": true,
+   "leftovers": [],
+   "problems": []
+  },
+  "times": {
+   "start": "2026-10-29T09:58:57Z",
+   "demo_up": "2026-10-29T09:59:27Z",
+   "collector_restarted": "2026-10-29T09:59:31Z",
+   "normal_start": "2026-10-29T10:04:28Z",
+   "flag_on_write_cartFailure": "2026-10-29T10:18:09Z",
+   "flag_on_verified_cartFailure": "2026-10-29T10:18:10Z",
+   "flag_off_write_cartFailure": "2026-10-29T10:28:10Z",
+   "flag_off_verified_cartFailure": "2026-10-29T10:28:11Z",
+   "tail_end": "2026-10-29T10:30:21Z",
+   "demo_down": "2026-10-29T10:30:55Z",
+   "snapshot_cut": "2026-10-29T10:31:07Z"
+  },
+  "containers": {
+   "after_collector_restart": 23,
+   "at_flag_on": 23,
+   "at_flag_off": 23
+  },
+  "collector_restarted": true,
+  "restarts_in_window": [],
+  "expected_restarts": [],
+  "suspended_s": -0.0,
+  "max_pkg_temp_c": 79.0,
+  "memory": {
+   "jaeger": {
+    "peak_mib": 2500.0,
+    "current_mib": 1338.2,
+    "anon_mib": 704.1,
+    "file_mib": 584.7,
+    "swap_mib": 310.9,
+    "swap_peak_mib": 922.9,
+    "max": 33804,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "otel-collector": {
+    "peak_mib": 400.0,
+    "current_mib": 396.8,
+    "anon_mib": 105.8,
+    "file_mib": 278.0,
+    "swap_mib": 0.0,
+    "swap_peak_mib": 0.0,
+    "max": 149,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "jaeger_heap_peak_mib": 3519.8,
+   "jaeger_cpu_avg_cores": 0.16,
+   "collector_sampled_peak_mib": 123.0,
+   "jaeger_anon_peak_mib": 1239.1,
+   "jaeger_swap_peak_mib": 757.5
+  },
+  "anonymous_volumes_removed": {
+   "b1eb7e9539dcdc5dd75841e87ddc6f805beb5f412a94987772d835e5b0d009c7": 0
+  },
+  "duration_s": 2018,
+  "snapshot_bytes": 295694353,
+  "overheat": false,
+  "baseline_failed": false,
+  "coverage_short": false,
+  "leakage_found": false,
+  "fault_state": null,
+  "target_ips": null,
+  "min_swap_free_gb": 1.93,
+  "export_failures": {
+   "otlp_grpc_jaeger": 0.0,
+   "jaeger_storage_exporter": 0.0,
+   "collector_refused": 0.0
+  },
+  "schedule": {
+   "seed": 3371502731,
+   "normal_s": 817,
+   "tail_s": 131
+  },
+  "scheduler": "stopped"
+ }
+}

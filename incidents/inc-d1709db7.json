@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-d1709db7",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "packetLoss",
   "variant": "10%",

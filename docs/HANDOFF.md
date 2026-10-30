@@ -1963,3 +1963,541 @@ Kapsam dışı: kendi Python servisi (sonraki kart), V3 bileşimi ve dev/test b�
   - Kalıntı denetimi demo açıkken de koşuyu reddeder; gece başlamadan önce demo kapalı olmalı.
   - `systemctl stop`'ta temizlenir; kapanmada kesilir, sonraki koşu başlamaz. Kapanma ya da oturumdan çıkışta da SIGTERM gelir, ama Ubuntu'nun kullanıcı yöneticisi kapanışta 5 sn veriyor (`/usr/lib/systemd/system/user@.service.d/timeout.conf`, `user@1000.service` `TimeoutStopUSec=5s`); temizlik ~65 sn sürdüğü için yarıda kesilir, demoda kalıntı (duraklatılmış konteyner, CPU sınırı, netem) kalabilir. Sonraki koşu kalıntı denetiminde başlamaz ve elle temizlik komutunu yazar. Linger yok (kart: yalnız not). (Planlama kontrolü.)
   - Gece klasörlerinde bu kontrolün beş gecesi (`*-systemd_stop`) ve geçersiz etiketleri kaldı; silinmedi.
+
+## 2026-10-29 · Planlama notları (V3 için)
+- Durum: main `68b429c` (systemd PR #27 merge, CI yeşil). Dal `task/vaka-v3` V3 bileşim kartı için açıldı; bu kayıttan sonra planlama ve uygulama oturumları yenilenir.
+- **Jaeger belleği:** quote-gateway sızıntı kısa koşusunda (`inc-660f7c44`) swap tepesi 940 MiB (`swap.peak` 1230), anon 1953 MiB. jaeger-data 13,25 GB ve saklama süresi dolana kadar (~2 Kasım) büyür; 1 GB boş swap koruması geceyi durdurabilir. V3 gecesinden önce boş swap ve jaeger-data boyutu kontrol edilir.
+- **1024 KB sızıntı kırılgan:** OOM 9,5. dakikada, pencere 10 dk. V3'e 384 KB varyantı girer.
+- **Kategoriler:** katalogdan gelir (Eren: her vakada ölçülmez). V3 kartında flag tablosu elle gözden geçirilir. Zor vaka ölçüsü `checks.symptom.deciding.level == caller`.
+- **Taban sağlık:** quote-gateway kalibrasyon gecesinde 03:00–03:35 düşüş (100 ms vakaları geçersiz, sebep bulunamadı); tekrarlarsa araştırılır. Pilde eşiği geçiyor (56,3 ms); koşular prizde.
+- **V3 boyutu:** ~40 vaka, ~21 saat. Listeler gece başına bölünür (yarıda kalan listeye devam yok); dev/test ayrımı kartta.
+- **systemd:**
+  - Gece başlamadan demo kapalı olmalı (kalıntı denetimi açık demoyu da reddeder).
+  - Kapanmada ya da oturumdan çıkışta temizlik kesilir (kullanıcı yöneticisi 5 sn); oturum açık kalır, linger yok.
+  - `inhibited()` storage_check'in engel metnini de kabul eder: ikisi aynı anda koşarsa bizim engelimiz olmasa da koruma geçebilir. Aynı anda koşturulmaz.
+  - `*-systemd_stop` ile biten beş gece klasörü silinmedi.
+- **Küçük notlar:**
+  - Yerelde eski imajlar `aiops-quote-gateway:1` ve `aiops-netem:1` duruyor (koşular GHCR digest'iyle).
+  - Dal koruması yok; `ci.yml`'deki yorum korumayı anlatıyor, API "Branch not protected" dönüyor.
+  - `tools/trial_alias.py --help` çalışmıyor.
+  - opensearch `latest` imajında sürüm kayabilir.
+  - Saklamanın veriyi silmesi ~2 Kasım'dan sonra gözlenecek (PROJECT "Kalıcı depolama" satırı).
+- **Sıradaki:** V3 bileşim kartı (planlama), sonra Proje 1 model koşuları ve sonuç tablosu.
+
+## 2026-10-29 · Planlama → Uygulama (V3 resmî set: bileşim, dev/test, geceler)
+- Dal `task/vaka-v3` (main `68b429c`'den; planlamanın commit'leri üstte). Kararlar DECISIONS 2026-10-29 (V3 bileşimi, `heldout`, belirtisiz vaka, snapshot sınırı 30 GB, gece öncesi koruma). Eren onaylı.
+- **Amaç:** resmî set 40 vaka (19 dev, 21 test) iki gecede kaydedilir. Bileşim ve dev/test bölümü kayıttan önce sabittir, sonuca göre değişmez. Testin bir kısmı (6 birim) geliştirmede hiç görülmemiş çiftlerden oluşur.
+- Önce 3–5 maddelik planını yaz, Eren onaylasın. Yeni paket yok, upstream'e dokunma. Her adımın sonunda rapor ver ve dur.
+- Onaylı adlar: set değeri `heldout`; listeler `incident_lists/v3_night1.json`, `v3_night2.json`, `v3_retry.json`.
+
+### Bileşim (40 vaka; varyantlar katalogdaki seçilmiş olanlar)
+
+| Grup | Dev (19) | Test (21) |
+|---|---|---|
+| Demo flag'leri | 11'in her biri 1 kez: adFailure, adHighCpu, adManualGc, cartFailure %50, emailMemoryLeak 1000x, paymentFailure %50, paymentUnreachable, productCatalogFailure, productCatalogLockContention, recommendationCacheFailure, intlShippingSlowdown 10sec | 6: cartFailure %50, intlShippingSlowdown 10sec, productCatalogFailure, recommendationCacheFailure, paymentUnreachable, adHighCpu |
+| Altyapı | 5 (her tipten bir hedef): networkDelay cart 50ms, packetLoss shipping 10%, cpuThrottle product-catalog 0.09, containerPause cart, containerStop recommendation | 10: dev'deki 5 çift (yeni koşu) + **yalnız testte** 5: networkDelay quote 50ms, packetLoss currency 10%, cpuThrottle recommendation 0.03, containerPause quote, containerStop currency |
+| quote-gateway | misroute, slowdown 30ms | misroute, slowdown 30ms, **yalnız testte**: memoryLeak 384kb |
+| Gürültü (`noise_layer` = flood) | flood + quoteGatewaySlowdown 30ms (ikili denenmedi; dev'de bakılabilir) | flood + paymentFailure %50, flood + productCatalogLockContention (pilotta denendi) |
+
+- Testte kendi hatalarımız 13/21; karar çağıranda (zor vaka, `checks.symptom.deciding.level == caller`) beklenen 8.
+- Güç notu (sonuca göre değişmez): test 21 vakada bir vaka ~5 puan, %95 aralığı ~±20 puan. Testte iki yöntem arasında ~20 puandan küçük fark tek başına ayrılamaz; sonuç tablosu bunu yazar.
+
+### Geliştirmeye kapalı pilotlar (`heldout`)
+Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout` olur; Proje 1 geliştirmesi (istem, daraltma, model boyutu seçimi, takma ad alt kümesi) yalnız `pilot` ve `dev` okur.
+
+| Birim | Pilot etiketleri |
+|---|---|
+| networkDelay quote | `inc-1811ae30`, `inc-d60dcc58`, `inc-e8b2a872` |
+| packetLoss currency | `inc-d1709db7`, `inc-b4665f44` |
+| cpuThrottle recommendation | `inc-7e70c5c4`, `inc-6d85f68b` |
+| containerPause quote | `inc-58493603`, `inc-e23c74cb` |
+| containerStop currency | `inc-569a664d` |
+| quoteGatewayMemoryLeak | `inc-ff3a6614`, `inc-660f7c44`, `inc-aec7e4ea` |
+
+- Gece klasörlerinde (`~/cerebrum2/incident_runs/*/`) bu birimlerin geçersiz etiket ve snapshot'ları da var (ör. `*-systemd_stop`, `*-quote_gateway*`, `*-v2*`). Hepsi bulunur, aynı şekilde işaretlenir, liste rapora.
+- Sınır (bilerek kabul): INCIDENT_CATALOG ve HANDOFF bu çiftlerin belirtisini yazıyor (ör. "karar çağıran: quote-gateway→quote p99"). Yasak veriye uygulanır, dokümana uygulanamaz; aynı hata tipinin dev'deki çifti zaten benzer bilgiyi veriyor.
+
+### V3a · Hazırlık (gece yok)
+1. **`heldout` işareti:** yukarıdaki 13 etiket ve gece klasörlerindeki eşleri. `tests/test_catalog.py`'ye test: ayrılan 6 birimden birine ait her pilot etiketin seti `heldout`, başka hiçbir etiketin seti `heldout` değil. Kasıtlı kırmızı: bir etiket `pilot`'a geri alınınca test kırmızı. GLOSSARY'ye `heldout`.
+2. **Snapshot sınırı 30 GB** (`MAX_SNAPSHOT_GB` varsayılanı). Bugün 9,79 GB + V3 ~10,4 GB + telafi.
+3. **Gece öncesi korumalar** (koşucunun başlangıç korumalarına; yalnız listenin başında denetlenir, gece içinde mevcut 1 GB boş swap koruması kalır; ölçütler önceden yazılı):
+   - Demo kapalıyken boş swap ≥ 2 GB. Altındaysa koşu başlamaz; Eren yeniden başlatır. (Bugün 2,99 GB; kalibrasyon gecesinde en düşük 2,07 GB; gece içindeki 1 GB koruması kalır.)
+   - İzleme volume toplamı + 0,85 GB/sa × listenin tahmini süresi < 40 GB. Tahmini süre hesabını uygulama önerir (ör. vaka türüne göre geçmiş süreler), Eren onaylar. Bugün 15,5 GB (jaeger-data 14,13 GB, ~2 Kasım'a kadar büyür); iki gece sonra ~33 GB beklenir.
+   - Değerler `run.guards`'a yazılır. Kasıtlı kırmızı: düşük sahte eşikle koşucu başlamaz.
+4. **Flag kategorileri için kanıt** (pilot snapshot'larından; demo flag'lerinin 11'i + flood'lu 2 vaka; koşu yok):
+   - Çağıran kontrolü: katalog yolundaki çağıranlarda belirti (`caller_symptom_check`, altyapıdaki gibi).
+   - Hata span'i ve hata logu (severity ≥ ERROR): kök neden ve çağıran zincirinde normal ↔ enjeksiyon sayıları.
+   - Tablo rapora; katalog değişmez. **Dur.** Planlama kategori tablosunu tanımlarla önerir, Eren onaylar.
+   - Tanımlar (ölçmeden önce yazılı): `cascading` ve `silent` DECISIONS 2026-10-28'deki gibi (ölçülür). `noisy` = vakada yanıltıcı sinyal var: `noise_layer` açık ya da senaryo kök nedenle ilgisiz bir alanla sahte korelasyon üretiyor (paymentFailure `loyalty_level=gold`). `partial` = hata, mekanizması gereği kök neden servisinin yalnız belirli bir istek türünü bozar (tek ürün, yurt dışı sipariş, tek işlem); rastgele oranla seçilen istekler (adFailure, paymentFailure %50) `partial` değildir. `noisy` ve `partial` mekanizmadan, ölçülmez.
+   - Onaydan sonra: `SCENARIOS`, INCIDENT_CATALOG flag tablosu, `test_catalog.py` güncellenir; koşucu `noise_layer`'lı vakanın `categories`'ine `noisy` ekler. Bu adım gecelerden önce biter (etiket kategoriyi kayıt anında alır).
+5. **Listeler** (`set: dev|test` her girişte):
+   - Gece başına 20 vaka (~10,3 sa): 1. gece 10 dev + 10 test, 2. gece 9 dev + 11 test.
+   - Dev'de ve testte olan aynı altyapı çiftinin iki koşusu farklı gecelerde.
+   - Riskli vakalar gecenin sonunda: 1. gece sonu flood + quoteGatewaySlowdown (dev), flood + paymentFailure (test); 2. gece sonu flood + productCatalogLockContention (test), en son quoteGatewayMemoryLeak 384kb (test).
+   - Geri kalan sıra sabit tohumla karıştırılır (dev ve test iç içe; saat etkisi sete bağlanmasın); tohum ve üretim yolu rapora.
+   - Koşucunun liste denetiminden geçer, commit. **Rapor ver ve dur;** planlama listeleri bileşim tablosuyla karşılaştırır.
+
+### V3b · İki gece (Eren başlatır: `systemctl --user start aiops-incidents@v3_night1`)
+- Her geceden önce: şarj sınırı 80, priz, demo kapalı, kalıntı yok, boş swap ve izleme toplamı (korumalar), `pytest` yeşil.
+- Ölçütler (her gece; önceden yazılı):
+  - Her vaka geçerli/geçersiz ve sebebiyle kayıtlı. Koruma geceyi durdurursa sebep kayıtlı, kalan vakalar telafi listesine.
+  - Geçerli oran ≥ %80 (≥ 16/20). Altındaysa sonraki geceden önce planlama.
+  - Sızıntı 0; değilse gece durur (koşucu zaten durur).
+  - Jaeger her vakada OOM 0, yeniden başlama 0, gönderim hatası 0, reddedilen 0. Swap tepesi, Go yığını tepesi, en düşük boş swap kayda.
+- **Test vakalarına yalnız otomatik kontroller bakar:** raporda test vakaları için yalnız geçerli/geçersiz, sebep, `verdict` sayıları, `deciding.level` sayıları, sızıntı sonucu, izleme sağlığı. Sinyal adı, değer ya da güç yazılmaz; test snapshot'ı açılmaz (planlama da açmaz). Dev vakaları tam ayrıntıyla.
+- Belirtisiz ya da sınırda geçerli vaka sette kalır, işaretlenir (DECISIONS 2026-10-29); sayısı set başına rapora.
+  - Bir gecede testte 3'ten fazla belirtisiz ya da sınırda geçerli vaka → sonraki geceden önce planlama. Set değişmez.
+  - Sonuç tablosunun "yalnız belirtili" sütunu vakanın kendi kontrolünden gelir (`checks.symptom.verdict`, işareti `marks`'ta), `silent` kategorisinden değil.
+- Her gece sonunda rapor ver ve dur.
+
+### V3c · Telafi
+- Geçersiz ve koşulamamış vakalar `v3_retry`'da bir kez (aynı birim, aynı set). İkinci kez geçersiz çıkan birim setten düşer, rapora.
+- Son set ölçütleri: dev + test ≥ 30 geçerli vaka. Testte `cascading`, `silent`, `noisy`, `partial` her biri en az bir vaka; ayrılan 6 birimden en az 4'ü geçerli. Tutmazsa değerlendirmeden önce planlama karar verir (kendiliğinden yerine koyma yok).
+- Hangi sonuç neyi değiştirir: geçerli oran < %80 ya da sızıntı > 0 → gece tekrarı öncesi düzeltme; kategori ya da `heldout` eksikliği → planlama kararı; belirtisiz vaka sayısı → set değişmez, tabloda ikinci sütun; bir gecede testte > 3 → sonraki geceden önce planlama.
+
+### Bitince
+- PROJECT bitti ölçütleri: "En az 30 vakalık snapshot seti" ve "Vaka çeşitliliği" satırları kanıtla (etiket sayıları). INCIDENT_CATALOG'a V3 bileşim özeti ve destek etiketleri. ARCHITECTURE gerekmiyorsa dokunma.
+- PR açıklaması sade; push'tan önce PR durumuna bak. PR planlama kontrolünden sonra.
+- Kapsam dışı: değerlendirme (modele ne verileceği, Proje 1 yükleyicisi; yükleyici `heldout` ve `test`'i geliştirmede okumayacak, o kartta), yeni hata tipi ya da yeni çift kalibrasyonu, 03:00 taban düşüşünün araştırılması (tekrarlarsa rapora).
+
+## 2026-10-29 · Planlama → Uygulama (V3a 3: kategori kararı)
+- 3. madde kontrol edildi:
+  - Betik önceden yazılı kurala uyuyor.
+  - Planlama 5 vakayı (recommendationCacheFailure, productCatalogLockContention, intlShippingSlowdown, emailMemoryLeak, adManualGc) repo kodunu kullanmadan saydı; zincir servislerinde sayılar aynı.
+  - `.out` sha256 rapordakiyle aynı.
+  - Raporda iki küçük hata: farklı çıkan senaryo 6 (5 değil); recommendationCacheFailure'da cascading de eksikti.
+- Karar (Eren onaylı; DECISIONS 2026-10-29 "Flag kategorileri" ve bileşim düzeltmesi):
+
+| Senaryo | Kategori |
+|---|---|
+| adFailure | cascading |
+| adHighCpu | silent |
+| adManualGc | cascading, silent |
+| cartFailure %50 | cascading, partial |
+| emailMemoryLeak 1000x | cascading, silent |
+| intlShippingSlowdown 10sec | cascading, silent, partial |
+| paymentFailure %50 | cascading, noisy |
+| paymentUnreachable | cascading |
+| productCatalogFailure | cascading, partial |
+| productCatalogLockContention | cascading, silent |
+| recommendationCacheFailure | cascading |
+
+  - `noise_layer`'lı vaka = senaryonun kategorileri + `noisy`.
+  - Bileşim değişmedi; testte dört kategori de var.
+- 4. maddede:
+  - `SCENARIOS`, INCIDENT_CATALOG flag tablosu (kategori sütunu ve kanıt), `test_catalog.py`.
+  - Katalogda productCatalogLockContention ve recommendationCacheFailure satırlarına not: frontend-proxy (ve LockContention'da frontend-web) hata span'leri var, zincir dışı.
+  - 14 pilot flag etiketinin `answer.categories`'i geriye dönük güncellenir; flood'lu ikisine `noisy`. Değişen etiketler rapora.
+  - Koşucu `noise_layer`'lı vakaya `noisy` ekler (+ test).
+  - Kanıt kaydı (betiğin yolu, iki sha256, özet tablo) uygulamanın 4. madde HANDOFF kaydında.
+  - `~/cerebrum2/analysis/` onaylı (Eren); GLOSSARY'ye.
+  - Listeler kartın 5. adımındaki gibi. Rapor ver ve dur.
+
+## 2026-10-29 · Uygulama → Planlama (V3a 1–5: heldout, korumalar, kategoriler, listeler)
+- Commit'ler: 1. madde `cb48625`, 2. madde `5601a97`, 4.–5. madde bu kaydın commit'i. pytest 409/409.
+- **1 · `heldout`:**
+  - Repoda 13 etiket `set: heldout` (kartın listesi). Eşleşme (senaryo/hata, kök neden servisi) ile, varyanttan bağımsız.
+  - Gece klasörlerinde 15 etiket aynı şekilde:
+    - `20261026T1719Z-v2b/`: `inc-569a664d`, `inc-6d85f68b`, `inc-7e70c5c4`, `inc-b4665f44`, `inc-d1709db7`, `inc-d60dcc58`, `inc-e23c74cb`, `inc-e8b2a872`.
+    - `20261027T2255Z-quote_gateway/`: `inc-1811ae30`, `inc-58493603`, `inc-aec7e4ea`, `inc-ff3a6614`.
+    - `20261028T2127Z-quote_gateway_leak/`: `inc-660f7c44`.
+    - `20261026T0327Z-v2_dry/`: `inc-bcdd2841` (containerStop currency), `inc-f4920395` (containerPause quote). Kuru deneme vakaları; kartın listesinde yok, birime ait oldukları için işaretlendi. Snapshot'ları gece klasöründe (`model_view/`).
+  - Bu birimlerin geçersiz etiketi yok; `*-systemd_stop` geceleri containerPause cart. Snapshot'larda set alanı yok (işaret etikette), dokunulmadı.
+  - Test `test_heldout_only_in_held_units` (6 birimin etiketi yalnız `heldout`/`test`; `heldout` yalnız bu birimlerde; her birimin en az bir etiketi var). Kasıtlı kırmızı 2/2.
+- **2 · Sınırlar ve liste başı korumaları:**
+  - `MAX_SNAPSHOT_GB` 30.
+  - `start_guards`: yalnız ilk vakadan önce; boş swap ≥ 2 GB, izleme + 0,85 GB/sa × vaka × 35 dk < 40 GB (karşılaştırma yuvarlanmadan).
+  - Sorunlar normal korumalarınkiyle tek ret mesajında. İlk etiketin `run.guards`'ı denetlenen ölçüm, `start` onun içinde.
+  - O günkü değerler: swap 3,04 GB, izleme 15,54 GB, snapshot 9,79 GB; 20 vakalık gece tahmini 25,46 GB.
+  - Canlı kasıtlı kırmızı (`AIOPS_MAX_MONITORING_GB=20`, 20 vakalık geçici liste): çıkış 1, demo açılmadı, mesajda tahmin satırı. Gece klasörü `20261029T0222Z-redtest_start/` (yalnız `runner.log`).
+- **3 · Kategori kanıtı (kayıt):**
+  - Betik `~/cerebrum2/analysis/v3a_categories.py`, sha256 `076e921c3e679d4472111d4ed4c0c7a08c7638352325df9aa82489660ab81918`.
+  - Çıktı `~/cerebrum2/analysis/v3a_categories.out` (tablo + 14 vakanın ham JSON'u), sha256 `b05c808e312caeecacbc285dd74dcbcc97ff3897d6c7d9297c08369e93a9e1db`.
+  - Çalıştırma `<repo>/.venv/bin/python v3a_categories.py <repo>`. Alarm etiketteki `injection_start` (saniye).
+  - Özet (zincirde artış = servis, ERROR span normal→enj / ERROR log normal→enj; frontend-proxy hariç):
+
+| Vaka | Senaryo | Zincirde hata artışı | Çağıran kontrolü (güç) | cascading | silent adayı |
+|---|---|---|---|---|---|
+| `inc-12813456` | adFailure on | ad 0→25/0→0; frontend 0→100/0→25 | symptomatic (2,3) | evet | hayır |
+| `inc-09516b21` | adHighCpu on | yok | no_symptom (0,18) | hayır | evet |
+| `inc-110f3aba` | adManualGc on | yok | symptomatic (126) | evet | evet |
+| `inc-ef72f574` | cartFailure 50% | cart 0→5/0→5; checkout 0→27/0→0 | symptomatic (40) | evet | hayır |
+| `inc-072897d4` | emailMemoryLeak 1000x | yok | symptomatic (4,2) | evet | evet |
+| `inc-48be145f` | intlShippingSlowdown 10sec | yok | symptomatic (500) | evet | evet |
+| `inc-8ceb7ae5` | paymentFailure 50% | payment, checkout, frontend 0→24/0→0 | symptomatic (9,6) | evet | hayır |
+| `inc-93c4ca55` | paymentFailure 50% | payment, checkout, frontend 0→34/0→0 | symptomatic (12,6) | evet | hayır |
+| `inc-07533a0a` | paymentUnreachable on | checkout 0→58/0→0; frontend 0→116/0→29 | symptomatic (20) | evet | hayır |
+| `inc-b03ccffb` | productCatalogFailure on | product-catalog 0→273/0→0; frontend 0→1092/0→273; checkout 0→20/0→0 | symptomatic (3,4) | evet | hayır |
+| `inc-0f31ed0e` | productCatalogLockContention on | yok | symptomatic (1496) | evet | evet |
+| `inc-78df5642` | recommendationCacheFailure on | frontend 0→86/0→26 | symptomatic (807) | evet | hayır |
+| `inc-af671750` | paymentFailure 50% + flood | payment, checkout, frontend 0→22/0→0 | symptomatic (7,6) | evet | hayır |
+| `inc-f20daed8` | productCatalogLockContention on + flood | yok | symptomatic (1475) | evet | evet |
+
+- **4 · Kategoriler:**
+  - `SCENARIOS`'ta 7 giriş (6 senaryo; emailMemoryLeak iki varyant) planlamanın tablosuna göre; INCIDENT_CATALOG flag tablosu (kategori sütunu, LockContention ve recommendationCacheFailure satırlarında zincir dışı frontend-proxy/frontend-web notu, tablonun altında kanıt paragrafı); altyapı bölümündeki "gözden geçirilecek" ifadesi kapandı.
+  - Koşucu `noise_layer`'lı vakaya `noisy` ekler (zaten varsa tekrar yok). Test `test_noise_layer_adds_noisy`.
+  - Geriye dönük 7 etiket: `inc-12813456`, `inc-110f3aba`, `inc-072897d4`, `inc-48be145f`, `inc-0f31ed0e`, `inc-78df5642`, `inc-f20daed8` (flood: cascading, silent, noisy). `inc-af671750` (paymentFailure + flood) zaten `cascading, noisy`, değişmedi. Gece klasörlerindeki kopyalar değişmedi (V2'deki gibi).
+  - Test `test_flag_labels_follow_catalog_categories`: her flag etiketinin kategorisi koşucudakiyle aynı (+ `noisy`).
+- **5 · Listeler:** `incident_lists/v3_night1.json` (10 dev + 10 test), `v3_night2.json` (9 dev + 11 test).
+  - Üretici `~/cerebrum2/analysis/v3_lists.py`, sha256 `5c84583440fe0ca5675e9643668a5fd13a5dbd253f00fd1ce65706f55fde29d8`, tohum `20261029` (`random.Random`), çalıştırma `python3 v3_lists.py <repo>`.
+  - Yöntem: 5 ortak altyapı çifti karıştırılır, ilk k'sının (k = 3: networkDelay cart, packetLoss shipping, cpuThrottle product-catalog) dev kopyası 1. gecede, test kopyası 2. gecede; kalan ikisinin (containerPause cart, containerStop recommendation) tersi. Geri kalan 13 dev ve 13 test karıştırılıp sayıları tutturacak şekilde bölünür; her gecenin gövdesi karıştırılır, sonuna sabit son eklenir.
+  - Gece sonları: 1. gece flood + quoteGatewaySlowdown (dev), flood + paymentFailure (test); 2. gece flood + productCatalogLockContention (test), quoteGatewayMemoryLeak 384kb (test).
+  - `tests/test_v3_lists.py` kart tablosunu kendi içinde yazılı tutar (üreticiye bakmaz); `HELDOUT_UNITS` `test_catalog.py`'den. Sınadıkları: bileşim birebir, gece başına sayılar ve son, ortak çiftler ayrı gecede, ayrılan 6 birim yalnız testte ve birer kez, koşucunun liste denetimi.
+  - Kasıtlı kırmızılar 7/7: gece sonunda iki giriş yer değiştirdi; geceler arası dev↔test; giriş silindi; ayrılan birim dev'e; bilinmeyen senaryo (koşucu 2 döner); koşucuda `noisy` kuralı yok; etiket kategorisi geri alındı.
+- Adlar (Eren onaylı): `~/cerebrum2/analysis/`, `start_guards`, `MIN_SWAP_FREE_START_GB`, `MONITORING_GB_PER_H`, `INCIDENT_EST_MIN`, `run.guards.start` (alanlar), `checked`, `HELDOUT_UNITS`, `tests/test_v3_lists.py`; GLOSSARY'de. ARCHITECTURE dosya tablosu güncel.
+- **Dikkat:**
+  - 1. gecede quote-gateway ağırlıklı (misroute ×2, slowdown ×2, flood + slowdown); 2. gecede 11 flag vakası. Kart bunu sınırlamıyor; tohumun sonucu.
+  - 2. gecede adHighCpu dev ve test arka arkaya (3. ve 4. sıra).
+  - V3b'den önce: şarj sınırı 80, priz, demo kapalı, `pytest` yeşil; liste başı koruması swap ve izleme tahminini kendisi denetler.
+
+## 2026-10-29 · Planlama → Uygulama (V3a 4–5 kontrolü; liste düzeltmesi)
+- 4. madde uygun:
+  - `SCENARIOS`'taki 20 giriş kategori kararıyla aynı.
+  - Repodaki bütün flag etiketleri katalogla uyuşuyor (flood'lularda `noisy`).
+  - Katalog notları yerinde. pytest 409/409.
+- 5. madde: listeler kart tablosuyla birebir aynı (planlama kendi kodlamasıyla karşılaştırdı: 40/40, eksik ve fazla yok). Sayılar, gece sonları ve ortak altyapı çiftleri karta uygun.
+- **Kart düzeltmesi (planlamanın boşluğu; Eren onaylı):**
+  - "Kopyalar farklı gecelerde" kuralı yalnız altyapı çiftleri için yazılmıştı. İki sette olan 13 birimin 8'i aynı gecede çıktı (cartFailure, intlShippingSlowdown, productCatalogFailure, paymentUnreachable, adHighCpu, quoteGatewayMisroute, quoteGatewaySlowdown 30ms). Tür dağılımı da dengesiz: 2. gecede 13 demo flag'i, 1. gecede 6.
+  - Kötü bir gece (C2'deki nedeni bulunmamış yavaşlama, 03:00 taban düşüşü) tür ve birimle karışmasın diye kural genişliyor: iki sette olan 13 birimin her biri (5 altyapı çifti, 6 demo flag'i, quoteGatewayMisroute, quoteGatewaySlowdown 30ms) dev ve test kopyasıyla farklı gecelerde.
+  - Geri kalan 10 tekil birim (dev'e özel 5 demo flag'i: adFailure, adManualGc, emailMemoryLeak, paymentFailure, productCatalogLockContention; yalnız testteki 5 altyapı çifti) gece başına 2 ya da 3.
+  - Gece sonları, gece başına sayılar (10+10, 9+11) ve tohum (`20261029`) aynı.
+- Yapılacak:
+  - Listeleri yeniden üret.
+  - `test_v3_lists.py`'deki "ortak çiftler ayrı gecede" sınamasını 13 birime genişlet; kasıtlı kırmızı: bir ortak demo flag'inin iki kopyası aynı geceye alınınca test kırmızı.
+  - Üreticinin yeni sha256'sı ve gece başına tür dağılımı (demo / altyapı / quote-gateway) rapora.
+  - Rapor ver ve dur. Planlama listeleri yeniden karşılaştırır; sonra V3b.
+
+## 2026-10-29 · Uygulama → Planlama (V3a liste düzeltmesi)
+- Listeler planlamanın düzeltmesine göre yeniden üretildi (tohum `20261029` aynı).
+  - Üretici `~/cerebrum2/analysis/v3_lists.py`, yeni sha256 `daa4d9245ecce095e7148862a1edbc8a3f535c883f2f065aff4f75a48c9aa134` (önceki kayıttaki `5c845834…` geçersiz).
+  - Yöntem: gece başına sayılardan a + d1 = 9 ve t1 = 5 − d1 (a = dev kopyası 1. gecede olan ortak birim, d1 = 1. gecedeki dev'e özel flag, t1 = 1. gecedeki yalnız-test altyapı çifti). d1 tohumla 2 ya da 3; bu tohumda d1 = 3, a = 6, t1 = 2. 13 ortak birim, 5 dev'e özel flag ve 5 yalnız-test çifti ayrı ayrı karıştırılıp bu sayılarla bölünür, gövdeler karıştırılır, gece sonları sabit.
+- Gece başına tür dağılımı (dev / test; flood'lu vakalar kendi türünde):
+
+| Gece | Demo flag'i | Altyapı | quote-gateway | Toplam | Flood |
+|---|---|---|---|---|---|
+| 1 | 6 / 4 | 2 / 5 | 2 / 1 | 10 / 10 | 2 |
+| 2 | 5 / 4 | 3 / 5 | 1 / 2 | 9 / 11 | 1 |
+
+- `test_v3_lists.py`: "ortak çiftler ayrı gecede" sınaması 13 birime genişledi (`SHARED_UNITS` kart tablosundan türetilir, 13 olduğu sınanır); yeni sınama: tekil birimler gece başına 2 ya da 3. Kasıtlı kırmızı: 2. gecedeki adHighCpu dev ile 1. gecedeki adFailure dev yer değiştirince (sayılar aynı) yalnız `test_shared_units_in_different_nights` kırmızı. pytest 411/411.
+
+## 2026-10-29 · Planlama → Uygulama (V3a bitti; V3b'ye hazır)
+- Liste düzeltmesi uygun. Planlama kendi kodlamasıyla karşılaştırdı:
+  - Bileşim 40/40.
+  - İki sette olan 13 birimin hepsi farklı gecelerde.
+  - Tekil birimler 5 / 5 (1. gece 3 dev'e özel + 2 yalnız-test, 2. gece 2 + 3).
+  - Tür dağılımı 1. gece demo 10 / altyapı 7 / quote-gateway 3, 2. gece 9 / 8 / 3.
+  - Gece sonları karttaki gibi; aynı birim arka arkaya yok. pytest 411/411.
+- Makine (bu kayıt anında): şarj sınırı 80, priz, demo kapalı, boş swap 3,02 GB, izleme 15,54 GB, snapshot 9,79 GB, boş disk 260,65 GB, birim bağlı.
+- Sıradaki: Eren 1. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night1`). Gece sonunda uygulama raporu kartın V3b ölçütleriyle yazar; test vakaları için yalnız otomatik kontrol sayıları. Planlama kontrolünden sonra 2. gece.
+
+## 2026-10-29 · Uygulama → Planlama (V3b 1. gece)
+- Koşu: `aiops-incidents@v3_night1`, 05:51–16:45 yerel (02:51Z–13:45Z), repo `d5abaff`. Gece klasörü `~/cerebrum2/incident_runs/20261029T0251Z-v3_night1/`. Birim çıkışı 0.
+- Rapor betiği repo dışında, salt okur (etiketlerden; test snapshot'ı açılmaz). Betik `v3b_night_report.py`, sha256 `2bd7bdb1d7bd14b7d1256a5e1a9115976d85407a051708ccc97303b656014926`. Çıktı sha256 `e801326ec1158d29cf22d0da504c8bb6ca7b2202520c4be0ceb087bf3d8a6154`.
+- Kart ölçütleri:
+
+| Ölçüt | Sonuç |
+|---|---|
+| Her vaka geçerli/geçersiz ve sebebiyle kayıtlı | ✓ 21 deneme, 20 giriş |
+| Geçerli oran ≥ 16/20 | ✓ 20/20 giriş (denemelere göre 20/21) |
+| Sızıntı 0 | ✓ 0 |
+| Jaeger: OOM / yeniden başlama / gönderim hatası / reddedilen | ✓ 0 / 0 / 0 / 0, her vakada |
+| Belirtisiz ya da sınırda geçerli vaka | dev 0, test 0 |
+
+- Tek geçersiz deneme: `inc-3bcdff8e` (test, containerStop recommendation).
+  - Sebep: taban sağlık, frontend p95 ölçülemedi (`None`).
+  - Ölçüm 06:45:45Z'de. Süzülmüş traces dosyası 06:45:46,4Z'de döndü (`traces-2026-10-29T06-45-46.403-size.jsonl`). Koşucu dosya listesini aldıktan sonra `traces.jsonl` yeni ve boş dosyaya dönmüş olmalı. Diğer 20 vakada taban p95 23,8–29,2 ms (sınır 50,6).
+  - Koşucu kurala göre bir kez daha denedi: `inc-4508a3f4` geçerli.
+  - **Açık not (planlama karar verir):** taban ölçümü dosya döndürmesiyle yarışabiliyor. Bu yarış daha önce kayıtlı değil. Bedeli şimdilik bir yeniden deneme (~18 dk). Koda dokunulmadı.
+  - Geçersiz etiket tasarım gereği yalnız gece klasöründe, repoya girmedi.
+- Dev (10/10 geçerli, hepsi `symptomatic`, işaret 0). `deciding`: service 6, caller 2, operation 2.
+
+| Vaka | Giriş | Karar (düzey, sinyal, güç) | Kategoriler |
+|---|---|---|---|
+| `inc-ac820869` | paymentFailure 50% | service error_rate 12,31 | cascading, noisy |
+| `inc-5cb2c977` | packetLoss shipping 10% | caller POST p99 123,99 | cascading, silent |
+| `inc-4a62b9bb` | productCatalogLockContention | operation ListProducts p99 1478,27 | cascading, silent |
+| `inc-0c4902c3` | adFailure | service new_warn_log 3,2 | cascading |
+| `inc-234d34cf` | paymentUnreachable | service error_rate 20,0 | cascading |
+| `inc-b4d12a5e` | quoteGatewaySlowdown 30ms | service p95 1,53 | cascading, silent |
+| `inc-d9ea423d` | intlShippingSlowdown 10sec | operation POST /ship-order p99 500,12 | cascading, silent, partial |
+| `inc-73ac64e9` | networkDelay cart 50ms | caller EmptyCart p99 10,48 | cascading, silent |
+| `inc-bfbbd586` | recommendationCacheFailure | service p99 39,10 | cascading |
+| `inc-ae15665a` | quoteGatewaySlowdown 30ms + flood | service p99 1,5 | cascading, silent, noisy |
+
+- Test: 11 deneme, 10 geçerli. `verdict` symptomatic 10; `deciding.level` service 4, operation 3, caller 3; işaret 0; belirtisiz/sınırda 0. Geçerli vakalar: `inc-d3869549`, `a519be4f`, `4508a3f4`, `e4d29c6d`, `402b4b2d`, `810ca9d1`, `240a614f`, `e763eeaf`, `6a0eb829`, `7d5db017`.
+- Gece boyu tepe değerler (kayıt): Jaeger swap tepesi en çok 1228,5 MiB; Go yığını tepesi en çok 4044,1 MiB; en düşük boş swap 1,82 GB; tepe sıcaklık 81 °C. Vaka süresi 1761–2043 sn.
+- Repo: 20 geçerli etiket `incidents/`'a eklendi (gece klasöründekilerle birebir aynı). pytest 411/411.
+- Makine (16:46 yerel): boş swap 2,84 GB, izleme 21,44 GB (son vaka başında), snapshot 15,29 GB, şarj sınırı 80. 2. gece tahmini: izleme ~31,4 GB (sınır 40), snapshot ~20,5 GB (sınır 30).
+- Sıradaki: planlama kontrolü, sonra Eren 2. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night2`).
+
+## 2026-10-29 · Planlama → Uygulama (V3b 1. gece kontrolü)
+- Kontrol: planlamanın kendi betiği etiketlerden yeniden saydı (snapshot açılmadı; test vakalarında yalnız izin verilen alanlar). Rapor birebir tuttu:
+  - 21 deneme / 20 giriş, sıra listeyle aynı; geçerli 20/20 (dev 10, test 10); sızıntı 0.
+  - Jaeger OOM / yeniden başlama / gönderim hatası / reddedilen 0, her denemede; belirtisiz/sınırda 0.
+  - Test: `verdict` symptomatic 10; `deciding.level` service 4, operation 3, caller 3; işaret 0.
+  - Repodaki 20 etiket gece klasöründekiyle bayt bayt aynı, geçersiz etiket repoda yok; pytest 411/411 (`28d1920`).
+- Jaeger göstergeleri pilot gecelerle aynı aralıkta: `memory.events max` 20 342–45 725 (pilotlar 9 553–43 912), swap tepesi 1228,5 MiB (pilotlarda 2008,2'ye kadar).
+- Taban yarışı: DECISIONS satırı. V3 boyunca kod değişmez; düşerse kural gereği yeniden deneme.
+- Kalan V3c ölçütleri:
+  - Toplam geçerli 20/40 (≥ 30 gerekli). 1. geceden `v3_retry`'a giren yok.
+  - Testte cascading, silent, noisy, partial 1. gecede tamam.
+  - Ayrılan 6 birimden 2 geçerli (networkDelay quote, cpuThrottle recommendation). 2. gecedeki 4'ünden (packetLoss currency, containerPause quote, containerStop currency, quoteGatewayMemoryLeak 384kb) en az 2'si geçerli olmalı.
+- 2. gece öncesi makine (22:20 yerel): şarj sınırı 80, boş swap 2,85 GB, izleme 21,81 GB (gece sonu tahmini 31,72 < 40), snapshot 15,29 GB (tahmini ~20,7 < 30), boş disk 248,62 GB. Priz o an takılı değildi (koşucu korumada durur); Eren takar.
+- Sıradaki: Eren 2. geceyi başlatır (`systemctl --user start aiops-incidents@v3_night2`). Gece sonunda uygulama raporu aynı ölçütlerle, sonra planlama kontrolü.
+
+## 2026-10-29 · Planlama → Uygulama (V3b 2. gece iki parça)
+- Neden: DECISIONS 2026-10-29 "2. gece iki parçada". Ölçüm protokolü değişmez, yalnız liste bölünür (Eren: 15 + 5).
+- Yapılacak:
+  1. `incident_lists/v3_night2a.json` = `v3_night2.json`'un 1–15. girişleri; `v3_night2b.json` = 16–20. girişleri. Girişler ve sıra aynı. `v3_night2.json` kalır (kart tablosunun listesi; kendisi koşulmaz).
+  2. `tests/test_v3_lists.py`'e test: `v3_night2a` + `v3_night2b` giriş giriş `v3_night2`'ye eşit. Mevcut testlerin anlamı değişmez.
+  3. GLOSSARY (Eren onaylı): `v3_night2a` → 2. gece listesinin ilk parçası (15 vaka); `v3_night2b` → kalan parçası (5 vaka). Mevcut V3 liste satırına eklenebilir.
+  4. Koşucuya ve birime dokunulmaz. HANDOFF kısa kayıt; commit + push `task/vaka-v3`.
+  5. Makine kontrolü: priz, şarj sınırı 80, boş swap ≥ 2 GB, demo kapalı, birim boşta. Sonra Eren `systemctl --user start aiops-incidents@v3_night2a`.
+- Bitti sayılır: iki dosya var, art arda `v3_night2`; pytest hepsi geçer; makine hazır.
+- Parçalar arası: 1. parça "list done" ile ve çıkış 0 ile bittiyse Eren 2. parçayı başlatır (`aiops-incidents@v3_night2b`). 2. parça sırasında makine boşta kalır. STOP ile bittiyse 2. parça başlamaz, planlama.
+- Rapor: iki parça bitince tek "2. gece" raporu (iki gece klasörü), kartın V3b ölçütleriyle. Geçerli ≥ 16/20 toplamda; test için yalnız otomatik kontroller. Liste başı korumaları her parçada ayrı çalışır.
+
+## 2026-10-29 · Uygulama → Planlama (V3b 2. gece iki parça: listeler)
+- `incident_lists/v3_night2a.json`: `v3_night2`'nin 1–15. girişleri (8 dev + 7 test). `v3_night2b.json`: 16–20. girişler (1 dev + 4 test; gece sonu aynı). Satırlar `v3_night2.json`'dan kopyalandı, sıra aynı; `v3_night2.json` kaldı. sha256: 2a `1e73142b…8dfd`, 2b `9ad9cb75…3ee4`, `v3_night2` `b3168c03…527f` (değişmedi).
+- `test_v3_lists.py`: `test_night2_parts_equal_night2` (2a 15, 2b 5, art arda giriş giriş `v3_night2`). Kasıtlı kırmızı: 2b'de ilk iki giriş yer değiştirince yalnız bu test kırmızı. pytest 412/412.
+- GLOSSARY: `v3_night2a`, `v3_night2b`. Koşucu ve birim değişmedi (birim `%i` ile `incident_lists/<ad>.json` okur).
+- Makine (22:2x yerel): priz 1, şarj sınırı 80 (pil %80), boş swap 2,85 GB, demo kapalı (0 konteyner), `aiops-incidents@` birimi boşta, kalıntı yok. İzleme 21,81 GB, snapshot 15,29 GB, boş disk 248,6 GB. 2a liste başı tahmini: 15 × 35 dk = 8,75 sa → izleme ~29,2 GB (sınır 40).
+- Not: eski `aiops-incidents@systemd_stop` örneği `failed` durumunda listeleniyor (birim sınamasından kalma); koşuyu etkilemez, dokunulmadı.
+- Sıradaki: Eren `systemctl --user start aiops-incidents@v3_night2a`.
+
+## 2026-10-30 · Uygulama → Planlama (V3b 2. gece: 2a + 2b)
+- Koşular (repo `d767c1d`, gece klasörleri `~/cerebrum2/incident_runs/`):
+  - `20261029T1925Z-v3_night2a`: 22:25–06:26 yerel. `list done`, çıkış 0.
+  - `20261030T0559Z-v3_night2b`: 08:59. İlk vakadan önce `STOP … not on AC power` (priz takılı değildi). Vaka yok, demo açılmadı; klasörde yalnız `runner.log`.
+  - `20261030T0600Z-v3_night2b`: 09:00–10:35. Eren'in kararıyla `systemctl stop` ile durduruldu (aşağıda). Temiz kapandı: SIGTERM, demo kapalı, kalıntı yok, birim `failed` (143).
+- Rapor betiği aynı (`~/cerebrum2/analysis/v3b_night_report.py`, sha256 `2bd7bdb1…4926`; 1. gecenin çıktısı da oraya kopyalandı). Çıktılar: 2a `c47fd8d5…62f8`, 2b `c6843f28…4b15`.
+- Kart ölçütleri (iki parçanın toplamı):
+
+| Ölçüt | Sonuç |
+|---|---|
+| Her vaka geçerli/geçersiz ve sebebiyle kayıtlı | ✓ 20 deneme (2a 15, 2b 5), 18 giriş denendi; 2 giriş koşulmadı |
+| Geçerli oran ≥ 16/20 | ✓ 16/20 giriş, tam sınırda (2a 15/15, 2b 1/5) |
+| Sızıntı 0 | ✓ 0 |
+| Jaeger: OOM / yeniden başlama / gönderim hatası / reddedilen | ✓ 0 / 0 / 0 / 0, her vakada |
+| Belirtisiz ya da sınırda geçerli vaka | dev 0, test 0 |
+
+- V3c'ye kalan girişler:
+  - quoteGatewayMisroute (dev): taban 408,1 ms (`inc-6d1f8ddd`), yeniden denemede 179,8 ms (`inc-bf625c86`).
+  - recommendationCacheFailure (test): taban 54,7 ms (`inc-c5aa3715`). Yeniden denemesi `inc-7087ede6` normal dönemin 3. dakikasında durdurmayla kesildi ("stopped by SIGTERM"); arıza verilmemişti.
+  - Koşulmadı: flood + productCatalogLockContention (test), quoteGatewayMemoryLeak 384kb (test).
+- **2b taban yavaşlaması (neden bilinmiyor):**
+  - Taban p95 sırası: 25,8 ms (2b'nin 1. vakası) → 408,1 → 179,8 → 54,7 ms. Önceki 36 vakada 23,8–29,2 ms.
+  - Yeniden denemenin normal dönemi (`inc-bf625c86`, dev; 06:58–07:08Z, `filtered/traces.jsonl`, `Window(07:08:39Z)` öncesi) servis p95: checkout 738, frontend 179,8, product-catalog 159, recommendation 153, frontend-proxy 118 ms. Diğerleri 0–12 ms. Yavaşlık product-catalog'da başlıyor, onu çağıranlara yayılıyor.
+  - Elenenler:
+    - Flag'ler her `up`'ta kapalı başlıyor.
+    - Jaeger'de OOM yok; CPU 0,18–0,34 çekirdek, önceki vakalar düzeyinde.
+    - En düşük boş swap 2,14 GB. Güç profili balanced. Isınma koruması tetiklenmedi (tepe 80–84 °C).
+    - `chrome` süreçleri demonun yük üreticisinin başsız Playwright tarayıcısı, Eren'in tarayıcısı değil (uygulama önce yanlış yorumladı, düzeltildi).
+  - Önceki vaka containerPause quote'tu; demo her vakada yeniden kuruluyor ve product-catalog quote'u çağırmıyor, bağ kanıtı yok. C2'deki "nedeni bulunmamış yavaşlama"ya benziyor.
+  - **Durdurma gerekçesi:** kalan 3 giriş testteydi. Taban sınırın hemen altında geçerse test vakası bozuk koşulda "geçerli" sayılırdı; testte bunu sonradan ayıklamanın yolu yok. Kalan girişler V3c'de temiz koşulda koşulsun.
+- Dev (8/8 geçerli, hepsi `symptomatic`, işaret 0). `deciding`: service 3, operation 3, caller 2.
+
+| Vaka | Giriş | Karar (düzey, sinyal, güç) | Kategoriler |
+|---|---|---|---|
+| `inc-8069b709` | emailMemoryLeak 1000x | service p99 2,18 | cascading, silent |
+| `inc-320c56f9` | adHighCpu | service cpu_pct 79,19 | silent |
+| `inc-d6d5f1b2` | productCatalogFailure | operation GetProduct error_rate 2,01 | cascading, partial |
+| `inc-ac155a23` | cartFailure 50% | operation EmptyCart p95 20042,72 | cascading, partial |
+| `inc-fa775703` | cpuThrottle product-catalog 0.09 | operation GetProduct p99 59,05 | cascading, silent |
+| `inc-86d286ea` | adManualGc | service p99 125,74 | cascading, silent |
+| `inc-230c9d46` | containerStop recommendation | caller ListRecommendations p99 1550,33 | cascading |
+| `inc-9292257f` | containerPause cart | caller GetCart p99 29813,89 | cascading |
+
+- Test: 10 deneme, 8 geçerli. `verdict` symptomatic 8; `deciding.level` caller 5, service 2, operation 1; işaret 0; belirtisiz/sınırda 0. Geçerli vakalar: `inc-d70ec1a9`, `986ae88a`, `0383450c`, `b4ceb83b`, `901ecfb4`, `c6ae4086`, `27e7ae46`, `01e8bcf7`.
+- Tepe değerler (kayıt): Jaeger swap tepesi en çok 1337,2 MiB; Go yığını tepesi en çok 4210,0 MiB; en düşük boş swap 1,79 GB; tepe sıcaklık 87 °C (2a, adHighCpu; ısınma koruması tetiklenmedi).
+- V3 toplamı (iki gece): 36 geçerli (dev 18, test 18). Son set ölçütlerinin (≥ 30; testte dört kategori, ayrılan 6 birimin ≥ 4'ü) kontrolü planlamada.
+- Depolama (Eren'in sorusu, 2026-10-30): izleme volume'ları 30,7 GB'a çıktı (1. gece başında 15,5; durdurma sonrası 27,21), snapshot 19,4 GB (73 vaka), imajlar 19,9 GB, boş disk ~238 GB. Büyüme Jaeger'in 7 günlük saklamasından; 40 GB koruması diski koruyor. Uygulamanın önerisi (karar planlamada): V3 kapanınca izleme volume'larını boşaltmak (veri seti ve yeniden oynatma snapshot'larda); saklama süresi V3 sürerken değişmesin.
+- Repo: 16 geçerli etiket `incidents/`'a eklendi (gece klasörleriyle birebir). pytest 412/412.
+- Planlamaya soru: V3c'den önce demo normal koşullarda ayağa kaldırılıp taban p95'in ~25 ms'e döndüğü ölçülsün mü? Uygulamanın önerisi evet, ölçmeden yeni koşu yok.
+
+## 2026-10-30 · Planlama → Uygulama (V3b 2. gece kontrolü; V3c kartı)
+- Kontrol: planlamanın betiği etiketlerden yeniden saydı (snapshot açılmadı). Rapor birebir tuttu:
+  - 2a 15/15 (dev 8, test 7), 2b 1/5 (test 1); 2. gece 16/20.
+  - Test: `verdict` symptomatic 8; `deciding.level` caller 5, service 2, operation 1; işaret 0. Sızıntı 0; Jaeger OOM / yeniden başlama / gönderim / reddedilen 0.
+  - Repodaki 16 etiket gece klasörleriyle aynı, geçersizler repoda yok; pytest 412/412 (`6f301a3`).
+- V3 toplamı 36 geçerli (dev 18, test 18). Ayrılan 6 birimden 5'i geçerli; testte dört kategori. Son set eşikleri tuttu.
+- 2b makine kanıtı (planlama, sysstat `/var/log/sysstat/sa30`):
+  - 09:30–09:50: iowait 5,3 % (gece 0,5); swap giriş ~3900/sn (gece ~600); büyük sayfa hatası ~4000/sn (gece ~250); disk okuma ~110 MB/sn (gece ~9).
+  - 10:30'a kadar azalarak sürdü; taban p95'in azalan sırasıyla örtüşüyor.
+  - Bellek kullanımı geceyle aynı düzeyde. 09:00–09:30 arası izleme volume toplamı 4,1 GB küçüldü (hangi volume belli değil). anacron'un günlük işi 09:38'de iş yapmadan bitti. Makine 2a'dan sonra kapak kapalı uyudu (06:26–08:59).
+  - Kök bilinmiyor.
+- Planlamanın düzeltmeleri (sohbette yanlış söylenmişti):
+  - Chromium süreçleri demonun yük üreticisinin (konteyner içi `/opt/pw-browsers`), Claude masaüstünün değil; uygulama haklı.
+  - "Jaeger 1,5 çekirdek" değeri ps'in süreç ömrü ortalamasıydı; Jaeger o an ~1 dk önce açılmıştı. Vaka ortalaması 0,18–0,34; karşılaştırma geçersiz.
+- Kararlar: DECISIONS 2026-10-30 (taban ölçümü ≤ 30 ms; koşu koşulları; `v3_retry` içeriği).
+- Yapılacak (uygulama):
+  1. `incident_lists/v3_retry.json` = `v3_night2.json`'un 17–20. girişleri, aynı sıra. `test_v3_lists`'e test: `v3_retry` == `v3_night2[16:20]` (isim GLOSSARY'de var).
+  2. Taban ölçümü yöntemi: repo dışında betik (`~/cerebrum2/analysis/`, sha256 kayda). Koşucunun demo açma ve ölçüm fonksiyonlarını kullanır; koşucuya dokunulmaz. Yöntemi koşmadan önce kısaca raporla.
+  3. Commit + push.
+  4. Gece: makine kontrolü (priz, şarj 80, boş swap ≥ 2 GB, demo kapalı, kalıntı yok, kullanıcı uygulamaları kapalı) → ölçüm. p95 ≤ 30 ms ise Eren `systemctl --user start aiops-incidents@v3_retry`; değilse koşu yok, planlama.
+  5. Koşu sürerken analiz yok; izleme yalnız `runner.log` / `systemctl`.
+- Bitti sayılır: ölçüm sonucu kayıtlı. Koşu kartın V3b ölçütleriyle raporlanır (test için yalnız otomatik kontroller); her girişin telafi ya da ilk deneme olduğu yazılır.
+- Sonra: V3 kapanışı (PROJECT bitti ölçütleri, katalogda V3 özeti). İzleme volume'larını boşaltma önerisi o zaman karara bağlanır (silme, Eren onayı).
+
+## 2026-10-30 · Uygulama → Planlama (V3c hazırlık: v3_retry ve taban ölçümü betiği)
+- `incident_lists/v3_retry.json` = `v3_night2`'nin 17–20. girişleri, aynı sıra (misroute dev, recommendationCacheFailure test, flood + LockContention test, quoteGatewayMemoryLeak 384kb test). `test_v3_lists.py`: `test_retry_list_is_night2_tail`. Kasıtlı kırmızı: son iki giriş yer değiştirince yalnız bu test kırmızı. pytest 413/413.
+- Taban ölçümü betiği repo dışında: `~/cerebrum2/analysis/v3c_baseline.py`, sha256 `608dbe7455f287d71b97228b688ac1608b66c171a55963b7fd094974725e24f6`. Koşucu değişmedi; betik onun fonksiyonlarını kullanıyor.
+  - Korumalar: `guards()` ve liste başı swap ≥ 2 GB. Uyku engellerini betik koşucunun kimliğiyle alır. Sorun varsa demo açılmaz.
+  - Adımlar: `demo up` (raw değil) → collector yeniden başlatma → 23 konteyner → 5 dk ısınma (demo_up'tan) → flagd-ui zamanlayıcısı `stopped` → 10 dk normal (`NORMAL_S`).
+  - Ölçü: frontend p95, koşucunun ölçüsüyle aynı (`summarize` → `service_rows` → `baseline_check`, aynı dosya seçimi).
+  - Geçer: p95 ≤ 30 ms. p95 `None` ise "ölçülemedi": geçmez, planlama.
+  - Kayıt (kriter değil): iowait, swap giriş/çıkış, büyük sayfa hatası, disk okuma, Jaeger CPU, servis başına p95, tepe sıcaklık, en düşük boş swap, en yoğun süreçler.
+  - Sonda her durumda `demo down` ve anonim volume silme.
+  - Çıktı: `~/cerebrum2/analysis/v3c_baseline_<UTC>.json` ve `.log`.
+- Sıradaki: gece makine kontrolü → ölçüm → p95 ≤ 30 ms ise Eren `systemctl --user start aiops-incidents@v3_retry`.
+
+## 2026-10-30 · Planlama → Uygulama (V3c taban ölçümü yöntemi onaylandı)
+- `v3_retry` ve `test_retry_list_is_night2_tail` karta uyuyor (pytest 413/413, `074ca0c`).
+- Ölçüm betiği (`v3c_baseline.py`, sha256 `608dbe74…24f6`) koşucunun vaka başı adımlarıyla aynı; onaylandı.
+- Ek kural (DECISIONS 2026-10-30): sonuç "ölçülemedi" (çıkış 1, p95 `None`) ise betik bir kez daha çalıştırılır. Yine ölçülemezse koşu yok, planlama. p95 > 30 ms kesin "kaldı", yeniden ölçülmez.
+- Gece sırası: makine kontrolü (kapak açık, priz, kullanıcı uygulamaları kapalı) → ölçüm → `PASS` ise Eren `systemctl --user start aiops-incidents@v3_retry`. Koşu sürerken analiz yok.
+
+## 2026-10-30 · Uygulama → Planlama (V3c taban ölçümü: kaldı)
+- **Sonuç: FAIL, frontend p95 36,6 ms > 30 ms.** Kural gereği kesin "kaldı": yeniden ölçülmedi, `v3_retry` başlamadı. Karar planlamada.
+- **Koşul sapması:** DECISIONS 2026-10-30'daki "gece" şartıyla değil, Eren'in kararıyla gündüz ölçüldü (11:00–11:15 yerel). Eren o saatte müsaitti. Kapak açık, priz takılı, kullanıcı uygulaması yoktu.
+- Claude masaüstü Eren'in isteğiyle ölçümden önce kapatıldı. 4 gündür açıktı; temiz geceler 1 ve 2a'da da açıktı. SIGTERM'e yanıt vermedi ve kendini yeniden başlatmaya çalıştı, SIGKILL ile kapatıldı. İçindeki eski oturum (`scratch-2026-10-26`) aiops_rca dışındaydı.
+- Ölçümden önce kalan arka plan süreçleri: `tracker-miner-fs`, `opencode-cli serve`. İkisi de temiz gecelerde açıktı.
+- Betik `v3c_baseline.py` (sha256 `608dbe74…24f6`, değişmedi). Çıktılar `~/cerebrum2/analysis/v3c_baseline_20261030T0758Z.json` (`75ca7c2a…8ddd`) ve `.log` (`6c7a6638…7590`).
+- Akış:
+  - Korumalar sorunsuz (swap 2,80 GB, izleme 27,21 GB).
+  - demo_up 07:59:05Z → collector 07:59:11Z → 23 konteyner → zamanlayıcı `stopped` → normal 08:04:05–08:14:05Z → demo down 08:14:48Z.
+  - Kalıntı yok, anonim volume silindi.
+- Taban dosyaları: ölçüm penceresinde traces bir kez döndü (08:11:16Z). Dönen dosya seçime girdi, p95 ölçüldü (yarış yok).
+- Servis p95 (normal dönem, 5 ms üstü):
+
+| Servis | p95 ms | İstek |
+|---|---|---|
+| checkout | 59,9 | 31 |
+| frontend | 36,6 | 8666 |
+| product-catalog | 30,0 | 2994 |
+| frontend-proxy | 28,3 | 8720 |
+| recommendation | 25,0 | 477 |
+| shipping | 9,3 | 131 |
+| email | 6,7 | 31 |
+| quote-gateway | 6,4 | 100 |
+
+- 2b'deki sıra (frontend 179,8 / product-catalog 159) ile aynı biçim, daha hafif: yavaşlık yine product-catalog'da ve onu çağıranlarda.
+- Makine (normal dönem, kayıt):
+  - iowait 0,72 %.
+  - swap giriş 615 / çıkış 726 sayfa/sn.
+  - Büyük sayfa hatası 472/sn.
+  - Disk okuma 12,47 MB/sn.
+  - Jaeger CPU 0,206 çekirdek, tepe sıcaklık 79 °C, en düşük boş swap 2,73 GB.
+  - Planlamanın 2b'deki gece değerleriyle karşılaştırma (sysstat; ölçü yöntemi farklı, kaba): iowait 0,5, swap giriş ~600, büyük sayfa hatası ~250, disk okuma ~9. Swap giriş geceye yakın; büyük sayfa hatası ~2 kat. 2b'nin 09:30–09:50 yükünden (iowait 5,3, swap giriş ~3900, disk ~110 MB/sn) çok daha düşük.
+- Not (çıkarım değil, gözlem): 36 geçerli vakanın tabanı 23,5–29,2 ms'ti; bu ölçüm onların hepsinden yüksek, ama vaka başı sınırının (50,6) altında.
+
+## 2026-10-30 · Planlama → Uygulama (V3c: yeniden başlatma sonrası tek ölçüm)
+- Ölçüm sonucu (36,6 ms) "kaldı" olarak kabul edildi. Gerekçe ve bulgular DECISIONS 2026-10-30'da. Planlamanın ek ölçümü: V3 dev snapshot'larının normal döneminde product-catalog p95 13,1–17,1 ms (18 vaka); ölçümde 30,0 ms. Kök bilinmiyor.
+- Eren B'yi seçti: tek deneme.
+- Sıra:
+  1. Eren makineyi yeniden başlatır. Claude oturumları `claude --resume` ile döner.
+  2. Makine kontrolü (uygulama):
+     - Şarj sınırı 80 (yeniden başlatmada sıfırlanmış olabilir; değilse Eren ayarlar), priz, boş swap ≥ 2 GB.
+     - Demo kapalı, kalıntı yok.
+     - Kullanıcı uygulamaları kapalı. Claude masaüstü oturum açılışında kendiliğinden başlıyorsa kapatılır.
+  3. Onaylı betikle tek ölçüm (`v3c_baseline.py`, sha256 `608dbe74…24f6`). Gündüz olabilir, makine boşta.
+  4. `PASS` (p95 ≤ 30 ms) → Eren hemen `systemctl --user start aiops-incidents@v3_retry`. Koşu sürerken analiz yok.
+  5. `FAIL` → koşu yok. V3 36 vakayla kapanır, kalan 4 giriş düşer. Planlama kapanışı yazar. "Ölçülemedi" → bir kez daha ölçülür.
+- Rapor: ölçüm sonucu ve makine kaydı. PASS ise koşu da kartın V3b ölçütleriyle (test için yalnız otomatik kontroller); her girişin telafi ya da ilk deneme olduğu yazılır.
+
+## 2026-10-30 · Uygulama → Planlama (V3c: yeniden başlatma sonrası ölçüm kaldı)
+- **Sonuç: FAIL, frontend p95 392,2 ms > 30 ms.** Kart gereği koşu yok: V3 36 vakayla kapanır, `v3_retry`'ın 4 girişi düşer. Kapanış planlamada.
+- Makine kaydı (ölçümden önce):
+  - Yeniden başlatma 11:51 yerel. Ölçüm 11:53–12:10 (demo_up 08:54:06Z, normal 08:59:06–09:09:06Z, demo down 09:09:50Z).
+  - Şarj sınırı 80 (sıfırlanmamış), pil %80, priz, kapak açık.
+  - Boş swap 4,29 GB (tamamı). İzleme 27,37 GB, snapshot 19,64 GB. Demo kapalı, kalıntı yok.
+  - Claude masaüstü açılmadı. Kullanıcı uygulaması yok (`opencode-cli` bu açılışta başlamadı). Açık olanlar masaüstü servisleri, `tracker-miner-fs`, `snapd`, `packagekitd`, `unattended-upgrades`. Açılıştan 2 dk sonra IO/CPU baskısı ~0, yük 0,5.
+- Betik `v3c_baseline.py` (sha256 `608dbe74…24f6`, değişmedi). Çıktılar `~/cerebrum2/analysis/v3c_baseline_20261030T0853Z.json` (`41b4d248…8857`) ve `.log` (`c32d9c12…6757`). 23 konteyner, zamanlayıcı `stopped`, sonda kalıntı yok.
+- Servis p95 (normal dönem, 5 ms üstü):
+
+| Servis | p95 ms | İstek |
+|---|---|---|
+| checkout | 878,6 | 21 |
+| frontend | 392,2 | 7775 |
+| product-catalog | 354,3 | 2524 |
+| recommendation | 335,0 | 395 |
+| frontend-proxy | 292,7 | 7459 |
+| shipping | 12,5 | 101 |
+| ad | 8,2 | 96 |
+| quote-gateway | 7,9 | 80 |
+| email | 6,0 | 21 |
+
+- Makine (normal dönem):
+  - iowait 5,05 %.
+  - swap giriş 3213 / çıkış 2064 sayfa/sn.
+  - Büyük sayfa hatası 3907/sn.
+  - Disk okuma 103,5 MB/sn.
+  - Jaeger CPU 0,033 çekirdek (Jaeger yeni açıldı, verisi diskten okunmuyor).
+  - Tepe sıcaklık 76 °C, en düşük boş swap 3,44 GB.
+  - Sondaki ps (süreç ömrü ortalaması, ~16 dk): product-catalog %61,6 CPU, en yoğun süreç.
+- **Gözlem:** desen 2b'nin 09:30–09:50'siyle aynı (planlamanın sysstat'ı: iowait 5,3, swap giriş ~3900, büyük sayfa hatası ~4000, disk ~110 MB/sn). Yavaşlık yine product-catalog'da ve onu çağıranlarda. Yeniden başlatma düzeltmedi; temiz açılışta, swap boşken de oldu.
+- **Sınanmamış varsayım (karar planlamada, uygulama araştırmadı):**
+  - Upstream `compose.yaml`'da product-catalog'un bellek sınırı **20M**. Bizim `compose.extras.yaml` bunu değiştirmiyor. `memswap_limit` yok, yani Docker varsayılanıyla swap'a taşabilir. product-catalog 3.x'te ürünleri Postgres'ten okuyor (`DB_CONNECTION_STRING`).
+  - Go süreci 20M sınırına yaklaşırsa cgroup geri kazanımı kendi sayfalarını swap'a ve diskten yeniden okumaya iter. Bu, swap giriş/çıkış, büyük sayfa hatası, disk okuma, product-catalog CPU'su ve gecikmeyle uyuşur.
+  - Sınanmadı: product-catalog'un `memory.events` / `memory.current` / `memory.swap.current` değerleri hiçbir koşuda kaydedilmedi (koşucu yalnız Jaeger ve collector'ı izliyor).
+  - Sınamanın yolu: demo açıkken product-catalog cgroup'unun `memory.current`, `memory.swap.current`, `memory.events` (high/max) değerlerini dakikada bir okumak. Bu bir okuma, demo değişmez.
+  - Upstream'de checkout da 20M.
+
+## 2026-10-30 · Planlama → Uygulama (V3 kapanışı; product-catalog bellek sınaması)
+- V3 kapandı: 36 geçerli (dev 18, test 18). Kural, düşen 4 giriş ve boşluklar DECISIONS 2026-10-30'da. PROJECT bitti ölçütlerinden "30 vakalık set" ve "Vaka çeşitliliği" işaretlendi.
+- Son set (planlama, etiketlerden):
+  - Dev: demo 11, altyapı 5, quote-gateway 2. Kategoriler: cascading 17, silent 10, partial 3, noisy 2.
+  - Test: altyapı 10, demo 6, quote-gateway 2. Kategoriler: cascading 17, silent 8, partial 3, noisy 1. Ayrılan 6 birimden 5'i.
+  - Sızıntı 0, belirtisiz/sınırda 0, işaret 0.
+- **İş 1: katalogda V3 özeti** (`docs/INCIDENT_CATALOG.md`). Bileşim tablosu (dev/test, tür, kategori), düşen 4 giriş ve nedeni, bilinen boşluklar. Test vakalarının sinyal adı, değer ve gücü yazılmaz. Commit + push.
+- **İş 2: product-catalog bellek sınaması** (salt okuma; demo ayarı değişmez).
+  - Betik repo dışında (`~/cerebrum2/analysis/`, sha256 kayda). Demoyu koşucunun yoluyla açar; korumalar, 5 dk ısınma, 10 dk normal dönem; sonda demo kapanır, volume'ler silinir. Makine boşta.
+  - Kayıt (60 sn'de bir, product-catalog ve kontrol için checkout cgroup'u): `memory.current`, `memory.max`, `memory.high`, `memory.swap.current`, `memory.events` (high, max, oom, oom_kill), `memory.stat` (anon, file, pgmajfault, workingset_refault_file), `cpu.stat` usage. Ayrıca `docker inspect` bellek ve swap sınırları, frontend ve product-catalog p95 (taban ölçüsüyle aynı), makine major fault hızı.
+  - Ölçütler (sonuçtan önce yazılı; normal dönem):
+    - **Mekanizma doğrulandı:** product-catalog `memory.events max` (ya da `high`) artıyor, `memory.current` ≥ sınırın %95'i, ve product-catalog cgroup'unun major fault hızı makinenin major fault hızının ≥ %50'si.
+    - **Doğrulanmadı:** `memory.events max` ve `high` artmıyor, `memory.current` < sınırın %80'i.
+    - **Sonuçsuz:** frontend p95 ≤ 30 ms (yavaşlık o sırada yok) ya da ikisinin arası. Planlama bakar.
+  - Sonuç HANDOFF'a: sayılar, ölçüt sonucu, sha256'lar. Demo ayarına ya da koşucuya dokunulmaz.
+- **İş 3: PR.** İş 1 ve 2 bitip planlama kontrol ettikten sonra açılır. `task/vaka-v3` → main. Açıklama sade, "Generated with Claude Code" satırı yok.
+
+## 2026-10-30 · Uygulama → Planlama (V3 kapanışı İş 1–2: katalog özeti, product-catalog bellek sınaması)
+- **İş 1:** `docs/INCIDENT_CATALOG.md` sonuna "V3 resmî set (kapandı 2026-10-30)" eklendi (`36d8a61`).
+  - Bileşim tablosu: dev/test, tür, kategori. Sayılar planlamanınkiyle aynı.
+  - Set başına girişler. Ayrılan birimler 5/6.
+  - Otomatik kontrol sayıları.
+  - Koşular, düşen 4 giriş, bilinen boşluklar, ortam riski.
+  - Test vakaları için sinyal, değer ve güç yok.
+- **İş 2: sınama sonucu SONUÇSUZ (ölçütlerin arası).**
+  - Betik: `~/cerebrum2/analysis/pc_memory_probe.py`, sha256 `b29721a7ca4607bc8076d9de109ad827033370f25144322097ee3b8a840fd373`. Koşmadan önce sentetik verilerle 5 durumda sınandı.
+  - Ölçütlerin okunuşu betiğin açıklamasında, sonuçtan önce yazıldı:
+    - doluluk = normal dönemde en büyük `memory.current` / `memory.max`;
+    - olay artışı = normal sonu − başı;
+    - major fault payı = product-catalog cgroup pgmajfault artışı / makine pgmajfault artışı.
+  - Çıktılar: `pc_memory_probe_20261030T0933Z.json` (`078a7279…20fd`), `.log` (`6c85be58…9ff1`), `_samples.tsv` (16 örnek, dakikada bir).
+  - Akış: 12:33–12:49 yerel (demo_up 09:33:37Z, normal 09:38:37–09:48:37Z). 23 konteyner, zamanlayıcı `stopped`. Sonda kalıntı yok, volume silindi. Makine boşta: swap 4,29 GB boş, Claude masaüstü kapalı.
+- Ölçütler (normal dönem):
+
+| Ölçüt | Eşik | Ölçülen | Tuttu mu |
+|---|---|---|---|
+| frontend p95 (yavaşlık var mı) | > 30 ms | 42,4 ms (product-catalog p95 32,8) | evet, yavaşlık vardı |
+| `memory.events` max artışı | > 0 | +22 031 (10 dk); high 0, oom 0, oom_kill 0 | evet |
+| Doluluk | ≥ 0,95 | 0,991 (en büyük 20 783 104 / 20 971 520 B) | evet |
+| Major fault payı | ≥ 0,50 | 0,43 (product-catalog 377,5/sn, makine 877,2/sn) | **hayır** |
+
+- Diğer sayılar (kayıt):
+  - `docker inspect`: product-catalog ve checkout `Memory` 20 MiB, `MemorySwap` 40 MiB (swap'a 20 MiB izin).
+  - `memory.high` "max". product-catalog `memory.swap.current` 8,1–9,5 MiB. anon 9,0 MiB, file 8,1–9,1 MiB. `workingset_refault_file` normal dönemde +1 021 124 sayfa. CPU 0,146 çekirdek.
+  - İlk örnek (demo_up anı): `memory.current` 16,9 MiB, swap 7,2 MiB, `events.max` 176. Sınıra dayanma ve swap kullanımı konteynerin açılışından başlıyor. `events.max` ısınma ve normal boyunca dakikada ~2100–2400 artıyor, birikerek kötüleşmiyor.
+  - Kontrol (checkout, aynı 20 MiB sınır): doluluk 0,974, `events.max` +7260, major fault 141,4/sn.
+  - İki 20 MiB'lık servis birlikte makinenin major fault'larının (377,5 + 141,4) / 877,2 = 0,59'u. Bu bir gözlem; ölçüt product-catalog için yazılıydı, sonuç değişmez.
+- Kapsam: tetikleyici (36 temiz vakada aynı sınırla neden sorun yoktu) bu sınamanın dışında, DECISIONS 2026-10-30. Demo ayarına ve koşucuya dokunulmadı.
+- **İş 3 (PR):** planlamanın kontrolünü bekliyor.
+
+## 2026-10-30 · Planlama → Uygulama (V3 kapanışı İş 1–2 kontrolü; PR onayı)
+- İş 1 (`36d8a61`) uygun:
+  - Bileşim ve otomatik kontrol sayıları planlamanın gece sayımlarının toplamıyla aynı. `deciding.level`: dev service 9, operation 5, caller 4; test caller 8, service 6, operation 4.
+  - Test için sinyal, değer ve güç yok.
+  - Ek kontrol: setin 30 Ekim'deki son geçerli vakası (`inc-01e8bcf7`) 09:28'de bitti; sysstat'ta disk yükü 09:30'dan sonra. Set yavaşlamadan etkilenmedi.
+- İş 2 (`8b7367f`) uygun: ham dosyalar (`pc_memory_probe_20261030T0933Z.*`, betik sha256 `b29721a7…d373`) raporla aynı. Sonuç ölçütlerle "sonuçsuz". Sonraki adım DECISIONS 2026-10-30'da (canlı demo kartında müdahale sınaması).
+- **İş 3: PR açılabilir.** `task/vaka-v3` → main. Açıklama sade, "Generated with Claude Code" satırı yok. CI yeşil olunca Eren birleştirir.
+- Sonra: Proje 1 model koşuları kartı (planlama).

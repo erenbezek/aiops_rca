@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-d60dcc58",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "networkDelay",
   "variant": "50ms",

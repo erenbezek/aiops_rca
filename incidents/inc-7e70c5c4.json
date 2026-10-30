@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-7e70c5c4",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "cpuThrottle",
   "variant": "0.03",

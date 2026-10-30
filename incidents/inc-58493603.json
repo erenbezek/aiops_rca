@@ -1,6 +1,6 @@
 {
  "incident_id": "inc-58493603",
- "set": "pilot",
+ "set": "heldout",
  "answer": {
   "scenario": "containerPause",
   "variant": "on",

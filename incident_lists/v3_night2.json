@@ -1,0 +1,22 @@
+[
+ {"fault": "packetLoss", "target": "shipping", "param": "10%", "noise_layer": null, "set": "test"},
+ {"scenario": "emailMemoryLeak_1000x", "noise_layer": null, "set": "dev"},
+ {"scenario": "adHighCpu_on", "noise_layer": null, "set": "dev"},
+ {"scenario": "intlShippingSlowdown_10sec", "noise_layer": null, "set": "test"},
+ {"scenario": "paymentUnreachable_on", "noise_layer": null, "set": "test"},
+ {"scenario": "productCatalogFailure_on", "noise_layer": null, "set": "dev"},
+ {"fault": "containerStop", "target": "currency", "param": "on", "noise_layer": null, "set": "test"},
+ {"scenario": "cartFailure_50pct", "noise_layer": null, "set": "dev"},
+ {"fault": "cpuThrottle", "target": "product-catalog", "param": "0.09", "noise_layer": null, "set": "dev"},
+ {"scenario": "adManualGc_on", "noise_layer": null, "set": "dev"},
+ {"fault": "containerStop", "target": "recommendation", "param": "on", "noise_layer": null, "set": "dev"},
+ {"fault": "containerPause", "target": "cart", "param": "on", "noise_layer": null, "set": "dev"},
+ {"fault": "networkDelay", "target": "cart", "param": "50ms", "noise_layer": null, "set": "test"},
+ {"fault": "packetLoss", "target": "currency", "param": "10%", "noise_layer": null, "set": "test"},
+ {"scenario": "quoteGatewaySlowdown_30ms", "noise_layer": null, "set": "test"},
+ {"fault": "containerPause", "target": "quote", "param": "on", "noise_layer": null, "set": "test"},
+ {"scenario": "quoteGatewayMisroute_on", "noise_layer": null, "set": "dev"},
+ {"scenario": "recommendationCacheFailure_on", "noise_layer": null, "set": "test"},
+ {"scenario": "productCatalogLockContention_on", "noise_layer": "loadGeneratorFloodHomepage_on", "set": "test"},
+ {"scenario": "quoteGatewayMemoryLeak_384kb", "noise_layer": null, "set": "test"}
+]
