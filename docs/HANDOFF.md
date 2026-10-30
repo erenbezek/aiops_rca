@@ -2601,3 +2601,12 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - `test` koruması kaldırılınca 1 test kırmızı.
   - `Case`'e etiket alanı eklenince 1 test kırmızı.
 - GLOSSARY ve ARCHITECTURE güncel.
+
+## 2026-10-30 · Uygulama → Planlama (P1a 3. adım: ölçü sağlaması geçti)
+- Betik `~/cerebrum2/analysis/p1a_path_check.py`, sha256 `60ac2beb0788ac15f38da18ace5a28c427b973ae7c0f37de9c184272c3b0a6b5`; çıktı `p1a_path_check.out` (`f786a968c93326fabc51e67280154a20daa28d1613af609d47ea2f68eb6eacb7`).
+  - Paketteki ölçüyü kullanır: `scoring.evidence` ve `call_graph.service_edges`.
+  - Kenar başına karar verir, çünkü etiket yolu dallanabilen bir kenar listesi.
+  - Test ve heldout okunmadı.
+- Sonuç: 43 vaka (pilot 25 + dev 18). **42 geçti, 0 geçmedi.** 1 vaka kenarsız (`inc-d8f67a48`, pilot memoryLimit frontend; etiket yolu boş). Sınanan kenar 82.
+- Kenarların hepsi `reverse`: sonraki servis öncekini çağırıyor, yani senkron yayılım. Kenar başına 42–7337 çağrı. Etiketlerde Kafka kenarı yok.
+- Gerçek veride geçersiz örnek (`inc-ac820869`, payment): payment → checkout → frontend geçerli; payment → frontend, payment → cart ve eşleşmeyen ad (`paymentsvc`) geçersiz.
