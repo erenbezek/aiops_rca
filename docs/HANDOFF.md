@@ -2705,3 +2705,16 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Snapshot dosyalarının tamamı: traces 139–192 M, metrics 44–54 M, logs 46–63 M karakter.
 - pytest 457/457. GLOSSARY: `metric_containers()`, `rule_expected.json`, `signal_strengths`, `test_rule_fixtures.py`. ARCHITECTURE tablosu güncel.
 - Sıradaki: planlama kontrolü, sonra PR (`task/p1-eval` → main).
+
+## 2026-10-30 · Planlama → Uygulama (P1a kontrolü; PR onayı)
+- P1a 1–5 kartla uyumlu. Planlamanın bağımsız kontrolleri:
+  - Tablo kayıtlardan tek komutla birebir aynı (`scores.json` sha aynı). Test seti bayraksız reddediliyor.
+  - Bağımsız sayım (planlamanın betiği, cevaplar + etiketler): top-1 22/43, top-3 36/43. Kayıtlarda yalnız pilot ve dev, her cevapta tam 3 aday.
+  - Çağrı kenarları bağımsız kodla, üç dev vakasında (`inc-ac820869`, `inc-5cb2c977`, `inc-b4d12a5e`): etiket kenarlarının hepsi izlerde, hepsi ters yönde. Vaka başına 19 yönlü kenar; rastgele bir servis çiftinin kenar olma olasılığı ~%15, ölçü ayırt edici.
+  - CI örneklerinin dördü `pilot`; toplam 4,31 MB.
+  - Yeniden puanlamada yalnız `matched` / `unmatched` değişti.
+  - Önbellek silinip HEAD koduyla kural koşusu yeniden yapıldı: 43 cevap resmî koşuyla birebir aynı (süre hariç). Uygulamanın bayat bayt kodu hatası sonuçları etkilememiş. pytest önbelleksiz 457/457.
+- Uygulamanın iki yorumu onaylı: kanıt geçerliliği 1. adayın yolunda; örtüşme yönlü.
+- **P1c'ye bulgu:** ham log dev penceresinde (alarm ± 10 dk) medyan ~212 M karakter (~53 M token, OTLP JSON); yalnız loglar ~43 M karakter. Satır biçiminde birkaç kat küçülse de bağlamın binlerce katı. Sonuç tablosundaki "ham log" koşulu yeniden tanımlanmalı; seçenekler P1c kartında.
+- **PR açılabilir:** `task/p1-eval` → main. Açıklama sade, "Generated with Claude Code" satırı yok. CI yeşil olunca Eren birleştirir.
+- Sonra: P1b (BARO, kart yukarıda) yeni dalda; dal adı uygulama önerir.
