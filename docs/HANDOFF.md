@@ -2404,3 +2404,41 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   4. `PASS` (p95 ≤ 30 ms) → Eren hemen `systemctl --user start aiops-incidents@v3_retry`. Koşu sürerken analiz yok.
   5. `FAIL` → koşu yok. V3 36 vakayla kapanır, kalan 4 giriş düşer. Planlama kapanışı yazar. "Ölçülemedi" → bir kez daha ölçülür.
 - Rapor: ölçüm sonucu ve makine kaydı. PASS ise koşu da kartın V3b ölçütleriyle (test için yalnız otomatik kontroller); her girişin telafi ya da ilk deneme olduğu yazılır.
+
+## 2026-10-30 · Uygulama → Planlama (V3c: yeniden başlatma sonrası ölçüm kaldı)
+- **Sonuç: FAIL, frontend p95 392,2 ms > 30 ms.** Kart gereği koşu yok: V3 36 vakayla kapanır, `v3_retry`'ın 4 girişi düşer. Kapanış planlamada.
+- Makine kaydı (ölçümden önce):
+  - Yeniden başlatma 11:51 yerel. Ölçüm 11:53–12:10 (demo_up 08:54:06Z, normal 08:59:06–09:09:06Z, demo down 09:09:50Z).
+  - Şarj sınırı 80 (sıfırlanmamış), pil %80, priz, kapak açık.
+  - Boş swap 4,29 GB (tamamı). İzleme 27,37 GB, snapshot 19,64 GB. Demo kapalı, kalıntı yok.
+  - Claude masaüstü açılmadı. Kullanıcı uygulaması yok (`opencode-cli` bu açılışta başlamadı). Açık olanlar masaüstü servisleri, `tracker-miner-fs`, `snapd`, `packagekitd`, `unattended-upgrades`. Açılıştan 2 dk sonra IO/CPU baskısı ~0, yük 0,5.
+- Betik `v3c_baseline.py` (sha256 `608dbe74…24f6`, değişmedi). Çıktılar `~/cerebrum2/analysis/v3c_baseline_20261030T0853Z.json` (`41b4d248…8857`) ve `.log` (`c32d9c12…6757`). 23 konteyner, zamanlayıcı `stopped`, sonda kalıntı yok.
+- Servis p95 (normal dönem, 5 ms üstü):
+
+| Servis | p95 ms | İstek |
+|---|---|---|
+| checkout | 878,6 | 21 |
+| frontend | 392,2 | 7775 |
+| product-catalog | 354,3 | 2524 |
+| recommendation | 335,0 | 395 |
+| frontend-proxy | 292,7 | 7459 |
+| shipping | 12,5 | 101 |
+| ad | 8,2 | 96 |
+| quote-gateway | 7,9 | 80 |
+| email | 6,0 | 21 |
+
+- Makine (normal dönem):
+  - iowait 5,05 %.
+  - swap giriş 3213 / çıkış 2064 sayfa/sn.
+  - Büyük sayfa hatası 3907/sn.
+  - Disk okuma 103,5 MB/sn.
+  - Jaeger CPU 0,033 çekirdek (Jaeger yeni açıldı, verisi diskten okunmuyor).
+  - Tepe sıcaklık 76 °C, en düşük boş swap 3,44 GB.
+  - Sondaki ps (süreç ömrü ortalaması, ~16 dk): product-catalog %61,6 CPU, en yoğun süreç.
+- **Gözlem:** desen 2b'nin 09:30–09:50'siyle aynı (planlamanın sysstat'ı: iowait 5,3, swap giriş ~3900, büyük sayfa hatası ~4000, disk ~110 MB/sn). Yavaşlık yine product-catalog'da ve onu çağıranlarda. Yeniden başlatma düzeltmedi; temiz açılışta, swap boşken de oldu.
+- **Sınanmamış varsayım (karar planlamada, uygulama araştırmadı):**
+  - Upstream `compose.yaml`'da product-catalog'un bellek sınırı **20M**. Bizim `compose.extras.yaml` bunu değiştirmiyor. `memswap_limit` yok, yani Docker varsayılanıyla swap'a taşabilir. product-catalog 3.x'te ürünleri Postgres'ten okuyor (`DB_CONNECTION_STRING`).
+  - Go süreci 20M sınırına yaklaşırsa cgroup geri kazanımı kendi sayfalarını swap'a ve diskten yeniden okumaya iter. Bu, swap giriş/çıkış, büyük sayfa hatası, disk okuma, product-catalog CPU'su ve gecikmeyle uyuşur.
+  - Sınanmadı: product-catalog'un `memory.events` / `memory.current` / `memory.swap.current` değerleri hiçbir koşuda kaydedilmedi (koşucu yalnız Jaeger ve collector'ı izliyor).
+  - Sınamanın yolu: demo açıkken product-catalog cgroup'unun `memory.current`, `memory.swap.current`, `memory.events` (high/max) değerlerini dakikada bir okumak. Bu bir okuma, demo değişmez.
+  - Upstream'de checkout da 20M.
