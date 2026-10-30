@@ -2314,3 +2314,27 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Depolama (Eren'in sorusu, 2026-10-30): izleme volume'ları 30,7 GB'a çıktı (1. gece başında 15,5; durdurma sonrası 27,21), snapshot 19,4 GB (73 vaka), imajlar 19,9 GB, boş disk ~238 GB. Büyüme Jaeger'in 7 günlük saklamasından; 40 GB koruması diski koruyor. Uygulamanın önerisi (karar planlamada): V3 kapanınca izleme volume'larını boşaltmak (veri seti ve yeniden oynatma snapshot'larda); saklama süresi V3 sürerken değişmesin.
 - Repo: 16 geçerli etiket `incidents/`'a eklendi (gece klasörleriyle birebir). pytest 412/412.
 - Planlamaya soru: V3c'den önce demo normal koşullarda ayağa kaldırılıp taban p95'in ~25 ms'e döndüğü ölçülsün mü? Uygulamanın önerisi evet, ölçmeden yeni koşu yok.
+
+## 2026-10-30 · Planlama → Uygulama (V3b 2. gece kontrolü; V3c kartı)
+- Kontrol: planlamanın betiği etiketlerden yeniden saydı (snapshot açılmadı). Rapor birebir tuttu:
+  - 2a 15/15 (dev 8, test 7), 2b 1/5 (test 1); 2. gece 16/20.
+  - Test: `verdict` symptomatic 8; `deciding.level` caller 5, service 2, operation 1; işaret 0. Sızıntı 0; Jaeger OOM / yeniden başlama / gönderim / reddedilen 0.
+  - Repodaki 16 etiket gece klasörleriyle aynı, geçersizler repoda yok; pytest 412/412 (`6f301a3`).
+- V3 toplamı 36 geçerli (dev 18, test 18). Ayrılan 6 birimden 5'i geçerli; testte dört kategori. Son set eşikleri tuttu.
+- 2b makine kanıtı (planlama, sysstat `/var/log/sysstat/sa30`):
+  - 09:30–09:50: iowait 5,3 % (gece 0,5); swap giriş ~3900/sn (gece ~600); büyük sayfa hatası ~4000/sn (gece ~250); disk okuma ~110 MB/sn (gece ~9).
+  - 10:30'a kadar azalarak sürdü; taban p95'in azalan sırasıyla örtüşüyor.
+  - Bellek kullanımı geceyle aynı düzeyde. 09:00–09:30 arası izleme volume toplamı 4,1 GB küçüldü (hangi volume belli değil). anacron'un günlük işi 09:38'de iş yapmadan bitti. Makine 2a'dan sonra kapak kapalı uyudu (06:26–08:59).
+  - Kök bilinmiyor.
+- Planlamanın düzeltmeleri (sohbette yanlış söylenmişti):
+  - Chromium süreçleri demonun yük üreticisinin (konteyner içi `/opt/pw-browsers`), Claude masaüstünün değil; uygulama haklı.
+  - "Jaeger 1,5 çekirdek" değeri ps'in süreç ömrü ortalamasıydı; Jaeger o an ~1 dk önce açılmıştı. Vaka ortalaması 0,18–0,34; karşılaştırma geçersiz.
+- Kararlar: DECISIONS 2026-10-30 (taban ölçümü ≤ 30 ms; koşu koşulları; `v3_retry` içeriği).
+- Yapılacak (uygulama):
+  1. `incident_lists/v3_retry.json` = `v3_night2.json`'un 17–20. girişleri, aynı sıra. `test_v3_lists`'e test: `v3_retry` == `v3_night2[16:20]` (isim GLOSSARY'de var).
+  2. Taban ölçümü yöntemi: repo dışında betik (`~/cerebrum2/analysis/`, sha256 kayda). Koşucunun demo açma ve ölçüm fonksiyonlarını kullanır; koşucuya dokunulmaz. Yöntemi koşmadan önce kısaca raporla.
+  3. Commit + push.
+  4. Gece: makine kontrolü (priz, şarj 80, boş swap ≥ 2 GB, demo kapalı, kalıntı yok, kullanıcı uygulamaları kapalı) → ölçüm. p95 ≤ 30 ms ise Eren `systemctl --user start aiops-incidents@v3_retry`; değilse koşu yok, planlama.
+  5. Koşu sürerken analiz yok; izleme yalnız `runner.log` / `systemctl`.
+- Bitti sayılır: ölçüm sonucu kayıtlı. Koşu kartın V3b ölçütleriyle raporlanır (test için yalnız otomatik kontroller); her girişin telafi ya da ilk deneme olduğu yazılır.
+- Sonra: V3 kapanışı (PROJECT bitti ölçütleri, katalogda V3 özeti). İzleme volume'larını boşaltma önerisi o zaman karara bağlanır (silme, Eren onayı).

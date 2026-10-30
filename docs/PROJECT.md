@@ -85,4 +85,5 @@ Kendi Python servisi quote-gateway yapıldı (`task/quote-gateway`, 2026-10-29):
 İmajlar GHCR'da (`task/ghcr-ci`, 2026-10-29): `ghcr.io/erenbezek/aiops-quote-gateway` ve `aiops-netem` CI'da derleniyor, main'de `sha-<commit>` etiketiyle gönderiliyor; koşucu ve compose digest'le sabit. Canlı kontrol geçti (girişsiz çekme, 23 konteyner, zincir, netem, taban sağlık 34,0 ms prizde).
 Gece koşusu systemd biriminde (`task/systemd-unit`, 2026-10-29): `systemctl --user start aiops-incidents@<liste>`; `systemctl stop`'ta temizlenir, canlıda geçti (~65 sn, SIGKILL yok); kapanmada kesilir, sonraki koşu başlamaz (kalıntı denetimi).
 V3 resmî set sürüyor (`task/vaka-v3`, kart HANDOFF 2026-10-29): 40 vaka (19 dev / 21 test), iki gece. V3a hazırlık bitti. 1. gece 20/20 geçerli (planlamada kontrol edildi). 2. gece (2a + 2b) 16/20: 2b'de taban sağlık üç kez düştü (product-catalog yavaşlaması, neden bilinmiyor), koşu durduruldu. Toplam 36 geçerli (dev 18, test 18), etiketler `incidents/`'ta.
-Sıradaki: planlama 2. geceyi kontrol eder; V3c (`v3_retry`, 4 giriş) öncesi taban ölçümü kararı.
+2. gece planlamada kontrol edildi.
+Sıradaki: V3c (`v3_retry`, 4 giriş) gece, makine boşta; önce taban ölçümü (p95 ≤ 30 ms), geçerse koşu.
