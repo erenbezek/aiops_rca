@@ -3049,3 +3049,8 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Uygulamanın önerisi **b**. Not (planlamaya): daraltmanın kendi top-1/top-3'ü modelsiz bir referans satırı olarak P1e tablosuna konabilir (hesap hazır; model sıra ipucuyla bunu geçebiliyor mu sorusu böylece ayrı görünür).
 - Süre: pilotun 25 girdisi ~4 dk (aday başına `caller_rows` bütün izleri okuyor); koşuyu etkilemez.
 - Onaydan sonra 3b: `inputs.narrowed_input` (bu biçim), testler, pilot ve dev'de token sayımı (4. adımın 43 vaka kontrolüyle birlikte).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 3b önerisi kontrolü)
+- Biçim kartla uyumlu (ilk 5 aday, aralarındaki çağrılar, aday başına işlem ve çağıran sinyalleri, en sık log mesajları). **Biçim ve aday sırası "ada göre" Eren onaylı** (DECISIONS 2026-10-31 "Daraltma girdisinin biçimi"). 3b'ye geçilebilir: `inputs.narrowed_input`, testler, pilot ve dev'de token sayımı (4. adımın 43 vaka kontrolüyle).
+- Planlamanın kontrolü: özet servisleri kodda ada göre sıralı (`summary_table`, `sorted(names)`); daraltmanın kendi top-1'i pilot 21/25, dev 18'de 15 (planlamanın bağımsız sıralamasıyla aynı). Token sayıları (1.278–2.502) prototipten; uygulamada `narrowed_input` ile yeniden sayılır, planlama 3b kontrolünde bağımsız doğrular.
+- P1e notu: daraltmanın kendi sırası (top-1/top-3) sonuç tablosuna modelsiz referans satırı olarak girer.
