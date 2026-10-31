@@ -3014,3 +3014,10 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - **Düzeltme (2. adım kaydı, `50ff159`):** oradaki kasıtlı kırmızı sayıları şişkindi. Kopya `src/` dışında olduğu için `cases.REPO` kopyayı gösteriyor, `incidents/` bulunamıyor ve CI örneği kullanan testler her kopyada (değişiklik olmadan da) kırmızıydı. Bağlantılı kopyada yeniden (değişmemiş kopya 13/13 yeşil): sondan kesme 2 (önceki rapor 3), INFO dahil 2 (3), işaret yok 3 (4), boşluk sadeleşmesi yok 1 (2), `TOP_MESSAGES` 9 1 (2), boş girdi işareti yok 1 (2). Altısı yine yakalanıyor. Not: `TOP_MESSAGES`'ı yalnız sabit testi yakalıyor; CI örneklerinin özetinde 10'dan az mesaj var. 1. adımın sayıları etkilenmedi (o testler `incidents/` kullanmıyor; değişmemiş kopya 35/35).
 - Yeni adlar (Eren onaylı, GLOSSARY'de): `service_scores`, `narrow`, `candidate_narrowing()` (kavram adı GLOSSARY'de; fonksiyon), `K`, `GROUPS` (`deep`, `anomalous`, `normal`), `narrowing_expected.json`.
 - Sıradaki: commit → dev'de bir kez ilk 5 → 3b daraltma girdi seviyesi (biçim önerisi).
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3a: dev'de daraltma ölçümü, bir kez)
+- Önceden yazılı ölçüt: dev'de ilk 5'te kök ≥ 15/18 (DECISIONS 2026-10-30 "Daraltma").
+- Koşu: `69769a0` (`src` temiz), `~/cerebrum2/analysis/p1c_narrowing_record.py dev` bir kez → `p1c_narrowing_dev.json` (sha256 `b818d1c0…294aa816`). Model koşmadı, ayar yapılmadı.
+- **Sonuç: ilk 5'te kök 18/18 → geçti.** Kökün sırası: 1 (15), 2 (1), 3 (1), 4 (1).
+- Not (yorum P1e'de): pilot gibi dev de bu ölçütte tavanda; ilk 5 ölçüsü daraltmanın kökü kaybetmediğini gösteriyor, LLM'e katkısını göstermiyor (P1d).
+- Sıradaki: 3b daraltma girdi seviyesi (biçim önerisi; adaylar, aralarındaki kenarlar, aday başına işlem ve çağıran tarafı sinyalleri, en sık log mesajları; ≤ 5000 token).
