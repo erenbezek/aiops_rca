@@ -2978,3 +2978,10 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Yeni adlar (Eren onaylı, GLOSSARY'de): `summary_table`, `summary_text`, `summary_input`, `raw_input`, `raw_records`, `raw_lines`, `raw_line`, `fit_lines`, `clock_ms`, `DATA_BUDGET`, `RAW_LINE_CHARS`, `TRUNCATION_MARK`, `TokenCounter`, `LEVELS`, `count_tokens`, `LocalServer.tokenize`, `summary_expected.json`.
 - Dev sayımı yapılmadı: 4. adımda (girdi kontrolleri, 43 vaka) bir kez.
 - Sıradaki: 3. adım (daraltma; öne alma kuralı pilotta, dev'e bakmadan önce yazılı → Onay 2).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 2. adım kontrolü)
+- 2. adım (`50ff159`) kartla ve DECISIONS 2026-10-31 ile uyumlu; **3. adıma geçilebilir.** Planlamanın bağımsız kontrolleri (scratchpad; ortak kopyada dosya yok):
+  - pytest 515/515 (`50ff159` kopyasında).
+  - Ham satırlar DECISIONS "Ham kesme kuralı" metninden planlamanın koduyla üretildi: 25 pilot vakada `raw_lines` ile birebir aynı.
+  - Kesme: geçici llama-server (Qwen 2B, ayrı ad ve port, yalnız `/tokenize`) ile bütün önekler tek tek tarandı (tekdüzelik varsayılmadan). 25 vakada son metnin sha256'sı, tutulan satır ve token sayısı `p1c_step2_check.json` ile aynı. Kesilen 5 vaka: 223/5010, 224/261, 224/246, 197/2546, 224/2406 satır; en büyük blok 4.995.
+- Bağımsız tekrarlanmayan: özetin eski kodla eşitliği (uygulamanın testi ve pilot 25/25 kontrolü).
