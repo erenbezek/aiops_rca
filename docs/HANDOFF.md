@@ -3071,3 +3071,17 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Metnin sha256'sı `p1c_step3b_check.json` ile 25/25 aynı; geçici llama-server (Qwen 2B, yalnız `/tokenize`) ile token 25/25 aynı: 1.278–2.502, ortalama 1.900.
   - Hücreler doğrudan izlerden (`inc-8ceb7ae5`, checkout `PlaceOrder`): işlem istek 31 → 25, hata oranı 0 → 0,48, p95 50,0 → 51,0 ms; çağıran frontend 31 → 25, 0 → 0,48, 51,9 → 52,7 ms. Çıktıyla aynı (p95 en yakın sıra).
 - 4. adım için hatırlatma: `quote-gateway` → `rate-gateway` onaylı; `frontend-web` adı önerilir, Eren onaylar. Dev sayımı (43 vaka, üç seviye) bu adımda bir kez.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 4. adım planı: takma ad üç seviyede, girdi kontrolleri; ad önerisi)
+- **Ön tarama** (`~/cerebrum2/analysis/p1c_alias_scan.py`, sha256 `3331c414…7190e0f6`; pilot + dev 43 vaka, üç seviye, model ve tokenizer yok): `trial_alias` kuralları + `quote-gateway → rate-gateway` (onaylı) + `frontend-web → storefront-web` (öneri) ile ad alanlarında adı olmayan servis **0**; taranan 20.424 metinde (ham 19.513, daraltma 883, özet 28) dönüşüm sonrası kalan tanımlayıcı, tireli gerçek ad ya da yasak terim (astronomy, valkey, otel, opentelemetry) **0**. Yani planın 4. maddesindeki "ham seviyede takma adı yazılamayan vaka" bu kurallarla beklenmiyor.
+- **Ad önerisi (Eren onayı):** `frontend-web` → **`storefront-web`** (tarayıcı tarafı; `frontend` → `storefront` ile ilişkisi korunur, `frontend-proxy` → `edge-gateway`'de korunmamıştı). Diğer seçenek `web-client` (ilişki görünmez). `ALIASES` ve GLOSSARY "takma ad eşlemesi" birlikte, ekleme tarihiyle (rate-gateway ile).
+- **Plan:**
+  1. `src/aiops_rca/alias.py`: `ALIASES` ve dönüşüm/kontrol kuralları `tools/trial_alias.py`'den pakete; betik paketten içe aktarır, eski özet çıktısı aynı kalır (CI örneklerinde eşitlik testi).
+  2. Takma ad **gerçek adla üretilmiş girdinin üzerine** uygulanır; ad dışındaki her şey (alanlar, sıra, sayılar, metnin ad dışı parçaları) aynı kalır, kontrol `trial_alias`'taki gibi (geri çevirince gerçek girdi). Sıra gerçek adların sırası kalır (deneme kuralı "sıra aynı").
+     - özet: servis ve log servis alanları, mesajlar.
+     - ham: satırların servis alanı ve metni (log mesajı, span adı). **Aynı satırlar** tutulur; takma adlı metin 5000'i aşarsa sondan satır eksiltilir (aynı kural), kayda geçer. Boş girdi boş kalır.
+     - daraltma: aday `service`, `caller`, `calls`, işlem adları, log mesajları.
+     - Kontrol tutmayan vaka yazılmaz, durulur, sayı getirilir.
+  3. Cevabın gerçek ada çevrilmesi (`real_name`): puanlamada (5. adım, `methods/llm.py`).
+  4. **Girdi kontrolleri (43 vaka; dev'in ilk ve tek sayımı):** üç seviye × gerçek/takma ad: iki üretim birebir aynı; veri bloğu ≤ 5000 (sayılar kayda); takma adlı girdide gerçek ad yok (ad alanları + tanımlayıcı + yasak terim); sızıntı CLI'ı (`aiops_rca.leakage`, girdiler geçici JSON dosyalarında) bütün girdilerde 0. Test seti reddedilir (`load_cases`).
+- Yeni adlar (kodla birlikte önerilir, onaylanınca GLOSSARY): `alias.py` içindeki dönüşüm ve kontrol fonksiyonları.
