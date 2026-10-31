@@ -224,3 +224,16 @@ Sadece Eren'in onayladığı isimler.
 | `v3_night2b` | 2. gece listesinin kalan parçası (16–20. girişler, 5 vaka) |
 | `tests/test_v3_lists.py` | V3 gece listelerinin kart tablosuyla birebir karşılaştırması (bileşim, gece sayıları, gece sonları, ortak çiftler ayrı gecede, ayrılan birimler yalnız testte, koşucunun liste denetimi) |
 | `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi; P1a: `p1a_equality.py`, `p1a_path_check.py`, `p1a_fixtures.py` CI örneği üreticisi, `p1a_rawlog_size.py`; P1b: `p1b_equality.py` ve çıktı klasörü `p1b_eq/`); yol ve sha256 HANDOFF'ta |
+| `task/p1-llm` | P1c dalı: LLM çağrı katmanı, üç girdi seviyesi, daraltma, istem ve duman koşusu |
+| `src/aiops_rca/llm_client.py` | LLM çağrı katmanı: beş model, istek, taşıma hatasında tek yeniden deneme, şema kontrolü, token ve süre; yerel sunucu (`methods/llm.py` ile karışmasın diye bu ad) |
+| `src/aiops_rca/inputs.py`, `raw` / `summary` / `narrowed` | Modele giden girdinin üç seviyesi: ham (hesaplanmış sayı yok, WARN+ log satırları ve hata span'leri) / özet (bütün servislerin önce/sonra sinyal tablosu) / daraltma (ilk K aday ve ayrıntıları) |
+| `src/aiops_rca/narrowing.py` | `candidate_narrowing`'in kodu: aday servisleri sıralar, ilk K'yı seçer |
+| `src/aiops_rca/alias.py` | Takma ad: üç seviyenin takma adlı kopyası ve kontrolü (`trial_alias` mantığı) |
+| `src/aiops_rca/methods/llm.py` | LLM yöntemi: istem, girdi seviyesi, modele sorma, cevabı şemaya çevirme |
+| evaluate `--model`, `--level`, `--alias` | `evaluate run --method llm` seçenekleri: model etiketi / girdi seviyesi / takma adlı girdi ver (cevap gerçek ada çevrilip puanlanır). `trial_ask_models.py`'nin `--alias`'ından farklı (orada yalnız puanlamada çeviri) |
+| `MODELS`, `ModelSpec` | `llm_client.py`: beş modelin sabit ayar tablosu (etiket → `ModelSpec`) / bir modelin etiketi, sağlayıcısı, istekteki kimliği, çıktı sınırı, ek istek alanları |
+| `ANSWER_SCHEMA`, `RESPONSE_FORMAT` | Cevap şemasının modele giden strict biçimi / `response_format` alanı (`json_schema`, `strict`) |
+| `chat()` | Modele bir kez sorar (taşıma hatasında bir yeniden deneme), deneme kayıtlarını, şemaya uyan cevabı, token ve süreyi döndürür |
+| `Pacer` | İki istek arasında en az belirli süre bekletir (Groq: 65 sn) |
+| `LocalServer` | Yerel llama.cpp sunucusunu açar, sağlık kontrolünü bekler, kapatır (bir model için bir kez) |
+| `api_key()`, `parse_content()` | API anahtarını ortamdan ya da `keys.env`'den okur / cevaptaki ilk JSON nesnesini okuyup cevap şemasıyla doğrular |

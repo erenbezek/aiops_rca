@@ -113,9 +113,11 @@ flowchart LR
 | `src/aiops_rca/methods/baro.py` | BARO baseline: `baro_table` (10 sn ızgara, konteyner ve iz sütunları), `baro_rank` (RCAEval 1.9.0 `main.py` ön adımları + `baro`, saf Python), `baro_baseline` (CLI `--method baro`) |
 | `src/aiops_rca/runs.py` | Koşu kaydı: `run.json`, `responses.jsonl` (koşu klasörü `<UTC>-<yöntem>/`) |
 | `src/aiops_rca/evaluate.py` | CLI `python -m aiops_rca.evaluate run` / `score`: yöntemi vakalarda koşar ve kaydeder / kayıtlardan puanlar, `scores.json` ve set tablosu |
+| `src/aiops_rca/llm_client.py` | LLM çağrı katmanı (P1c): beş model (`MODELS`), cevap şemasının strict biçimi, istek, taşıma hatasında tek yeniden deneme, şema kontrolü (şema dışı ve sınıra takılan yeniden sorulmaz), token ve süre; Groq aralığı (`Pacer`), yerel llama.cpp sunucusu (`LocalServer`) |
 | `eval_responses/` | Resmî koşuların kayıtları (repoda) |
 | `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi |
 | `tests/test_baro.py` | BARO tablosu (ve portu) birim testleri, sentetik verilerle |
+| `tests/test_llm_client.py` | LLM katmanı birim testleri, sahte sunucuyla (`127.0.0.1`, ağ ve anahtar yok): model ayarları, şema dönüşümü, şema dışı kaydı, yeniden deneme, token ve süre, Groq aralığı, anahtar okuma |
 | `tests/fixtures/snapshots/` | CI örnekleri: 4 pilot vakanın kırpılmış görünümü (≤ 5 MB; üretici repo dışı `p1a_fixtures.py`) |
 | `tests/fixtures/rule_expected.json`, `tests/test_rule_fixtures.py` | Örneklerde kural baseline'ın beklenen çıktısı ve sinyal güçleri; CI aynısını üretir |
 | `tests/fixtures/baro_expected.json` | Örneklerde BARO'nun beklenen çıktısı; `tests/test_baro.py` CI'da aynısını üretir |

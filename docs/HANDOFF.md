@@ -2910,3 +2910,14 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Girdi üretimi test setini reddeder (evaluate'teki gibi).
   - Sıra: ham kesme kuralı yalnız pilot boyutlarından; dev sayımı Onay 1'den sonra bir kez. Daraltmada pilot ayar kaydı ve pilotta ilk 5 oranı kayda; dev'in daraltma girdisi (aday listesi ve token sayımı dahil) Onay 2'den önce üretilmez.
 - Not (P1d için, planlama): Groq gpt-oss-120b günlük 200K token sınırı (TPD, console.groq.com/docs/rate-limits). Duman ~50K, sorun yok; dev koşusu tahminen 2 güne bölünür.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 1. adım: LLM çağrı katmanı)
+- `src/aiops_rca/llm_client.py` (`tools/trial_ask_models.py`'den taşındı; deneme betiği değişmedi). Hiçbir model koşmadı.
+  - `MODELS`: beş model, deneme etiketleriyle (`qwen3.5-2b/4b/9b`, `gpt-oss-120b`, `gemini-3.5-flash-lite`). Qwen `enable_thinking: false`, gpt-oss `reasoning_effort: low`, Gemini `minimal`; temperature 0; çıktı sınırı yerel 800, API 1600 (DECISIONS 2026-10-31).
+  - `ANSWER_SCHEMA` / `RESPONSE_FORMAT`: P1a cevap şemasının strict biçimi (bütün alanlar zorunlu, fazladan alan yok, tam 3 aday, `evidence_path` en az 1). LLM'de `confidence` sayı (null değil); 0–1 aralığı, yolun adayla başlaması, farklı adaylar `answer.validate_answer`'da.
+  - `chat()`: taşıma hatasında (bağlantı/zaman aşımı, 429, 500, 502, 503, 504) bir yeniden deneme; bekleme Groq 65 sn, diğerleri 30 sn. Başka HTTP hatası (400, 413…) yeniden denenmez. Şema dışı ve `finish_reason: length` → `schema_valid: false`, yeniden sorulmaz. Okuyucu denemelerdeki gibi ilk JSON nesnesini okur (``` dahil). Kayıtta her deneme, token (girdi, çıktı, akıl yürütme), süre (son deneme).
+  - `Pacer` (Groq istekleri arası 65 sn), `LocalServer` (digest'le sabit imaj, bağlam 8192, 4 iş parçacığı, `127.0.0.1:8081`), `api_key()` (ortam, yoksa `keys.env`; değer kayda girmez).
+- `tests/test_llm_client.py`: 34 test, sahte sunucu `127.0.0.1`'de (ağ ve anahtar yok). pytest 501/501.
+- Kasıtlı kırmızı (kopyada; `src` değişmedi): length kuralı kaldırılınca 1, yeniden deneme kaldırılınca 8, her HTTP hatasında yeniden deneme 16, şemada `unsure` zorunlu değil 1, şema doğrulaması kaldırılınca 5, temperature 0,7 1 test kırmızı.
+- Açık (duman koşusunda görülecek): strict şemanın `minItems: 1` (yol) ve `number` (güven) alanları sağlayıcılarda denenmedi; denemelerde yalnız 3'lük aday dizisi denenmişti.
+- Sıradaki: 2. adım (özet ve ham seviye, token sayımı; ham kesme kuralı pilot boyutlarından → Onay 1).
