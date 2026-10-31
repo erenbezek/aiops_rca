@@ -16,10 +16,22 @@ Tablo (`baro_table`), dev'de ayarlanmaz:
 - Aday kümesi kural baseline'ıyla aynı: izlerdeki ve metriklerdeki adlar; izleme araçları, rutin servisler ve `<unknown>`
   hariç. Sütun yalnız verisi olan için: konteyner sütunu pencerede metrik noktası olan konteynerde, iz sütunu pencerede
   gelen span'i olan serviste (veritabanlarında iz sütunu yok).
+
+Port (`baro_rank`), RCAEval 1.9.0 `main.py` + `e2e/baro.py` + `io/time_series.py` ile aynı adımlar:
+1. `main.py` ön adımları, 120 satırlık tabloda: sonsuz → NaN, `ffill` (sütun başına yukarıdan aşağı), `fillna(0)`.
+   `baro`'ya NaN gitmez.
+2. `baro`: normal `time < alarm`, anomali `time ≥ alarm`. Her dönemde ayrı `preprocess(dataset="re2-ob")`: `drop_time`
+   (`time` sütunu), `drop_constant` (bütün değerleri ilk değere eşit sütun), `convert_mem_mb` (`_mem` / 1e6).
+   Ortak sütunlar, normal dönemin sırasıyla.
+3. Sütun başına sklearn `RobustScaler` normal dönemde: merkez = medyan, ölçek = 75. − 25. yüzdelik (numpy doğrusal yöntemi,
+   `_lerp` ile aynı formül); ölçek < 10·eps ise 1. z = (anomali − merkez) / ölçek; puan = Python `max(z)`.
+4. `sorted(..., key=puan, reverse=True)` (kararlı). Döner: [(sütun, puan), ...].
 """
 from __future__ import annotations
 
 import json
+import math
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -137,3 +149,70 @@ def baro_table(case: Case) -> dict:
     rows = [[float(start_s + i * BUCKET_S)] + [series[k][i] for k in keys] for i in range(N_BUCKETS)]
     return {"columns": columns, "rows": rows}
 
+
+# --- port ----------------------------------------------------------------------------------------------------
+
+EPS = sys.float_info.epsilon  # np.finfo(float64).eps
+
+
+def _fill(rows: list[list[float]]) -> list[list[float]]:
+    """`main.py`: sonsuz → NaN, `ffill`, `fillna(0)`."""
+    out, last = [], [math.nan] * (len(rows[0]) if rows else 0)
+    for r in rows:
+        new = []
+        for j, v in enumerate(r):
+            v = math.nan if math.isinf(v) else v
+            if math.isnan(v):
+                v = last[j]
+            last[j] = v
+            new.append(v)
+        out.append(new)
+    return [[0.0 if math.isnan(v) else v for v in r] for r in out]
+
+
+def _preprocess(columns: list[str], rows: list[list[float]]) -> dict[str, list[float]]:
+    """`preprocess(dataset="re2-ob", dk_select_useful=False)` = convert_mem_mb(drop_constant(drop_time(df)))."""
+    cols = {c: [r[j] for r in rows] for j, c in enumerate(columns) if c != "time"}
+    kept = {c: v for c, v in cols.items() if any(x != v[0] for x in v)}  # (df != df.iloc[0]).any()
+    return {c: ([x / 1e6 for x in v] if c.endswith("_mem") else v) for c, v in kept.items()}
+
+
+def _lerp(a: float, b: float, t: float) -> float:
+    """numpy `_lerp`: a + (b − a)·t; t ≥ 0,5 ise b − (b − a)·(1 − t)."""
+    d = b - a
+    return b - d * (1 - t) if t >= 0.5 else a + d * t
+
+
+def _percentile(sorted_values: list[float], q: float) -> float:
+    """numpy `percentile(..., method="linear")`, NaN'sız sıralı değerlerde."""
+    n = len(sorted_values)
+    virtual = n * (q / 100) + (1 + (q / 100) * (1 - 1 - 1)) - 1  # _compute_virtual_index(n, q, alpha=1, beta=1)
+    lo = math.floor(virtual)
+    g = virtual - lo
+    lo = min(max(lo, 0), n - 1)
+    hi = min(lo + 1, n - 1)
+    return _lerp(sorted_values[lo], sorted_values[hi], g)
+
+
+def _median(sorted_values: list[float]) -> float:
+    n = len(sorted_values)
+    m = n // 2
+    return sorted_values[m] if n % 2 else (sorted_values[m - 1] + sorted_values[m]) / 2
+
+
+def baro_rank(table: dict, alarm_s: int) -> list[tuple[str, float]]:
+    """RCAEval `main.py` ön adımları + `baro(data, inject_time=alarm_s, dataset="re2-ob", dk_select_useful=False)`."""
+    columns, rows = table["columns"], _fill(table["rows"])
+    t = columns.index("time")
+    normal = _preprocess(columns, [r for r in rows if r[t] < alarm_s])
+    anomal = _preprocess(columns, [r for r in rows if r[t] >= alarm_s])
+    ranks = []
+    for col in [c for c in normal if c in anomal]:
+        a = sorted(normal[col])
+        center = _median(a)
+        scale = _percentile(a, 75) - _percentile(a, 25)
+        if scale < 10 * EPS:
+            scale = 1.0
+        z = [(x - center) / scale for x in anomal[col]]
+        ranks.append((col, max(z)))
+    return sorted(ranks, key=lambda x: x[1], reverse=True)

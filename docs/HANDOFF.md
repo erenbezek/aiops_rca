@@ -2759,3 +2759,29 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - `inc-9292257f` (containerPause cart): 14 sütunda NaN var; cart gecikmesi anomali döneminin 60 kovasının hepsinde NaN.
   - checkout, payment ve email gecikmesi seyrek trafik yüzünden sık NaN.
 - Planlama kontrol etti (bir dev vakasında 7 hücre bağımsız kodla aynı).
+
+## 2026-10-30 · Uygulama → Planlama (P1b 2. adım: port ve eşitlik kontrolü)
+- `methods/baro.py` `baro_rank(table, alarm_s)`, saf Python. Sırasıyla:
+  - `main.py` ön adımları: sonsuz → NaN, ffill, fillna(0).
+  - `preprocess(dataset="re2-ob")`: `drop_time`, `drop_constant`, `_mem` / 1e6.
+  - Ortak sütunlar; `RobustScaler` hesabı (medyan, numpy doğrusal yüzdelik ve `_lerp`, ölçek < 10·eps → 1).
+  - `max(z)` ve kararlı sıralama.
+  - Birim testleri `tests/test_baro.py`'de (+4, toplam 8). pytest 465/465.
+- Eşitlik (5 dev vakası; betik `~/cerebrum2/analysis/p1b_equality.py`, sha256 `eee42217049b5241fcf15a8181ab878712e52f887bf4904b1caa6f889d6725f4`):
+
+| Vaka | Sütun | port = gerçek `baro()` | kopya = gerçek `baro()` | port = kopya | En büyük puan farkı |
+|---|---|---|---|---|---|
+| `inc-230c9d46` (containerStop recommendation) | 95 | evet | evet | evet | 0,0 |
+| `inc-9292257f` (containerPause cart) | 81 | evet | evet | evet | 0,0 |
+| `inc-ac820869` | 96 | evet | evet | evet | 0,0 |
+| `inc-4a62b9bb` | 96 | evet | evet | evet | 0,0 |
+| `inc-b4d12a5e` | 96 | evet | evet | evet | 0,0 |
+
+  - Sonuç: geçti. Puanlar bit düzeyinde aynı. Çıktılar `p1b_eq/port.json` (`45038e59…f61d`), `p1b_eq/ref.json` (`10d77d4e…c4f`).
+  - Kasıtlı kırmızı: portta `/1e6` kaldırılınca `inc-4a62b9bb`'de sıra değişti, sonuç GEÇMEDİ. Diğer 4 vakada sıra aynı kaldı, puan farkı ~1e-11: ölçekleme ölçeğe duyarsız, yalnız yuvarlama farkı. Port geri alındı.
+- Referans ortamı (geçici, silindi; 371 MB):
+  - RCAEval 1.9.0 (wheel sha256 `d0571aeddf44680285094dc1d338ef07817c2317bf8ad93c00ffa1bb32c07a5b`), numpy 2.5.4, pandas 3.1.0, scikit-learn 1.9.1.
+  - Açılış zinciri için: requests 2.34.2 (Eren onayı), tqdm 4.70.1 (ön izin).
+  - Bağımlılık olarak gelenler: scipy 1.18.1, joblib 1.6.0, threadpoolctl 3.7.0, narwhals 2.28.0, cloudpickle 3.1.2, python-dateutil 3.0.0, six 1.17.0, tzdata 2026.6, certifi, charset-normalizer, idna, urllib3.
+  - Tam liste `p1b_eq/ref_venv_freeze.txt` (`e58487b4…c47d`).
+- Planlama kontrol etti. Adlar onaylı, GLOSSARY'de.

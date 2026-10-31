@@ -34,6 +34,7 @@ Sadece Eren'in onayladığı isimler.
 | `src/aiops_rca/methods/baro.py`, `baro_table()`, `baro_rank()`, `baro_baseline`, `METHODS["baro"]` | BARO yöntemi (P1b): vaka görünümünden 10 sn'lik tablo / RCAEval `baro`'sunun saf Python portu (sütun sırası ve puanlar) / yöntem (`--method baro`) |
 | `_cpu`, `_mem`, `_net_rx`, `_net_tx`, `_latency`, `_requests`, `_errors` | BARO tablosunun sütun ekleri (`<servis>_<ek>`): CPU (çekirdek yüzdesi), bellek (bayt; RCAEval MB'a çevirir), ağ alma/gönderme (bayt/sn), gecikme p90 (ms), istek ve hata sayısı |
 | `BUCKET_S`, `HALF_S`, `N_BUCKETS`, `METRICS`, `CONTAINER_METRICS`, `NET_RX`, `NET_TX` | `methods/baro.py` sabitleri: kova (10 sn), yarım pencere (600 sn), kova sayısı (120), metrik sırası, metrik adı → ek, ağ sayaçlarının adları |
+| `_fill`, `_preprocess`, `_lerp`, `_percentile`, `_median`, `EPS` | BARO portunun yardımcıları: `main.py` ön adımları (sonsuz → NaN, ffill, fillna(0)) / `preprocess` (drop_time, drop_constant, `_mem` / 1e6) / numpy `_lerp` / numpy doğrusal yüzdelik / medyan / float64 eps (`RobustScaler` sıfır ölçek eşiği 10·eps) |
 | `task/p1-baro` | Proje 1 P1b dalı: BARO baseline |
 | `src/aiops_rca/runs.py`, `new_run()`, `append_response()`, `read_run()`, `EVAL_RESPONSES` | Koşu kaydı: koşu klasörü `<UTC>-<yöntem>/` açar / vaka cevabını ekler / koşuyu okur / resmî koşu kökü (`eval_responses/`) |
 | `run.json`, `responses.jsonl`, `scores.json` | Koşu klasörünün dosyaları: koşu ayarları ve sürüm / vaka başına cevap / puanlar ve set özeti (`evaluate score` yazar) |
@@ -220,4 +221,4 @@ Sadece Eren'in onayladığı isimler.
 | `v3_night2a` | 2. gece listesinin ilk parçası (`v3_night2`'nin 1–15. girişleri, 15 vaka) |
 | `v3_night2b` | 2. gece listesinin kalan parçası (16–20. girişler, 5 vaka) |
 | `tests/test_v3_lists.py` | V3 gece listelerinin kart tablosuyla birebir karşılaştırması (bileşim, gece sayıları, gece sonları, ortak çiftler ayrı gecede, ayrılan birimler yalnız testte, koşucunun liste denetimi) |
-| `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi; P1a: `p1a_equality.py`, `p1a_path_check.py`, `p1a_fixtures.py` CI örneği üreticisi, `p1a_rawlog_size.py`); yol ve sha256 HANDOFF'ta |
+| `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi; P1a: `p1a_equality.py`, `p1a_path_check.py`, `p1a_fixtures.py` CI örneği üreticisi, `p1a_rawlog_size.py`; P1b: `p1b_equality.py` ve çıktı klasörü `p1b_eq/`); yol ve sha256 HANDOFF'ta |

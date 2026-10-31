@@ -86,3 +86,45 @@ def test_span_values_and_missing(table):
     assert (col["cart_requests"][1], col["cart_errors"][1]) == (0.0, 0.0) and math.isnan(col["cart_latency"][1])
     assert (col["cart_requests"][61], col["cart_latency"][61]) == (1.0, 50.0)
     assert sum(col["cart_requests"]) == 4.0  # pencere dışındaki ve istemci span'leri yok
+
+
+# --- port (P1b 2. adım): RCAEval main.py ön adımları + baro ------------------------------------------------------
+
+from aiops_rca.methods.baro import _fill, _percentile, baro_rank  # noqa: E402
+
+NAN, INF = float("nan"), float("inf")
+
+
+def tab(cols: dict) -> dict:
+    """120 satır: time = 0..1190 (10 sn), alarm 600."""
+    names = ["time", *cols]
+    return {"columns": names, "rows": [[float(10 * i)] + [cols[c][i] for c in cols] for i in range(120)]}
+
+
+def test_fill_inf_ffill_then_zero():
+    assert _fill([[NAN, 1.0], [INF, NAN], [2.0, -INF], [NAN, 3.0]]) == [[0.0, 1.0], [0.0, 1.0], [2.0, 1.0], [2.0, 3.0]]
+
+
+def test_percentile_matches_numpy_linear():
+    v = [float(i) for i in range(60)]  # numpy: percentile(range(60), [25, 75]) = [14.75, 44.25]
+    assert (_percentile(v, 25), _percentile(v, 75)) == (14.75, 44.25)
+    assert _percentile([1.0, 2.0, 4.0, 8.0], 25) == 1.75 and _percentile([1.0, 2.0, 4.0, 8.0], 75) == 5.0
+
+
+def test_rank_scores_and_order():
+    up = [float(i % 60) for i in range(60)] + [100.0] + [0.0] * 59      # merkez 29,5, ölçek 29,5
+    flat_normal = [5.0] * 60 + [float(i) for i in range(60)]             # normalde sabit: o dönemde atılır → kesişimde yok
+    zero_iqr = [1.0] * 59 + [2.0] + [1.0] * 59 + [4.0]                   # çeyrekler arası 0 → ölçek 1
+    mem = [1e6 * (i % 60) for i in range(60)] + [100e6] + [0.0] * 59     # /1e6 → up ile aynı puan, sırada up'tan sonra
+    r = baro_rank(tab({"b_up": up, "a_flat": flat_normal, "c_iqr": zero_iqr, "d_mem": mem}), 600)
+    assert [c for c, _ in r] == ["c_iqr", "b_up", "d_mem"]  # 3,0 > 2,39 = 2,39; eşit puanda girdi sırası (kararlı)
+    assert dict(r)["b_up"] == dict(r)["d_mem"] == (100.0 - 29.5) / 29.5 and dict(r)["c_iqr"] == 3.0
+
+
+def test_rank_missing_values_are_filled_first():
+    # NaN'lar ffill ile dolar: anomali dönemi tümüyle NaN olan sütun son normal değerle sabitlenir, o dönemde atılır.
+    s = [float(i % 60) for i in range(60)] + [NAN] * 60
+    leading = [NAN] * 10 + [1.0] * 50 + [9.0] + [1.0] * 59              # baştaki NaN → 0
+    r = dict(baro_rank(tab({"x": s, "y": leading}), 600))
+    assert "x" not in r
+    assert r["y"] == 8.0  # normal: 10 sıfır + 50 bir → medyan 1, 25. ve 75. yüzdelik 1 → ölçek 0 → 1; z = (9 − 1) / 1
