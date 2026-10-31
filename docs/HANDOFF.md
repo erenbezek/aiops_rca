@@ -3100,3 +3100,27 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Not (P1e sınırlaması; karar değişmez): takma ad yalnız adları gizler. Span adlarındaki yöntemler (`ListRecommendations`, `GetProduct`, `PlaceOrder`, `GetAds`, `Charge`) sıradan kelime kuralıyla kalır (DECISIONS 2026-10-23); demonun tanıdık gRPC yöntemleri. Takma ad farkı ezber etkisinin alt sınırı okunur.
 - Not: ön tarama dev'i de okudu; başarım ölçüsü değil ve hiçbir kural değişmedi, sorun yok. Dev'in token sayımı bu adımda bir kez.
 - Sonra: 4. adım kodu (plan 1–4); sonuç HANDOFF'a, planlama bağımsız doğrular.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 4. adım: takma ad üç seviyede, 43 vaka girdi kontrolleri)
+- **Kod (`20c93bd`):** `src/aiops_rca/alias.py`: `ALIASES` ve mesaj kuralları `tools/trial_alias.py`'den taşındı (betik içe aktarır, kendi `convert`/`check`/`main`'i yerinde); eşlemeye `quote-gateway → rate-gateway`, `frontend-web → storefront-web` eklendi, GLOSSARY "takma ad eşlemesi" satırı tarihleriyle birlikte. Üç seviye `alias.summary_input` / `raw_input` / `narrowed_input` (`inputs.py`'nin dönüş sözlüğü):
+  - özet ve daraltma: gerçek tablo `convert_table` ile çevrilir (ad alanları `service`, `caller`, `calls`; metin alanları `message`, `operation`), `check_table` ad dışındaki her değer, alan ve sıranın aynı olduğunu, her adın eşlemedeki karşılığı olduğunu, metinde tanımlayıcı ve yasak terim kalmadığını, metnin değişmeyen parçalarının durduğunu denetler; tutmazsa `ValueError` (girdi üretilmez).
+  - ham: gerçek girdinin aynı satırları, aynı sıra (gerçek satır metniyle); satır metni 500 karakterde kesilmeden **önce** çevrilir (kesikte yarım gerçek ad kalmaz); gerçek metinle satır eşliği kodda denetlenir; takma adlı metin bütçeyi aşarsa sondan tam satır eksiltilir, sayı `alias_lines_dropped`. Boş girdi boş kalır.
+  - `<unknown>` servis olduğu gibi kalır. Eşlemede olmayan servis → `ValueError` ("no alias for …").
+- **Testler:** `tests/test_alias.py` (21) + `tests/fixtures/alias_summary_expected.json` (eski `trial_alias`, git `37bf845`, + onaylı iki ad ile üretildi; üretici `~/cerebrum2/analysis/p1c_alias_fixture.py`, sha256 `b7754670…d4c3ebea31`). Betiğin paket kurallarını kullanması, eşlemenin GLOSSARY'deki satırla aynılığı (18 ad, takma adlar tekil ve gerçek adlarla çakışmıyor), CI örneklerinde üç seviye, ham sıra ve kesmeden önce çevirme, sondan eksiltme, boş girdi, adı olmayan servis, bozuk kopyalar (8 tür). pytest 548/548.
+- **Kasıtlı kırmızı** (kopya + symlink yöntemi): iki yeni ad silinince 6 test, ham takma ada göre sıralanınca 1 (kodun satır eşliği denetimi de durdurdu), kesikten sonra çevirince 1, sondan eksiltme kapatılınca 1, metin parçası kontrolü kapatılınca 1 test kırmızı.
+- **43 vaka girdi kontrolleri** (`~/cerebrum2/analysis/p1c_step4_check.py`, sha256 `dcf77ab8…4a94`; çıktı `p1c_step4_check.json`, sha256 `23fb8391…5805`; commit `20c93bd`, src temiz; Qwen 4B `/tokenize`, model çıkarımı yok; **dev'in ilk ve tek sayımı**; önce yalnız pilotta deneme koşusu, aynı sonuç). Kriterler betikte koşmadan önce yazılı:
+  - K0 pilotta gerçek girdi önceki kayıtlarla (`p1c_step2_check.json`, `p1c_step3b_check.json`) **25/25 aynı**.
+  - K1 iki üretim (2. ters sırayla) 43 × 3 seviye × gerçek/takma ad **birebir aynı**.
+  - K2 bütün veri blokları ≤ 5000. Token (en az–en çok, ortalama):
+
+    | | özet gerçek | özet takma | daraltma gerçek | daraltma takma | ham gerçek | ham takma |
+    |---|---|---|---|---|---|---|
+    | pilot (25; hamda boş olmayan 15) | 1.705–1.955, 1.762 | 1.710–1.962, 1.767 | 1.278–2.502, 1.900 | 1.284–2.475, 1.893 | 118–4.995, 2.986 | 118–4.987, 2.933 |
+    | dev (18; hamda boş olmayan 10) | 1.821–1.904, 1.861 | 1.826–1.911, 1.866 | 1.373–2.488, 1.884 | 1.353–2.460, 1.879 | 1.101–4.996, 3.205 | 1.076–4.825, 3.141 |
+
+    Ham boş: pilot 10, dev 8. Kesilen ham: pilot 5, dev 2 (gerçek ve takma adda aynı vakalar). Takma adda sondan eksiltilen satır: yalnız `inc-91bf76d4` (pilot) 2 satır; diğer 42 vakada 0.
+  - K3 takma adlı girdide ad alanları hep eşlemenin takma adı ya da `<unknown>`; bağımsız dedektör (eşleme + `load-generator`, `flagd`, `flagd-ui`, `otel-collector`, `fraud-detection`, `accounting`, `kafka`, `product-reviews`; tireli/alt çizgili/boşluklu/bitişik, `…service` yapışık, CamelCase her konumda; `astronomy|valkey|opentelemetry|otel` her konumda) takma adlı metinlerde **0**; aynı dedektör gerçek metinlerde isabet veriyor (çalıştığının göstergesi). Kontrolü tutmayan (`ValueError`) takma adlı girdi **0**.
+  - K4 sızıntı CLI'ı 258 dosyada (43 × 6) çıkış **0**.
+  - K5 test seti reddedildi (`PermissionError: set 'test' needs final_test=True`).
+- Not: ARCHITECTURE diyagramı kapanışta güncellenir (girdi seviyeleri ve takma ad düğümü); tablo satırları bu commit'te.
+- Sonra: planlama bağımsız doğrular; Eren onaylarsa 5. adım (`methods/llm.py`, `evaluate run --method llm`, istem metni → Onay 3; `real_name` puanlamada, takma adlı koşuda cevaptaki gerçek ad `unmatched`).
