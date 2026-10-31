@@ -2985,3 +2985,16 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Ham satırlar DECISIONS "Ham kesme kuralı" metninden planlamanın koduyla üretildi: 25 pilot vakada `raw_lines` ile birebir aynı.
   - Kesme: geçici llama-server (Qwen 2B, ayrı ad ve port, yalnız `/tokenize`) ile bütün önekler tek tek tarandı (tekdüzelik varsayılmadan). 25 vakada son metnin sha256'sı, tutulan satır ve token sayısı `p1c_step2_check.json` ile aynı. Kesilen 5 vaka: 223/5010, 224/261, 224/246, 197/2546, 224/2406 satır; en büyük blok 4.995.
 - Bağımsız tekrarlanmayan: özetin eski kodla eşitliği (uygulamanın testi ve pilot 25/25 kontrolü).
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3. adım: Onay 2 önerisi, daraltmanın öne alma kuralı)
+- Ayar yalnız pilot 25 vakada (etiketler dahil; dev okunmadı, model koşmadı). Betikler repo dışı: `~/cerebrum2/analysis/p1c_narrowing_pilot.py` (sha256 `b0271a1c…69b85426`; v0 ve kural sırası, `--detail` ile sinyaller ve kenarlar), `p1c_narrowing_v1.py` (`cd4962ad…28d88af8`; v1 karşılaştırması).
+- **Güç kontrolü: pilotta ölçüt tavanda.** "Kök ilk 5'te": kuralın kendi sırası 25/25, v0 25/25, v1 25/25. Pilot, ölçütte varyantları ayıramaz; öne almanın etkisi yalnız sıranın başında (top-1: kural 13, v0 21, v1 22). Dev ölçütü (≥ 15/18) kuralın dev top-3'ü; kuralın dev ilk 5'i bilinmiyor (bakılmadı), yani dev ölçütü daraltmadan çok kural sinyallerini sınayabilir. Daraltmanın değeri P1d'de LLM sonuçlarında görülür.
+- **Önerilen kural (Onay 2; DECISIONS 2026-10-30 "Daraltma" metninin kesin hali, v0):**
+  1. Aday kümesi ve puan kuralınkiyle aynı (`signals.signals`, eşikler aynı): izleme araçları, rutin servisler (flagd, flagd-ui, load-generator) ve `<unknown>` dışarıda; astronomy-db ve valkey-cart yalnız CPU/bellek. Puan = gücü ≥ 1 olan sinyal sayısı. **Kural sırası:** puan azalan, eşitlikte en büyük güç (bütün sinyaller) azalan, sonra servis adı.
+  2. **Anormal** = puan ≥ 1.
+  3. **Çağrı kenarları:** snapshot'ın bütün izleri (`call_graph.service_edges`, `traces.jsonl`); A → B = A, B'yi çağırdı. İzlerde olmayan servisin (veritabanları) çağırdığı yok.
+  4. **Derin** = anormal ve çağırdığı servislerin hiçbiri anormal değil.
+  5. **Sıra:** derinler (kural sırasıyla) → diğer anormaller (kural sırasıyla) → anormal olmayanlar (kural sırasıyla). **İlk K = 5** aday.
+- Pilotta v0: ilk 5'te 25/25; kökün sırası 1 (21 vaka), 3 (2), 4 (2). Geri düşen 4 vakanın 3'ünde (01a609bb, 07533a0a, 91bf76d4) kökün çağırdığı servis **yalnız istek düşüşüyle** anormal: kök hata verince arkasına daha az istek gidiyor; bu sonuç, ama v0 onu belirti sayıp kökü engelliyor. 4.'sü (d8f67a48, frontend) hiç anormal servis yok, sıra kuralınki.
+- Önerilmeyen v1: çağırdığı servisin yalnız istek düşüşü engellemez. Pilotta top-1 22 (3 vaka öne çıkar), ama `unavailable` cart vakası (2a87f603; kökün tek belirtisi istek düşüşü) 1 → 2 geriler: durdurulan servisin kendi belirtisi de istek düşüşü. Ölçütte fark yok (25/25); mekanizma iki yönlü. Uygulamanın önerisi: DECISIONS metni olduğu gibi (v0); v1'in mekanizması P1e hata analizine not.
+- Onaydan sonra 3. adım: `narrowing.py` (bu kural; pilotta ayar kaydı ve ilk 5 oranı), dev'de bir kez "kök ilk 5'te mi" (ölçüt ≥ 15/18; tutmazsa planlama, dev'e göre ayar yok), sonra daraltma girdi seviyesi (biçimi adımın özetinde önerilir). Dev'in daraltma girdisi Onay 2'den önce üretilmez.
