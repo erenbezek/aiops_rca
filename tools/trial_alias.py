@@ -3,7 +3,7 @@
 Kullanım: python tools/trial_alias.py <vaka klasörü>...
 
 Her vakada `view/summary.json` okunur, `view_alias/summary.json` yazılır (aynı biçim: girintisiz JSON). Eşleme
-`ALIASES` (GLOSSARY "takma ad eşlemesi (2026-10-23)" ile aynı), bütün vakalarda aynı.
+`ALIASES` (`aiops_rca.alias`; GLOSSARY "takma ad eşlemesi" ile aynı), bütün vakalarda aynı.
 
 Değişen:
 - Servis adı alanları (`services[].service`, log satırlarının `service` alanı): gerçek ad → takma ad.
@@ -24,60 +24,12 @@ Kontrol (yazmadan önce; biri tutmazsa o vaka yazılmaz, çıkış 1):
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 
-# GLOSSARY "takma ad eşlemesi (2026-10-23)"; değişirse ikisi birlikte.
-ALIASES = {
-    "frontend": "storefront",
-    "frontend-proxy": "edge-gateway",
-    "ad": "promotions",
-    "cart": "basket",
-    "checkout": "order-processor",
-    "payment": "billing",
-    "product-catalog": "inventory",
-    "recommendation": "suggestions",
-    "shipping": "logistics",
-    "quote": "rate-calculator",
-    "currency": "fx-rates",
-    "email": "notifier",
-    "image-provider": "media-server",
-    "telemetry-docs": "docs-site",
-    "astronomy-db": "main-db",
-    "valkey-cart": "session-cache",
-}
-PREFIXES = ("oteldemo.", "demo.")
-FORBIDDEN_TERMS = re.compile(r"(?<![a-z])(astronomy|valkey|opentelemetry|otel)", re.I)
-
-
-def camel(name: str) -> str:
-    return "".join(part.capitalize() for part in name.split("-"))
-
-
-def message_rules() -> list[tuple[re.Pattern, str]]:
-    """(desen, yerine) listesi; uzun adlar önce."""
-    rules = []
-    for real in sorted(ALIASES, key=len, reverse=True):
-        alias = ALIASES[real]
-        if "-" in real:  # tireli ve alt çizgili yazım
-            sep = re.escape(real).replace(r"\-", "[-_]")
-            rules.append((re.compile(rf"(?<![A-Za-z0-9]){sep}(?![A-Za-z0-9])", re.I), alias))
-            rules.append((re.compile(rf"(?<![A-Za-z0-9]){camel(real)}"), camel(alias)))  # ProductCatalog(Service)
-        else:
-            rules.append((re.compile(rf"(?<![A-Za-z0-9]){camel(real)}(?=Service)"), camel(alias)))
-    for prefix in PREFIXES:
-        rules.append((re.compile(rf"(?<![A-Za-z0-9.]){re.escape(prefix)}"), ""))
-    return rules
-
-
-RULES = message_rules()
-
-
-def convert_message(message: str) -> str:
-    for pattern, repl in RULES:
-        message = pattern.sub(repl, message)
-    return message
+# Eşleme ve mesaj kuralları pakette (`aiops_rca.alias`; GLOSSARY "takma ad eşlemesi"); davranış aynı.
+from aiops_rca.alias import (ALIASES, FORBIDDEN_TERMS, PREFIXES, RULES, camel, convert_message,  # noqa: F401
+                             message_rules, unchanged_parts_kept)
 
 
 def convert(summary: dict) -> dict:
@@ -89,14 +41,6 @@ def convert(summary: dict) -> dict:
         msg["message"] = convert_message(msg["message"])
     return out
 
-
-def unchanged_parts_kept(real: str, alias: str) -> bool:
-    """Gerçek mesajın eşleşmeyen parçaları takma adlı mesajda aynı sırayla duruyor mu."""
-    fragments = [real]
-    for p, _ in RULES:  # her desen kendi bayrağıyla (CamelCase büyük/küçük harfe duyarlı)
-        fragments = [piece for f in fragments for piece in p.split(f)]
-    pattern = "(?:.*?)".join(re.escape(f) for f in fragments)
-    return re.fullmatch(pattern, alias, re.S) is not None
 
 
 def check(real: dict, alias: dict) -> list[str]:
