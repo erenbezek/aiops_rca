@@ -2874,3 +2874,14 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   3. **Yalnız artış puanlanır:** durdurulan ya da dondurulan konteynerin düşüşü görünmez; çağıranların gecikmesi öne çıkar.
   - Savunma: port RCAEval'le bit düzeyinde aynı, tablo koşmadan önce yazılı, dev'de ayar yok.
 - Kalan: kapanış (CI'da BARO beklenen çıktısı, kasıtlı kırmızı), PR. Birleştirme CI'dan ve planlamanın kapanış kontrolünden sonra.
+
+## 2026-10-31 · Uygulama → Planlama (P1b kapanış: CI beklenen çıktısı)
+- `tests/fixtures/baro_expected.json` + `tests/test_baro.py::test_baro_reproduces_expected_output_on_fixtures`.
+  - Karşılaştırılanlar: P1a'nın 4 CI örneğinde BARO'nun cevapları ve ham çıktısı (bütün sütun sırası ve puanlar), puanlar, set tablosu. Süreler hariç.
+  - Örneklerin metrikleri yalnız CPU ve bellek; ağ sütunu yok. Örneklerde top-1 2/4, top-3 4/4.
+- Kasıtlı kırmızı, önbellek kapalı (her biri geri alındı, `src` HEAD ile aynı):
+  - z'den ölçek kaldırılınca test kırmızı.
+  - `drop_constant` kaldırılınca test kırmızı.
+  - numpy `_lerp` yerine düz `a + (b−a)·t` yazılınca test yeşil kaldı: bu 4 örnekte iki formül aynı sonucu verdi (en fazla son bitte ayrışırlar).
+- pytest 467/467. GLOSSARY: `baro_expected.json`, `baro_fixture_result()`. ARCHITECTURE tablosu güncel.
+- Sıradaki: PR (`task/p1-baro` → main); birleştirme planlamanın kapanış kontrolünden sonra.

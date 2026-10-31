@@ -128,3 +128,40 @@ def test_rank_missing_values_are_filled_first():
     r = dict(baro_rank(tab({"x": s, "y": leading}), 600))
     assert "x" not in r
     assert r["y"] == 8.0  # normal: 10 sıfır + 50 bir → medyan 1, 25. ve 75. yüzdelik 1 → ölçek 0 → 1; z = (9 − 1) / 1
+
+
+# --- CI örnekleri (P1b kapanış): 4 kırpılmış pilot vakada BARO'nun beklenen çıktısı -----------------------------
+# Örnekler P1a'nınkiler (`tests/fixtures/snapshots/`; metrikleri yalnız CPU ve bellek, ağ sütunu yok). Beklenen çıktı
+# bilerek değiştirilecekse:
+#   .venv/bin/python -c "import json, tests.test_baro as t; print(json.dumps(t.baro_fixture_result(), indent=1, sort_keys=True))"
+# (çıktı tests/fixtures/baro_expected.json'a; değişiklik ve nedeni HANDOFF'a).
+
+import shutil  # noqa: E402
+import tempfile  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+from aiops_rca import evaluate  # noqa: E402
+from aiops_rca.cases import INCIDENTS  # noqa: E402
+from aiops_rca.runs import read_run  # noqa: E402
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+
+def baro_fixture_result() -> dict:
+    snaps = FIXTURES / "snapshots"
+    with tempfile.TemporaryDirectory() as tmp:
+        inc = Path(tmp) / "incidents"
+        inc.mkdir()
+        for view in sorted(snaps.iterdir()):
+            shutil.copy(INCIDENTS / f"{view.name}.json", inc / f"{view.name}.json")
+        run_dir = evaluate.cmd_run("baro", ("pilot",), False, Path(tmp) / "runs", incidents=inc, snapshots=snaps)
+        _, responses = read_run(run_dir)
+        scores = evaluate.cmd_score(run_dir, False, incidents=inc, snapshots=snaps)
+    return {"responses": [{k: v for k, v in r.items() if k != "duration_s"} for r in responses],
+            "scores": [{k: v for k, v in r.items() if k != "duration_s"} for r in scores["cases"]],
+            "table": {s: {k: v for k, v in m.items() if k != "duration_s_total"} for s, m in scores["table"].items()}}
+
+
+def test_baro_reproduces_expected_output_on_fixtures():
+    want = json.loads((FIXTURES / "baro_expected.json").read_text(encoding="utf-8"))
+    assert json.loads(json.dumps(baro_fixture_result(), sort_keys=True)) == want

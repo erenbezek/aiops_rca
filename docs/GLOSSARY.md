@@ -17,6 +17,7 @@ Sadece Eren'in onayladığı isimler.
 | `eval_responses/` | Resmî değerlendirme koşusunun LLM cevapları; repoda tutulur |
 | `tests/fixtures/snapshots/` | CI için 3-5 incident'lık sabit snapshot alt kümesi; repoda tutulur. P1a'da 4 pilot vaka, kırpılmış (pencere, seyreltilmiş izler, kuralın ve puanlamanın alanları), toplam ≤ 5 MB |
 | `tests/fixtures/rule_expected.json`, `signal_strengths`, `tests/test_rule_fixtures.py` | Örneklerde kural baseline'ın beklenen çıktısı (cevaplar, puanlar, set tablosu; süreler hariç) / içindeki her servisin her sinyalinin gücü (ölçü katmanı regresyonu) / bunu CI'da yeniden üreten test |
+| `tests/fixtures/baro_expected.json`, `baro_fixture_result()` | CI örneklerinde BARO'nun beklenen çıktısı (cevaplar ve ham sıra-puanlar, puanlar, set tablosu; süreler hariç) / bunu üreten `tests/test_baro.py` fonksiyonu |
 | `docs/OTEL_DEMO.md` | OpenTelemetry Demo keşif notları: modlar, bellek, senaryolar, sızıntı yolları |
 | `docs/INCIDENT_CATALOG.md` | Enjekte edilecek hatalar, doğru cevap kuralı, beklenen belirti ve yayılım yolları |
 | `noise_layer` | Gürültü katmanı: asıl hatayla aynı anda açılan, yanıltıcı ama kök neden olmayan etki (ör. trafik seli) |

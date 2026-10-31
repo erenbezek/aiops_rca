@@ -118,6 +118,7 @@ flowchart LR
 | `tests/test_baro.py` | BARO tablosu (ve portu) birim testleri, sentetik verilerle |
 | `tests/fixtures/snapshots/` | CI örnekleri: 4 pilot vakanın kırpılmış görünümü (≤ 5 MB; üretici repo dışı `p1a_fixtures.py`) |
 | `tests/fixtures/rule_expected.json`, `tests/test_rule_fixtures.py` | Örneklerde kural baseline'ın beklenen çıktısı ve sinyal güçleri; CI aynısını üretir |
+| `tests/fixtures/baro_expected.json` | Örneklerde BARO'nun beklenen çıktısı; `tests/test_baro.py` CI'da aynısını üretir |
 | `tests/test_cases.py`, `tests/test_answer.py`, `tests/test_scoring.py` | Erişim korumaları, şema ve puanlama birim testleri (sahte verilerle) |
 | `tests/test_leakage.py` | Sızıntı testinin testleri (kart ölçütleri, kural biçimleri, girdi hataları) |
 | `tests/fixtures/leakage/` | Sahte OTLP JSON dosyaları: `leak_*.jsonl` (OTEL_DEMO.md sızıntı tablosu), `clean_*.jsonl` (temiz, yanlış alarm adayları) |
