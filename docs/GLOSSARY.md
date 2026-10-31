@@ -17,6 +17,7 @@ Sadece Eren'in onayladığı isimler.
 | `eval_responses/` | Resmî değerlendirme koşusunun LLM cevapları; repoda tutulur |
 | `tests/fixtures/snapshots/` | CI için 3-5 incident'lık sabit snapshot alt kümesi; repoda tutulur. P1a'da 4 pilot vaka, kırpılmış (pencere, seyreltilmiş izler, kuralın ve puanlamanın alanları), toplam ≤ 5 MB |
 | `tests/fixtures/rule_expected.json`, `signal_strengths`, `tests/test_rule_fixtures.py` | Örneklerde kural baseline'ın beklenen çıktısı (cevaplar, puanlar, set tablosu; süreler hariç) / içindeki her servisin her sinyalinin gücü (ölçü katmanı regresyonu) / bunu CI'da yeniden üreten test |
+| `tests/fixtures/baro_expected.json`, `baro_fixture_result()` | CI örneklerinde BARO'nun beklenen çıktısı (cevaplar ve ham sıra-puanlar, puanlar, set tablosu; süreler hariç) / bunu üreten `tests/test_baro.py` fonksiyonu |
 | `docs/OTEL_DEMO.md` | OpenTelemetry Demo keşif notları: modlar, bellek, senaryolar, sızıntı yolları |
 | `docs/INCIDENT_CATALOG.md` | Enjekte edilecek hatalar, doğru cevap kuralı, beklenen belirti ve yayılım yolları |
 | `noise_layer` | Gürültü katmanı: asıl hatayla aynı anda açılan, yanıltıcı ama kök neden olmayan etki (ör. trafik seli) |
@@ -31,6 +32,12 @@ Sadece Eren'in onayladığı isimler.
 | `top1`, `top3`, `evidence_valid`, `label_path_overlap`, `brier`, `selective_accuracy`, `coverage` | Puan alanları; `evidence_valid` null = kenarsız yol (ayrı sayılır) |
 | `schema_valid`, `matched`, `unmatched`, `evidence_edges` (`seen`: `forward` / `reverse` / `both` / null) | Puan satırının ek alanları: şemaya uygun mu, eşleşen ve eşleşmeyen adlar, yolun kenarları ve izlerde görüldükleri yön (`reverse`: sonraki servis öncekini çağırdı, senkron yayılım; `forward`: önceki sonrakini çağırdı, Kafka) |
 | `src/aiops_rca/methods/`, `methods/rule.py`, `rule_baseline` | Kök neden yöntemleri paketi (yöntem `Case` alır, cevap + ham çıktı döner) / kural baseline: C2'nin basit kuralı olduğu gibi, güven null, kenarsız yol |
+| `src/aiops_rca/methods/baro.py`, `baro_table()`, `baro_rank()`, `baro_baseline`, `METHODS["baro"]` | BARO yöntemi (P1b): vaka görünümünden 10 sn'lik tablo / RCAEval `baro`'sunun saf Python portu (sütun sırası ve puanlar) / yöntem (`--method baro`) |
+| `_cpu`, `_mem`, `_net_rx`, `_net_tx`, `_latency`, `_requests`, `_errors` | BARO tablosunun sütun ekleri (`<servis>_<ek>`): CPU (çekirdek yüzdesi), bellek (bayt; RCAEval MB'a çevirir), ağ alma/gönderme (bayt/sn), gecikme p90 (ms), istek ve hata sayısı |
+| `BUCKET_S`, `HALF_S`, `N_BUCKETS`, `METRICS`, `CONTAINER_METRICS`, `NET_RX`, `NET_TX` | `methods/baro.py` sabitleri: kova (10 sn), yarım pencere (600 sn), kova sayısı (120), metrik sırası, metrik adı → ek, ağ sayaçlarının adları |
+| `_fill`, `_preprocess`, `_lerp`, `_percentile`, `_median`, `EPS` | BARO portunun yardımcıları: `main.py` ön adımları (sonsuz → NaN, ffill, fillna(0)) / `preprocess` (drop_time, drop_constant, `_mem` / 1e6) / numpy `_lerp` / numpy doğrusal yüzdelik / medyan / float64 eps (`RobustScaler` sıfır ölçek eşiği 10·eps) |
+| `_service_of` | BARO: sütun adından servis (bilinen metrik eki sağdan kesilir) |
+| `task/p1-baro` | Proje 1 P1b dalı: BARO baseline |
 | `src/aiops_rca/runs.py`, `new_run()`, `append_response()`, `read_run()`, `EVAL_RESPONSES` | Koşu kaydı: koşu klasörü `<UTC>-<yöntem>/` açar / vaka cevabını ekler / koşuyu okur / resmî koşu kökü (`eval_responses/`) |
 | `run.json`, `responses.jsonl`, `scores.json` | Koşu klasörünün dosyaları: koşu ayarları ve sürüm / vaka başına cevap / puanlar ve set özeti (`evaluate score` yazar) |
 | `repo_clean`, `schema_errors`, `raw_output` | Kayıt alanları: koşu başında kod ağacı temiz mi (`eval_responses/` hariç) / şema hataları / yöntemin ham çıktısı |
@@ -216,4 +223,4 @@ Sadece Eren'in onayladığı isimler.
 | `v3_night2a` | 2. gece listesinin ilk parçası (`v3_night2`'nin 1–15. girişleri, 15 vaka) |
 | `v3_night2b` | 2. gece listesinin kalan parçası (16–20. girişler, 5 vaka) |
 | `tests/test_v3_lists.py` | V3 gece listelerinin kart tablosuyla birebir karşılaştırması (bileşim, gece sayıları, gece sonları, ortak çiftler ayrı gecede, ayrılan birimler yalnız testte, koşucunun liste denetimi) |
-| `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi; P1a: `p1a_equality.py`, `p1a_path_check.py`, `p1a_fixtures.py` CI örneği üreticisi, `p1a_rawlog_size.py`); yol ve sha256 HANDOFF'ta |
+| `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi; P1a: `p1a_equality.py`, `p1a_path_check.py`, `p1a_fixtures.py` CI örneği üreticisi, `p1a_rawlog_size.py`; P1b: `p1b_equality.py` ve çıktı klasörü `p1b_eq/`); yol ve sha256 HANDOFF'ta |

@@ -2718,3 +2718,170 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - **P1c'ye bulgu:** ham log dev penceresinde (alarm ± 10 dk) medyan ~212 M karakter (~53 M token, OTLP JSON); yalnız loglar ~43 M karakter. Satır biçiminde birkaç kat küçülse de bağlamın binlerce katı. Sonuç tablosundaki "ham log" koşulu yeniden tanımlanmalı; seçenekler P1c kartında.
 - **PR açılabilir:** `task/p1-eval` → main. Açıklama sade, "Generated with Claude Code" satırı yok. CI yeşil olunca Eren birleştirir.
 - Sonra: P1b (BARO, kart yukarıda) yeni dalda; dal adı uygulama önerir.
+
+## 2026-10-30 · Planlama → Uygulama (P1c: girdi seviyeleri, daraltma, LLM katmanı)
+- Ne zaman: P1b birleştikten sonra, ayrı dal ve PR (dal adı uygulama önerir).
+- Kararlar: DECISIONS 2026-10-30 ("Ham log yeniden tanımlandı", "Girdi bütçesi", "Daraltma", "LLM ayarları"). P1a'nın erişim, şema, puanlama ve koşu kaydı aynen kullanılır.
+- Yapılacak (adlar önerilir, Eren onaylar, GLOSSARY'ye):
+  1. **LLM katmanı** pakete (`tools/trial_ask_models.py`'den):
+     - Beş model, sabit kimliklerle. OpenAI uyumlu uç noktalar, `json_schema` `strict`, temperature 0.
+     - Yerel sunucu bir kez açılır: digest'le sabit imaj, bağlam 8192, 4 iş parçacığı. Groq aralığı korunur.
+     - Taşıma hatasında (ör. 503) tek yeniden deneme, kayda. Şema dışı cevap yeniden sorulmaz, `schema_valid: false` olarak kaydedilir.
+     - Token ve süre kaydı. Denemeler `llm_cache/`, resmî koşular `eval_responses/`. API anahtarları `keys.env`'den, CI'a girmez.
+  2. **Üç girdi seviyesi** (deterministik):
+     - **ham:** alarm ± 10 dk WARN+ log satırları ve hata span'leri; metin satırı (zaman, servis, mesaj ya da span adı), zaman sırasıyla, hesaplanmış sayı yok. Sığmazsa kesme kuralı: uygulama önerir, Eren onaylar, koşmadan önce. Dev'de ayarlanmaz.
+     - **özet:** bütün servislerin önce/sonra sinyal tablosu (denemelerdeki biçim, `signals.py`'den).
+     - **daraltma:** 3. adımın ilk 5 adayı, aralarındaki çağrı kenarları, aday başına işlem düzeyi ve çağıran tarafı sinyalleri, en sık log mesajları.
+     - Her girdi istem dahil ≤ 6K token, yerel tokenizer ile ölçülür. Aşan girdi koşulmaz, kayda geçer.
+     - Takma ad üç seviyede (`trial_alias` mantığı), ad ve sızıntı kontrolüyle.
+  3. **Daraltma:** ayar yalnız pilot vakalarında. Kuralın kesin tanımı (öne alma dahil) dev'e bakmadan önce yazılır. Sonra dev'de bir kez "kök ilk 5'te mi".
+  4. **İstem ve duman koşusu:**
+     - Yeni şemaya göre istem metni (sistem + kullanıcı; seviyeye göre yalnız veri bloğu ve tarifi değişir) Eren'e önerilir. Onaydan önce model koşmaz.
+     - Duman: 5 model × 3 seviye × 2 pilot vaka (birinde takma ad).
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - **LLM katmanı:** sahte sunucuyla birim testleri (şema dönüşümü, şema dışı kaydı, yeniden deneme, token ve süre). CI'da ağ yok.
+  - **Girdiler:** üç seviye iki üretimde birebir aynı. Pilot 25 + dev 18 vakanın hepsinde ≤ 6K token (sayılar kayda). Takma adlı girdilerde gerçek ad yok, sızıntı 0.
+  - **Daraltma:** pilotta ayar kaydı ve pilotta ilk 5 oranı. **Dev'de ilk 5'te kök ≥ 15/18.** Tutmazsa planlama; dev'e göre ayar yapılmaz.
+  - **Duman:** istem Eren onaylı. Cevapların şemaya uygunluk oranı kayda; şema dışı varsa nedeni yazılır. Süreler kayda. Doğruluk yorumlanmaz.
+  - pytest yeşil; PR koşusu yeşil.
+- Dikkat:
+  - Test seti okunmaz. Dev'de model koşulmaz (P1d).
+  - Demo gerekmez.
+  - Kesme kuralı, K ve öne alma kuralı koşmadan önce yazılı.
+
+## 2026-10-30 · Uygulama → Planlama (P1b 1. adım: BARO tablosu)
+- `methods/baro.py` `baro_table(case)`: alarm − 600 sn'den başlayan 120 kova × 10 sn. Sütunlar `<servis>_{cpu,mem,net_rx,net_tx,latency,requests,errors}`; tanım modül belgesinde ve DECISIONS 2026-10-30 "BARO girdisi düzeltmesi"nde. Eksik değerler NaN kalır; RCAEval ön adımları (sonsuz → NaN, `ffill`, `fillna(0)`) 2. adımda portun önünde.
+- RCAEval `main.py` (GitHub main, sha256 `f116bc88a3eecdcde87111292f59504337eb9c4e13e978104af001f6c4a4acca`) uygulamada da okundu. Ön adımlar planlamanın düzeltmesiyle aynı.
+- `tests/test_baro.py` (4 test, sentetik): ızgara ve 60/60, sütun sırası ve dışlamalar, CPU hızı (pencere öncesi noktayla), sayaç geri düşmesi, arayüz toplamı, p90, boş kova. pytest 461/461.
+- Gerçek dev vakaları (her biri ~1,2 sn, 113 sütun, 17 servis):
+  - `inc-ac820869`: 7 sütunda NaN var.
+  - `inc-230c9d46` (containerStop recommendation): 13 sütunda NaN var; recommendation'ın sütunları anomali döneminin 58–59 kovasında NaN.
+  - `inc-9292257f` (containerPause cart): 14 sütunda NaN var; cart gecikmesi anomali döneminin 60 kovasının hepsinde NaN.
+  - checkout, payment ve email gecikmesi seyrek trafik yüzünden sık NaN.
+- Planlama kontrol etti (bir dev vakasında 7 hücre bağımsız kodla aynı).
+
+## 2026-10-30 · Uygulama → Planlama (P1b 2. adım: port ve eşitlik kontrolü)
+- `methods/baro.py` `baro_rank(table, alarm_s)`, saf Python. Sırasıyla:
+  - `main.py` ön adımları: sonsuz → NaN, ffill, fillna(0).
+  - `preprocess(dataset="re2-ob")`: `drop_time`, `drop_constant`, `_mem` / 1e6.
+  - Ortak sütunlar; `RobustScaler` hesabı (medyan, numpy doğrusal yüzdelik ve `_lerp`, ölçek < 10·eps → 1).
+  - `max(z)` ve kararlı sıralama.
+  - Birim testleri `tests/test_baro.py`'de (+4, toplam 8). pytest 465/465.
+- Eşitlik (5 dev vakası; betik `~/cerebrum2/analysis/p1b_equality.py`, sha256 `eee42217049b5241fcf15a8181ab878712e52f887bf4904b1caa6f889d6725f4`):
+
+| Vaka | Sütun | port = gerçek `baro()` | kopya = gerçek `baro()` | port = kopya | En büyük puan farkı |
+|---|---|---|---|---|---|
+| `inc-230c9d46` (containerStop recommendation) | 95 | evet | evet | evet | 0,0 |
+| `inc-9292257f` (containerPause cart) | 81 | evet | evet | evet | 0,0 |
+| `inc-ac820869` | 96 | evet | evet | evet | 0,0 |
+| `inc-4a62b9bb` | 96 | evet | evet | evet | 0,0 |
+| `inc-b4d12a5e` | 96 | evet | evet | evet | 0,0 |
+
+  - Sonuç: geçti. Puanlar bit düzeyinde aynı. Çıktılar `p1b_eq/port.json` (`45038e59…f61d`), `p1b_eq/ref.json` (`10d77d4e…c4f`).
+  - Kasıtlı kırmızı: portta `/1e6` kaldırılınca `inc-4a62b9bb`'de sıra değişti, sonuç GEÇMEDİ. Diğer 4 vakada sıra aynı kaldı, puan farkı ~1e-11: ölçekleme ölçeğe duyarsız, yalnız yuvarlama farkı. Port geri alındı.
+- Referans ortamı (geçici, silindi; 371 MB):
+  - RCAEval 1.9.0 (wheel sha256 `d0571aeddf44680285094dc1d338ef07817c2317bf8ad93c00ffa1bb32c07a5b`), numpy 2.5.4, pandas 3.1.0, scikit-learn 1.9.1.
+  - Açılış zinciri için: requests 2.34.2 (Eren onayı), tqdm 4.70.1 (ön izin).
+  - Bağımlılık olarak gelenler: scipy 1.18.1, joblib 1.6.0, threadpoolctl 3.7.0, narwhals 2.28.0, cloudpickle 3.1.2, python-dateutil 3.0.0, six 1.17.0, tzdata 2026.6, certifi, charset-normalizer, idna, urllib3.
+  - Tam liste `p1b_eq/ref_venv_freeze.txt` (`e58487b4…c47d`).
+- Planlama kontrol etti. Adlar onaylı, GLOSSARY'de.
+
+## 2026-10-31 · Uygulama → Planlama (P1b 3a: BARO yöntemi)
+- `methods/baro.py` `baro_baseline`:
+  - Servis sırası sütun sırasından çıkar (`_service_of`: bilinen ek sağdan kesilir); ilk 3 servis aday olur.
+  - `confidence` null, `evidence_path` [servis], `unsure` false. Gerekçe: en üstteki sütun ve puanı. Ham çıktı: bütün sütun sırası ve puanlar.
+- `evaluate.py`: `METHODS["baro"]`, yani `--method baro`.
+- `tests/test_evaluate.py`'e `test_baro_run_schema_and_answers` eklendi. pytest 466/466.
+  - Test, normal dönemde sabit sütunun (hep 0 hata) `drop_constant` ile atıldığını da sınar: alarmdan sonra başlayan hata BARO'ya girmez. Bu RCAEval'in davranışı.
+  - Testin ilk sürümü bunu bilmeden "hata veren servis en üstte" bekliyordu (uygulamanın beklenti hatası, kod doğru).
+- Resmî koşu 3b'de, bu commit'ten.
+
+## 2026-10-31 · Uygulama → Planlama (P1b 3b: BARO resmî koşusu)
+- İki koşu yapıldı: `eval_responses/20261031T060600Z-baro` ve `20261031T060653Z-baro`.
+  - İkisi de commit `c609b35`'ten, `repo_clean: true`, setler pilot + dev, 43 vaka.
+  - 43/43 cevap şemaya uygun, tam 3 aday.
+  - İki koşunun `responses.jsonl`'ı ve `scores.json`'ı süre dışında birebir aynı.
+- Tabloyu yeniden üretmek için: `python -m aiops_rca.evaluate score eval_responses/20261031T060600Z-baro`. Tablo (1. koşu):
+
+| Set | Vaka | top-1 | top-3 | Kanıt geçerli | Kanıt geçersiz | Kenarsız | Örtüşme | Brier | Seçici doğruluk | Kapsama | Şema dışı | Süre (sn) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| dev | 18 | 5/18 (0.278) | 10/18 (0.556) | 0 | 0 | 18 | 0.0 | — | 0.278 | 1.0 | 0 | 23.143 |
+| pilot | 25 | 6/25 (0.24) | 17/25 (0.68) | 0 | 0 | 25 | 0.0 | — | 0.24 | 1.0 | 0 | 29.747 |
+| toplam | 43 | 11/43 (0.256) | 27/43 (0.628) | 0 | 0 | 43 | 0.0 | — | 0.256 | 1.0 | 0 | 52.89 |
+
+- Bilgi (planlamanın isteği, yorum yok):
+  - En üst sütun 17/43 vakada bir konteynerin `_mem`'i: telemetry-docs 11, currency 3, recommendation 1, shipping 1, image-provider 1.
+  - En üst sütunun eki: `_latency` 19, `_mem` 17, `_net_rx` 5 (hepsi telemetry-docs), `_cpu` 2.
+- Vaka başına (kök, BARO'nun en üst sütunu, 3 aday):
+
+| Vaka | Set | Giriş | Kök | En üst sütun | BARO'nun adayları | top-1 | top-3 |
+|---|---|---|---|---|---|---|---|
+| `inc-01a609bb` | pilot | containerStop recommendation on | recommendation | frontend_latency | frontend, frontend-proxy, telemetry-docs | hayır | hayır |
+| `inc-01dd32ce` | pilot | networkDelay cart 200ms | cart | telemetry-docs_net_rx | telemetry-docs, cart, frontend | hayır | evet |
+| `inc-072897d4` | pilot | emailMemoryLeak_1000x | email | telemetry-docs_mem | telemetry-docs, currency, image-provider | hayır | hayır |
+| `inc-07533a0a` | pilot | paymentUnreachable_on | checkout | telemetry-docs_mem | telemetry-docs, checkout, valkey-cart | hayır | evet |
+| `inc-09516b21` | pilot | adHighCpu_on | ad | ad_cpu | ad, image-provider, currency | evet | evet |
+| `inc-0c4902c3` | dev | adFailure_on | ad | telemetry-docs_mem | telemetry-docs, payment, ad | hayır | evet |
+| `inc-0f31ed0e` | pilot | productCatalogLockContention_on | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
+| `inc-110f3aba` | pilot | adManualGc_on | ad | ad_latency | ad, image-provider, payment | evet | evet |
+| `inc-12813456` | pilot | adFailure_on | ad | telemetry-docs_mem | telemetry-docs, currency, shipping | hayır | hayır |
+| `inc-230c9d46` | dev | containerStop recommendation on | recommendation | frontend_latency | frontend, telemetry-docs, payment | hayır | hayır |
+| `inc-234d34cf` | dev | paymentUnreachable_on | checkout | currency_mem | currency, telemetry-docs, shipping | hayır | hayır |
+| `inc-2a87f603` | pilot | containerPause cart on | cart | checkout_latency | checkout, frontend, telemetry-docs | hayır | hayır |
+| `inc-2dd806a2` | pilot | quoteGatewaySlowdown_30ms | quote-gateway | telemetry-docs_net_rx | telemetry-docs, currency, payment | hayır | hayır |
+| `inc-2e5706ab` | pilot | networkDelay cart 50ms | cart | cart_latency | cart, telemetry-docs, frontend | evet | evet |
+| `inc-320c56f9` | dev | adHighCpu_on | ad | ad_cpu | ad, telemetry-docs, quote | evet | evet |
+| `inc-3967c278` | pilot | cpuThrottle product-catalog 0.09 | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
+| `inc-48be145f` | pilot | intlShippingSlowdown_10sec | shipping | shipping_latency | shipping, checkout, telemetry-docs | evet | evet |
+| `inc-4a62b9bb` | dev | productCatalogLockContention_on | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
+| `inc-5cb2c977` | dev | packetLoss shipping 10% | shipping | shipping_latency | shipping, telemetry-docs, checkout | evet | evet |
+| `inc-73ac64e9` | dev | networkDelay cart 50ms | cart | telemetry-docs_mem | telemetry-docs, cart, currency | hayır | evet |
+| `inc-78df5642` | pilot | recommendationCacheFailure_on | recommendation | recommendation_mem | recommendation, frontend, payment | evet | evet |
+| `inc-79cab5da` | pilot | cpuThrottle product-catalog 0.045 | product-catalog | telemetry-docs_net_rx | telemetry-docs, recommendation, product-catalog | hayır | evet |
+| `inc-8069b709` | dev | emailMemoryLeak_1000x | email | telemetry-docs_mem | telemetry-docs, currency, payment | hayır | hayır |
+| `inc-86d286ea` | dev | adManualGc_on | ad | ad_latency | ad, currency, telemetry-docs | evet | evet |
+| `inc-8ceb7ae5` | pilot | paymentFailure_50pct | payment | shipping_mem | shipping, payment, telemetry-docs | hayır | evet |
+| `inc-91bf76d4` | pilot | quoteGatewayMisroute_on | quote-gateway | telemetry-docs_mem | telemetry-docs, quote-gateway, shipping | hayır | evet |
+| `inc-91c1ad44` | pilot | packetLoss shipping 10% | shipping | telemetry-docs_net_rx | telemetry-docs, shipping, checkout | hayır | evet |
+| `inc-9292257f` | dev | containerPause cart on | cart | checkout_latency | checkout, frontend, frontend-proxy | hayır | hayır |
+| `inc-93c4ca55` | pilot | paymentFailure_50pct | payment | telemetry-docs_mem | telemetry-docs, payment, recommendation | hayır | evet |
+| `inc-ac155a23` | dev | cartFailure_50pct | cart | checkout_latency | checkout, telemetry-docs, quote | hayır | hayır |
+| `inc-ac820869` | dev | paymentFailure_50pct | payment | telemetry-docs_mem | telemetry-docs, currency, payment | hayır | evet |
+| `inc-ae15665a` | dev | quoteGatewaySlowdown_30ms + flood | quote-gateway | currency_mem | currency, payment, telemetry-docs | hayır | hayır |
+| `inc-af671750` | pilot | paymentFailure_50pct + flood | payment | telemetry-docs_mem | telemetry-docs, frontend, payment | hayır | evet |
+| `inc-b03ccffb` | pilot | productCatalogFailure_on | product-catalog | currency_mem | currency, payment, telemetry-docs | hayır | hayır |
+| `inc-b4d12a5e` | dev | quoteGatewaySlowdown_30ms | quote-gateway | telemetry-docs_mem | telemetry-docs, currency, payment | hayır | hayır |
+| `inc-bfbbd586` | dev | recommendationCacheFailure_on | recommendation | recommendation_latency | recommendation, frontend, telemetry-docs | evet | evet |
+| `inc-c775923b` | pilot | packetLoss shipping 30% | shipping | shipping_latency | shipping, telemetry-docs, checkout | evet | evet |
+| `inc-d6d5f1b2` | dev | productCatalogFailure_on | product-catalog | telemetry-docs_net_rx | telemetry-docs, payment, image-provider | hayır | hayır |
+| `inc-d8f67a48` | pilot | memoryLimit frontend 0.9 | frontend | image-provider_mem | image-provider, telemetry-docs, payment | hayır | hayır |
+| `inc-d9ea423d` | dev | intlShippingSlowdown_10sec | shipping | shipping_latency | shipping, checkout, telemetry-docs | evet | evet |
+| `inc-ef72f574` | pilot | cartFailure_50pct | cart | checkout_latency | checkout, telemetry-docs, currency | hayır | hayır |
+| `inc-f20daed8` | pilot | productCatalogLockContention_on + flood | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
+| `inc-fa775703` | dev | cpuThrottle product-catalog 0.09 | product-catalog | recommendation_latency | recommendation, frontend, product-catalog | hayır | evet |
+
+## 2026-10-31 · Planlama → Uygulama (P1b 1–3 kontrolü; P1e için sınırlama notları)
+- P1b 1–3 kartla uyumlu. Planlamanın bağımsız kontrolleri:
+  - Tablo: bir dev vakasında (`inc-73ac64e9`) 7 hücre bağımsız kodla birebir aynı (istek, p90 gecikme, CPU); 113 sütun × 120 satır, 60 normal.
+  - Eşitlik: RCAEval 1.9.0 gerçek `baro()` ve referans kopyayla 5 dev vakasında sıra aynı, puanlar bit düzeyinde aynı (uygulamanın raporu, çıktılar `p1b_eq/`).
+  - Tablo kayıtlardan tek komutla aynı (`scores.json` sha değişmedi).
+  - Bağımsız sayım: top-1 11/43, top-3 27/43. Yalnız pilot ve dev; iki koşu süre hariç aynı.
+  - HEAD koduyla yeniden koşu: 43 cevap resmî koşuyla aynı. pytest 466/466.
+- Sonuç (yorum P1e'de): kural top-1 22/43, top-3 36/43; BARO 11/43, 27/43.
+- **P1e için sınırlama notları** (sonuç tablosunun yanında yazılır; şimdi bir şey değişmez, değişirse sonuca göre ayar olur):
+  1. **Bellek ve ağ kayması:** demo her vakadan ~5 dk önce yeniden başlıyor. Yeni konteynerlerin belleği ve ağ trafiği artıyor, BARO yalnız artışı puanladığı için bunu yakalıyor. En üst sütun 16/43 vakada `telemetry-docs` (bellek 11, ağ 5). RCAEval veri setlerinde sistem enjeksiyondan çok önce açık; bu etki orada yok.
+  2. **Normal dönemde sabit sütun atılır** (RCAEval `drop_constant`, iki dönemin ortak sütunları). Normalde hep 0 olan hata sayısı düşer; alarmdan sonra başlayan hata BARO'ya girmez.
+  3. **Yalnız artış puanlanır:** durdurulan ya da dondurulan konteynerin düşüşü görünmez; çağıranların gecikmesi öne çıkar.
+  - Savunma: port RCAEval'le bit düzeyinde aynı, tablo koşmadan önce yazılı, dev'de ayar yok.
+- Kalan: kapanış (CI'da BARO beklenen çıktısı, kasıtlı kırmızı), PR. Birleştirme CI'dan ve planlamanın kapanış kontrolünden sonra.
+
+## 2026-10-31 · Uygulama → Planlama (P1b kapanış: CI beklenen çıktısı)
+- `tests/fixtures/baro_expected.json` + `tests/test_baro.py::test_baro_reproduces_expected_output_on_fixtures`.
+  - Karşılaştırılanlar: P1a'nın 4 CI örneğinde BARO'nun cevapları ve ham çıktısı (bütün sütun sırası ve puanlar), puanlar, set tablosu. Süreler hariç.
+  - Örneklerin metrikleri yalnız CPU ve bellek; ağ sütunu yok. Örneklerde top-1 2/4, top-3 4/4.
+- Kasıtlı kırmızı, önbellek kapalı (her biri geri alındı, `src` HEAD ile aynı):
+  - z'den ölçek kaldırılınca test kırmızı.
+  - `drop_constant` kaldırılınca test kırmızı.
+  - numpy `_lerp` yerine düz `a + (b−a)·t` yazılınca test yeşil kaldı: bu 4 örnekte iki formül aynı sonucu verdi (en fazla son bitte ayrışırlar).
+- pytest 467/467. GLOSSARY: `baro_expected.json`, `baro_fixture_result()`. ARCHITECTURE tablosu güncel.
+- Sıradaki: PR (`task/p1-baro` → main); birleştirme planlamanın kapanış kontrolünden sonra.

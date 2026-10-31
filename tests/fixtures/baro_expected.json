@@ -1,0 +1,266 @@
+{
+ "responses": [
+  {
+   "answer": {
+    "candidates": [
+     {
+      "confidence": null,
+      "evidence_path": [
+       "product-catalog"
+      ],
+      "rationale": "top column product-catalog_latency: score 10200.3",
+      "service": "product-catalog"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "frontend"
+      ],
+      "rationale": "top column frontend_latency: score 5146.14",
+      "service": "frontend"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "frontend-proxy"
+      ],
+      "rationale": "top column frontend-proxy_latency: score 2665.65",
+      "service": "frontend-proxy"
+     }
+    ],
+    "unsure": false
+   },
+   "incident_id": "inc-0f31ed0e",
+   "raw_output": "[[\"product-catalog_latency\", 10200.330275229358], [\"frontend_latency\", 5146.141414141414], [\"frontend-proxy_latency\", 2665.6533333333327], [\"recommendation_latency\", 1174.1818181818182], [\"telemetry-docs_mem\", 86.24999999999791], [\"astronomy-db_mem\", 29.00581395348862], [\"payment_mem\", 26.02832415420926], [\"quote_mem\", 14.77966101694933], [\"astronomy-db_cpu\", 13.191169220134336], [\"recommendation_mem\", 8.949416342412455], [\"valkey-cart_mem\", 8.781249999999995], [\"checkout_mem\", 5.101280558789288], [\"product-catalog_requests\", 5.0], [\"shipping_cpu\", 4.655186983067673], [\"valkey-cart_cpu\", 4.570043866767785], [\"product-catalog_mem\", 4.500967117988395], [\"checkout_cpu\", 4.1853202439211055], [\"currency_requests\", 4.0], [\"ad_cpu\", 3.3057826455884256], [\"ad_mem\", 3.273558368495057], [\"cart_requests\", 3.0], [\"quote_cpu\", 2.6380266531521244], [\"recommendation_cpu\", 2.4271533128268876], [\"payment_cpu\", 2.394619532390328], [\"telemetry-docs_cpu\", 2.0223991764261386], [\"currency_cpu\", 1.9655003617889557], [\"product-catalog_cpu\", 1.8821545022570076], [\"frontend_requests\", 1.8461538461538463], [\"image-provider_cpu\", 1.8268740875778127], [\"email_cpu\", 1.7547381768674724], [\"frontend_mem\", 1.341218478018293], [\"currency_mem\", 1.2158836689038022], [\"image-provider_mem\", 1.0113805047006434], [\"cart_latency\", 1.0000000000000002], [\"ad_requests\", 1.0], [\"image-provider_requests\", 1.0], [\"recommendation_requests\", 1.0], [\"telemetry-docs_requests\", 1.0], [\"cart_cpu\", 0.9358751080743029], [\"frontend-proxy_requests\", 0.8333333333333334], [\"frontend_cpu\", 0.625314662934572], [\"ad_latency\", 0.4545454545454546], [\"cart_mem\", 0.2800183318056815], [\"currency_latency\", 0.1], [\"frontend-proxy_cpu\", -0.02603021094465764], [\"email_mem\", -0.033898305084747955], [\"shipping_mem\", -0.1955241460541816], [\"frontend-proxy_mem\", -0.47050290135396344]]",
+   "schema_errors": [],
+   "schema_valid": true,
+   "tokens": null
+  },
+  {
+   "answer": {
+    "candidates": [
+     {
+      "confidence": null,
+      "evidence_path": [
+       "telemetry-docs"
+      ],
+      "rationale": "top column telemetry-docs_mem: score 207.2",
+      "service": "telemetry-docs"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "currency"
+      ],
+      "rationale": "top column currency_mem: score 136.552",
+      "service": "currency"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "quote-gateway"
+      ],
+      "rationale": "top column quote-gateway_cpu: score 49.5226",
+      "service": "quote-gateway"
+     }
+    ],
+    "unsure": false
+   },
+   "incident_id": "inc-2dd806a2",
+   "raw_output": "[[\"telemetry-docs_mem\", 207.1999999999726], [\"currency_mem\", 136.55172413792923], [\"quote-gateway_cpu\", 49.522630882854706], [\"shipping_latency\", 37.4], [\"quote-gateway_latency\", 34.9], [\"quote_mem\", 33.078947368421176], [\"payment_mem\", 15.453211009174334], [\"quote-gateway_mem\", 11.625000000001112], [\"cart_latency\", 10.999999999999995], [\"valkey-cart_cpu\", 10.709650154371808], [\"product-catalog_requests\", 10.0], [\"currency_cpu\", 8.926907471064746], [\"image-provider_cpu\", 7.021074346999276], [\"astronomy-db_mem\", 6.815068493150679], [\"shipping_cpu\", 6.324193712883293], [\"frontend_latency\", 5.199999999999999], [\"recommendation_latency\", 5.162162162162162], [\"frontend-proxy_latency\", 4.787878787878786], [\"telemetry-docs_cpu\", 4.561132890165923], [\"ad_cpu\", 4.116917747336887], [\"currency_requests\", 4.0], [\"cart_cpu\", 3.728299260475534], [\"recommendation_cpu\", 3.5949832504825388], [\"payment_cpu\", 3.3788383662715766], [\"image-provider_requests\", 3.0], [\"product-catalog_latency\", 2.780487804878048], [\"frontend-proxy_cpu\", 2.283584844428002], [\"recommendation_mem\", 2.0431654676258924], [\"cart_requests\", 2.0], [\"recommendation_requests\", 2.0], [\"quote_cpu\", 1.9478664868634217], [\"checkout_cpu\", 1.9234331260803377], [\"astronomy-db_cpu\", 1.8736056363487859], [\"image-provider_mem\", 1.8538205980066478], [\"email_cpu\", 1.7589280477234805], [\"frontend_mem\", 1.6798975672215122], [\"frontend_cpu\", 1.4971148282991056], [\"product-catalog_cpu\", 1.4218653088824933], [\"frontend-proxy_requests\", 1.3333333333333333], [\"frontend_requests\", 1.2307692307692308], [\"valkey-cart_mem\", 1.1162790697674403], [\"product-catalog_mem\", 1.0059605685465387], [\"ad_requests\", 1.0], [\"quote_requests\", 1.0], [\"quote-gateway_requests\", 1.0], [\"shipping_requests\", 1.0], [\"telemetry-docs_requests\", 1.0], [\"ad_latency\", 0.9756097560975611], [\"checkout_mem\", 0.7543828581547724], [\"ad_mem\", 0.7367872949752592], [\"quote_latency\", 0.6], [\"email_mem\", 0.4411050864962562], [\"shipping_mem\", 0.17115591811605357], [\"frontend-proxy_mem\", 0.084487650200267], [\"cart_mem\", 0.05807591595171682]]",
+   "schema_errors": [],
+   "schema_valid": true,
+   "tokens": null
+  },
+  {
+   "answer": {
+    "candidates": [
+     {
+      "confidence": null,
+      "evidence_path": [
+       "cart"
+      ],
+      "rationale": "top column cart_latency: score 1526",
+      "service": "cart"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "telemetry-docs"
+      ],
+      "rationale": "top column telemetry-docs_mem: score 591",
+      "service": "telemetry-docs"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "frontend-proxy"
+      ],
+      "rationale": "top column frontend-proxy_latency: score 58.7456",
+      "service": "frontend-proxy"
+     }
+    ],
+    "unsure": false
+   },
+   "incident_id": "inc-2e5706ab",
+   "raw_output": "[[\"cart_latency\", 1526.0000000000005], [\"telemetry-docs_mem\", 590.9999999999857], [\"frontend-proxy_latency\", 58.74564459930313], [\"shipping_mem\", 58.49382716049359], [\"frontend_latency\", 58.020618556701045], [\"checkout_mem\", 36.649746192893545], [\"currency_mem\", 35.785714285713965], [\"recommendation_mem\", 24.832579185520476], [\"valkey-cart_mem\", 18.739299610894925], [\"quote_mem\", 17.719148936170285], [\"payment_mem\", 16.124320124320125], [\"cart_requests\", 16.0], [\"product-catalog_mem\", 9.588310038119445], [\"astronomy-db_mem\", 9.573770491803197], [\"shipping_cpu\", 9.103835763003106], [\"checkout_cpu\", 6.6121594165500825], [\"product-catalog_requests\", 6.0], [\"recommendation_latency\", 6.0], [\"payment_cpu\", 5.429222229907647], [\"frontend-proxy_mem\", 5.341207349081428], [\"image-provider_cpu\", 5.073893461345307], [\"currency_cpu\", 5.030981471093876], [\"currency_requests\", 5.0], [\"valkey-cart_cpu\", 4.530288730031312], [\"frontend_cpu\", 4.385647882702531], [\"product-catalog_cpu\", 4.0741864950148745], [\"telemetry-docs_cpu\", 3.3479123899031222], [\"frontend_requests\", 3.0], [\"cart_mem\", 2.996015936254987], [\"frontend-proxy_cpu\", 2.8749629543590083], [\"recommendation_cpu\", 2.864865719197132], [\"quote_cpu\", 2.811494845337472], [\"cart_cpu\", 2.7680879598213437], [\"email_cpu\", 2.6934116832096224], [\"product-catalog_latency\", 2.6638297872340417], [\"ad_mem\", 2.4961773700305665], [\"frontend-proxy_requests\", 2.3333333333333335], [\"frontend_mem\", 2.233317778814739], [\"image-provider_requests\", 1.5], [\"email_mem\", 1.3813018506700705], [\"ad_cpu\", 1.342420564502283], [\"astronomy-db_cpu\", 1.2713654306406001], [\"ad_requests\", 1.0], [\"recommendation_requests\", 1.0], [\"ad_latency\", 0.8999999999999999], [\"image-provider_mem\", 0.7782805429864162]]",
+   "schema_errors": [],
+   "schema_valid": true,
+   "tokens": null
+  },
+  {
+   "answer": {
+    "candidates": [
+     {
+      "confidence": null,
+      "evidence_path": [
+       "shipping"
+      ],
+      "rationale": "top column shipping_mem: score 56.375",
+      "service": "shipping"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "payment"
+      ],
+      "rationale": "top column payment_mem: score 26.7768",
+      "service": "payment"
+     },
+     {
+      "confidence": null,
+      "evidence_path": [
+       "telemetry-docs"
+      ],
+      "rationale": "top column telemetry-docs_mem: score 14.7625",
+      "service": "telemetry-docs"
+     }
+    ],
+    "unsure": false
+   },
+   "incident_id": "inc-8ceb7ae5",
+   "raw_output": "[[\"shipping_mem\", 56.37499999999985], [\"payment_mem\", 26.776754075123986], [\"telemetry-docs_mem\", 14.762500000000001], [\"image-provider_mem\", 7.493670886075938], [\"frontend-proxy_mem\", 6.898550724637716], [\"quote_mem\", 6.352112676056349], [\"product-catalog_requests\", 6.0], [\"valkey-cart_mem\", 5.553500660501982], [\"recommendation_latency\", 5.111111111111112], [\"recommendation_mem\", 4.827292110874234], [\"currency_mem\", 4.67010309278351], [\"currency_requests\", 4.0], [\"frontend_latency\", 3.8522727272727275], [\"quote_cpu\", 3.772243904245703], [\"frontend-proxy_latency\", 3.5780821917808217], [\"cart_requests\", 3.0], [\"payment_cpu\", 2.964422288499333], [\"recommendation_cpu\", 2.7301125174790704], [\"email_cpu\", 2.7259311457474227], [\"checkout_cpu\", 2.676397591224974], [\"frontend-proxy_cpu\", 2.6188844405412617], [\"frontend_requests\", 2.2222222222222223], [\"frontend-proxy_requests\", 2.0], [\"frontend_mem\", 1.8685446009389786], [\"checkout_mem\", 1.843937575030011], [\"currency_cpu\", 1.794532371283894], [\"valkey-cart_cpu\", 1.7813128209947058], [\"product-catalog_latency\", 1.7710843373493974], [\"product-catalog_mem\", 1.6586021505376345], [\"shipping_cpu\", 1.6380510028920383], [\"image-provider_cpu\", 1.6134637797487852], [\"image-provider_requests\", 1.6], [\"email_mem\", 1.5446608462055063], [\"telemetry-docs_cpu\", 1.4993359146547003], [\"ad_mem\", 1.4778698224852047], [\"product-catalog_cpu\", 1.4563077883248674], [\"astronomy-db_cpu\", 1.4404972313561044], [\"frontend_cpu\", 1.3995708159856084], [\"cart_cpu\", 1.3842195146741167], [\"cart_mem\", 1.3434692467173435], [\"quote_latency\", 1.25], [\"ad_cpu\", 1.2140487443415524], [\"astronomy-db_mem\", 1.059854014598539], [\"ad_requests\", 1.0], [\"quote_requests\", 1.0], [\"recommendation_requests\", 1.0], [\"shipping_requests\", 1.0], [\"telemetry-docs_requests\", 1.0], [\"cart_latency\", 0.8999999999999999], [\"shipping_latency\", 0.6666666666666666], [\"currency_latency\", 0.1], [\"ad_latency\", 0.0]]",
+   "schema_errors": [],
+   "schema_valid": true,
+   "tokens": null
+  }
+ ],
+ "scores": [
+  {
+   "confidence": null,
+   "evidence_edges": [],
+   "evidence_valid": null,
+   "incident_id": "inc-0f31ed0e",
+   "label_path_overlap": 0.0,
+   "matched": [
+    "product-catalog",
+    "frontend",
+    "frontend-proxy"
+   ],
+   "schema_valid": true,
+   "set": "pilot",
+   "tokens": null,
+   "top1": true,
+   "top3": true,
+   "unmatched": [],
+   "unsure": false
+  },
+  {
+   "confidence": null,
+   "evidence_edges": [],
+   "evidence_valid": null,
+   "incident_id": "inc-2dd806a2",
+   "label_path_overlap": 0.0,
+   "matched": [
+    "telemetry-docs",
+    "currency",
+    "quote-gateway"
+   ],
+   "schema_valid": true,
+   "set": "pilot",
+   "tokens": null,
+   "top1": false,
+   "top3": true,
+   "unmatched": [],
+   "unsure": false
+  },
+  {
+   "confidence": null,
+   "evidence_edges": [],
+   "evidence_valid": null,
+   "incident_id": "inc-2e5706ab",
+   "label_path_overlap": 0.0,
+   "matched": [
+    "cart",
+    "telemetry-docs",
+    "frontend-proxy"
+   ],
+   "schema_valid": true,
+   "set": "pilot",
+   "tokens": null,
+   "top1": true,
+   "top3": true,
+   "unmatched": [],
+   "unsure": false
+  },
+  {
+   "confidence": null,
+   "evidence_edges": [],
+   "evidence_valid": null,
+   "incident_id": "inc-8ceb7ae5",
+   "label_path_overlap": 0.0,
+   "matched": [
+    "shipping",
+    "payment",
+    "telemetry-docs"
+   ],
+   "schema_valid": true,
+   "set": "pilot",
+   "tokens": null,
+   "top1": false,
+   "top3": true,
+   "unmatched": [],
+   "unsure": false
+  }
+ ],
+ "table": {
+  "all": {
+   "brier": null,
+   "brier_n": 0,
+   "coverage": 1.0,
+   "evidence_invalid": 0,
+   "evidence_null": 4,
+   "evidence_valid": 0,
+   "label_path_overlap_mean": 0.0,
+   "label_path_overlap_n": 4,
+   "n": 4,
+   "schema_invalid": 0,
+   "selective_accuracy": 0.5,
+   "tokens_input": null,
+   "tokens_output": null,
+   "top1": 2,
+   "top1_rate": 0.5,
+   "top3": 4,
+   "top3_rate": 1.0
+  },
+  "pilot": {
+   "brier": null,
+   "brier_n": 0,
+   "coverage": 1.0,
+   "evidence_invalid": 0,
+   "evidence_null": 4,
+   "evidence_valid": 0,
+   "label_path_overlap_mean": 0.0,
+   "label_path_overlap_n": 4,
+   "n": 4,
+   "schema_invalid": 0,
+   "selective_accuracy": 0.5,
+   "tokens_input": null,
+   "tokens_output": null,
+   "top1": 2,
+   "top1_rate": 0.5,
+   "top3": 4,
+   "top3_rate": 1.0
+  }
+ }
+}

@@ -103,3 +103,18 @@ def test_cli_refuses_test_set_without_flag(world, capsys):
     assert evaluate.main(["run", "--method", "rule", "--sets", "test", "--root", str(root)]) == 2
     assert "final_test" in capsys.readouterr().err
     assert evaluate.main(["run", "--method", "rule", "--sets", "heldout", "--final-test", "--root", str(root)]) == 2
+
+
+def test_baro_run_schema_and_answers(world):
+    # BARO (P1b): şemaya uygun tam 3 aday. Normal dönemde sabit sütun (ör. hep 0 hata) o dönemde atılır (RCAEval
+    # drop_constant), bu yüzden alarmdan sonra başlayan hata BARO'ya hiç girmez.
+    inc, snaps, root = world
+    run_dir = evaluate.cmd_run("baro", ("pilot", "dev"), False, root, incidents=inc, snapshots=snaps)
+    meta, rows = read_run(run_dir)
+    assert meta["method"] == "baro" and all(r["schema_valid"] for r in rows)
+    for r in rows:
+        cands = r["answer"]["candidates"]
+        assert len({c["service"] for c in cands}) == 3 and all(c["confidence"] is None for c in cands)
+        assert cands[0]["rationale"].startswith("top column ")
+    ranked = {r["incident_id"]: [c for c, _ in json.loads(r["raw_output"])] for r in rows}
+    assert "payment_errors" not in ranked["inc-a"] and "cart_errors" not in ranked["inc-b"]
