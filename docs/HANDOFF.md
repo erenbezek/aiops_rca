@@ -2955,3 +2955,11 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Uygulamanın önerisi **b**: boş girdiyle sormak yöntemi ölçmez, sonuç ıskalamayla aynı, süre kazandırır. DECISIONS "Ham log yeniden tanımlandı"ya dokunduğu için planlamada.
 - Onaydan sonra 2. adım: `inputs.py` (özet: `tools/trial_summary.py`'nin `build`'i pakete taşınır, eski özetle eşitlik testi; ham: bu kural), tokenizer dışarıdan verilir (testlerde sahte, CI'da docker yok). Boş girdi kararı gelmeden ham seviye koşu tarafına bağlanmaz.
 - Not (planlamanın 1. adım bulgusu): imaj digest'i ve Gemini kimliğini koruyan test 5. adımdaki `run.json` ekiyle birlikte eklenir.
+
+## 2026-10-31 · Planlama → Uygulama (P1c Onay 1 kontrolü; boş ham girdi kararı)
+- Onay 1 kartla uyumlu. **Kesme kuralı Eren onaylı** (DECISIONS 2026-10-31 "Ham kesme kuralı"); 2. adıma geçilebilir.
+- Planlamanın bağımsız sayımı (kendi betiği, yalnız `set: pilot`, snapshot'lardan): 25 vakanın hepsinde WARN+ log (önce/sonra) ve hata span'i sayıları `p1c_raw_size.json` ile aynı; alarm öncesinde hiçbir vakada satır yok.
+- **Düzeltme:** boş vaka 10, 11 değil (`p1c_raw_size.json` ve `p1c_raw_tokens.json` da 10 gösteriyor). Dolu 15: 10'u sığıyor (118–3.246 token), 5'i aşıyor (5.452–108.267). Üstteki kayıttaki "11/25", "dolu 14", "diğer 9" bu düzeltmeyle okunur.
+- Bağımsız tekrarlanmayan: token sayıları (llama-server gerekir) ve "korunan tür 62/62" ölçüsü.
+- **Boş ham girdi: b** (Eren; DECISIONS 2026-10-31 "Boş ham girdi"). Boş = kesmeden önce pencerede WARN+ log ve hata span'i yok. Model sorulmaz; kayıtta "girdi boş"; puanlamada top-1/top-3 ıskalama, çekimser (`unsure`, kapsama dışı), güven yok (Brier'e girmez). Tabloda ham seviyesinde "boş girdi" sütunu. Özet ve daraltmada bütün vakalar sorulur.
+- 4. adım için not: `frontend-web` (tarayıcı span'leri) takma adı gerekecek; ad 4. adımda önerilir, Eren onaylar.
