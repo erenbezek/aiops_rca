@@ -3063,3 +3063,11 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Dev sayımı 4. adımda (43 vaka, üç seviye).
 - Yeni adlar (Eren onaylı, GLOSSARY'de): `narrowed_input`, `narrowed_table`, `span_fields`, `TOP_CANDIDATE_LOGS`, `narrowed_expected.json`.
 - Sıradaki: 4. adım (takma ad üç seviyede; `rate-gateway`, `frontend-web` için ad önerisi; girdi kontrolleri 43 vaka).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 3b kontrolü: daraltma girdi seviyesi)
+- 3b (`a8a9471`) DECISIONS 2026-10-31 "Daraltma girdisinin biçimi" ile uyumlu; **4. adıma geçilebilir.** Planlamanın bağımsız kontrolleri (`a8a9471` kopyasında; ortak kopyada dosya yok; yalnız pilot):
+  - pytest 527/527.
+  - 25/25 vakada: adaylar planlamanın daraltma sırasının ilk 5'i, ada göre; servis satırları özet girdisindekiyle aynı; `calls` adaylar arasındaki izlerdeki kenarlarla aynı ve sıralı; grup/puan/sıra alanı yok.
+  - Metnin sha256'sı `p1c_step3b_check.json` ile 25/25 aynı; geçici llama-server (Qwen 2B, yalnız `/tokenize`) ile token 25/25 aynı: 1.278–2.502, ortalama 1.900.
+  - Hücreler doğrudan izlerden (`inc-8ceb7ae5`, checkout `PlaceOrder`): işlem istek 31 → 25, hata oranı 0 → 0,48, p95 50,0 → 51,0 ms; çağıran frontend 31 → 25, 0 → 0,48, 51,9 → 52,7 ms. Çıktıyla aynı (p95 en yakın sıra).
+- 4. adım için hatırlatma: `quote-gateway` → `rate-gateway` onaylı; `frontend-web` adı önerilir, Eren onaylar. Dev sayımı (43 vaka, üç seviye) bu adımda bir kez.
