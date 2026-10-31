@@ -2921,3 +2921,12 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Kasıtlı kırmızı (kopyada; `src` değişmedi): length kuralı kaldırılınca 1, yeniden deneme kaldırılınca 8, her HTTP hatasında yeniden deneme 16, şemada `unsure` zorunlu değil 1, şema doğrulaması kaldırılınca 5, temperature 0,7 1 test kırmızı.
 - Açık (duman koşusunda görülecek): strict şemanın `minItems: 1` (yol) ve `number` (güven) alanları sağlayıcılarda denenmedi; denemelerde yalnız 3'lük aday dizisi denenmişti.
 - Sıradaki: 2. adım (özet ve ham seviye, token sayımı; ham kesme kuralı pilot boyutlarından → Onay 1).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 1. adım kontrolü; 5. adıma ek)
+- 1. adım (`fee8724`) kartla ve DECISIONS 2026-10-31 ile uyumlu. Planlamanın bağımsız kontrolleri (çalışma kopyasının scratchpad kopyasında; ortak kopyada dosya yok):
+  - pytest 501/501.
+  - İmaj digest'i ve sunucu argümanları denemeler ve hız ölçümüyle aynı; bağlam 4096 → 8192 (kart). Sabit imajın `--help`'i: yuva sayısı otomatik, KV ortak (`--kv-unified` varsayılan); tek istek 8192'nin tamamını kullanır.
+  - Testler anahtarı açıkça veriyor; gerçek `keys.env` okunmuyor.
+  - Planlamanın kasıtlı kırmızıları (raporda olmayan 12 değişiklik, her biri ayrı kopyada): 10'u kırmızı (çıktı sınırları, akıl yürütme ayarları, düşünme, iş parçacığı, bağlam, Groq aralığı, 413'ü yeniden deneme, `strict`). İmaj digest'i ve Gemini model kimliği değişince yeşil: sabit kimlik testle korunmuyor (commit ve `run.json`'daki model kimliği iz bırakır).
+  - İki küçük karar (yeniden deneme beklemesi, ``` içindeki cevap) Eren onaylı; DECISIONS'ta.
+- **5. adıma ek (Eren onaylı):** koşu kaydına (`run.json`) imaj digest'i ve yerel modelin GGUF SHA256'sı yazılır; SHA256 `LOCAL_MODEL_BENCH.md` tablosundakiyle uyuşmazsa koşu başlamaz. Neden: yerel modelin kimliği dosyanın kendisi, commit onu sabitlemiyor.
