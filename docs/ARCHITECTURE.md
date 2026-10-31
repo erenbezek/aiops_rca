@@ -28,7 +28,7 @@ flowchart LR
     img["İmajlar (GitHub Actions)<br/>.github/workflows/images.yml"]
     ghcr[("GHCR<br/>aiops-quote-gateway, aiops-netem<br/>— digest'le sabit")]
 
-    base["baseline<br/>(kural: methods/rule.py; BARO)"]
+    base["baseline<br/>(kural: methods/rule.py;<br/>BARO: methods/baro.py)"]
     nar["candidate_narrowing"]
     llm["LLM<br/>small_local_model /<br/>large_api_model"]
     agent["Proje 2 ajanı"]
@@ -110,7 +110,7 @@ flowchart LR
 | `src/aiops_rca/call_graph.py` | Snapshot izlerinden servisler arası çağrı kenarları |
 | `src/aiops_rca/scoring.py` | Puanlama: ad eşleme, top-1/top-3, kanıt geçerliliği, etiket yoluyla örtüşme, Brier, seçici doğruluk, kapsama, set özeti |
 | `src/aiops_rca/methods/rule.py` | Kural baseline (`rule_baseline`): `signals.rule_check` ilk 3'ü şemadaki cevaba |
-| `src/aiops_rca/methods/baro.py` | BARO baseline: `baro_table` (10 sn ızgara, konteyner ve iz sütunları), port ve yöntem (P1b'de eklenir) |
+| `src/aiops_rca/methods/baro.py` | BARO baseline: `baro_table` (10 sn ızgara, konteyner ve iz sütunları), `baro_rank` (RCAEval 1.9.0 `main.py` ön adımları + `baro`, saf Python), `baro_baseline` (CLI `--method baro`) |
 | `src/aiops_rca/runs.py` | Koşu kaydı: `run.json`, `responses.jsonl` (koşu klasörü `<UTC>-<yöntem>/`) |
 | `src/aiops_rca/evaluate.py` | CLI `python -m aiops_rca.evaluate run` / `score`: yöntemi vakalarda koşar ve kaydeder / kayıtlardan puanlar, `scores.json` ve set tablosu |
 | `eval_responses/` | Resmî koşuların kayıtları (repoda) |

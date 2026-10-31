@@ -35,6 +35,7 @@ Sadece Eren'in onayladığı isimler.
 | `_cpu`, `_mem`, `_net_rx`, `_net_tx`, `_latency`, `_requests`, `_errors` | BARO tablosunun sütun ekleri (`<servis>_<ek>`): CPU (çekirdek yüzdesi), bellek (bayt; RCAEval MB'a çevirir), ağ alma/gönderme (bayt/sn), gecikme p90 (ms), istek ve hata sayısı |
 | `BUCKET_S`, `HALF_S`, `N_BUCKETS`, `METRICS`, `CONTAINER_METRICS`, `NET_RX`, `NET_TX` | `methods/baro.py` sabitleri: kova (10 sn), yarım pencere (600 sn), kova sayısı (120), metrik sırası, metrik adı → ek, ağ sayaçlarının adları |
 | `_fill`, `_preprocess`, `_lerp`, `_percentile`, `_median`, `EPS` | BARO portunun yardımcıları: `main.py` ön adımları (sonsuz → NaN, ffill, fillna(0)) / `preprocess` (drop_time, drop_constant, `_mem` / 1e6) / numpy `_lerp` / numpy doğrusal yüzdelik / medyan / float64 eps (`RobustScaler` sıfır ölçek eşiği 10·eps) |
+| `_service_of` | BARO: sütun adından servis (bilinen metrik eki sağdan kesilir) |
 | `task/p1-baro` | Proje 1 P1b dalı: BARO baseline |
 | `src/aiops_rca/runs.py`, `new_run()`, `append_response()`, `read_run()`, `EVAL_RESPONSES` | Koşu kaydı: koşu klasörü `<UTC>-<yöntem>/` açar / vaka cevabını ekler / koşuyu okur / resmî koşu kökü (`eval_responses/`) |
 | `run.json`, `responses.jsonl`, `scores.json` | Koşu klasörünün dosyaları: koşu ayarları ve sürüm / vaka başına cevap / puanlar ve set özeti (`evaluate score` yazar) |

@@ -26,6 +26,10 @@ Port (`baro_rank`), RCAEval 1.9.0 `main.py` + `e2e/baro.py` + `io/time_series.py
 3. Sütun başına sklearn `RobustScaler` normal dönemde: merkez = medyan, ölçek = 75. − 25. yüzdelik (numpy doğrusal yöntemi,
    `_lerp` ile aynı formül); ölçek < 10·eps ise 1. z = (anomali − merkez) / ölçek; puan = Python `max(z)`.
 4. `sorted(..., key=puan, reverse=True)` (kararlı). Döner: [(sütun, puan), ...].
+
+Cevap (`baro_baseline`): sütun sırasından servis sırası (servisin ilk göründüğü yer); ilk 3 servis. `confidence` null,
+`evidence_path` [servis], `unsure` false; gerekçe: servisin en üstteki sütunu ve puanı. Ham çıktı: bütün sütun sırası ve
+puanlar (JSON).
 """
 from __future__ import annotations
 
@@ -216,3 +220,23 @@ def baro_rank(table: dict, alarm_s: int) -> list[tuple[str, float]]:
         z = [(x - center) / scale for x in anomal[col]]
         ranks.append((col, max(z)))
     return sorted(ranks, key=lambda x: x[1], reverse=True)
+
+
+def _service_of(column: str) -> str:
+    """Sütun adından servis: bilinen metrik eki sağdan kesilir (servis adlarında `_` yok)."""
+    for m in METRICS:
+        if column.endswith("_" + m):
+            return column[: -len(m) - 1]
+    raise ValueError(f"unknown column {column}")
+
+
+def baro_baseline(case: Case) -> tuple[dict, str]:
+    ranks = baro_rank(baro_table(case), case.alarm_ns // 10**9)
+    first: dict[str, tuple[str, float]] = {}
+    for col, score in ranks:
+        first.setdefault(_service_of(col), (col, score))
+    top = list(first.items())[:3]
+    answer = {"candidates": [{"service": svc, "confidence": None, "evidence_path": [svc],
+                              "rationale": f"top column {col}: score {score:.6g}"} for svc, (col, score) in top],
+              "unsure": False}
+    return answer, json.dumps(ranks)

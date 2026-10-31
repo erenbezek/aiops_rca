@@ -19,11 +19,12 @@ from pathlib import Path
 from aiops_rca.answer import Answer, validate_answer
 from aiops_rca.call_graph import metric_containers, service_edges
 from aiops_rca.cases import DEFAULT_SETS, INCIDENTS, SNAPSHOTS, load_cases, load_labels
+from aiops_rca.methods.baro import baro_baseline
 from aiops_rca.methods.rule import rule_baseline
 from aiops_rca.runs import EVAL_RESPONSES, append_response, new_run, read_run
 from aiops_rca.scoring import score_case, score_table
 
-METHODS = {"rule": rule_baseline}
+METHODS = {"rule": rule_baseline, "baro": baro_baseline}
 TABLE_COLUMNS = (("n", "Vaka"), ("top1", "top-1"), ("top3", "top-3"), ("evidence_valid", "Kanıt geçerli"),
                  ("evidence_invalid", "Kanıt geçersiz"), ("evidence_null", "Kenarsız"),
                  ("label_path_overlap_mean", "Örtüşme"), ("brier", "Brier"), ("selective_accuracy", "Seçici doğruluk"),

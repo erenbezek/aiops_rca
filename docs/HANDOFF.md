@@ -2785,3 +2785,13 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Bağımlılık olarak gelenler: scipy 1.18.1, joblib 1.6.0, threadpoolctl 3.7.0, narwhals 2.28.0, cloudpickle 3.1.2, python-dateutil 3.0.0, six 1.17.0, tzdata 2026.6, certifi, charset-normalizer, idna, urllib3.
   - Tam liste `p1b_eq/ref_venv_freeze.txt` (`e58487b4…c47d`).
 - Planlama kontrol etti. Adlar onaylı, GLOSSARY'de.
+
+## 2026-10-31 · Uygulama → Planlama (P1b 3a: BARO yöntemi)
+- `methods/baro.py` `baro_baseline`:
+  - Servis sırası sütun sırasından çıkar (`_service_of`: bilinen ek sağdan kesilir); ilk 3 servis aday olur.
+  - `confidence` null, `evidence_path` [servis], `unsure` false. Gerekçe: en üstteki sütun ve puanı. Ham çıktı: bütün sütun sırası ve puanlar.
+- `evaluate.py`: `METHODS["baro"]`, yani `--method baro`.
+- `tests/test_evaluate.py`'e `test_baro_run_schema_and_answers` eklendi. pytest 466/466.
+  - Test, normal dönemde sabit sütunun (hep 0 hata) `drop_constant` ile atıldığını da sınar: alarmdan sonra başlayan hata BARO'ya girmez. Bu RCAEval'in davranışı.
+  - Testin ilk sürümü bunu bilmeden "hata veren servis en üstte" bekliyordu (uygulamanın beklenti hatası, kod doğru).
+- Resmî koşu 3b'de, bu commit'ten.
