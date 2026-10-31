@@ -3085,3 +3085,18 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   3. Cevabın gerçek ada çevrilmesi (`real_name`): puanlamada (5. adım, `methods/llm.py`).
   4. **Girdi kontrolleri (43 vaka; dev'in ilk ve tek sayımı):** üç seviye × gerçek/takma ad: iki üretim birebir aynı; veri bloğu ≤ 5000 (sayılar kayda); takma adlı girdide gerçek ad yok (ad alanları + tanımlayıcı + yasak terim); sızıntı CLI'ı (`aiops_rca.leakage`, girdiler geçici JSON dosyalarında) bütün girdilerde 0. Test seti reddedilir (`load_cases`).
 - Yeni adlar (kodla birlikte önerilir, onaylanınca GLOSSARY): `alias.py` içindeki dönüşüm ve kontrol fonksiyonları.
+
+## 2026-10-31 · Planlama → Uygulama (P1c 4. adım planı kontrolü; Eren onaylı)
+- Plan (`7c2cfb0`) kartla uyumlu; **onaylı**, aşağıdaki eklerle. **`frontend-web` → `storefront-web`** (Eren): gerçek adda görünen `frontend` ilişkisi takma adda da kalsın, iki koşulun farkı yalnız ezberi ölçsün. `ALIASES` ve GLOSSARY "takma ad eşlemesi" birlikte, ekleme tarihiyle (`rate-gateway` ile).
+- Planlamanın bağımsız kontrolleri (`7c2cfb0` kopyasında; ortak kopyada dosya yok; pilot + dev, model ve tokenizer yok; kendi betiği `alias_indep.py`, sha256 `623ad367…ccbf9611a`):
+  - Ön tarama sayıları kendi kodumla aynı: taranan metin 20.424 (ham 19.513, daraltma 883, özet 28); ad alanında adı olmayan servis 0; uyg4'ün dedektörüyle kalan 0.
+  - Daha geniş arama, girdi tablolarının **bütün** metin alanlarında (özet 807, ham 39.026, daraltma 1.745 alan): `ALIASES` dışındaki demo adları (load-generator, flagd, flagd-ui, otel-collector, fraud-detection, accounting, kafka…), boşluklu ve bitişik yazımlar (`Product Catalog`, `productcatalogservice`), tek kelimelik adların `…service` yapışık biçimi, yasak terimler her konumda (+ `flagd`): dönüşümden sonra **0**. Ad alanı dışında tam gerçek ad olan alan 0. Takma adın gerçek metinde zaten geçmesi (çakışma) 0. 500 karakteri aşan ham satır 0 (kesikte yarım ad sorunu yok).
+  - Kasıtlı kırmızı: dedektör bilinen biçimlerin hepsini yakaladı (ör. `grpc.oteldemo.CartService` → `otel` kalır, çünkü `trial_alias`'ın önek kuralı `.`'dan sonra silmez; veride bu biçim yok).
+  - Dönüşümün değiştirdiği metin: ham 3.107/19.513, daraltma 313/883, özet 4/28; hepsi `oteldemo.<Ad>Service/<Yöntem>` span adları ve `demo.` öneki.
+- Ekler (planlama):
+  1. Dev'de özet ya da daraltma veri bloğu 5000'i aşarsa (pilotta en büyük 1.955 ve 2.502): o girdi yazılmaz, durulur, sayıyla planlamaya; dev'e göre biçim değişmez. Takma adlı ham metinde sondan eksiltilen satır sayısı vaka başına kayda.
+  2. Sıra gerçek adların sırası (plandaki gibi): iki koşul arasında yalnız adlar farklı olur; gerçek ada göre sıra puandan bağımsız, daraltmanın sırasını vermez (DECISIONS 2026-10-31 "Daraltma girdisinin biçimi" korunur).
+  3. Puanlamada (5. adım) takma adlı koşuda cevaptaki gerçek ad `unmatched` (2026-10-23 düzeltmesi).
+- Not (P1e sınırlaması; karar değişmez): takma ad yalnız adları gizler. Span adlarındaki yöntemler (`ListRecommendations`, `GetProduct`, `PlaceOrder`, `GetAds`, `Charge`) sıradan kelime kuralıyla kalır (DECISIONS 2026-10-23); demonun tanıdık gRPC yöntemleri. Takma ad farkı ezber etkisinin alt sınırı okunur.
+- Not: ön tarama dev'i de okudu; başarım ölçüsü değil ve hiçbir kural değişmedi, sorun yok. Dev'in token sayımı bu adımda bir kez.
+- Sonra: 4. adım kodu (plan 1–4); sonuç HANDOFF'a, planlama bağımsız doğrular.
