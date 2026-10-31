@@ -2859,3 +2859,18 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 | `inc-ef72f574` | pilot | cartFailure_50pct | cart | checkout_latency | checkout, telemetry-docs, currency | hayır | hayır |
 | `inc-f20daed8` | pilot | productCatalogLockContention_on + flood | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
 | `inc-fa775703` | dev | cpuThrottle product-catalog 0.09 | product-catalog | recommendation_latency | recommendation, frontend, product-catalog | hayır | evet |
+
+## 2026-10-31 · Planlama → Uygulama (P1b 1–3 kontrolü; P1e için sınırlama notları)
+- P1b 1–3 kartla uyumlu. Planlamanın bağımsız kontrolleri:
+  - Tablo: bir dev vakasında (`inc-73ac64e9`) 7 hücre bağımsız kodla birebir aynı (istek, p90 gecikme, CPU); 113 sütun × 120 satır, 60 normal.
+  - Eşitlik: RCAEval 1.9.0 gerçek `baro()` ve referans kopyayla 5 dev vakasında sıra aynı, puanlar bit düzeyinde aynı (uygulamanın raporu, çıktılar `p1b_eq/`).
+  - Tablo kayıtlardan tek komutla aynı (`scores.json` sha değişmedi).
+  - Bağımsız sayım: top-1 11/43, top-3 27/43. Yalnız pilot ve dev; iki koşu süre hariç aynı.
+  - HEAD koduyla yeniden koşu: 43 cevap resmî koşuyla aynı. pytest 466/466.
+- Sonuç (yorum P1e'de): kural top-1 22/43, top-3 36/43; BARO 11/43, 27/43.
+- **P1e için sınırlama notları** (sonuç tablosunun yanında yazılır; şimdi bir şey değişmez, değişirse sonuca göre ayar olur):
+  1. **Bellek ve ağ kayması:** demo her vakadan ~5 dk önce yeniden başlıyor. Yeni konteynerlerin belleği ve ağ trafiği artıyor, BARO yalnız artışı puanladığı için bunu yakalıyor. En üst sütun 16/43 vakada `telemetry-docs` (bellek 11, ağ 5). RCAEval veri setlerinde sistem enjeksiyondan çok önce açık; bu etki orada yok.
+  2. **Normal dönemde sabit sütun atılır** (RCAEval `drop_constant`, iki dönemin ortak sütunları). Normalde hep 0 olan hata sayısı düşer; alarmdan sonra başlayan hata BARO'ya girmez.
+  3. **Yalnız artış puanlanır:** durdurulan ya da dondurulan konteynerin düşüşü görünmez; çağıranların gecikmesi öne çıkar.
+  - Savunma: port RCAEval'le bit düzeyinde aynı, tablo koşmadan önce yazılı, dev'de ayar yok.
+- Kalan: kapanış (CI'da BARO beklenen çıktısı, kasıtlı kırmızı), PR. Birleştirme CI'dan ve planlamanın kapanış kontrolünden sonra.
