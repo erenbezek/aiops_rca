@@ -22,8 +22,9 @@ kök neden analizinde ne kadar iş görür?
 - [ ] Sonuç tablosu: baseline'lar, `small_local_model` / `large_api_model` × ham log / daraltma
 - [ ] Ölçütler: top-1/top-3, kanıt geçerliliği, kalibrasyon, süre, token
 - [ ] Canlı demo: hata enjekte et → kanıtlı olay raporu (+ bir sonraki adım önerisi)
-- [ ] CI yeşil: birim testler + sabit snapshot'larda baseline regresyonu + servis imajı (GHCR)
-  - Servis imajı (GHCR) tamam (2026-10-29): iki imaj CI'da derlenip main'de gönderiliyor (`images.yml`), koşular digest'le sabit. Açık kalan: baseline regresyonu.
+- [x] CI yeşil: birim testler + sabit snapshot'larda baseline regresyonu + servis imajı (GHCR)
+  - Servis imajı (GHCR) tamam (2026-10-29): iki imaj CI'da derlenip main'de gönderiliyor (`images.yml`), koşular digest'le sabit.
+  - Baseline regresyonu tamam (2026-10-31): kural (`rule_expected.json`, P1a) ve BARO (`baro_expected.json`, P1b) beklenen çıktı testleri CI'da koşuyor (main push run 41178530691: 464 geçti, 3 atlandı; atlananlar demo klonu isteyen `test_replay_config`). Sınırlama: 4 kırpılmış pilot örneği; yalnız CPU ve bellek metrikleri (ağ sütunu yok), izler seyreltilmiş. Kodun aynı kaldığının kontrolü, tam vakadaki sonucun değil.
 - [ ] Sızıntı kontrolü: snapshot'larda cevabı ele veren veri yok (flagd vb.), testle doğrulandı
 - [x] Vaka çeşitliliği: set en az zincirleme hata, sessiz hata (log yok, sadece metrik) ve yanıltıcı gürültü içeriyor
   - V3 test: cascading 17, silent 8, partial 3, noisy 1. Dev: cascading 17, silent 10, partial 3, noisy 2.
@@ -51,7 +52,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 | Linux ağ/kaynak hataları (tc netem, CPU/bellek, kill) | Hata enjeksiyonu | [x] tc netem (gecikme, kayıp; kendi yardımcı imajla), CPU sınırı, durdurma, dondurma; uygula, geri al, doğrula; bellek sınırı denendi, bu demoda belirti vermediği için çıktı (INCIDENT_CATALOG) |
 | Otomasyon betikleri | Gece boyu vaka üretim hattı | [x] koşucu (`scenario_runner.py incidents`: korumalar, enjeksiyon, geri alma ve doğrulama, snapshot, etiket) ve systemd birim şablonu (`deploy/systemd/aiops-incidents@.service`): tek komutla başlar; `systemctl stop`'ta yarıdaki vaka temizlenir (SIGTERM → hata geri alınır, flag kapanır, demo kapanır); kapanmada ya da oturumdan çıkışta temizlik kesilir (kullanıcı yöneticisi 5 sn verir), sonraki koşu kalıntı denetiminde başlamaz; zamanlayıcı yok |
 | Grafana dashboard | Canlı demo | [ ] |
-| CI/CD (GitHub Actions, GHCR) | Testler, regresyon, imaj | [ ] kısmen: testler PR'da ve main'de (`.github/workflows/ci.yml`); imajlar PR'da derlenip kontrol ediliyor, main'de GHCR'a gönderiliyor (`.github/workflows/images.yml`, üçüncü taraf eylem yok); baseline regresyonu yok |
+| CI/CD (GitHub Actions, GHCR) | Testler, regresyon, imaj | [x] testler PR'da ve main'de (`.github/workflows/ci.yml`); imajlar PR'da derlenip kontrol ediliyor, main'de GHCR'a gönderiliyor (`.github/workflows/images.yml`, üçüncü taraf eylem yok); baseline regresyonu: kural ve BARO'nun beklenen çıktısı 4 kırpılmış pilot örneğinde (kodun aynı kaldığının kontrolü, tam vaka sonucu değil) |
 | Dağıtık sistemde sorun giderme | Kurulum ve işletme | [ ] |
 
 ## Kapsam dışı
