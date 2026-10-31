@@ -2930,3 +2930,28 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Planlamanın kasıtlı kırmızıları (raporda olmayan 12 değişiklik, her biri ayrı kopyada): 10'u kırmızı (çıktı sınırları, akıl yürütme ayarları, düşünme, iş parçacığı, bağlam, Groq aralığı, 413'ü yeniden deneme, `strict`). İmaj digest'i ve Gemini model kimliği değişince yeşil: sabit kimlik testle korunmuyor (commit ve `run.json`'daki model kimliği iz bırakır).
   - İki küçük karar (yeniden deneme beklemesi, ``` içindeki cevap) Eren onaylı; DECISIONS'ta.
 - **5. adıma ek (Eren onaylı):** koşu kaydına (`run.json`) imaj digest'i ve yerel modelin GGUF SHA256'sı yazılır; SHA256 `LOCAL_MODEL_BENCH.md` tablosundakiyle uyuşmazsa koşu başlamaz. Neden: yerel modelin kimliği dosyanın kendisi, commit onu sabitlemiyor.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 2. adım: Onay 1 önerisi, ham kesme kuralı; planlama kararı: boş girdi)
+- Ölçüm yalnız pilot 25 vakada (dev okunmadı, model koşmadı; yalnız llama-server `/tokenize`). Betikler ve çıktılar repo dışı:
+  - `~/cerebrum2/analysis/p1c_raw_size.py` (sha256 `766e681a…b7cd`) → `p1c_raw_size.json` (`c62879ab…3a01`): vaka başına WARN+ log ve hata span'i sayıları, karakter.
+  - `~/cerebrum2/analysis/p1c_raw_tokens.py` (`e77a66c4…60a9`) → `p1c_raw_tokens.json` (`66035ecb…d065`): üç Qwen tokenizer'ıyla token sayısı, iki satır biçimi (A, B).
+- Bulgular:
+  - **Tokenizer:** Qwen 2B, 4B, 9B bütün pilot metinlerinde (tam metin ve ilk 400 satır tek tek) aynı sayıyı verdi → tek tokenizer.
+  - **Ham seviye 11/25 pilot vakada boş:** pencerede WARN+ log da hata span'i da yok.
+  - **Bütçe:** dolu 14 vakanın 5'i veri bütçesini (5000) aşıyor (A biçiminde 108.267 / 64.641 / 53.493 / 5.799 / 5.452 token); diğer 9 vaka 118–3.246 token.
+  - **Pencere:** 25 vakanın hiçbirinde alarmdan önceki 10 dk'da satır yok; ham seviye pratikte yalnız alarm sonrası.
+  - **Satırlar:** ~37–41 token; bütçeye ~125–230 satır sığar. Satırlar çok tekrarlı (büyük vakalarda farklı tür 8–19). En uzun satır 307 karakter; çok satırlı mesaj yok.
+  - Ham seviyede `frontend-web` servisi (tarayıcı span'leri) var; `ALIASES`'ta karşılığı yok → 4. adımda yeni takma ad gerekecek (ad Eren/planlama).
+- **Önerilen kesme kuralı (Onay 1):**
+  1. Satırlar: pencere [alarm − 10 dk, alarm + 10 dk); WARN+ log kayıtları (severityNumber ≥ 13) ve status ERROR span'leri (bütün türler).
+  2. Biçim (kartın alanları: zaman, servis, mesaj ya da span adı): log `HH:MM:SS.mmm <servis> log <mesaj>`; hata span'i `HH:MM:SS.mmm <servis> error-span <span adı>` (UTC). Mesajda boşluk ve satır sonları tek boşluğa iner; kimlik/sayı sadeleştirmesi yok. Satır 500 karakterde kesilir (pilotta etkilenen yok). Sıra: zaman, eşitlikte satır metni.
+  3. Kesme: veri bloğu ≤ 5000 token (Qwen tokenizer). Sığarsa hepsi. Sığmazsa zaman sırasıyla baştan, tam satırlarla, sığan en çok satır; sonra sabit işaret satırı `[truncated: later lines omitted]` (sayı yok; işaret dahil ≤ 5000). Dev'de de kurgu gereği ≤ 5000.
+  4. Neden baştan (etiketsiz ölçü: kesilen metnin koruduğu farklı satır türü, servis + sadeleşmiş mesaj ya da span adı; aşan 5 vakada toplam 62 tür): baştan 62/62, eşit aralıklı örnek 59/62, yarısı baştan yarısı sondan 55/62. İlk hatalar baştaki satırlarda.
+  - Önerilmeyen seçenek B: span satırına tür (CLIENT/SERVER) ve durum mesajı. Kartın biçiminin dışında; aşan vaka 6'ya çıkar (bir vaka 5.218), bir vakada korunan tür 17 → 12.
+- **Planlama kararı gerekiyor: boş ham girdi (pilotta 11/25; gecikme, kaynak, durdurma hataları log ve hata span'i üretmiyor).** Seçenekler:
+  - a) Boş girdiyle yine sorulur: cevap tahmin; modelin ön bilgisini gösterir.
+  - b) Sorulmaz: "girdi boş" diye kaydedilir, ıskalama sayılır, sonuç tablosunda ayrı sütun. Ham seviyenin koşu süresi ~%40 azalır.
+  - c) Ham tanım genişler (ör. yavaş span'ler): eşik gerektirir, "hesaplanmış sayı yok" kuralını bozar.
+  - Uygulamanın önerisi **b**: boş girdiyle sormak yöntemi ölçmez, sonuç ıskalamayla aynı, süre kazandırır. DECISIONS "Ham log yeniden tanımlandı"ya dokunduğu için planlamada.
+- Onaydan sonra 2. adım: `inputs.py` (özet: `tools/trial_summary.py`'nin `build`'i pakete taşınır, eski özetle eşitlik testi; ham: bu kural), tokenizer dışarıdan verilir (testlerde sahte, CI'da docker yok). Boş girdi kararı gelmeden ham seviye koşu tarafına bağlanmaz.
+- Not (planlamanın 1. adım bulgusu): imaj digest'i ve Gemini kimliğini koruyan test 5. adımdaki `run.json` ekiyle birlikte eklenir.
