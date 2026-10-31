@@ -235,6 +235,16 @@ class Pacer:
         self.last_end = self.clock()
 
 
+def count_tokens(base: str, text: str, *, timeout: float = 120) -> int:
+    """llama-server `/tokenize` ile token sayısı (`base` = `http://127.0.0.1:<port>`). Boş metin 0."""
+    if not text:
+        return 0
+    req = urllib.request.Request(f"{base}/tokenize", data=json.dumps({"content": text}).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return len(json.loads(r.read().decode("utf-8"))["tokens"])
+
+
 def docker_run_args(gguf: str, *, models_dir: Path = MODELS_DIR, port: int = LOCAL_PORT,
                     name: str = LOCAL_NAME) -> list[str]:
     return ["docker", "run", "-d", "--rm", "--name", name, "-p", f"127.0.0.1:{port}:8080",
@@ -279,6 +289,10 @@ class LocalServer:
     def stop(self) -> None:
         subprocess.run(["docker", "stop", self.name], capture_output=True)
         self._gone()
+
+    def tokenize(self, text: str) -> int:
+        """Metnin token sayısı (modelin tokenizer'ı; çıkarım yok). Qwen 2B/4B/9B aynı sayıyı verir (HANDOFF 2026-10-31)."""
+        return count_tokens(self.base, text)
 
     def __enter__(self) -> "LocalServer":
         self.start()

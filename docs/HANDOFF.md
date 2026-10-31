@@ -2963,3 +2963,18 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Bağımsız tekrarlanmayan: token sayıları (llama-server gerekir) ve "korunan tür 62/62" ölçüsü.
 - **Boş ham girdi: b** (Eren; DECISIONS 2026-10-31 "Boş ham girdi"). Boş = kesmeden önce pencerede WARN+ log ve hata span'i yok. Model sorulmaz; kayıtta "girdi boş"; puanlamada top-1/top-3 ıskalama, çekimser (`unsure`, kapsama dışı), güven yok (Brier'e girmez). Tabloda ham seviyesinde "boş girdi" sütunu. Özet ve daraltmada bütün vakalar sorulur.
 - 4. adım için not: `frontend-web` (tarayıcı span'leri) takma adı gerekecek; ad 4. adımda önerilir, Eren onaylar.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 2. adım: özet ve ham seviye)
+- `src/aiops_rca/inputs.py`:
+  - **Özet:** `trial_summary.build` ve yardımcıları pakete taşındı (`summary_table`, `summary_text`, `p95_ms`, `avg_max`, `TOP_MESSAGES`); `tools/trial_summary.py` bunları içe aktarır, davranışı aynı. `summary_input(case, count_tokens)`.
+  - **Ham:** `raw_input(case, count_tokens)`, DECISIONS 2026-10-31 "Ham kesme kuralı" birebir (satır `raw_line`, kayıtlar `raw_records`, sıra `raw_lines`, kesme `fit_lines`: önce tam metin, aşarsa en uzun önek ikili aramayla + `TRUNCATION_MARK`). Boş → `empty: true`, metin boş, tokenizer çağrılmaz. Kayıt alanları: `lines_total`, `lines_kept`, `truncated`, `data_tokens`.
+  - Token sayımı dışarıdan verilir: koşuda `LocalServer.tokenize` (yeni, `llm_client.count_tokens` → llama-server `/tokenize`), testlerde sahte.
+- Testler: `tests/test_inputs.py` (13) + `test_llm_client.py`'ye `/tokenize` testi; `tests/fixtures/summary_expected.json` = 4 CI örneğinde **eski** (`HEAD` `cd0a063`) `trial_summary.build`'in metinleri, taşınan kod birebir üretir. pytest 515/515.
+- Kasıtlı kırmızı (kopyada): sondan kesme 3, INFO dahil 3, işaret yok 4, boşluk sadeleşmesi yok 2, `TOP_MESSAGES` 9 2, boş girdi işareti yok 2 test kırmızı.
+- Pilot kontrolü (`~/cerebrum2/analysis/p1c_step2_check.py` sha256 `80c5c7ab…930b56cf` → `.json` `f7b29333…737bd700`; yalnız pilot, gerçek Qwen tokenizer, model çıkarımı yok):
+  - Özet metni eski kodla 25/25 aynı. Özet veri bloğu 1.705–1.955 token.
+  - Ham: boş 10, kesilen 5 (223/5010, 224/261, 224/246, 197/2546, 224/2406 satır), en büyük veri bloğu 4.995 ≤ 5000. Kesilmemiş metnin token sayısı `p1c_raw_tokens.json` (A) ile 25/25 aynı.
+  - İki üretim (iki ayrı sunucu açılışı) birebir aynı.
+- Yeni adlar (Eren onaylı, GLOSSARY'de): `summary_table`, `summary_text`, `summary_input`, `raw_input`, `raw_records`, `raw_lines`, `raw_line`, `fit_lines`, `clock_ms`, `DATA_BUDGET`, `RAW_LINE_CHARS`, `TRUNCATION_MARK`, `TokenCounter`, `LEVELS`, `count_tokens`, `LocalServer.tokenize`, `summary_expected.json`.
+- Dev sayımı yapılmadı: 4. adımda (girdi kontrolleri, 43 vaka) bir kez.
+- Sıradaki: 3. adım (daraltma; öne alma kuralı pilotta, dev'e bakmadan önce yazılı → Onay 2).

@@ -237,3 +237,12 @@ Sadece Eren'in onayladığı isimler.
 | `Pacer` | İki istek arasında en az belirli süre bekletir (Groq: 65 sn) |
 | `LocalServer` | Yerel llama.cpp sunucusunu açar, sağlık kontrolünü bekler, kapatır (bir model için bir kez) |
 | `api_key()`, `parse_content()` | API anahtarını ortamdan ya da `keys.env`'den okur / cevaptaki ilk JSON nesnesini okuyup cevap şemasıyla doğrular |
+| `summary_input()`, `raw_input()` | `inputs.py`: bir vakanın özet / ham girdisini üretir (`level`, `text`, `data_tokens`, `empty`; hamda `lines_total`, `lines_kept`, `truncated`) |
+| `summary_table()`, `summary_text()` | Özet tablosu (eski `trial_summary.build`) / tablonun modele giden girintisiz JSON metni |
+| `raw_records()`, `raw_lines()`, `raw_line()` | Ham: penceredeki (zaman, servis, tür, metin) kayıtları / zaman sonra metin sırasıyla satırlar / tek satırın biçimi |
+| `fit_lines()` | Satırları veri bütçesine sığdırır: hepsi ya da baştan en uzun önek + `TRUNCATION_MARK` |
+| `clock_ms()` | UTC `HH:MM:SS.mmm` (milisaniye aşağı yuvarlanır) |
+| `DATA_BUDGET`, `RAW_LINE_CHARS`, `TRUNCATION_MARK` | Veri bloğu sınırı (5000 token) / ham satır sınırı (500 karakter) / kesme işareti satırı `[truncated: later lines omitted]` |
+| `TokenCounter`, `LEVELS` | Token sayan fonksiyonun türü (metin → sayı) / üç seviye adı (`raw`, `summary`, `narrowed`) |
+| `count_tokens()`, `LocalServer.tokenize()` | `llm_client.py`: llama-server `/tokenize` ile token sayısı (çıkarım yok) |
+| `tests/fixtures/summary_expected.json` | CI örneklerinde eski `trial_summary.build`'in özet metinleri; taşınan kod aynısını üretmeli |

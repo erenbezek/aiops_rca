@@ -310,3 +310,11 @@ def test_key_not_in_record(server):
     srv = server(completion(json.dumps(GOOD)))
     rec, _ = run("gpt-oss-120b", srv, key="secret-value-123")
     assert "secret-value-123" not in json.dumps(rec)
+
+
+def test_count_tokens_uses_tokenize_endpoint(server):
+    srv = server((200, {"tokens": [1, 2, 3, 4]}))
+    base = srv.url.rsplit("/v1/", 1)[0]
+    assert llm_client.count_tokens(base, "merhaba dünya") == 4
+    assert srv.requests[0]["path"] == "/tokenize" and srv.requests[0]["body"] == {"content": "merhaba dünya"}
+    assert llm_client.count_tokens(base, "") == 0 and len(srv.requests) == 1  # boş metin sunucuya gitmez

@@ -28,10 +28,8 @@ eksik özet yazmaz.
 from __future__ import annotations
 
 import argparse
-import json
-import math
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -42,58 +40,9 @@ from aiops_rca.signals import (  # noqa: E402, F401
     resource_attr, summarize, value_text,
 )
 
-TOP_MESSAGES = 10
-
-
-def p95_ms(durations_ns: list[int]) -> float | None:
-    if not durations_ns:
-        return None
-    ordered = sorted(durations_ns)
-    idx = max(0, math.ceil(0.95 * len(ordered)) - 1)  # en yakın sıra yöntemi
-    return round(ordered[idx] / 1e6, 1)
-
-
-def avg_max(values: list[float], scale: float, digits: int) -> tuple[float | None, float | None]:
-    if not values:
-        return None, None
-    avg, peak = round(sum(values) / len(values) * scale, digits), round(max(values) * scale, digits)
-    if digits == 0:  # "217" yerine "217.0" yazılmasın (bellek alanlarında ~130 token)
-        avg, peak = int(avg), int(peak)
-    return avg, peak
-
-
-def build(result: dict, window: Window) -> dict:
-    names = set(result["spans"]) | {c for c, _ in result["resources"]}
-    services = []
-    for svc in sorted(names):
-        row = {"service": svc}
-        for side in ("before", "after"):
-            if svc in result["spans"]:
-                count, errors, durations = result["spans"][svc][side]
-                row[f"requests_{side}"] = count
-                row[f"error_rate_{side}"] = round(errors / count, 3) if count else None
-                row[f"p95_ms_{side}"] = p95_ms(durations)
-            if (svc, CPU_METRIC) in result["resources"]:
-                avg, peak = avg_max(result["resources"][(svc, CPU_METRIC)][side], 1, 2)
-                row[f"cpu_pct_avg_{side}"], row[f"cpu_pct_max_{side}"] = avg, peak
-            if (svc, MEMORY_METRIC) in result["resources"]:
-                # Bellek en yükseği yok (token; Eren, 2026-10-21): bellek yavaş değişir, ortalama yeter.
-                avg, _ = avg_max(result["resources"][(svc, MEMORY_METRIC)][side], 1 / 2**20, 0)
-                row[f"mem_mb_avg_{side}"] = avg
-        services.append(row)
-    ranked = sorted(result["logs"].items(), key=lambda kv: (-kv[1]["after"], kv[0]))
-    messages = [
-        {"service": svc, "message": msg, "count_before": c["before"], "count_after": c["after"]}
-        for (svc, msg), c in ranked
-        if c["after"] > 0
-    ][:TOP_MESSAGES]
-    alarm = datetime.fromtimestamp(window.alarm / 1e9, tz=timezone.utc)
-    return {
-        "alarm_time_utc": alarm.isoformat(timespec="seconds"),
-        "window_minutes": {"before": 10, "after": 10},
-        "services": services,
-        "top_warning_and_error_logs_after_alarm": messages,
-    }
+# Özet tablosu da pakette (P1c 2. adım, `inputs.py`); betiğin davranışı ve çıktısı aynı.
+from aiops_rca.inputs import TOP_MESSAGES, avg_max, p95_ms, summary_text  # noqa: E402, F401
+from aiops_rca.inputs import summary_table as build  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -130,8 +79,7 @@ def main(argv: list[str] | None = None) -> int:
 
     out = Path(args.out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
-    # Girintisiz: aynı içerik girintiliye göre ~%35 daha az token (Qwen3.5 tokenizer'ı, 1.099'a karşı 1.713).
-    text = json.dumps(build(result, window), ensure_ascii=False, separators=(",", ":"))
+    text = summary_text(build(result, window))
     out.write_text(text + "\n", encoding="utf-8")
     print(f"ok: {out}")
     return 0
