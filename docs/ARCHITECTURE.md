@@ -114,13 +114,13 @@ flowchart LR
 | `src/aiops_rca/runs.py` | Koşu kaydı: `run.json`, `responses.jsonl` (koşu klasörü `<UTC>-<yöntem>/`) |
 | `src/aiops_rca/evaluate.py` | CLI `python -m aiops_rca.evaluate run` / `score`: yöntemi vakalarda koşar ve kaydeder / kayıtlardan puanlar, `scores.json` ve set tablosu |
 | `src/aiops_rca/llm_client.py` | LLM çağrı katmanı (P1c): beş model (`MODELS`), cevap şemasının strict biçimi, istek, taşıma hatasında tek yeniden deneme, şema kontrolü (şema dışı ve sınıra takılan yeniden sorulmaz), token ve süre; Groq aralığı (`Pacer`), yerel llama.cpp sunucusu (`LocalServer`) |
-| `src/aiops_rca/inputs.py` | Girdi seviyeleri (P1c): özet (`summary_input`; `trial_summary.build`'in taşınmış hali `summary_table`) ve ham (`raw_input`: pencerenin WARN+ log ve hata span'i satırları, ≤ 5000 token, baştan kesme + işaret; boş girdi işareti). Token sayımı dışarıdan verilir |
+| `src/aiops_rca/inputs.py` | Girdi seviyeleri (P1c): özet (`summary_input`; `trial_summary.build`'in taşınmış hali `summary_table`) ham (`raw_input`: pencerenin WARN+ log ve hata span'i satırları, ≤ 5000 token, baştan kesme + işaret; boş girdi işareti) ve daraltma (`narrowed_input`: ilk 5 aday ada göre, özet satırı + işlemler + çağıranlar + en sık 3 log, adaylar arası kenarlar). Token sayımı dışarıdan verilir |
 | `src/aiops_rca/narrowing.py` | Aday daraltma (`candidate_narrowing`, P1c): kural puanı, derin servislerin öne alınması (DECISIONS 2026-10-31), ilk K = 5 aday ve aralarındaki çağrı kenarları |
 | `eval_responses/` | Resmî koşuların kayıtları (repoda) |
 | `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi |
 | `tests/test_baro.py` | BARO tablosu (ve portu) birim testleri, sentetik verilerle |
 | `tests/test_llm_client.py` | LLM katmanı birim testleri, sahte sunucuyla (`127.0.0.1`, ağ ve anahtar yok): model ayarları, şema dönüşümü, şema dışı kaydı, yeniden deneme, token ve süre, Groq aralığı, anahtar okuma |
-| `tests/test_inputs.py`, `tests/fixtures/summary_expected.json` | Girdi seviyeleri birim testleri (sahte tokenizer): ham satır biçimi, pencere, seçim, sıra, kesme, boş girdi / CI örneklerinde eski `trial_summary.build`'in özet metinleri (taşınan kod aynısını üretmeli) |
+| `tests/test_inputs.py`, `tests/fixtures/summary_expected.json`, `tests/fixtures/narrowed_expected.json` | Girdi seviyeleri birim testleri (sahte tokenizer): ham satır biçimi, pencere, seçim, sıra, kesme, boş girdi; daraltma biçimi / CI örneklerinde eski `trial_summary.build`'in özet metinleri (taşınan kod aynısını üretmeli) / CI örneklerinde daraltma girdisinin beklenen metni |
 | `tests/test_narrowing.py`, `tests/fixtures/narrowing_expected.json` | Daraltma birim testleri (puan, öne alma, gruplar, K, dışlamalar, puanı 0 olanlarda güç sırası) / CI örneklerinde beklenen daraltma çıktısı |
 | `tests/fixtures/snapshots/` | CI örnekleri: 4 pilot vakanın kırpılmış görünümü (≤ 5 MB; üretici repo dışı `p1a_fixtures.py`) |
 | `tests/fixtures/rule_expected.json`, `tests/test_rule_fixtures.py` | Örneklerde kural baseline'ın beklenen çıktısı ve sinyal güçleri; CI aynısını üretir |

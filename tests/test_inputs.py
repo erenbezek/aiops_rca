@@ -173,3 +173,78 @@ def test_constants_from_decisions():
     assert DATA_BUDGET == 5000 and RAW_LINE_CHARS == 500
     assert TRUNCATION_MARK == "[truncated: later lines omitted]"
     assert inputs.LEVELS == ("raw", "summary", "narrowed")
+
+
+# --- daraltma ---
+
+def nspan(sid, parent, t, kind=2, error=False, name="op", attrs=None):
+    s = {"spanId": sid, "kind": kind, "name": name, "startTimeUnixNano": str(t),
+         "endTimeUnixNano": str(t + 10 * 10**6), "status": {"code": 2} if error else {}}
+    if parent:
+        s["parentSpanId"] = parent
+    if attrs:
+        s["attributes"] = [{"key": k, "value": {"stringValue": v}} for k, v in attrs.items()]
+    return s
+
+
+def chain_case(tmp_path):
+    """frontend → checkout → payment; payment alarmdan sonra hata ve WARN log verir; ad yalnız frontend'den çağrılır."""
+    docs, logs = [], []
+    for i in range(120):
+        t = ALARM - 590 * SEC + i * 10 * SEC
+        after = t >= ALARM
+        spans = {
+            "frontend": [nspan(f"f{i}", None, t, name="GET /"),
+                         nspan(f"fc{i}", f"f{i}", t, kind=3, name="PlaceOrder", attrs={"server.address": "checkout"}),
+                         nspan(f"fa{i}", f"f{i}", t, kind=3, name="GetAds", attrs={"server.address": "ad"})],
+            "checkout": [nspan(f"c{i}", f"fc{i}", t, name="PlaceOrder", error=after),
+                         nspan(f"cp{i}", f"c{i}", t, kind=3, name="Charge", attrs={"server.address": "payment"},
+                               error=after)],
+            "payment": [nspan(f"p{i}", f"cp{i}", t, name="Charge", error=after)],
+            "ad": [nspan(f"a{i}", f"fa{i}", t, name="GetAds")]}
+        docs.append({"resourceSpans": [{"resource": res(s), "scopeSpans": [{"spans": sp}]} for s, sp in spans.items()]})
+        if after:
+            logs.append(log_doc("payment", t, 13, f"charge failed card {i}"))
+            if i % 2:
+                logs.append(log_doc("payment", t, 17, "token invalid"))
+    case = make_case(tmp_path, logs=logs, spans=docs)
+    return case
+
+
+def test_narrowed_format(tmp_path):
+    case = chain_case(tmp_path)
+    inp = inputs.narrowed_input(case, words)
+    data = json.loads(inp["text"])
+    assert (inp["level"], inp["empty"]) == ("narrowed", False) and inp["data_tokens"] == words(inp["text"])
+    assert list(data) == ["alarm_time_utc", "window_minutes", "candidates", "calls"]
+    names = [b["service"] for b in data["candidates"]]
+    assert names == sorted(names) == inp["candidates"] == ["ad", "checkout", "frontend", "payment"]  # 4 servis var
+    assert data["calls"] == [["checkout", "payment"], ["frontend", "ad"], ["frontend", "checkout"]]
+    by = {b["service"]: b for b in data["candidates"]}
+    # servis satırı özetteki satırın aynısı
+    summary = {r["service"]: r for r in json.loads(summary_input(case, words)["text"])["services"]}
+    for svc, b in by.items():
+        assert {k: v for k, v in b.items() if k not in ("operations", "callers", "logs")} == summary[svc]
+    pay = by["payment"]
+    assert [o["operation"] for o in pay["operations"]] == ["Charge"]
+    assert pay["operations"][0]["error_rate_before"] == 0.0 and pay["operations"][0]["error_rate_after"] == 1.0
+    assert [(c["caller"], c["operation"]) for c in pay["callers"]] == [("checkout", "Charge")]
+    assert pay["logs"] == [{"message": "charge failed card <n>", "count_before": 0, "count_after": 60},
+                           {"message": "token invalid", "count_before": 0, "count_after": 30}]
+    assert by["frontend"]["callers"] == [] and by["frontend"]["logs"] == []
+    for b in data["candidates"]:  # daraltmanın grubu, puanı, sırası yok
+        assert not {"group", "score", "max_strength", "signals", "rank"} & set(b)
+
+
+def test_narrowed_logs_capped_at_three(tmp_path):
+    case = chain_case(tmp_path)
+    extra = [log_doc("payment", ALARM + k * SEC, 13, f"msg{chr(97 + k)}") for k in range(5)]
+    with (case.view / "logs.jsonl").open("a", encoding="utf-8") as f:
+        f.write("".join(json.dumps(d) + "\n" for d in extra))
+    pay = {b["service"]: b for b in json.loads(inputs.narrowed_input(case, words)["text"])["candidates"]}["payment"]
+    assert len(pay["logs"]) == inputs.TOP_CANDIDATE_LOGS == 3
+
+
+def test_narrowed_fixtures_reproduce_expected():
+    got = {c.incident_id: inputs.narrowed_input(c, words)["text"] for c in fixture_cases()}
+    assert got == json.loads((FIXTURES / "narrowed_expected.json").read_text(encoding="utf-8"))

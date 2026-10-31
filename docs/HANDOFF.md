@@ -3054,3 +3054,12 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Biçim kartla uyumlu (ilk 5 aday, aralarındaki çağrılar, aday başına işlem ve çağıran sinyalleri, en sık log mesajları). **Biçim ve aday sırası "ada göre" Eren onaylı** (DECISIONS 2026-10-31 "Daraltma girdisinin biçimi"). 3b'ye geçilebilir: `inputs.narrowed_input`, testler, pilot ve dev'de token sayımı (4. adımın 43 vaka kontrolüyle).
 - Planlamanın kontrolü: özet servisleri kodda ada göre sıralı (`summary_table`, `sorted(names)`); daraltmanın kendi top-1'i pilot 21/25, dev 18'de 15 (planlamanın bağımsız sıralamasıyla aynı). Token sayıları (1.278–2.502) prototipten; uygulamada `narrowed_input` ile yeniden sayılır, planlama 3b kontrolünde bağımsız doğrular.
 - P1e notu: daraltmanın kendi sırası (top-1/top-3) sonuç tablosuna modelsiz referans satırı olarak girer.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3b: daraltma girdi seviyesi)
+- `inputs.narrowed_input(case, count_tokens)` ve `narrowed_table(case)`: DECISIONS 2026-10-31 "Daraltma girdisinin biçimi" birebir (adaylar ada göre; özet satırı + `operations` + `callers` + en sık 3 log; `calls` sayısız; grup/puan/sıra yok). Yardımcı `span_fields` (işlem satırının istek, hata oranı, p95 alanları), sabit `TOP_CANDIDATE_LOGS = 3`. Kayıtta `candidates` (ada göre).
+- Testler `tests/test_inputs.py` (+3, toplam 16): sahte zincirde biçim (alan sırası, ada göre, kenarlar, servis satırı özetin aynısı, işlem, çağıran, log, grup/puan alanı yok), log sınırı, CI örneklerinde beklenen metin (`tests/fixtures/narrowed_expected.json`, bu kodla üretildi; regresyon). pytest 527/527.
+- Kasıtlı kırmızı (kopyada, `incidents/` bağlantılı; değişmemiş kopya 16/16): daraltma sırasıyla 2 test; log sınırı 4 1; kenarlarda sayı 2; özet satırı yok 2; çağıranlar yok 2.
+- Pilot kontrolü (`~/cerebrum2/analysis/p1c_step3b_check.py` sha256 `65325a80…e27ebe0d` → `.json` `3f915be2…f3924455`; Qwen tokenizer, model çıkarımı yok): metin onaylanan prototiple (ada göre) **25/25 aynı**; veri bloğu 1.278–2.502 token, ortalama 1.900, 5000'i aşan 0; iki üretim birebir aynı.
+- Dev sayımı 4. adımda (43 vaka, üç seviye).
+- Yeni adlar (Eren onaylı, GLOSSARY'de): `narrowed_input`, `narrowed_table`, `span_fields`, `TOP_CANDIDATE_LOGS`, `narrowed_expected.json`.
+- Sıradaki: 4. adım (takma ad üç seviyede; `rate-gateway`, `frontend-web` için ad önerisi; girdi kontrolleri 43 vaka).

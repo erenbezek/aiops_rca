@@ -10,11 +10,15 @@ aynı metni verir.
   sadeleştirmesi yok; satır 500 karakterde kesilir; sıra zaman, eşitlikte satır metni. Veri bloğu ≤ 5000 token: sığmazsa
   zaman sırasıyla baştan tam satırlar, sonra sabit `TRUNCATION_MARK` satırı (işaret dahil ≤ 5000). Pencerede satır
   yoksa girdi boş (`empty`): modele sorulmaz.
-- **narrowed** (daraltma): 3. adımda (`narrowing.py`).
+- **narrowed** (daraltma; DECISIONS 2026-10-31 "Daraltma girdisinin biçimi"): girintisiz JSON; `alarm_time_utc`,
+  `window_minutes`; `candidates` = `candidate_narrowing`'in ilk 5 adayı, **ada göre**; her adayda özetteki servis
+  satırının aynısı, `operations` (gelen span adları), `callers` (adayı çağıran istemci span'leri, çağıran + span adı),
+  `logs` (alarm sonrası en sık 3 WARN+ mesajı); `calls` = adaylar arasındaki çağrı kenarları (sayısız). Daraltmanın
+  grubu, puanı ve sırası verilmez.
 
 Token sayımı dışarıdan verilir (`count_tokens(metin) -> int`; koşuda `llm_client.LocalServer.tokenize`, testlerde
 sahte). Her seviye bir sözlük döndürür: `level`, `incident_id`, `text` (veri bloğu), `data_tokens`, `empty`; ham
-seviyede ayrıca `lines_total`, `lines_kept`, `truncated`.
+seviyede ayrıca `lines_total`, `lines_kept`, `truncated`; daraltmada `candidates` (ada göre).
 """
 from __future__ import annotations
 
@@ -24,14 +28,16 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from aiops_rca.cases import Case
-from aiops_rca.signals import (CPU_METRIC, MEMORY_METRIC, SEVERITY_WARN, STATUS_ERROR, Window, iter_lines,
-                               log_message, resource_attr, summarize)
+from aiops_rca.narrowing import candidate_narrowing
+from aiops_rca.signals import (CPU_METRIC, MEMORY_METRIC, SEVERITY_WARN, STATUS_ERROR, Window, caller_rows,
+                               iter_lines, log_message, operation_rows, resource_attr, summarize)
 
 LEVELS = ("raw", "summary", "narrowed")
 DATA_BUDGET = 5000  # veri bloğu; 6K'nın 1000'i istem + şablon (DECISIONS 2026-10-31 "İstem payı")
 RAW_LINE_CHARS = 500
 TRUNCATION_MARK = "[truncated: later lines omitted]"
 TOP_MESSAGES = 10
+TOP_CANDIDATE_LOGS = 3
 
 TokenCounter = Callable[[str], int]
 
@@ -176,3 +182,47 @@ def raw_input(case: Case, count_tokens: TokenCounter, budget: int = DATA_BUDGET)
     text, kept, tokens = fit_lines(lines, count_tokens, budget)
     return {**base, "text": text, "data_tokens": tokens, "empty": False, "lines_kept": kept,
             "truncated": kept < len(lines)}
+
+
+# --- daraltma ---
+
+def span_fields(sides: dict) -> dict:
+    """Bir işlem satırının istek, hata oranı, p95 alanları (özetteki yazımla), önce/sonra."""
+    out = {}
+    for side in ("before", "after"):
+        count, errors, durations = sides[side]
+        out[f"requests_{side}"] = count
+        out[f"error_rate_{side}"] = round(errors / count, 3) if count else None
+        out[f"p95_ms_{side}"] = p95_ms(durations)
+    return out
+
+
+def narrowed_table(case: Case) -> dict:
+    """Daraltma girdisinin tablosu (biçim modül belgesinde)."""
+    window = Window(case.alarm_ns)
+    result, _ = summarize(sorted(case.view.glob("*.jsonl")), window)
+    summary = summary_table(result, window)
+    rows = {r["service"]: r for r in summary["services"]}
+    narrowing = candidate_narrowing(case)
+    traces = [case.view / "traces.jsonl"]
+    ops = operation_rows(traces, window)
+    blocks = []
+    for svc in sorted(narrowing["candidates"]):
+        block = dict(rows.get(svc, {"service": svc}))
+        block["operations"] = [{"operation": name, **span_fields(v)}
+                               for (s, name), v in sorted(ops.items()) if s == svc]
+        callers, _ = caller_rows(traces, window, svc)
+        block["callers"] = [{"caller": c, "operation": name, **span_fields(v)} for (c, name), v in sorted(callers.items())]
+        logs = sorted(((m, c) for (s, m), c in result["logs"].items() if s == svc and c["after"] > 0),
+                      key=lambda x: (-x[1]["after"], x[0]))[:TOP_CANDIDATE_LOGS]
+        block["logs"] = [{"message": m, "count_before": c["before"], "count_after": c["after"]} for m, c in logs]
+        blocks.append(block)
+    return {"alarm_time_utc": summary["alarm_time_utc"], "window_minutes": summary["window_minutes"],
+            "candidates": blocks, "calls": [[a, b] for a, b, _ in narrowing["edges"]]}
+
+
+def narrowed_input(case: Case, count_tokens: TokenCounter) -> dict:
+    table = narrowed_table(case)
+    text = summary_text(table)
+    return {"level": "narrowed", "incident_id": case.incident_id, "text": text, "data_tokens": count_tokens(text),
+            "empty": False, "candidates": [b["service"] for b in table["candidates"]]}

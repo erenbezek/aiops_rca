@@ -251,3 +251,7 @@ Sadece Eren'in onayladığı isimler.
 | `candidate_narrowing()` | Bir vakanın daraltması: `candidates` (ilk K), `ranking` (bütün sıra), `edges` (adaylar arasındaki çağrı kenarları) |
 | `K`, `GROUPS` (`deep`, `anomalous`, `normal`) | Daraltmada aday sayısı (5) / grup adları: derin (anormal, çağırdıklarında anormallik yok) / diğer anormal / anormal değil |
 | `tests/fixtures/narrowing_expected.json` | CI örneklerinde daraltmanın beklenen çıktısı (regresyon) |
+| `narrowed_input()`, `narrowed_table()` | `inputs.py`: bir vakanın daraltma girdisi (`candidates` ada göre) / girdinin metne çevrilmeden önceki tablosu |
+| `span_fields()` | Bir işlem satırının istek, hata oranı, p95 alanları (özetteki yazımla), önce/sonra |
+| `TOP_CANDIDATE_LOGS` | Daraltma girdisinde aday başına en sık WARN+ mesaj sayısı (3) |
+| `tests/fixtures/narrowed_expected.json` | CI örneklerinde daraltma girdisinin beklenen metni (regresyon) |
