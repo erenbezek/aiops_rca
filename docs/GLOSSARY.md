@@ -246,3 +246,8 @@ Sadece Eren'in onayladığı isimler.
 | `TokenCounter`, `LEVELS` | Token sayan fonksiyonun türü (metin → sayı) / üç seviye adı (`raw`, `summary`, `narrowed`) |
 | `count_tokens()`, `LocalServer.tokenize()` | `llm_client.py`: llama-server `/tokenize` ile token sayısı (çıkarım yok) |
 | `tests/fixtures/summary_expected.json` | CI örneklerinde eski `trial_summary.build`'in özet metinleri; taşınan kod aynısını üretmeli |
+| `service_scores()` | `narrowing.py`: servis başına kural puanı, bütün sinyallerin en büyük gücü (`max_strength`), eşiği aşan sinyaller; kuralın dışlamalarıyla |
+| `narrow()` | Bütün servislerin daraltma sırası: grup (`deep` → `anomalous` → `normal`), grup içinde puan, güç, ad |
+| `candidate_narrowing()` | Bir vakanın daraltması: `candidates` (ilk K), `ranking` (bütün sıra), `edges` (adaylar arasındaki çağrı kenarları) |
+| `K`, `GROUPS` (`deep`, `anomalous`, `normal`) | Daraltmada aday sayısı (5) / grup adları: derin (anormal, çağırdıklarında anormallik yok) / diğer anormal / anormal değil |
+| `tests/fixtures/narrowing_expected.json` | CI örneklerinde daraltmanın beklenen çıktısı (regresyon) |

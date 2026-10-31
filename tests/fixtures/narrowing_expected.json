@@ -1,0 +1,628 @@
+{
+ "inc-0f31ed0e": {
+  "candidates": [
+   "product-catalog",
+   "cart",
+   "frontend",
+   "frontend-proxy",
+   "recommendation"
+  ],
+  "edges": [
+   [
+    "frontend",
+    "cart",
+    25
+   ],
+   [
+    "frontend",
+    "product-catalog",
+    66
+   ],
+   [
+    "frontend",
+    "recommendation",
+    12
+   ],
+   [
+    "frontend-proxy",
+    "frontend",
+    272
+   ],
+   [
+    "recommendation",
+    "product-catalog",
+    12
+   ]
+  ],
+  "ranking": [
+   {
+    "group": "deep",
+    "max_strength": 1389.065,
+    "score": 3,
+    "service": "product-catalog",
+    "signals": [
+     "p95_ms",
+     "p99_ms",
+     "request_drop"
+    ]
+   },
+   {
+    "group": "deep",
+    "max_strength": 1.429,
+    "score": 1,
+    "service": "cart",
+    "signals": [
+     "request_drop"
+    ]
+   },
+   {
+    "group": "anomalous",
+    "max_strength": 1388.895,
+    "score": 3,
+    "service": "frontend",
+    "signals": [
+     "p95_ms",
+     "p99_ms",
+     "request_drop"
+    ]
+   },
+   {
+    "group": "anomalous",
+    "max_strength": 748.57,
+    "score": 2,
+    "service": "frontend-proxy",
+    "signals": [
+     "p99_ms",
+     "request_drop"
+    ]
+   },
+   {
+    "group": "anomalous",
+    "max_strength": 129.02,
+    "score": 2,
+    "service": "recommendation",
+    "signals": [
+     "p95_ms",
+     "p99_ms"
+    ]
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.921,
+    "score": 0,
+    "service": "image-provider",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.202,
+    "score": 0,
+    "service": "valkey-cart",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.101,
+    "score": 0,
+    "service": "quote",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.099,
+    "score": 0,
+    "service": "ad",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.093,
+    "score": 0,
+    "service": "payment",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.065,
+    "score": 0,
+    "service": "shipping",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.044,
+    "score": 0,
+    "service": "telemetry-docs",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.023,
+    "score": 0,
+    "service": "checkout",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.006,
+    "score": 0,
+    "service": "currency",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.0,
+    "score": 0,
+    "service": "email",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": -0.009,
+    "score": 0,
+    "service": "astronomy-db",
+    "signals": []
+   }
+  ]
+ },
+ "inc-2dd806a2": {
+  "candidates": [
+   "quote-gateway",
+   "frontend-proxy",
+   "shipping",
+   "product-catalog",
+   "frontend"
+  ],
+  "edges": [
+   [
+    "frontend",
+    "product-catalog",
+    123
+   ],
+   [
+    "frontend",
+    "shipping",
+    1
+   ],
+   [
+    "frontend-proxy",
+    "frontend",
+    309
+   ],
+   [
+    "shipping",
+    "quote-gateway",
+    2
+   ]
+  ],
+  "ranking": [
+   {
+    "group": "deep",
+    "max_strength": 1.635,
+    "score": 2,
+    "service": "quote-gateway",
+    "signals": [
+     "p95_ms",
+     "p99_ms"
+    ]
+   },
+   {
+    "group": "deep",
+    "max_strength": 1.02,
+    "score": 1,
+    "service": "frontend-proxy",
+    "signals": [
+     "p99_ms"
+    ]
+   },
+   {
+    "group": "anomalous",
+    "max_strength": 1.69,
+    "score": 2,
+    "service": "shipping",
+    "signals": [
+     "p95_ms",
+     "p99_ms"
+    ]
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.75,
+    "score": 0,
+    "service": "product-catalog",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.74,
+    "score": 0,
+    "service": "frontend",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.476,
+    "score": 0,
+    "service": "cart",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.069,
+    "score": 0,
+    "service": "image-provider",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.063,
+    "score": 0,
+    "service": "currency",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.061,
+    "score": 0,
+    "service": "valkey-cart",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.055,
+    "score": 0,
+    "service": "ad",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.028,
+    "score": 0,
+    "service": "recommendation",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.015,
+    "score": 0,
+    "service": "quote",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.01,
+    "score": 0,
+    "service": "astronomy-db",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.009,
+    "score": 0,
+    "service": "telemetry-docs",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.006,
+    "score": 0,
+    "service": "payment",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.0,
+    "score": 0,
+    "service": "checkout",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.0,
+    "score": 0,
+    "service": "email",
+    "signals": []
+   }
+  ]
+ },
+ "inc-2e5706ab": {
+  "candidates": [
+   "cart",
+   "product-catalog",
+   "frontend",
+   "frontend-proxy",
+   "checkout"
+  ],
+  "edges": [
+   [
+    "checkout",
+    "cart",
+    2
+   ],
+   [
+    "checkout",
+    "product-catalog",
+    1
+   ],
+   [
+    "frontend",
+    "cart",
+    46
+   ],
+   [
+    "frontend",
+    "checkout",
+    1
+   ],
+   [
+    "frontend",
+    "product-catalog",
+    77
+   ],
+   [
+    "frontend-proxy",
+    "frontend",
+    291
+   ]
+  ],
+  "ranking": [
+   {
+    "group": "deep",
+    "max_strength": 7.61,
+    "score": 2,
+    "service": "cart",
+    "signals": [
+     "p95_ms",
+     "p99_ms"
+    ]
+   },
+   {
+    "group": "deep",
+    "max_strength": 1.113,
+    "score": 1,
+    "service": "product-catalog",
+    "signals": [
+     "mem_mb"
+    ]
+   },
+   {
+    "group": "anomalous",
+    "max_strength": 19.68,
+    "score": 2,
+    "service": "frontend",
+    "signals": [
+     "p95_ms",
+     "p99_ms"
+    ]
+   },
+   {
+    "group": "anomalous",
+    "max_strength": 13.9,
+    "score": 2,
+    "service": "frontend-proxy",
+    "signals": [
+     "p95_ms",
+     "p99_ms"
+    ]
+   },
+   {
+    "group": "anomalous",
+    "max_strength": 1.051,
+    "score": 1,
+    "service": "checkout",
+    "signals": [
+     "mem_mb"
+    ]
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.538,
+    "score": 0,
+    "service": "currency",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.29,
+    "score": 0,
+    "service": "payment",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.282,
+    "score": 0,
+    "service": "telemetry-docs",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.212,
+    "score": 0,
+    "service": "shipping",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.179,
+    "score": 0,
+    "service": "email",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.17,
+    "score": 0,
+    "service": "recommendation",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.121,
+    "score": 0,
+    "service": "image-provider",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.099,
+    "score": 0,
+    "service": "astronomy-db",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.093,
+    "score": 0,
+    "service": "ad",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.015,
+    "score": 0,
+    "service": "quote",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.001,
+    "score": 0,
+    "service": "valkey-cart",
+    "signals": []
+   }
+  ]
+ },
+ "inc-8ceb7ae5": {
+  "candidates": [
+   "payment",
+   "image-provider",
+   "email",
+   "recommendation",
+   "frontend-proxy"
+  ],
+  "edges": [
+   [
+    "frontend-proxy",
+    "image-provider",
+    89
+   ]
+  ],
+  "ranking": [
+   {
+    "group": "deep",
+    "max_strength": 2.4,
+    "score": 1,
+    "service": "payment",
+    "signals": [
+     "new_warn_log"
+    ]
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.561,
+    "score": 0,
+    "service": "image-provider",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.43,
+    "score": 0,
+    "service": "email",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.235,
+    "score": 0,
+    "service": "recommendation",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.185,
+    "score": 0,
+    "service": "frontend-proxy",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.155,
+    "score": 0,
+    "service": "telemetry-docs",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.145,
+    "score": 0,
+    "service": "quote",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.142,
+    "score": 0,
+    "service": "checkout",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.135,
+    "score": 0,
+    "service": "cart",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.122,
+    "score": 0,
+    "service": "frontend",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.101,
+    "score": 0,
+    "service": "ad",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.089,
+    "score": 0,
+    "service": "shipping",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.081,
+    "score": 0,
+    "service": "product-catalog",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.028,
+    "score": 0,
+    "service": "valkey-cart",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.002,
+    "score": 0,
+    "service": "astronomy-db",
+    "signals": []
+   },
+   {
+    "group": "normal",
+    "max_strength": 0.0,
+    "score": 0,
+    "service": "currency",
+    "signals": []
+   }
+  ]
+ }
+}
