@@ -3030,3 +3030,22 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Eşitlik seçimi dev sonucunu değiştirmiyor: P1a `rule_check` eşitliğiyle de dev ilk 5'te 18/18 (yalnız `inc-ac155a23`'te kök 2 → 4).
 - 2. adımın kasıtlı kırmızı düzeltmesi not edildi. Planlamanın 2. adım kontrolü etkilenmedi (kopyası `git archive` ile `incidents/` dahil; 515/515).
 - **3b biçim önerisinde ayrıca yanıtlanacak:** adaylar modele hangi sırayla gösterilir? Daraltmanın sırasıyla (öne alınan önce) gösterilirse model ilk adayı seçmeye yatkın olabilir; o zaman ölçülen, seçimle birlikte sıralamanın da katkısı olur. Seçenekler (ör. daraltma sırası / ada göre), sonuçları ve öneri; Eren onaylar.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3b önerisi: daraltma girdisinin biçimi ve aday sırası)
+- Taslak yalnız pilot 25 vakada (model çıkarımı yok; Qwen tokenizer): `~/cerebrum2/analysis/p1c_narrowed_proto.py` (sha256 `01c32c55…1d285789`; `--show <vaka>` örnek metni basar).
+- **Önerilen biçim** (girintisiz JSON, özetle aynı yazım):
+  - `alarm_time_utc`, `window_minutes` (özetteki gibi).
+  - `candidates`: daraltmanın ilk 5 adayı, her biri:
+    - servis satırı **özetteki satırın aynısı** (istek, hata oranı, p95, CPU, bellek; önce/sonra): aynı servis iki seviyede aynı sayılarla görünür, seviyeler arasında temsil değişmez.
+    - `operations`: adayın gelen span adları (SERVER/CONSUMER; `signals.operation_rows`), her birinde istek, hata oranı, p95 önce/sonra; ada göre; sınır yok (pilotta en çok 12).
+    - `callers`: adayı çağıran istemci span'leri (`signals.caller_rows`, belirti kontrolündeki eşleşme; IP eşleşmesi yok), çağıran + span adı başına aynı alanlar; ada göre (pilotta en çok 4).
+    - `logs`: adayın alarm sonrası en sık 3 WARN+ mesajı (özetteki sadeleştirme), önce/sonra sayısıyla.
+  - `calls`: adaylar arasındaki çağrı kenarları `[çağıran, çağrılan]` (sayısız), sıralı.
+  - Daraltmanın grubu, puanı ve sırası **verilmez**.
+- **Token (pilot):** veri bloğu 1.278–2.502, ortalama 1.900; 5000'in yarısı. Kesme kuralı gerekmez; aşan girdi kartın kuralıyla koşulmaz, kayda geçer.
+- **Aday sırası (planlamanın sorusu):**
+  - a) Daraltma sırası (öne alınan önce): istatistiğin görüşü girdide kalır; model ilk adayı seçmeye yatkınsa ölçülen, sıralama + seçimin birlikte katkısı olur. Pilotta daraltmanın kendi top-1'i 21/25, dev 15/18: model bunu kopyalasa bile yüksek görünür.
+  - b) **Ada göre** (özetteki gibi): daraltmadan modele yalnız seçim (hangi 5 servis) ve ayrıntı geçer; sıra ipucu yok. Özet de ada göre sıralı, yani özet → daraltma adımında değişen yalnız seçim ve ayrıntı (DECISIONS 2026-10-30 "her adımda tek değişken"). Bedeli: istatistiğin sıra bilgisi modele gitmez; model daraltmanın kendi top-1'inin altında kalabilir.
+  - Uygulamanın önerisi **b**. Not (planlamaya): daraltmanın kendi top-1/top-3'ü modelsiz bir referans satırı olarak P1e tablosuna konabilir (hesap hazır; model sıra ipucuyla bunu geçebiliyor mu sorusu böylece ayrı görünür).
+- Süre: pilotun 25 girdisi ~4 dk (aday başına `caller_rows` bütün izleri okuyor); koşuyu etkilemez.
+- Onaydan sonra 3b: `inputs.narrowed_input` (bu biçim), testler, pilot ve dev'de token sayımı (4. adımın 43 vaka kontrolüyle birlikte).
