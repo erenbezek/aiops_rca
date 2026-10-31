@@ -3021,3 +3021,12 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - **Sonuç: ilk 5'te kök 18/18 → geçti.** Kökün sırası: 1 (15), 2 (1), 3 (1), 4 (1).
 - Not (yorum P1e'de): pilot gibi dev de bu ölçütte tavanda; ilk 5 ölçüsü daraltmanın kökü kaybetmediğini gösteriyor, LLM'e katkısını göstermiyor (P1d).
 - Sıradaki: 3b daraltma girdi seviyesi (biçim önerisi; adaylar, aralarındaki kenarlar, aday başına işlem ve çağıran tarafı sinyalleri, en sık log mesajları; ≤ 5000 token).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 3a kontrolü: daraltma kodu ve dev ölçümü)
+- 3a (`69769a0`, `73a348a`) kartla ve DECISIONS 2026-10-31 "Daraltmanın öne alma kuralı" ile uyumlu; **dev ölçütü geçti, 3b'ye geçilebilir.** Planlamanın bağımsız kontrolleri (`73a348a` kopyasında; ortak kopyada dosya yok):
+  - pytest 524/524.
+  - Planlamanın sıralama kodu (Onay 2 metninden) `candidate_narrowing` ile **tam sıra** düzeyinde pilot 25/25, dev 18/18 aynı.
+  - Dev: ilk 5'te kök 18/18; kök sırası 1 (15), 2 (1), 3 (1), 4 (1). `p1c_narrowing_dev.json` sha256 `b818d1c0…` kayıttakiyle aynı; `repo_commit` `69769a0`, `src_clean: true`.
+  - Eşitlik seçimi dev sonucunu değiştirmiyor: P1a `rule_check` eşitliğiyle de dev ilk 5'te 18/18 (yalnız `inc-ac155a23`'te kök 2 → 4).
+- 2. adımın kasıtlı kırmızı düzeltmesi not edildi. Planlamanın 2. adım kontrolü etkilenmedi (kopyası `git archive` ile `incidents/` dahil; 515/515).
+- **3b biçim önerisinde ayrıca yanıtlanacak:** adaylar modele hangi sırayla gösterilir? Daraltmanın sırasıyla (öne alınan önce) gösterilirse model ilk adayı seçmeye yatkın olabilir; o zaman ölçülen, seçimle birlikte sıralamanın da katkısı olur. Seçenekler (ör. daraltma sırası / ada göre), sonuçları ve öneri; Eren onaylar.
