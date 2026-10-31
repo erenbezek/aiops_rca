@@ -1,0 +1,15 @@
+{
+ "method": "baro",
+ "model_id": null,
+ "provider": null,
+ "temperature": null,
+ "settings": {},
+ "sets": [
+  "pilot",
+  "dev"
+ ],
+ "started_at": "2026-10-31T06:06:00Z",
+ "repo_commit": "c609b35b6180ed56c4b9faac61b664fc6d6867d2",
+ "repo_clean": true,
+ "n_cases": 43
+}

@@ -2795,3 +2795,67 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - Test, normal dönemde sabit sütunun (hep 0 hata) `drop_constant` ile atıldığını da sınar: alarmdan sonra başlayan hata BARO'ya girmez. Bu RCAEval'in davranışı.
   - Testin ilk sürümü bunu bilmeden "hata veren servis en üstte" bekliyordu (uygulamanın beklenti hatası, kod doğru).
 - Resmî koşu 3b'de, bu commit'ten.
+
+## 2026-10-31 · Uygulama → Planlama (P1b 3b: BARO resmî koşusu)
+- İki koşu yapıldı: `eval_responses/20261031T060600Z-baro` ve `20261031T060653Z-baro`.
+  - İkisi de commit `c609b35`'ten, `repo_clean: true`, setler pilot + dev, 43 vaka.
+  - 43/43 cevap şemaya uygun, tam 3 aday.
+  - İki koşunun `responses.jsonl`'ı ve `scores.json`'ı süre dışında birebir aynı.
+- Tabloyu yeniden üretmek için: `python -m aiops_rca.evaluate score eval_responses/20261031T060600Z-baro`. Tablo (1. koşu):
+
+| Set | Vaka | top-1 | top-3 | Kanıt geçerli | Kanıt geçersiz | Kenarsız | Örtüşme | Brier | Seçici doğruluk | Kapsama | Şema dışı | Süre (sn) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| dev | 18 | 5/18 (0.278) | 10/18 (0.556) | 0 | 0 | 18 | 0.0 | — | 0.278 | 1.0 | 0 | 23.143 |
+| pilot | 25 | 6/25 (0.24) | 17/25 (0.68) | 0 | 0 | 25 | 0.0 | — | 0.24 | 1.0 | 0 | 29.747 |
+| toplam | 43 | 11/43 (0.256) | 27/43 (0.628) | 0 | 0 | 43 | 0.0 | — | 0.256 | 1.0 | 0 | 52.89 |
+
+- Bilgi (planlamanın isteği, yorum yok):
+  - En üst sütun 17/43 vakada bir konteynerin `_mem`'i: telemetry-docs 11, currency 3, recommendation 1, shipping 1, image-provider 1.
+  - En üst sütunun eki: `_latency` 19, `_mem` 17, `_net_rx` 5 (hepsi telemetry-docs), `_cpu` 2.
+- Vaka başına (kök, BARO'nun en üst sütunu, 3 aday):
+
+| Vaka | Set | Giriş | Kök | En üst sütun | BARO'nun adayları | top-1 | top-3 |
+|---|---|---|---|---|---|---|---|
+| `inc-01a609bb` | pilot | containerStop recommendation on | recommendation | frontend_latency | frontend, frontend-proxy, telemetry-docs | hayır | hayır |
+| `inc-01dd32ce` | pilot | networkDelay cart 200ms | cart | telemetry-docs_net_rx | telemetry-docs, cart, frontend | hayır | evet |
+| `inc-072897d4` | pilot | emailMemoryLeak_1000x | email | telemetry-docs_mem | telemetry-docs, currency, image-provider | hayır | hayır |
+| `inc-07533a0a` | pilot | paymentUnreachable_on | checkout | telemetry-docs_mem | telemetry-docs, checkout, valkey-cart | hayır | evet |
+| `inc-09516b21` | pilot | adHighCpu_on | ad | ad_cpu | ad, image-provider, currency | evet | evet |
+| `inc-0c4902c3` | dev | adFailure_on | ad | telemetry-docs_mem | telemetry-docs, payment, ad | hayır | evet |
+| `inc-0f31ed0e` | pilot | productCatalogLockContention_on | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
+| `inc-110f3aba` | pilot | adManualGc_on | ad | ad_latency | ad, image-provider, payment | evet | evet |
+| `inc-12813456` | pilot | adFailure_on | ad | telemetry-docs_mem | telemetry-docs, currency, shipping | hayır | hayır |
+| `inc-230c9d46` | dev | containerStop recommendation on | recommendation | frontend_latency | frontend, telemetry-docs, payment | hayır | hayır |
+| `inc-234d34cf` | dev | paymentUnreachable_on | checkout | currency_mem | currency, telemetry-docs, shipping | hayır | hayır |
+| `inc-2a87f603` | pilot | containerPause cart on | cart | checkout_latency | checkout, frontend, telemetry-docs | hayır | hayır |
+| `inc-2dd806a2` | pilot | quoteGatewaySlowdown_30ms | quote-gateway | telemetry-docs_net_rx | telemetry-docs, currency, payment | hayır | hayır |
+| `inc-2e5706ab` | pilot | networkDelay cart 50ms | cart | cart_latency | cart, telemetry-docs, frontend | evet | evet |
+| `inc-320c56f9` | dev | adHighCpu_on | ad | ad_cpu | ad, telemetry-docs, quote | evet | evet |
+| `inc-3967c278` | pilot | cpuThrottle product-catalog 0.09 | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
+| `inc-48be145f` | pilot | intlShippingSlowdown_10sec | shipping | shipping_latency | shipping, checkout, telemetry-docs | evet | evet |
+| `inc-4a62b9bb` | dev | productCatalogLockContention_on | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
+| `inc-5cb2c977` | dev | packetLoss shipping 10% | shipping | shipping_latency | shipping, telemetry-docs, checkout | evet | evet |
+| `inc-73ac64e9` | dev | networkDelay cart 50ms | cart | telemetry-docs_mem | telemetry-docs, cart, currency | hayır | evet |
+| `inc-78df5642` | pilot | recommendationCacheFailure_on | recommendation | recommendation_mem | recommendation, frontend, payment | evet | evet |
+| `inc-79cab5da` | pilot | cpuThrottle product-catalog 0.045 | product-catalog | telemetry-docs_net_rx | telemetry-docs, recommendation, product-catalog | hayır | evet |
+| `inc-8069b709` | dev | emailMemoryLeak_1000x | email | telemetry-docs_mem | telemetry-docs, currency, payment | hayır | hayır |
+| `inc-86d286ea` | dev | adManualGc_on | ad | ad_latency | ad, currency, telemetry-docs | evet | evet |
+| `inc-8ceb7ae5` | pilot | paymentFailure_50pct | payment | shipping_mem | shipping, payment, telemetry-docs | hayır | evet |
+| `inc-91bf76d4` | pilot | quoteGatewayMisroute_on | quote-gateway | telemetry-docs_mem | telemetry-docs, quote-gateway, shipping | hayır | evet |
+| `inc-91c1ad44` | pilot | packetLoss shipping 10% | shipping | telemetry-docs_net_rx | telemetry-docs, shipping, checkout | hayır | evet |
+| `inc-9292257f` | dev | containerPause cart on | cart | checkout_latency | checkout, frontend, frontend-proxy | hayır | hayır |
+| `inc-93c4ca55` | pilot | paymentFailure_50pct | payment | telemetry-docs_mem | telemetry-docs, payment, recommendation | hayır | evet |
+| `inc-ac155a23` | dev | cartFailure_50pct | cart | checkout_latency | checkout, telemetry-docs, quote | hayır | hayır |
+| `inc-ac820869` | dev | paymentFailure_50pct | payment | telemetry-docs_mem | telemetry-docs, currency, payment | hayır | evet |
+| `inc-ae15665a` | dev | quoteGatewaySlowdown_30ms + flood | quote-gateway | currency_mem | currency, payment, telemetry-docs | hayır | hayır |
+| `inc-af671750` | pilot | paymentFailure_50pct + flood | payment | telemetry-docs_mem | telemetry-docs, frontend, payment | hayır | evet |
+| `inc-b03ccffb` | pilot | productCatalogFailure_on | product-catalog | currency_mem | currency, payment, telemetry-docs | hayır | hayır |
+| `inc-b4d12a5e` | dev | quoteGatewaySlowdown_30ms | quote-gateway | telemetry-docs_mem | telemetry-docs, currency, payment | hayır | hayır |
+| `inc-bfbbd586` | dev | recommendationCacheFailure_on | recommendation | recommendation_latency | recommendation, frontend, telemetry-docs | evet | evet |
+| `inc-c775923b` | pilot | packetLoss shipping 30% | shipping | shipping_latency | shipping, telemetry-docs, checkout | evet | evet |
+| `inc-d6d5f1b2` | dev | productCatalogFailure_on | product-catalog | telemetry-docs_net_rx | telemetry-docs, payment, image-provider | hayır | hayır |
+| `inc-d8f67a48` | pilot | memoryLimit frontend 0.9 | frontend | image-provider_mem | image-provider, telemetry-docs, payment | hayır | hayır |
+| `inc-d9ea423d` | dev | intlShippingSlowdown_10sec | shipping | shipping_latency | shipping, checkout, telemetry-docs | evet | evet |
+| `inc-ef72f574` | pilot | cartFailure_50pct | cart | checkout_latency | checkout, telemetry-docs, currency | hayır | hayır |
+| `inc-f20daed8` | pilot | productCatalogLockContention_on + flood | product-catalog | recommendation_latency | recommendation, product-catalog, frontend | hayır | evet |
+| `inc-fa775703` | dev | cpuThrottle product-catalog 0.09 | product-catalog | recommendation_latency | recommendation, frontend, product-catalog | hayır | evet |
