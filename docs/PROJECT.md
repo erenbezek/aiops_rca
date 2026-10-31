@@ -90,4 +90,5 @@ V3 resmî set kapandı (`task/vaka-v3`, 2026-10-30): 36 geçerli vaka (dev 18, t
 V3 kapanışı birleşti (PR #28). product-catalog bellek sınaması sonuçsuz; müdahale sınaması canlı demo kartında.
 Proje 1 P1a bitti (`task/p1-eval`, 2026-10-30): değerlendirme çatısı (`src/aiops_rca/`: erişim, şema, puanlama, koşu kaydı) ve kural baseline'ı; pilot + dev'de top-1 22/43, top-3 36/43 (`eval_responses/`). Ham log penceresi ~53 M token: "ham log" koşulu P1c'de yeniden tanımlanacak.
 P1a birleşti (PR #29).
-Sıradaki: P1b (BARO, `task/p1-baro`), sonra P1c (girdi seviyeleri ham / özet / daraltma, LLM katmanı; kart HANDOFF'ta).
+P1b bitti (`task/p1-baro`, PR #30, 2026-10-31): BARO, RCAEval 1.9.0'ın saf Python portu (5 dev vakasında bit düzeyinde eşit); pilot + dev'de top-1 11/43, top-3 27/43 (`eval_responses/`); CI'da 4 örnekte beklenen çıktı testi. Üç sınırlama notu P1e'de tabloyla (HANDOFF 2026-10-31).
+Sıradaki: P1c (`task/p1-llm`): LLM katmanı, girdi seviyeleri ham / özet / daraltma, pilotta duman (kart HANDOFF 2026-10-30, plan kontrolü 2026-10-31). Koşmadan önce üç onay: ham kesme kuralı, daraltmanın öne alma kuralı, istem metni.

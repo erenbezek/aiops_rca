@@ -2885,3 +2885,28 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - numpy `_lerp` yerine düz `a + (b−a)·t` yazılınca test yeşil kaldı: bu 4 örnekte iki formül aynı sonucu verdi (en fazla son bitte ayrışırlar).
 - pytest 467/467. GLOSSARY: `baro_expected.json`, `baro_fixture_result()`. ARCHITECTURE tablosu güncel.
 - Sıradaki: PR (`task/p1-baro` → main); birleştirme planlamanın kapanış kontrolünden sonra.
+
+## 2026-10-31 · Planlama → Uygulama (P1b kapanış kontrolü)
+- P1b kapanışı (`b271358`) kartla uyumlu. Planlamanın bağımsız kontrolleri (main `7744856` kopyasında; ortak kopyada dosya yok):
+  - `test_baro_reproduces_expected_output_on_fixtures` yeşil.
+  - Kasıtlı kırmızı, her biri ayrı kopyada: z'den ölçek kaldırılınca kırmızı; `drop_constant` kaldırılınca kırmızı; `_lerp` yerine düz `a + (b−a)·t` yeşil. Uygulamanın raporuyla aynı. Bu son fark CI'da korunmuyor; RCAEval'le bit düzeyinde eşitlik P1b 2. adımda 5 dev vakasında gösterildi.
+  - Örneklerde top-1 2/4, top-3 4/4: planlamanın betiği etiketlerden saydı, `baro_expected.json` tablosuyla aynı.
+  - `src/`, `tools/`, `pyproject.toml` resmî koşunun commit'inden (`c609b35`) beri değişmedi; P1b 1–3'teki yeniden koşu ve tablo kontrolü main için de geçerli.
+  - PR #30 koşusu yeşil (head `b271358`). Birleşti: main `7744856`, push koşusu yeşil (run 41178530691); main'in ağacı `b271358` ile aynı.
+- P1b kapandı. Sonuç (yorum P1e'de): BARO top-1 11/43, top-3 27/43; üç sınırlama notu 2026-10-31 planlama kaydında.
+
+## 2026-10-31 · Planlama → Uygulama (P1c planı kontrolü; Eren onaylı)
+- Dal `task/p1-llm`: planlama main `7744856`'dan açtı (Eren). Uygulamanın 5 adımlı planı (LLM katmanı → özet ve ham + token sayımı → daraltma → takma ad ve girdi kontrolleri → istem ve duman) kartla uyumlu; aşağıdaki değişikliklerle onaylı. Sonra: GLOSSARY ve 1. adım.
+- Uygulamanın zayıf yer bulguları (planlama doğruladı):
+  1. `ALIASES`'ta quote-gateway yok (kartın boşluğu). **Takma ad `rate-gateway`** (Eren). `ALIASES` ve GLOSSARY "takma ad eşlemesi" birlikte, ekleme tarihiyle.
+  2. Kartta çıktı sınırı yok (kartın boşluğu); denemelerin "sınırda iki katına çıkarıp yeniden sor" kuralı kartla çelişiyor. Eski şemada 2B cevabı 290 token'a çıktı (sınır 300). **Karar: DECISIONS 2026-10-31 "Çıktı sınırı".**
+  3. Groq: denemelerde aynı girdide Groq'un `prompt_tokens`'ı Qwen sayısının 0,95–1,03 katı (özet metni; ham metinde bilinmiyor). Groq belgesi `max_tokens`'ın dakikalık sınıra sayılıp sayılmadığını yazmıyor. Dumanda her Groq isteğinde Groq `prompt_tokens` ve Qwen sayısı yan yana kayda. Boyut yüzünden reddedilen istek: ayar değişmez, planlama.
+  4. Ham seviyede takma adı yazılamayan vaka: plandaki gibi, durup sayıyı getir.
+  5. Tokenizer: plandaki gibi (2B/4B/9B aynı metinde bir kez karşılaştırılır; fark varsa en büyük sayı).
+- Planlamanın ekleri (Eren onaylı):
+  - **İstem payı** (DECISIONS 2026-10-31): 6K'nın 1000'i istem + sohbet şablonu, veri bloğu ≤ 5000. Kesme kuralı (Onay 1) buna göre yazılır. Sayım llama-server `/apply-template` + `/tokenize` ile (şablon dahil). Bitti ölçütündeki "istem dahil ≤ 6K" onaylı istemle son kez ölçülür.
+  - Ad: `src/aiops_rca/llm.py` yerine `llm_client.py` (`methods/llm.py` ile karışmasın). GLOSSARY'de evaluate `--alias` (takma adlı girdi), `trial_ask_models.py`'nin `--alias`'ından (puanlamada çeviri) ayrı yazılır. Diğer adlar plandaki gibi.
+  - 1. adımda açıkça: Qwen `enable_thinking: false`, gpt-oss `reasoning_effort: low`, Gemini `minimal` (DECISIONS 2026-10-30 "LLM ayarları"); anahtarlar `keys.env`'den; CI'da anahtar ve ağ yok.
+  - Girdi üretimi test setini reddeder (evaluate'teki gibi).
+  - Sıra: ham kesme kuralı yalnız pilot boyutlarından; dev sayımı Onay 1'den sonra bir kez. Daraltmada pilot ayar kaydı ve pilotta ilk 5 oranı kayda; dev'in daraltma girdisi (aday listesi ve token sayımı dahil) Onay 2'den önce üretilmez.
+- Not (P1d için, planlama): Groq gpt-oss-120b günlük 200K token sınırı (TPD, console.groq.com/docs/rate-limits). Duman ~50K, sorun yok; dev koşusu tahminen 2 güne bölünür.
