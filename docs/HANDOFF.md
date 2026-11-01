@@ -3664,3 +3664,35 @@ Data:
   - `p1d_state.json` ağaç kaydı yenilendi: `src` `461d037b…5dc2` (eski `c9bb8c5b…1f38`, `baseline_history`'de nedeniyle), `incidents` aynı, commit `eafc491`.
 - **Koşucu** sha256 **`e130ee22…4164`**: ertelenen tur atlanır, `--run-deferred` yalnız ertelenenleri koşar (3. gün, a2'den önce).
 - a1 sürdürülüyor: kalan Groq daraltma ve Gemini'nin 3 turu.
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 bitti; Groq özet turu ertelendi)
+- **a1:** 15 turdan **14'ü** bitti ve puanlandı (`eval_responses/`, 05:53–11:55Z). gpt-oss özet turu ertelendi (3. gün a2'den önce, `--run-deferred`).
+  - Çıktı `~/cerebrum2/analysis/p1d_a1.json` (sha256 `269ce1e6…`), log `p1d_a1.log`.
+  - Koşucu sha256 `e130ee22…4164` (son 4 tur). İlk 10 tur `2cc959dc…` / `9fa0598c…` sürümleriyle koşuldu; sürümler arası fark yalnız durma kuralları ve ertelenen tur işleme, `evaluate` çağrısı aynı.
+- **Kimlik:**
+  - 14 turun hepsinde `repo_clean: true`, istem sha `6d05378e…`.
+  - `src` ağacı ilk 10 turda `c9bb8c5b…`, son 4 turda `461d037b…`. Fark yalnız `json_validate_failed` düzeltmesi (`eafc491`); biten 10 tur yeni kodla 10/10 aynı puanlandı.
+  - `incidents` 14 turda aynı (`ce7a75d0…`).
+- **Durumlar** (doğruluk yorumlanmaz):
+
+  | Model | Tur | Sorulan satır | Şema dışı | Döngü | Cevapsız | Ort. cevap süresi (sn; ham / özet / daraltma) |
+  |---|---|---|---|---|---|---|
+  | qwen3.5-2b | 3 | 46 | 5 | 2 | 0 | 48 / 33 / 32 |
+  | qwen3.5-4b | 3 | 46 | 2 | 0 | 0 | 102 / 67 / 68 |
+  | qwen3.5-9b | 3 | 46 | 1 | 0 | 0 | 175 / 118 / 119 |
+  | gpt-oss-120b | 2 (ham, daraltma) | 28 | 3 | 0 | 0 | 1,5 / — / 1,7 |
+  | gemini-3.5-flash-lite | 3 | 46 | 3 | 0 | 0 | 1,9 / 1,9 / 1,9 |
+
+  - Hamda her modelde 8/18 boş girdi, sorulmadı.
+  - Bütçe aşımı 0. Cevapsız 0.
+  - En uzun yerel cevap 9B ham 256 sn.
+- **Şema dışı nedenleri** (14 tur, 14 satır; bir satırda birden çok neden olabilir):
+  - "evidence_path must start at the candidate service": 10;
+  - "candidate services must be distinct": 5;
+  - tekrar döngüsü (`length` + kesik JSON): 2, 2B ham.
+  - Duran özet turundaki iki `json_validate_failed` satırı ertelenen turla yeniden sorulacak, bu sayıya girmez.
+- **Groq kotası:** a1'in biten iki Groq turu 81,7K token. Duran özet turu (~42K) ve deneme (~10K) ile 24 saat içinde ~134K. Sayaç 09:28:41Z'den. b'nin Groq turları 2026-11-02 09:28Z'den sonra.
+- **Sırada:**
+  - (1) yerel tekrar (`repeat`, 2B daraltma, `llm_cache/`), koşulabilir;
+  - (2) b aşaması: yerel ve Gemini bugün/gece, Groq turları 24 saat koruması yüzünden 2026-11-02 09:28Z'den sonra (koşucu bekler değil, durur; o saatten sonra yeniden çağrılır);
+  - (3) analiz betiği (3. adım) planı.
