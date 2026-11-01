@@ -3363,3 +3363,34 @@ Data:
 - pytest **567/567**.
 - GLOSSARY'ye yazıldı (Eren onaylı): `USER_TEMPLATE`, `prompt_sha256()`, `TOKENIZER` / `tokenizer`, `settings` anahtarları `model`, `level`, `alias`, `max_tokens`, `extra`.
 - Sonra: 5c duman (Eren'in başlat demesiyle). Durma kuralları: `finish_reason: length`, Groq boyut reddi, taşıma hatasıyla cevapsız satır (ek 2) → durulur, planlamaya.
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5c: duman koşusu)
+- **Koşu:**
+  - Betik: `~/cerebrum2/analysis/p1c_smoke.py`, sha256 `6cdd662b…afb2`.
+  - Çıktı: `p1c_smoke.json`; koşu klasörleri `llm_cache/`, git dışı.
+  - Kod: commit `09fbd41`, 30 koşunun hepsinde `repo_clean: true`.
+  - Kapsam: 5 model × 3 seviye × 2 pilot vaka = **30 çağrı**. `inc-01a609bb` gerçek adla, `inc-91bf76d4` takma adla.
+  - Toplam 41 dk. Şarj sınırı 80.
+- **Durma kuralı tetiklenmedi:** `finish_reason` 30/30 `stop`. Groq boyut reddi 0. Taşıma hatası 0: her koşu tek deneme, HTTP 200. Boş ya da bütçeyi aşan girdi yok (iki vakada da ham dolu, tam mesaj ≤ 5.382).
+- **Sonuçlar** (doğruluk yorumlanmaz):
+
+  | Model | Şemaya uygun | Cevap süresi (sn) | Çıktı token | Akıl yürütme token (en çok) | Sağlayıcı / Qwen girdi sayısı |
+  |---|---|---|---|---|---|
+  | qwen3.5-2b | 6/6 | 27–57 | 256–348 | 0 | 1,000 (aynı) |
+  | qwen3.5-4b | 6/6 | 55–149 | 204–261 | 0 | 1,000 |
+  | qwen3.5-9b | 6/6 | 95–249 | 201–261 | 0 | 1,000 |
+  | gpt-oss-120b | **5/6** | 1,6–1,9 | 401–457 | 241 | 0,82–1,04 |
+  | gemini-3.5-flash-lite | 6/6 | 1,5–2,2 | 196–282 | 0 | 1,03–1,20 |
+
+  - Toplam şemaya uygunluk **29/30**.
+  - **Şema dışı tek cevap:** gpt-oss, daraltma, `inc-91bf76d4` (takma ad); `llm_cache/20261101T042343Z-llm`. Hata: "candidate 3: evidence_path must start at the candidate service". Model 3. adayın (`notifier`) yolunu ters yönde yazdı: `["order-processor", "notifier"]`, çağırandan adaya. İlk iki adayın yolu doğru biçimde, `unsure: true`. Neden model hatası; istem yolun adayla başladığını söylüyor. Yeniden sorulmadı (DECISIONS 2026-10-31).
+  - Yerel sayım sunucunun `prompt_tokens`'ıyla 18/18 birebir aynı. Ham girdi en büyük, 9B'de en çok 249 sn (`TIMEOUT` 900).
+  - Çıktılar sınırın çok altında: yerelde en çok 348 / 800, API'de en çok 457 / 1600 (akıl yürütme dahil).
+- **Sayım farkı (kayıt, karar değil):**
+  - Groq girdiyi Qwen'den 0,82–1,04 kat sayıyor: hamda daha az (4.428'e karşı 5.382), özet ve daraltmada yakın.
+  - Dakikalık sınır hesabı (DECISIONS 2026-10-31 "Çıktı sınırı": 6000 × 1,03 + 1600 ≈ 7,8K): gözlenen en büyük oran 1,042 ile 6000 × 1,042 + 1600 ≈ 7,85K < 8K. Pay var ama dar.
+  - Gemini Qwen'den 1,03–1,20 kat fazla sayıyor (en çok 5.569); bağlamı geniş, sınır sorunu yok. 6K bütçesi kararındaki gibi yerel sayımla uygulanıyor.
+- **Planlamaya:**
+  1. Duman ölçütleri (P1c kartı) karşılandı: istem onaylı, şemaya uygunluk kayıtta (29/30, şema dışı nedeni yukarıda), süreler kayıtta. Taşıma hatasıyla cevapsız satırın puanı (planlama notu 3) dumanda örnek çıkmadı; P1d'den önce karar.
+  2. Groq oranı 1,042 ile dakikalık sınıra pay ~150 token. P1d'de 43 vaka koşulurken izlenecek; 429 gelirse mevcut yeniden deneme kuralı geçerli.
+- Sonra: kapanış (ARCHITECTURE diyagramı, PROJECT "Şu an", HANDOFF, PR).
