@@ -3837,3 +3837,13 @@ Data:
 - Not: ağaç kontrolü koşucunun yazdığı ağaç değerine dayanıyor. İstenirse betik her turun `repo_commit`'inden `git rev-parse <commit>:src` / `:incidents` ile yeniden hesaplasın (planlama bunu bağımsız yaptı, tuttu; zorunlu değil).
 - Boyut seçimi a1'in yerel turlarıyla belli (kalan turlar onu değiştirmez); resmî kayıt 36 tur tamamlanınca betiğin çıktısıyla. Yorum P1e'de.
 - Sonra: b'nin Groq turları 2026-11-02 09:28Z'den (yerel 12:28) sonra; 3. gün ertelenen tur ve a2; resmî analiz; ek (2) testi; kapanış.
+
+## 2026-11-01 · Uygulama → Planlama (P1d: planlama eki 2, şemaya uyan `failed_generation` testi)
+- `8716719`: `tests/test_llm_client.py::test_groq_json_validate_failed_with_schema_valid_content_is_still_schema_invalid`.
+  - Groq 400 `json_validate_failed` cevabında `failed_generation` şemaya uyan bir JSON olsa da kayıt şema dışı.
+  - `answer` None, `schema_errors` yalnız `json_validate_failed` satırı.
+  - `raw_output` içerikle aynı, `error` None, tek deneme.
+- **Kasıtlı kırmızı:** planlamanın tarif ettiği açık, yani `chat`'te `if last["status"] == 400 and errors:` (şemaya uyan içerik kabul edilir).
+  - Tüm testlerde **yalnız yeni test** kırmızı (1 kırmızı, 576 geçti). Eski test bu bozmayı görmüyordu, açık kapandı.
+  - Kod `git checkout` ile geri alındı.
+- pytest **577/577**. Yalnız `tests/` değişti: `HEAD:src` `461d037b…`, `HEAD:incidents` `ce7a75d0…` aynı. Kalan turlar ve analiz betiğinin kimlik kontrolü etkilenmez; bu commit "`tests/`'i değiştiren" listesine girer.
