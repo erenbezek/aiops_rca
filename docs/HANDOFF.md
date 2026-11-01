@@ -3187,7 +3187,7 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - `input_status`, `input_tokens_local`, `input_sha256`: kayıt alanları.
   - `prompt_sha256`, `gguf_sha256`: `run.json` ayarları. `ModelSpec.gguf_sha256` sabit değer.
   - `alias.real_name()`: takma ad → gerçek ad, takma ad değilse `None`.
-  - "Boş girdi": tablo sütunu, `evidence_empty` gibi `input_empty` sayısı.
+  - "Boş girdi" tablo sütunu ve `score_table`'daki `input_empty` sayısı.
 - **Planlamaya sorular:**
   1. `over_budget` girdinin puanı: öneri boş girdiyle aynı (ıskalama, çekimser, Brier dışı), ayrı sayı. Beklenen 0.
   2. API modellerinde 6K kontrolü Qwen sayısıyla mı yapılsın? Öneri evet: tek ölçü bütçe kararındaki gibi yerel tokenizer. Sağlayıcının kendi sayısı yalnız kayda geçer.
