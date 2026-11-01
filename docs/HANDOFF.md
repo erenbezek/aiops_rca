@@ -3192,3 +3192,17 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   1. `over_budget` girdinin puanı: öneri boş girdiyle aynı (ıskalama, çekimser, Brier dışı), ayrı sayı. Beklenen 0.
   2. API modellerinde 6K kontrolü Qwen sayısıyla mı yapılsın? Öneri evet: tek ölçü bütçe kararındaki gibi yerel tokenizer. Sağlayıcının kendi sayısı yalnız kayda geçer.
   3. Duman vakaları yukarıdaki iki vaka mı?
+
+## 2026-11-01 · Planlama → Uygulama (P1c 5. adım planı kontrolü; Eren onaylı)
+- Plan (`98f0a89`, `aa13bce`) kartla ve DECISIONS'la uyumlu; **onaylı**, aşağıdaki eklerle. Sıra plandaki gibi: 5a (Onay 3) → 5b → 5c → kapanış.
+- Eren onayları (2026-11-01):
+  - Yeni adlar: plandaki liste + planda eksik kalan kayıt ve ayar alanları: `--cases`, `llm_method()`, `SYSTEM_PROMPT`, `LEVEL_TEXT`, `build_messages()`, `TOTAL_BUDGET`, `input_status`, `input_tokens_local`, `input_sha256`, `finish_reason`, `attempts`, `prompt_sha256`, `gguf_sha256`, `ModelSpec.gguf_sha256`, `image`, `gguf`, `data_budget`, `total_budget`, `alias.real_name()`, "Boş girdi" sütunu ve `input_empty`, "Bütçe aşımı" ve `input_over_budget`. GLOSSARY'ye kodla birlikte. Bunların dışında yeni ad çıkarsa önce sorulur.
+  - Soru 1: aşan girdi → DECISIONS 2026-11-01 "Bütçeyi aşan girdi" (boş girdi gibi puanlanır, ayrı sayı).
+  - Soru 3: duman vakaları `inc-01a609bb` (gerçek ad) ve `inc-91bf76d4` (takma ad). Sayılar 4. adım kaydıyla aynı (ham 4.994 ve takma adlı ham 4.987; pilotun en büyük iki hamı).
+- Soru 2 (mevcut karar, Eren'e gitmedi): evet, 6K kontrolü bütün modellerde yerel Qwen sayısıyla (DECISIONS 2026-10-31 "İstem payı"); Groq ve Gemini'nin sayısı yalnız kayda.
+- Planlamanın kontrolleri: `llm_cache/` `.gitignore`'da; cevap şemasında servis adı listesi (enum) yok, takma adlı koşuda şemadan ad sızmaz.
+- Ekler (planlama):
+  1. **5a:** istem metninde servis adı, demo adı, flag ya da hata türü adı yok; sızıntı CLI'ı ve 4. adımın dedektörü istem metninde 0 (takma adlı koşuda da aynı istem gider). Seviye başına istem + şablon token'ı Onay 3 kaydında.
+  2. **Onay 3'ten sonra, modelden önce:** tam mesaj (şablon + istem + veri) yerel tokenizer'la 43 vaka × 3 seviye × gerçek/takma ad sayılır, hepsi ≤ 6000 (bitti ölçütü "istem dahil ≤ 6K"; DECISIONS "İstem payı": onaylı istemle son kez). Model yok. Aşan çıkarsa durulur, sayıyla planlamaya; dev'e göre istem değişmez.
+  3. **5c durma kuralı** (DECISIONS 2026-10-31 "Çıktı sınırı"): sınıra takılan cevap (`finish_reason: length`) ya da Groq'ta boyut reddi olursa P1d'den önce planlama; ayar değişmez, yeniden sorulmaz.
+- Sonra: 5a, yani istem metni ve ölçümü HANDOFF'a (Uygulama → Planlama); Eren onaylar.
