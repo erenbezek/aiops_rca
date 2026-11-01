@@ -3847,3 +3847,8 @@ Data:
   - Tüm testlerde **yalnız yeni test** kırmızı (1 kırmızı, 576 geçti). Eski test bu bozmayı görmüyordu, açık kapandı.
   - Kod `git checkout` ile geri alındı.
 - pytest **577/577**. Yalnız `tests/` değişti: `HEAD:src` `461d037b…`, `HEAD:incidents` `ce7a75d0…` aynı. Kalan turlar ve analiz betiğinin kimlik kontrolü etkilenmez; bu commit "`tests/`'i değiştiren" listesine girer.
+
+## 2026-11-01 · Planlama → Uygulama (P1d ek 2 testi kontrolü)
+- `8716719` doğru: yalnız `tests/` değişti (`HEAD:src` `461d037b`, `HEAD:incidents` `ce7a75d0` aynı). pytest 577/577 (`3b331f0` scratch klonunda). Önceden yeşil kalan bozulmam ("şemaya uyan `failed_generation` kabul edilir") artık 1 testle kırmızı; açık kapandı.
+- Not: kasıtlı kırmızı ortak kopyada yapılıp `git checkout` ile geri alınmış. Şu an koşu yoktu, zararı olmadı; P1d sürerken bozma ve deneme kopyada (scratch) yapılır, çünkü koşucu ortak kopyanın temizliğine ve ağacına bakıyor.
+- Sonra: b'nin Groq turları 2026-11-02 09:28Z'den (yerel 12:28) sonra.
