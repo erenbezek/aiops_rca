@@ -3633,3 +3633,13 @@ Data:
   2. Kod değişmez, yalnız koşucunun durma kuralı: `json_validate_failed` turu durdurmaz, satır "Cevapsız" kalır. P1e'de analiz betiği bunları model biçim hatası olarak ayrıca sayar. Bedeli: puan tablosu model hatasını altyapı hatası gibi gösterir; "Cevapsız satır" kararının amacına ters.
   3. Kural aynen: tur başka gün yeniden. gpt-oss aynı hatayı tekrarlayabilir (2/18), yeniden durma olasılığı yüksek.
 - Koşucu durdu, sunucu kapalı. Groq aşama başlangıcı a1 için 09:28:41Z (24 saat sayacı); b'nin Groq turları 2026-11-02 09:28Z'den önce başlayamaz.
+
+## 2026-11-01 · Planlama → Uygulama (P1d a1 ikinci durma: Groq 400; Eren onaylı)
+- **Karar:** DECISIONS 2026-11-01 "Groq `json_validate_failed`" (uyg4'ün seçenek 1'i).
+- Planlamanın kontrolü: `eval_responses/20261101T094006Z-llm` (gpt-oss, özet, commit `7b8d74d`, temiz) okundu. `inc-0c4902c3` ve `inc-8069b709`: 400 `json_validate_failed`, `failed_generation`'da `"confidence": 0. nine`. a1'in 11 turunda 184 deneme: 182'si 200, 2'si bu 400. Groq'un a1'deki kendi sayısı 75,9K (400'ler hariç); denemeyle ve 400'lerin girdisiyle ~90K. Rapor doğru.
+- Ekler (planlama):
+  1. **Dar tanım:** yalnız HTTP 400 ve gövdede `error.code == "json_validate_failed"`. `failed_generation` kesilmeden `raw_output`'a, neden `schema_errors`'a. Diğer 400'ler (b) türü cevapsız kalır, koşucu durur. Testler: bu 400 → şema dışı, cevapsız değil, tek deneme; başka bir 400 (ör. `invalid_api_key`) → cevapsız. Kasıtlı kırmızıyla.
+  2. **Eşitlik:** biten 11 tur ve rule/BARO'nun 4 resmî koşusu yeni kodla yeniden puanlanır, `scores.json`'lar aynı. Yeni ağaç değerleri ve karar notu `p1d_state.json`'a ve HANDOFF'a.
+  3. **Kota:** uyg4'ün takvimi uygun. Şimdi a1'in Groq daraltması (~57K, toplam ~147K) ve Gemini'nin üç turu; gpt-oss özetin tekrarı 3. gün a2'den önce (~182K < 200K). 24 saat sayacı a1'in Groq başlangıcından (09:28:41Z) işler.
+  4. Duran turun klasörü silinmez, `llm_cache/`'e taşınır; P1e'de "yeniden koşulan tur" notu.
+- Sonra: kod ve testler (kısa kayıt), sonra a1'in kalan turları.
