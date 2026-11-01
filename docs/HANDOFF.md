@@ -3446,3 +3446,21 @@ Data:
   - Dev tablosu, boyut seçimi ve takma ad okuması betikle üretilmiş ve kayıtta; planlama bağımsız doğrular.
   - pytest yeşil; PR koşusu yeşil.
 - Dikkat: test seti okunmaz. Sonuçların yorumu P1e'de (test ile yan yana); P1d dev sayılarını ve seçimi kayda geçirir. P1e kartı ayrı (planlama).
+
+## 2026-11-01 · Uygulama → Planlama (P1d 1. adım planı: cevapsız satır; ad önerisi)
+- **Ad önerisi (Eren onayı):** kayıt satırında **`no_answer`** (bool; LLM satırlarında her zaman var), tabloda **"Cevapsız"** sütunu ve `score_table`'da `no_answer` sayısı.
+  - Gerekçe: kayıttaki mevcut hata metniyle ("no answer: HTTP …") aynı söz; girdi ile ilgili değil, bu yüzden `input_status`'a eklenmez.
+  - Diğer seçenek: `transport_failed`. Bu ad 400/413 gibi taşıma dışı hataları kapsamaz.
+- **Kapsam sorusu (planlama):** bugün `chat()` son denemede yanıt yoksa (`error`) "no answer" yazıyor. Bu üç durumu kapsıyor:
+  - (a) taşıma hatası: iki deneme (-1, 429, 5xx);
+  - (b) yeniden denenmeyen HTTP hatası (400, 401, 413…);
+  - (c) bozuk sağlayıcı cevabı (`choices` yok).
+  - Karar metni yalnız (a)'yı sayıyor. **Öneri:** üçü de `no_answer` olsun; hiçbiri modelin şema hatası değil, model içerik döndürmedi. Groq boyut reddi (413) ayrıca durma kuralı olarak kalır (koşucu durur).
+  - Diğer seçenek: yalnız (a) `no_answer`; (b) ve (c) şema dışı kalır.
+- **Plan** (dosya: `methods/llm.py`, `scoring.py`, `evaluate.py`, testler, fikstürler):
+  1. `methods/llm.py`: `chat` kaydında `error` varsa satır `no_answer: true`, `schema_valid: null`; diğer satırlarda `no_answer: false`. `attempts` ve hata metni kayıtta kalır.
+  2. `scoring.py`: `score_case(..., no_answer=)`. Cevapsız satır: top-1/top-3 ıskalama, `unsure: true` (kapsama dışı), güven yok (Brier dışı), şema dışına ve kanıt sayılarına girmez. `score_table`'a `no_answer` sayısı.
+  3. `evaluate.py`: `score` satırdaki `no_answer`'ı geçirir (rule/BARO satırlarında alan yok → `false`); tabloya "Cevapsız" sütunu.
+  4. Testler: sahte sunucuda iki 503 → `no_answer`, şema dışı sayılmaz, tablo sütunu; tek 503 + başarılı ikinci deneme → `no_answer: false`. Kasıtlı kırmızıyla.
+  5. Rule/BARO eşitliği: CI fikstürleri ve `eval_responses/` 4 koşu, yeni alan dışında aynı (P1c'deki yöntem). Fikstürlere yalnız `no_answer: 0` eklenir.
+- Koşucu, takvim, yerel tekrar ve analiz betiği sonraki adımlar (ayrı plan). İlk turdan önce Gemini'nin günlük istek sınırına konsoldan bakmak Eren'in işi.
