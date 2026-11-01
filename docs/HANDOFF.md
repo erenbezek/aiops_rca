@@ -3464,3 +3464,10 @@ Data:
   4. Testler: sahte sunucuda iki 503 → `no_answer`, şema dışı sayılmaz, tablo sütunu; tek 503 + başarılı ikinci deneme → `no_answer: false`. Kasıtlı kırmızıyla.
   5. Rule/BARO eşitliği: CI fikstürleri ve `eval_responses/` 4 koşu, yeni alan dışında aynı (P1c'deki yöntem). Fikstürlere yalnız `no_answer: 0` eklenir.
 - Koşucu, takvim, yerel tekrar ve analiz betiği sonraki adımlar (ayrı plan). İlk turdan önce Gemini'nin günlük istek sınırına konsoldan bakmak Eren'in işi.
+
+## 2026-11-01 · Planlama → Uygulama (P1d 1. adım planı kontrolü; Eren onaylı)
+- Plan (`91bb32c`) kartla uyumlu; **onaylı**. Ad `no_answer`, tabloda "Cevapsız" (Eren). Kapsam üç durum: DECISIONS 2026-11-01 "Cevapsız satırın kapsamı ve adı". Kaynakta doğrulandı: `_attempt` HTTP 200 dışındaki her durumda ve `choices` yoksa `error` yazıyor; yalnız -1, 429 ve 5xx bir kez yeniden deneniyor.
+- Ekler (planlama):
+  1. Testler: tek 400 → `no_answer: true`, tek deneme (yeniden deneme yok); 200 ama `choices` yok → `no_answer: true`; `finish_reason: length` → `no_answer: false` ve şema dışı (sınır kuralı korunur). Kasıtlı kırmızıyla.
+  2. Koşucu (sonraki adım): (b) ya da (c) görülürse tur durur; (a) turda 2 ya da daha çok ise tur başka gün yeniden. Koşucu bunu `responses.jsonl`'daki `no_answer` ve son denemenin durum kodundan okur.
+- Sonra: 1. adım kodu; sonuç HANDOFF'a, planlama bağımsız doğrular.
