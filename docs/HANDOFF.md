@@ -3336,3 +3336,21 @@ Data:
   - `run.json` `settings` anahtarları `model` (model etiketi), `level`, `alias`, `max_tokens`, `extra` (ek istek alanları). Planda "seviye, takma ad, max_tokens, ek istek alanları" diye geçiyordu, adları yazılmamıştı.
   - Özel yardımcılar (`_alarm_time`, `_file_sha256`, `_checked_gguf`, `_template_tokens`, `evaluate._run_llm`) modül içi.
 - Sonra: 5c duman koşusu (onaylı plan; 30 çağrı, `llm_cache/`, durma kuralı DECISIONS 2026-10-31 "Çıktı sınırı"). Önce şarj sınırı kontrolü; Groq ve Gemini anahtarları `keys.env`'den.
+
+## 2026-11-01 · Planlama → Uygulama (P1c 5a sonrası ve 5b kontrolü; Eren onaylı)
+- 5a sonrası (`3fda13f`) ve 5b (`ebccc78`, `35e6c50`) kartla ve kararlarla uyumlu. **5c'ye (duman) geçilebilir; önce aşağıdaki üç test (küçük commit).**
+- Eren onayı (2026-11-01): `USER_TEMPLATE`, `prompt_sha256()`, `TOKENIZER` ve `run.json`'da `tokenizer`, `settings` anahtarları `model`, `level`, `alias`, `max_tokens`, `extra`. GLOSSARY'ye.
+- Planlamanın bağımsız kontrolleri (`35e6c50` scratch klonunda; ortak kopyada dosya yok):
+  - İstem HANDOFF'tan kuruldu (5a öneri blokları + 5a kontrol kaydındaki onaylı daraltma tarifi): sha256 `6d05378e…`, `methods/llm.py`'nin `prompt_sha256()`'sıyla ve kayıtla aynı. Kendi tokenizer sunucum (Qwen 2B): istem + şablon 387 / 389 / 441.
+  - Tam mesaj sayımı (veri metinleri benim 4. adım yeniden koşumun dosyalarından, alarm zamanı vakadan, kendi tokenizer'ım): 222 girdinin 222'si `p1c_full_count.json` (sha256 `e1e1d308…5085`) ile aynı; en çok 5.384, 6000'i aşan 0. Tablo kayıttan yeniden üretildi, aynı.
+  - GGUF: üç dosyanın SHA256'sı (kendi hesabım) = `ModelSpec.gguf_sha256` = `LOCAL_MODEL_BENCH.md`.
+  - Rule ve BARO: `eval_responses/`'taki 4 koşu HEAD koduyla scratch kopyada yeniden puanlandı; yeni alanlar (`input_status`, `input_empty`, `input_over_budget`) dışında kayıtlı `scores.json`'larla 4/4 aynı (top-1 22, 22, 11, 11). Fikstür farkı yalnız 16 satır ekleme, silinen satır 0.
+  - pytest 564/564.
+  - Kod okuması: boş ve bütçeyi aşan girdi sorulmuyor; puanda ıskalama, çekimser, Brier dışı, şema dışı ve kanıt sayılarına girmiyor (DECISIONS). Takma adlı koşuda ad `real_name` ile çevriliyor, gerçek ad eşleşmiyor. Bütçe kontrolü şablon dahil tam mesajda. GGUF kontrolü koşu klasörü açılmadan önce.
+  - Planlamanın kasıtlı kırmızıları (9 bozulma): 6'sı kırmızı (takma adlı koşuda gerçek ad eşleşir 2 test, kanıt sayıları sorulmayanı da sayar 3, bütçe 60000 2, `--cases` süzmez 2, sorulmayan satır çekimser değil 4, API'de GGUF kontrolü yok 1). **Yeşil kalan 3 (test açığı):** bütçe kontrolü `>=` (tam 6000 aşım sayılır); şablon ve sistem mesajı sayılmaz, yalnız kullanıcı metni sayılır; alarm zamanı milisaniyeli yazılır.
+- Ekler (planlama):
+  1. **5c'den önce üç test**, her biri kasıtlı kırmızıyla: tam mesaj 6000 token → sorulur, 6001 → `over_budget`; `input_tokens_local` şablon ve sistem mesajı dahil sayı (sahte `/apply-template` bir işaret ekler, sayı onu içerir); istemdeki alarm zamanı özetteki `alarm_time_utc` ile aynı biçim. Kod değişmez.
+  2. **5c durma kuralına ek:** taşıma hatasıyla cevapsız satır (`schema_errors`: "no answer: HTTP …") çıkarsa durulur, planlamaya. Şu an böyle satır "şema dışı" sayılıyor; bu model hatası değil, altyapı hatası.
+  3. Not (P1d'den önce karar): taşıma hatasıyla cevapsız satırın puanı (yeniden koşma mı, ayrı sayı mı). Dumanın sonucuyla birlikte sorulur.
+  4. Not: LLM'de `duration_s` son denemenin cevap süresi (yeniden deneme ve Groq beklemesi dahil değil; denemeler `attempts`'ta). P1e'de tablonun "Süre" sütununun altına not.
+- Sonra: üç test → 5c duman (onaylı plan; önce şarj sınırı kontrolü; durma kuralları: DECISIONS 2026-10-31 "Çıktı sınırı" + ek 2).
