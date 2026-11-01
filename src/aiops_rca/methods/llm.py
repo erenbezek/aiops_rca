@@ -7,7 +7,9 @@ Bir koşu = bir model × bir girdi seviyesi × gerçek ya da takma ad (`llm_meth
 2. Mesajlar onaylı istemle kurulur (`build_messages`; seviyeler arasında yalnız tarif ve veri bloğu değişir). Tam mesaj
    (sohbet şablonu + istem + veri) yerel olarak sayılır (`/apply-template` + `/tokenize`); `TOTAL_BUDGET`'ı aşarsa
    sorulmaz (`input_status: over_budget`). API modellerinde de ölçü yerel sayım; sağlayıcının sayısı yalnız kayda.
-3. `llm_client.chat` ile bir kez sorulur (taşıma hatasında bir yeniden deneme; Groq'ta `Pacer` aralığı).
+3. `llm_client.chat` ile bir kez sorulur (taşıma hatasında bir yeniden deneme; Groq'ta `Pacer` aralığı). Modelden
+   içerik gelmezse (taşıma hatası iki denemede, yeniden denenmeyen HTTP hatası ya da bozuk cevap) satır `no_answer:
+   true`, `schema_valid: null` (DECISIONS 2026-11-01 "Cevapsız satırın kapsamı ve adı").
 
 Yerel sunucu koşu başında bir kez açılır: yerel modelde modelin kendi sunucusu (sorma ve sayım), API modellerinde yalnız
 sayım için Qwen 4B. GGUF dosyalarının SHA256'sı koşu başında `ModelSpec.gguf_sha256` ile karşılaştırılır; uyuşmazsa koşu
@@ -152,7 +154,7 @@ def llm_method(label: str, level: str, alias: bool, *, models_dir: Path = MODELS
             row = {"input_status": "ok", "data_tokens": inp["data_tokens"],
                    "input_sha256": hashlib.sha256(inp["text"].encode()).hexdigest(), "input_tokens_local": None,
                    "answer": None, "schema_valid": None, "schema_errors": [], "raw_output": None,
-                   "finish_reason": None, "attempts": [], "tokens": None, "duration_s": None}
+                   "finish_reason": None, "attempts": [], "tokens": None, "duration_s": None, "no_answer": False}
             if "alias_lines_dropped" in inp:
                 row["alias_lines_dropped"] = inp["alias_lines_dropped"]
             if inp["empty"]:  # DECISIONS 2026-10-31 "Boş ham girdi": sorulmaz
@@ -166,7 +168,10 @@ def llm_method(label: str, level: str, alias: bool, *, models_dir: Path = MODELS
             rec = chat(spec, messages, url=url, key=key, sleep=sleep)
             if pacer:
                 pacer.done()
-            return {**row, **{k: rec[k] for k in ("answer", "schema_valid", "schema_errors", "raw_output",
-                                                  "finish_reason", "attempts", "tokens", "duration_s")}}
+            row.update({k: rec[k] for k in ("answer", "schema_valid", "schema_errors", "raw_output", "finish_reason",
+                                            "attempts", "tokens", "duration_s")})
+            if rec["error"] is not None:  # modelden içerik gelmedi: şema dışı değil, cevapsız
+                row.update(no_answer=True, schema_valid=None)
+            return row
 
         yield ask, settings

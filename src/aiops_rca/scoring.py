@@ -15,6 +15,8 @@
 - Sorulmayan girdi (`input_status` `empty`: boş ham girdi, DECISIONS 2026-10-31; `over_budget`: bütçeyi aşan girdi,
   DECISIONS 2026-11-01): top-1/top-3 ıskalama, çekimser (`unsure`, kapsama dışı), güven yok (Brier dışı); şema dışı ve
   kanıt sayılarına girmez; tabloda ayrı sayı (`input_empty`, `input_over_budget`).
+- Cevapsız satır (`no_answer`: modelden içerik gelmedi; DECISIONS 2026-11-01 "Cevapsız satır", "… kapsamı ve adı"):
+  sorulmayan girdi gibi ıskalama, çekimser, Brier dışı; şema dışı ve kanıt sayılarına girmez; tabloda `no_answer`.
 - Takma adlı koşu (`alias`): cevaptaki ad (aday ve yol) önce sadeleşir, sonra `alias.real_name` ile gerçek ada çevrilip
   eşlenir; takma ad olmayan her ad (gerçek ad dahil) eşleşmez (2026-10-23 düzeltmesi).
 - Özet (`score_table`): set başına ve toplam; süre ve token (varsa) toplamı.
@@ -72,22 +74,24 @@ def label_overlap(path: tuple[str, ...], label_path: list[list[str]], known: set
 
 
 def score_case(answer: Answer | None, label: dict, edges: Counter, known: set[str], *, input_status: str = "ok",
-               alias: bool = False) -> dict:
-    """Bir cevabın puanı. `answer` None = şemaya uymayan cevap; `input_status` `empty`/`over_budget` = sorulmadı."""
+               alias: bool = False, no_answer: bool = False) -> dict:
+    """Bir cevabın puanı. `answer` None = şemaya uymayan cevap; `input_status` `empty`/`over_budget` = sorulmadı;
+    `no_answer` = soruldu, modelden içerik gelmedi."""
     root = label["root_cause_service"]
     known = set(known) | {root}
-    if input_status != "ok":  # sorulmadı: ıskalama, çekimser, güven yok
-        return {"input_status": input_status, "schema_valid": None, "top1": False, "top3": False, "matched": [],
-                "unmatched": [], "evidence_valid": None, "evidence_edges": [], "label_path_overlap": None,
-                "confidence": None, "unsure": True}
+    if input_status != "ok" or no_answer:  # sorulmadı ya da cevap gelmedi: ıskalama, çekimser, güven yok
+        return {"input_status": input_status, "no_answer": no_answer, "schema_valid": None, "top1": False,
+                "top3": False, "matched": [], "unmatched": [], "evidence_valid": None, "evidence_edges": [],
+                "label_path_overlap": None, "confidence": None, "unsure": True}
     if answer is None:
-        return {"input_status": "ok", "schema_valid": False, "top1": False, "top3": False, "matched": [],
-                "unmatched": [], "evidence_valid": None, "evidence_edges": [], "label_path_overlap": None,
-                "confidence": None, "unsure": None}
+        return {"input_status": "ok", "no_answer": False, "schema_valid": False, "top1": False, "top3": False,
+                "matched": [], "unmatched": [], "evidence_valid": None, "evidence_edges": [],
+                "label_path_overlap": None, "confidence": None, "unsure": None}
     matched = [match_service(c.service, known, alias) for c in answer.candidates]
     first = answer.candidates[0]
     ev = evidence(first.evidence_path, edges, known, alias)
-    return {"input_status": "ok", "schema_valid": True, "top1": matched[0] == root, "top3": root in matched,
+    return {"input_status": "ok", "no_answer": False, "schema_valid": True, "top1": matched[0] == root,
+            "top3": root in matched,
             "matched": matched, "unmatched": [c.service for c, m in zip(answer.candidates, matched) if m is None],
             "evidence_valid": ev["valid"], "evidence_edges": ev["edges"],
             "label_path_overlap": label_overlap(first.evidence_path, label["propagation_path"], known, alias),
@@ -101,7 +105,7 @@ def _rate(k: int, n: int) -> float | None:
 def _metrics(rows: list[dict]) -> dict:
     n = len(rows)
     top1, top3 = sum(r["top1"] for r in rows), sum(r["top3"] for r in rows)
-    asked = [r for r in rows if r.get("input_status", "ok") == "ok"]
+    asked = [r for r in rows if r.get("input_status", "ok") == "ok" and not r.get("no_answer")]
     ev = Counter("null" if r["evidence_valid"] is None else "valid" if r["evidence_valid"] else "invalid"
                  for r in asked)
     ov = [r["label_path_overlap"] for r in rows if r["label_path_overlap"] is not None]
@@ -113,6 +117,7 @@ def _metrics(rows: list[dict]) -> dict:
         "n": n, "schema_invalid": sum(r["schema_valid"] is False for r in rows),
         "input_empty": sum(r.get("input_status") == "empty" for r in rows),
         "input_over_budget": sum(r.get("input_status") == "over_budget" for r in rows),
+        "no_answer": sum(bool(r.get("no_answer")) for r in rows),
         "top1": top1, "top1_rate": _rate(top1, n), "top3": top3, "top3_rate": _rate(top3, n),
         "evidence_valid": ev["valid"], "evidence_invalid": ev["invalid"], "evidence_null": ev["null"],
         "label_path_overlap_mean": round(sum(ov) / len(ov), 3) if ov else None, "label_path_overlap_n": len(ov),

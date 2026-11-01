@@ -286,3 +286,47 @@ def test_prompt_alarm_time_same_format_as_summary(world, fake):
     summary = json.loads(user.split("Data:\n", 1)[1])
     assert summary["alarm_time_utc"] == "2027-01-15T08:00:00+00:00"
     assert user.startswith(f"An alert fired at {summary['alarm_time_utc']} (UTC). ")
+
+
+# --- cevapsız satır (P1d; DECISIONS 2026-11-01 "Cevapsız satır", "… kapsamı ve adı") ---
+
+def no_answer_row(world, fake, *replies):
+    sleeps = []
+    srv = fake(*replies)
+    run_dir = run(world, srv, cases=("inc-a",), sleep=sleeps.append)
+    return run_dir, read_run(run_dir)[1][0], srv, sleeps
+
+
+def test_two_transport_errors_is_no_answer_not_schema_invalid(world, fake):
+    inc, snaps, _, _ = world
+    run_dir, row, srv, sleeps = no_answer_row(world, fake, (503, "busy"), (503, "busy"))
+    assert (row["no_answer"], row["schema_valid"], row["answer"], [a["status"] for a in row["attempts"]]) == \
+        (True, None, None, [503, 503])
+    assert row["schema_errors"] == ["no answer: HTTP 503"] and len(sleeps) == 1
+    t = evaluate.cmd_score(run_dir, False, incidents=inc, snapshots=snaps)["table"]["all"]
+    assert (t["no_answer"], t["schema_invalid"], t["top3"], t["coverage"], t["brier_n"], t["evidence_null"]) == \
+        (1, 0, 0, 0.0, 0, 0)
+    assert "| Cevapsız |" in evaluate.markdown_table(evaluate.cmd_score(run_dir, False, incidents=inc,
+                                                                         snapshots=snaps)["table"])
+
+
+def test_retry_then_answer_is_not_no_answer(world, fake):
+    _, row, _, _ = no_answer_row(world, fake, (503, "busy"), completion(answer(["payment", "checkout", "frontend"])))
+    assert (row["no_answer"], row["schema_valid"], [a["status"] for a in row["attempts"]]) == (False, True, [503, 200])
+
+
+def test_single_400_is_no_answer_without_retry(world, fake):
+    _, row, srv, sleeps = no_answer_row(world, fake, (400, "bad request"))
+    assert (row["no_answer"], row["schema_valid"], len(row["attempts"]), sleeps) == (True, None, 1, [])
+    assert len(srv.chats()) == 1
+
+
+def test_malformed_200_is_no_answer(world, fake):
+    _, row, _, _ = no_answer_row(world, fake, (200, {"usage": {"prompt_tokens": 10}}))
+    assert (row["no_answer"], row["schema_valid"], len(row["attempts"])) == (True, None, 1)
+    assert row["attempts"][0]["error"].startswith("malformed response")
+
+
+def test_length_finish_has_content_so_not_no_answer(world, fake):
+    _, row, _, _ = no_answer_row(world, fake, completion(answer(["payment", "checkout", "frontend"]), finish="length"))
+    assert (row["no_answer"], row["schema_valid"], row["finish_reason"]) == (False, False, "length")

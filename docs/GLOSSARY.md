@@ -252,6 +252,7 @@ Sadece Eren'in onayladığı isimler.
 | `alias.real_name()` | Takma ad → gerçek ad; takma ad değilse (gerçek ad dahil) `None`, puanlamada `unmatched` |
 | "Boş girdi", `input_empty` | Sonuç tablosu sütunu ve `score_table` sayısı: sorulmayan boş ham girdiler (ıskalama, çekimser, Brier dışı) |
 | "Bütçe aşımı", `input_over_budget` | Sonuç tablosu sütunu ve `score_table` sayısı: tam mesajı 6000'i aşan, sorulmayan girdiler (boş girdi gibi puanlanır) |
+| `no_answer`, "Cevapsız" | LLM kayıt satırı alanı ve tablo sütunu (`score_table` sayısı): modelden içerik gelmeyen satır (iki denemede taşıma hatası, yeniden denenmeyen HTTP hatası ya da bozuk cevap); ıskalama, çekimser, Brier dışı, şema dışı sayılmaz |
 | `MODELS`, `ModelSpec` | `llm_client.py`: beş modelin sabit ayar tablosu (etiket → `ModelSpec`) / bir modelin etiketi, sağlayıcısı, istekteki kimliği, çıktı sınırı, ek istek alanları |
 | `ANSWER_SCHEMA`, `RESPONSE_FORMAT` | Cevap şemasının modele giden strict biçimi / `response_format` alanı (`json_schema`, `strict`) |
 | `chat()` | Modele bir kez sorar (taşıma hatasında bir yeniden deneme), deneme kayıtlarını, şemaya uyan cevabı, token ve süreyi döndürür |

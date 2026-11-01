@@ -11,7 +11,7 @@ içinden vaka süzer (set dışı kimlik hata). `llm` yöntemi (`methods/llm.py`
 `--model` ve `--level` yalnız onda ve zorunlu, `--alias` yalnız onda; satıra girdi durumu, token ve denemeler eklenir,
 `run.json`'a model, istem ve sunucu ayarları. `score`: kayıtlardan ve etiketlerden puanlar (çağrı kenarları snapshot'tan), `scores.json`
 yazar ve set başına tabloyu basar. Sorulmayan girdi (`input_status`
-`empty` / `over_budget`) ıskalama ve çekimser sayılır; takma adlı koşuda cevaptaki adlar gerçek ada çevrilip eşlenir. `test` seti iki komutta da yalnız `--final-test` ile; `heldout` hiç.
+`empty` / `over_budget`) ve cevapsız satır (`no_answer`) ıskalama ve çekimser sayılır; takma adlı koşuda cevaptaki adlar gerçek ada çevrilip eşlenir. `test` seti iki komutta da yalnız `--final-test` ile; `heldout` hiç.
 Çıkış: 0 tamam, 2 kullanım hatası.
 """
 from __future__ import annotations
@@ -38,7 +38,7 @@ TABLE_COLUMNS = (("n", "Vaka"), ("top1", "top-1"), ("top3", "top-3"), ("evidence
                  ("evidence_invalid", "Kanıt geçersiz"), ("evidence_null", "Kenarsız"),
                  ("label_path_overlap_mean", "Örtüşme"), ("brier", "Brier"), ("selective_accuracy", "Seçici doğruluk"),
                  ("coverage", "Kapsama"), ("schema_invalid", "Şema dışı"), ("input_empty", "Boş girdi"),
-                 ("input_over_budget", "Bütçe aşımı"), ("duration_s_total", "Süre (sn)"))
+                 ("input_over_budget", "Bütçe aşımı"), ("no_answer", "Cevapsız"), ("duration_s_total", "Süre (sn)"))
 
 
 def cmd_run(method: str, sets: tuple[str, ...], final_test: bool, root: Path, *, incidents: Path = INCIDENTS,
@@ -94,7 +94,8 @@ def cmd_score(run_dir: Path, final_test: bool, *, incidents: Path = INCIDENTS, s
         status = r.get("input_status", "ok")  # rule ve BARO satırlarında alan yok: sorulmuş
         alias = bool(run.get("settings", {}).get("alias"))
         rows.append({"incident_id": r["incident_id"], "set": label["set"],
-                     **score_case(answer, label, edges, known, input_status=status, alias=alias),
+                     **score_case(answer, label, edges, known, input_status=status, alias=alias,
+                                  no_answer=bool(r.get("no_answer"))),
                      "duration_s": r["duration_s"], "tokens": r["tokens"]})
     out = {"run": run, "table": score_table(rows), "cases": rows}
     (run_dir / "scores.json").write_text(json.dumps(out, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

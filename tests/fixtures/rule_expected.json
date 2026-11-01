@@ -158,6 +158,7 @@
     "frontend",
     "frontend-proxy"
    ],
+   "no_answer": false,
    "schema_valid": true,
    "set": "pilot",
    "tokens": null,
@@ -178,6 +179,7 @@
     "quote-gateway",
     "frontend-proxy"
    ],
+   "no_answer": false,
    "schema_valid": true,
    "set": "pilot",
    "tokens": null,
@@ -198,6 +200,7 @@
     "frontend-proxy",
     "cart"
    ],
+   "no_answer": false,
    "schema_valid": true,
    "set": "pilot",
    "tokens": null,
@@ -218,6 +221,7 @@
     "ad",
     "astronomy-db"
    ],
+   "no_answer": false,
    "schema_valid": true,
    "set": "pilot",
    "tokens": null,
@@ -705,6 +709,7 @@
    "label_path_overlap_mean": 0.0,
    "label_path_overlap_n": 4,
    "n": 4,
+   "no_answer": 0,
    "schema_invalid": 0,
    "selective_accuracy": 0.5,
    "tokens_input": null,
@@ -726,6 +731,7 @@
    "label_path_overlap_mean": 0.0,
    "label_path_overlap_n": 4,
    "n": 4,
+   "no_answer": 0,
    "schema_invalid": 0,
    "selective_accuracy": 0.5,
    "tokens_input": null,

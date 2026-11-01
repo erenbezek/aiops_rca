@@ -144,3 +144,12 @@ def test_alias_names_map_back_and_real_names_do_not_match():
     s = score_case(a, LABEL, EDGES, KNOWN, alias=True)
     assert (s["top1"], s["matched"], s["unmatched"], s["evidence_valid"], s["label_path_overlap"]) == \
         (True, ["payment", None, "frontend"], ["payment"], True, 1.0)
+
+
+def test_no_answer_is_miss_and_abstain_not_schema_invalid():
+    rows = [row(answer(["payment", "cart", "frontend"], conf=[0.8, 0.1, 0.1])),
+            {"set": "dev", **score_case(None, LABEL, EDGES, KNOWN, no_answer=True)},
+            {"set": "dev", **score_case(None, LABEL, EDGES, KNOWN)}]                    # şema dışı
+    t = score_table(rows)["dev"]
+    assert (t["no_answer"], t["schema_invalid"], t["top1"], t["brier_n"], t["coverage"]) == (1, 1, 1, 1, 0.333)
+    assert (t["evidence_null"], t["input_empty"]) == (2, 0)  # sorulan ve cevap gelen iki satır (biri şema dışı)
