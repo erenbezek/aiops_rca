@@ -3137,3 +3137,58 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
 - Süreç: 16 yeni ad (GLOSSARY'de 7 satır: `alias.summary_input` / `raw_input` / `narrowed_input`, `alias_lines_dropped`, `convert_table`, `check_table`, `check_name`, `check_text`, `leftover`, `alias_name`, `aliased_table`, `NAME_KEYS`, `TEXT_KEYS`, `NAME_PAIR_KEYS`, `UNKNOWN_SERVICE`, `alias_summary_expected.json`) GLOSSARY'ye Eren'e sorulmadan yazılmıştı; **Eren sonradan olduğu gibi onayladı** (2026-11-01). 5. adımda yeni adlar (istem, `methods/llm.py`, evaluate seçenekleri) önce önerilir, onaydan sonra GLOSSARY'ye.
 - Not: `inc-91bf76d4` (pilot) gerçek ve takma adlı ham girdi 2 satır farklı (kayıtta). Dev'de eksiltme 0; P1d'nin takma ad alt kümesinde iki koşul yalnız adlarla ayrılır.
 - Sonra: 5. adım (istem metni → Onay 3, model koşmadan önce; duman 5 model × 3 seviye × 2 pilot vaka, birinde takma ad; `run.json`'a imaj digest'i ve GGUF SHA256; Groq `prompt_tokens` ve Qwen sayısı yan yana; takma adlı koşuda cevaptaki gerçek ad `unmatched`).
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5. adım planı: LLM yöntemi, istem, duman; ad önerileri)
+- **Sıra** (her biri ayrı onay ve commit):
+  - **5a: Onay 3 (istem metni).** Sistem + kullanıcı mesajı; seviyeler arasında yalnız veri bloğu ve tarifi değişir (DECISIONS 2026-10-30 "LLM ayarları"). İstem + sohbet şablonunun token'ı veri bloğu boşken Qwen tokenizer'ıyla ölçülür (`/apply-template` + `/tokenize`; üç seviye, gerçek ve takma ad). Ölçüt: her seviyede ≤ 1000 (DECISIONS 2026-10-31 "İstem payı"). Sığmazsa istem kısalır, kesme kuralı değişmez. Bu ölçüm yalnız tokenizer kullanır, model çıkarımı yok. Onaydan önce hiçbir model koşmaz.
+  - **5b: kod** (model koşmaz, testler sahte sunucuyla).
+  - **5c: duman koşusu** (yalnız pilot, `llm_cache/`).
+  - Sonra **kapanış**: ARCHITECTURE diyagramı, GLOSSARY (onaylı adlar), HANDOFF, PR.
+- **5b planı:**
+  1. `src/aiops_rca/methods/llm.py`: model, seviye ve takma ad için bir yöntem kurulur.
+     - Yerel sunucu koşu başında bir kez açılır. API modellerinde de yalnız sayım için Qwen 4B sunucusu açılır.
+     - Girdi `inputs.*_input`'tan, takma adlı koşuda `alias.*_input`'tan gelir. Mesajlar istemle kurulur.
+     - Tam istemin token'ı yerel olarak sayılır (`/apply-template` + `/tokenize`, şablon dahil).
+     - Sorma `llm_client.chat` ile yapılır. Groq aralığı `Pacer` ile korunur.
+     - **Boş ham girdi** sorulmaz (DECISIONS 2026-10-31). **6000'i aşan girdi** de sorulmaz ve kayda geçer (P1c kartı; 4. adımın sayılarıyla beklenen 0).
+  2. `evaluate run --method llm --model <etiket> --level raw|summary|narrowed [--alias] [--cases inc-…,…]`.
+     - `--model` ve `--level` yalnız llm'de ve zorunlu. `--alias` yalnız llm'de.
+     - `--cases` seçilen setlerin içinden vaka süzer. Set dışı ya da test vakası reddedilir.
+     - Yöntem yalnız `Case`'i alır (P1a kuralı). Etiket yönteme gitmez.
+  3. **Kayıt** (`runs.py` biçimi korunur, alan eklenir).
+     - `run.json` → `settings`: `level`, `alias`, `max_tokens`, ek istek alanları, `prompt_sha256`, `data_budget` 5000, `total_budget` 6000, sayım tokenizer'ı. Yerel modelde ek olarak `image` (digest'li imaj) ve `gguf`, `gguf_sha256`.
+     - GGUF dosyasının SHA256'sı koşu başında hesaplanır. `ModelSpec`'teki değerle uyuşmazsa koşu başlamaz.
+     - `responses.jsonl` satırına eklenenler: `input_status` (`ok` / `empty` / `over_budget`), `data_tokens`, `input_tokens_local` (Qwen sayısı, şablon dahil), `input_sha256`, `finish_reason`, `attempts` (HTTP durumu, süre; yeniden deneme), takma adlı hamda `alias_lines_dropped`.
+     - `tokens` = sağlayıcının `{input, output}` sayısı. Groq `prompt_tokens` ile Qwen sayısı yan yana durur (planlama notu).
+  4. **Puanlama** (`scoring.py`, `evaluate score`):
+     - `input_status: empty` → top-1/top-3 ıskalama, çekimser (kapsama dışı), Brier dışı. Şema dışı sayılmaz. Tabloda yeni "Boş girdi" sütunu.
+     - **Takma adlı koşu** (`settings.alias`): cevaptaki adlar (aday ve `evidence_path`) `alias.real_name` ile gerçek ada çevrilip eşlenir. Takma ad olmayan her ad, gerçek ad dahil, `unmatched` olur (2026-10-23 düzeltmesi).
+     - Rule ve BARO koşularının puanı değişmez (mevcut testler + eski `scores.json`'larla eşitlik).
+  5. **Testler** (CI'da ağ, docker ve anahtar yok):
+     - Sahte sunucuyla satır alanları; boş ve aşan girdide sunucuya istek gitmemesi; `finish_reason: length` → şema dışı.
+     - Takma adlı girdinin gittiği ve puanlamada çevrildiği.
+     - `run.json` ayarları; GGUF SHA256 uyuşmazlığında koşunun başlamaması.
+     - **Koruma testleri** (planlama notu): `IMAGE` digest'i ve GGUF SHA256 tablosu `LOCAL_MODEL_BENCH.md` ile aynı. Beş modelin kimlikleri sabit tabloyla aynı (Gemini dahil).
+     - Puanlama: boş girdi sütunu, takma ad çevirisi, rule ve BARO eşitliği.
+     - Kasıtlı kırmızıyla.
+- **5c planı (duman):** 5 model × 3 seviye × 2 pilot vaka = 30 çağrı, `--root llm_cache`.
+  - Repo dışında sıralı koşu betiği: `~/cerebrum2/analysis/p1c_smoke.py`. Groq koşuları arasında 65 sn bekler.
+  - **Vaka önerisi** (koşmadan önce, ölçütten bağımsız):
+    - Gerçek adla `inc-01a609bb`: ham 4.994 token, kesik. 6K sınırına en yakın girdilerden.
+    - Takma adla `inc-91bf76d4`: takma adda sondan 2 satır eksilen tek vaka. Ham 4.987 token.
+    - İkisinde de ham dolu, yani üç seviye de sorulur.
+  - Kayıt: şemaya uygunluk oranı (şema dışıysa nedeni), süreler, `finish_reason`, Groq/Gemini token ve Qwen sayısı yan yana. **Doğruluk yorumlanmaz** (P1c kartı).
+  - Bütçe: Groq ~6 çağrı × ≤ 6K ≈ 36K token (TPD 200K).
+- **Ad önerileri** (onaylanınca GLOSSARY):
+  - `--cases`: `evaluate run` vaka süzgeci.
+  - `llm_method()`: `methods/llm.py`; model, seviye, takma ad için yöntem kurar.
+  - `SYSTEM_PROMPT`, `LEVEL_TEXT`, `build_messages()`: istemin sistem metni / seviye tarifi / mesajları kuran fonksiyon.
+  - `TOTAL_BUDGET` (6000).
+  - `input_status`, `input_tokens_local`, `input_sha256`: kayıt alanları.
+  - `prompt_sha256`, `gguf_sha256`: `run.json` ayarları. `ModelSpec.gguf_sha256` sabit değer.
+  - `alias.real_name()`: takma ad → gerçek ad, takma ad değilse `None`.
+  - "Boş girdi": tablo sütunu, `evidence_empty` gibi `input_empty` sayısı.
+- **Planlamaya sorular:**
+  1. `over_budget` girdinin puanı: öneri boş girdiyle aynı (ıskalama, çekimser, Brier dışı), ayrı sayı. Beklenen 0.
+  2. API modellerinde 6K kontrolü Qwen sayısıyla mı yapılsın? Öneri evet: tek ölçü bütçe kararındaki gibi yerel tokenizer. Sağlayıcının kendi sayısı yalnız kayda geçer.
+  3. Duman vakaları yukarıdaki iki vaka mı?
