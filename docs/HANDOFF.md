@@ -3726,3 +3726,62 @@ Data:
   - (1) b'nin Groq turları 2026-11-02 09:28Z'den sonra `p1d_runner.py b` (biten turlar atlanır);
   - (2) 3. gün `a1 --run-deferred` (Groq özet), sonra a2;
   - (3) analiz betiği (3. adım) planı.
+
+## 2026-11-01 · Uygulama → Planlama (P1d 3. adım planı: analiz betiği)
+- **Açıklama (plandan önce):**
+  - Kurallar DECISIONS 2026-11-01'de koşulardan önce yazıldı; betik onları kodlar, değiştirmez.
+  - Ancak a1 bitti ve b'nin 12 turu koştu. b'nin tur tablolarını (top-1/top-3 dahil) koşucu çıktısını okurken gördüm.
+  - Bu yüzden aşağıdaki "yorum gerektiren yerler" planlamanın onayına bırakılıyor. Hepsinde kural metnine en yakın seçeneği öneriyorum.
+- **Betik:** `~/cerebrum2/analysis/p1d_analysis.py` (repo dışı, koşucu gibi).
+  - Kullanım: `cd aiops_rca && .venv/bin/python ~/cerebrum2/analysis/p1d_analysis.py`.
+  - Çıktı `p1d_analysis.json` ve `p1d_analysis.md`, sha256'larıyla birlikte HANDOFF'a.
+  - Çıktıda zaman damgası yok; planlama yeniden koşup baytı baytına aynı dosyayı almalı (bağımsız doğrulama).
+  - Model koşmaz, `evaluate score` çağırmaz. Okuduğu: `p1d_a1.json`, `p1d_b.json`, `p1d_a2.json`; her turun `run.json`, `responses.jsonl`, `scores.json` dosyaları; dev vakalarının etiketleri (`load_labels(("dev",))`, test okunmaz).
+- **Kimlik kontrolleri** (biri tutmazsa betik hata verip durur, tablo yazmaz):
+  1. 36 tur: a1 15, b 15, a2 6. Her (aşama, model, seviye) için tam bir `status: done` tur. Ertelenen gpt-oss özet turunun eski kaydı (`deferred`) sayılmaz, yeniden koşulanı sayılır.
+  2. Her `run.json`'da istem sha `6d05378e…`, `repo_clean: true`. Ayarlardaki model, seviye ve takma ad turla aynı.
+  3. Her turda `scores.json` 18 vaka. Tablosu koşucu çıktısındaki tabloyla aynı.
+  4. Ağaçlar: `incidents` 36 turda `ce7a75d0…`. `src` 36 turda `461d037b…`; tek istisna a1'in ilk 10 turu (`c9bb8c5b…`, DECISIONS "Groq `json_validate_failed`").
+  5. İlk ve son turun commit'leri arasında `git diff -- src tests incidents`: beklenen tek kod commit'i `eafc491`. Betik bu aralıkta bu yolları değiştiren commit listesini yazar; listede başka commit varsa durur.
+- **1. Dev tablosu** (a1, 5 model × 3 seviye = 15 satır), üç grupta:
+  - Gruplar: tümü (18), demo senaryoları (11), kendi hatalarımız (7).
+  - Grup ayrımı etiketteki `scenario`'dan: kendi hatalarımız = `networkDelay`, `packetLoss`, `cpuThrottle`, `containerPause`, `containerStop`, `quoteGateway*`; geri kalanı demo. Betik 11/7'yi doğrular.
+  - Sütunlar `score_table` ile aynı: top-1, top-3, kanıt (geçerli / geçersiz / kenarsız), örtüşme, Brier, seçici doğruluk, kapsama, şema dışı, boş girdi, bütçe aşımı, cevapsız. Bunlara ek olarak:
+    - süre: ortalama ve en çok, sn;
+    - token: sağlayıcı giriş ve çıkış toplamı, ayrıca yerel Qwen sayımıyla giriş toplamı.
+  - "Yalnız belirtili" sütunu: top-1 ve top-3, yalnız `checks.symptom.verdict == "symptomatic"` ve `marks` boş olan vakalarda. Dev'de 18/18 böyle, sayı "tümü" ile aynı çıkar; yine yazılır.
+- **2. Boyut seçimi** (DECISIONS "Yerel model boyutu seçimi"):
+  - Ölçü: a1 daraltma, 9 zor vakada 2B / 4B / 9B top-3.
+  - Kural: en iyiden en çok 1 geride olan en küçük boyut seçilir.
+  - Betik zor vaka listesini P1a kural koşularından da çıkarıp DECISIONS'takiyle karşılaştırır: iki kural koşusunda (`20261030T104544Z-rule`, `…104651Z-rule`) dev'de top-1 ıskalanan 9 vaka listeyle birebir aynı (kontrol ettim). Fark çıkarsa durur.
+  - Süre yanında yazılır, eleme ölçütü değil. Çıktıda seçilen boyut (`small_local_model` değeri).
+- **3. Takma ad okuması** (DECISIONS "P1d koşu seti"; model × seviye başına, 15 satır):
+  - top-3 sayıları: a1, a2 (yalnız API), b; 18 vakada, ayrıca 9 zor vakada.
+  - Gürültü: API'de |a1 − a2|. Yerelde 0; yerel tekrar 18/18 aynı çıktı, varsayım doğrulandı.
+  - Okuma 18 vakalık sayıyla:
+    - gürültü ≥ 2 → **belirsiz**;
+    - değilse b ≤ min(a1, a2) − 2 → **üst sınır** (ezber işareti; o model × seviyenin demo satırları P1e'de "üst sınır" okunur); yerelde min(a1, a2) = a1;
+    - değilse → **görülmedi**.
+  - Yalnız bilgi olarak (kurala girmez):
+    - 9 zor vakadaki aynı sayılar;
+    - API'de a1 ile a2 arasında top-3'ü değişen vaka sayısı;
+    - takma adlı turlarda `unmatched` aday sayısı (gerçek ad yazılan / diğer).
+- **4. Bilgi kayıtları** (yorumsuz): aşama başına şema dışı nedenleri ve döngü sayısı; tur başına sağlayıcı token / Qwen token oranı (P1e notu).
+- **Deneme:**
+  - `selftest`: sahte turlarla sınırları sınar.
+    - Okuma: gürültü 1 / 2; b = min − 1 / min − 2.
+    - Boyut seçimi: eşitlik, 1 geride, 2 geride.
+    - Grup sayımı 11/7. Kimlik kontrolünün her maddesi için bir kırmızı vaka.
+  - `--partial`: eksik turlar "—" olur, okuma eksik satırda yapılmaz. Bu kipte yalnız ekrana yazar, dosya üretmez; resmî çıktı yalnız 36 tur tamken.
+- **Yorum gerektiren yerler** (planlama onayı; öneriler kural metnine en yakın olanlar):
+  1. Takma ad okuması 18 vakalık sayıyla. Demo 11 / kendi 7 ayrımı a1 ve b için yalnız bilgi olarak gösterilir.
+  2. Gürültü sayı farkıyla (kural metni). Vaka düzeyinde değişim yalnız bilgi.
+  3. "Yalnız belirtili" = verdict `symptomatic` ve `marks` boş (2026-10-29 kararı).
+  4. Ortalama süre sorulan ve cevap gelen satırlar üzerinden. Boş girdi ve cevapsız satırların süresi yok (`duration_s: null`).
+  5. Grup ayrımı yukarıdaki senaryo listesiyle (V3 bileşimi; DECISIONS 2026-10-29).
+- **Sıra:** plan onayı → betik ve `selftest` → `--partial` ile mevcut turlarda dene (dosya yok) → b'nin Groq turları ve a2 bitince resmî koşu → HANDOFF'a tablolar, seçim ve okuma.
+- P1e notları resmî kayda metin olarak eklenir:
+  - quote-svc sızıntısı yalnız pilot `inc-91bf76d4`'te;
+  - `duration_s` son denemenin süresi;
+  - Qwen tekrar ayarı (temperature 1.0, presence_penalty 2.0) denenmedi;
+  - a1'de yeniden koşulan Groq özet turu.
