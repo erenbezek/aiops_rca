@@ -3643,3 +3643,24 @@ Data:
   3. **Kota:** uyg4'ün takvimi uygun. Şimdi a1'in Groq daraltması (~57K, toplam ~147K) ve Gemini'nin üç turu; gpt-oss özetin tekrarı 3. gün a2'den önce (~182K < 200K). 24 saat sayacı a1'in Groq başlangıcından (09:28:41Z) işler.
   4. Duran turun klasörü silinmez, `llm_cache/`'e taşınır; P1e'de "yeniden koşulan tur" notu.
 - Sonra: kod ve testler (kısa kayıt), sonra a1'in kalan turları.
+
+## 2026-11-01 · Uygulama → Planlama (P1d: Groq `json_validate_failed` düzeltmesi; a1 sürüyor)
+- **Kod (`eafc491`):**
+  - `llm_client.post`: 400 gövdesi JSON ve `error.code == "json_validate_failed"` ise gövde kesilmeden döner. Diğer hatalar eskisi gibi 500 karakter.
+  - `_attempt`: bu yanıtta `content = failed_generation`.
+  - `chat`: 400 ise cevap şema dışı, `schema_errors[0]` = "json_validate_failed (provider rejected the model's JSON)". `error` yok, yani `methods/llm.py` satırı `no_answer: false`. Yeniden deneme yok.
+- **Testler** (pytest **576/576**, +3):
+  - Bu 400 → şema dışı, tek deneme, içerik 900+ karakter tam.
+  - JSON gövdeli başka 400 (`invalid_api_key`) → cevapsız.
+  - Yöntem satırında `no_answer: false`, `schema_valid: false`.
+- **Kasıtlı kırmızı** (dört bozulmanın dördü kırmızı):
+  - kod tanınmaz → 2 test;
+  - her JSON gövdeli 400 cevap sayılır → 1;
+  - neden yazılmaz → 2;
+  - içerik 500'de kesilir → 1.
+- **Eşitlik:** yeni kodla a1'in biten 10 turunun `scores.json`'u **10/10 birebir aynı**. Rule/BARO 4 resmî koşu yeni alanlar dışında 4/4 aynı.
+- **Kayıtlar:**
+  - Duran gpt-oss özet turu `llm_cache/20261101T094006Z-llm`'e taşındı. `p1d_a1.json`'da `status: deferred`; özgün durma metni ve karar notu kayıtta.
+  - `p1d_state.json` ağaç kaydı yenilendi: `src` `461d037b…5dc2` (eski `c9bb8c5b…1f38`, `baseline_history`'de nedeniyle), `incidents` aynı, commit `eafc491`.
+- **Koşucu** sha256 **`e130ee22…4164`**: ertelenen tur atlanır, `--run-deferred` yalnız ertelenenleri koşar (3. gün, a2'den önce).
+- a1 sürdürülüyor: kalan Groq daraltma ve Gemini'nin 3 turu.
