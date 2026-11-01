@@ -253,3 +253,36 @@ def test_cases_filter(world):
     assert meta["n_cases"] == 1 and [r["incident_id"] for r in rows] == ["inc-b"]
     with pytest.raises(ValueError, match="not in the selected sets"):
         evaluate.cmd_run("rule", ("pilot",), False, root, incidents=inc, snapshots=snaps, cases=("inc-a",))
+
+
+# --- planlamanın test açıkları (HANDOFF 2026-11-01 5b kontrolü, ek 1) ---
+
+def test_budget_boundary_6000_asked_6001_not(world, fake, monkeypatch):
+    probe = fake(completion(answer(["payment", "checkout", "frontend"])))
+    need = read_run(run(world, probe, cases=("inc-a",)))[1][0]["input_tokens_local"]
+    monkeypatch.setattr(llm, "TOTAL_BUDGET", need)  # tam sınırda: sorulur
+    at = fake(completion(answer(["payment", "checkout", "frontend"])))
+    row = read_run(run(world, at, cases=("inc-a",)))[1][0]
+    assert (row["input_status"], row["input_tokens_local"], len(at.chats())) == ("ok", need, 1)
+    monkeypatch.setattr(llm, "TOTAL_BUDGET", need - 1)  # bir fazlası: sorulmaz
+    over = fake()
+    row = read_run(run(world, over, cases=("inc-a",)))[1][0]
+    assert (row["input_status"], row["input_tokens_local"], over.chats()) == ("over_budget", need, [])
+
+
+def test_local_count_includes_template_and_system_message(world, fake):
+    srv = fake(completion(answer(["payment", "checkout", "frontend"])))
+    row = read_run(run(world, srv, cases=("inc-a",)))[1][0]
+    msgs = srv.chats()[0]["messages"]
+    # sahte şablon = "<tpl>" işareti + bütün mesajların içeriği; sahte tokenizer boşlukla ayrılmış parçayı sayar
+    assert row["input_tokens_local"] == 1 + len(msgs[0]["content"].split()) + len(msgs[1]["content"].split())
+    assert row["input_tokens_local"] > len(msgs[1]["content"].split()) + len(llm.SYSTEM_PROMPT.split())
+
+
+def test_prompt_alarm_time_same_format_as_summary(world, fake):
+    srv = fake(completion(answer(["payment", "checkout", "frontend"])))
+    run(world, srv, cases=("inc-a",))
+    user = srv.chats()[0]["messages"][1]["content"]
+    summary = json.loads(user.split("Data:\n", 1)[1])
+    assert summary["alarm_time_utc"] == "2027-01-15T08:00:00+00:00"
+    assert user.startswith(f"An alert fired at {summary['alarm_time_utc']} (UTC). ")

@@ -3354,3 +3354,12 @@ Data:
   3. Not (P1d'den önce karar): taşıma hatasıyla cevapsız satırın puanı (yeniden koşma mı, ayrı sayı mı). Dumanın sonucuyla birlikte sorulur.
   4. Not: LLM'de `duration_s` son denemenin cevap süresi (yeniden deneme ve Groq beklemesi dahil değil; denemeler `attempts`'ta). P1e'de tablonun "Süre" sütununun altına not.
 - Sonra: üç test → 5c duman (onaylı plan; önce şarj sınırı kontrolü; durma kuralları: DECISIONS 2026-10-31 "Çıktı sınırı" + ek 2).
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5b ek: üç test açığı kapatıldı; onaylı adlar GLOSSARY'de)
+- `tests/test_llm_method.py`'ye üç test eklendi (planlama eki 1; kod değişmedi). Kasıtlı kırmızılar planlamanın yeşil kalan bozulmalarıyla aynı, üçü de artık kırmızı:
+  - `test_budget_boundary_6000_asked_6001_not`: sınır tam mesajın sayısına eşitken sorulur, bir eksiğindeyken `over_budget` ve istek yok. Bozulma `>=` → 1 test kırmızı.
+  - `test_local_count_includes_template_and_system_message`: sahte `/apply-template` `<tpl>` işareti ekler; `input_tokens_local` = işaret + sistem + kullanıcı metni. Bozulma "yalnız kullanıcı metni sayılır" → 2 test kırmızı.
+  - `test_prompt_alarm_time_same_format_as_summary`: istemdeki alarm zamanı, veri bloğundaki `alarm_time_utc` ile aynı (`2027-01-15T08:00:00+00:00`). Bozulma milisaniyeli yazım → 1 test kırmızı.
+- pytest **567/567**.
+- GLOSSARY'ye yazıldı (Eren onaylı): `USER_TEMPLATE`, `prompt_sha256()`, `TOKENIZER` / `tokenizer`, `settings` anahtarları `model`, `level`, `alias`, `max_tokens`, `extra`.
+- Sonra: 5c duman (Eren'in başlat demesiyle). Durma kuralları: `finish_reason: length`, Groq boyut reddi, taşıma hatasıyla cevapsız satır (ek 2) → durulur, planlamaya.

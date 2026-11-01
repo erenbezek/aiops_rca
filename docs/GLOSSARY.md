@@ -241,6 +241,9 @@ Sadece Eren'in onayladığı isimler.
 | evaluate `--cases` | `evaluate run` vaka süzgeci: seçilen setlerin içinden virgülle ayrılmış kimlikler (set dışı kimlik hata); bütün yöntemlerde |
 | `llm_method()` | `methods/llm.py`: bir model × seviye × gerçek/takma ad için yöntemi kurar (sunucu, GGUF kontrolü, sayım, sorma); vaka → kayıt satırı ve `run.json` ayarlarını verir |
 | `SYSTEM_PROMPT`, `LEVEL_TEXT`, `build_messages()` | Onaylı istemin sistem mesajı / seviye tarifleri (ham, özet, daraltma) / sistem + kullanıcı mesajlarını kuran fonksiyon (DECISIONS 2026-11-01 "İstem metni") |
+| `USER_TEMPLATE`, `prompt_sha256()` | Onaylı istemin kullanıcı mesajı şablonu (`{alarm_time}`, `{level_text}`, `{data}`) / istem metninin sha256'sı (`json.dumps([SYSTEM_PROMPT, LEVEL_TEXT, USER_TEMPLATE])`; testte sabit) |
+| `TOKENIZER`, `tokenizer` | API modellerinde tam mesajı sayan yerel model (`qwen3.5-4b`) / LLM koşusunun `run.json` ayarındaki adı (yalnız API modellerinde) |
+| `model`, `level`, `alias`, `max_tokens`, `extra` | LLM koşusunun `run.json` ayarları: model etiketi / girdi seviyesi / takma adlı girdi / çıktı sınırı / istek gövdesine eklenen alanlar |
 | `TOTAL_BUDGET` | Tam mesajın (sohbet şablonu + istem + veri) en çok token'ı: 6000; aşan girdi sorulmaz |
 | `input_status`, `input_tokens_local`, `input_sha256` | LLM kayıt satırı: girdi durumu (`ok` / `empty` / `over_budget`) / tam mesajın yerel Qwen sayısı (şablon dahil) / veri bloğunun sha256'sı |
 | `finish_reason`, `attempts` | LLM kayıt satırı: sağlayıcının bitiş nedeni (`length` = sınıra takıldı, şema dışı) / her deneme (HTTP durumu, süre; taşıma hatasında ikincisi) |
