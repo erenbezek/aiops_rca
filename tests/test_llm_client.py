@@ -268,6 +268,27 @@ def test_other_http_errors_not_retried(server, status):
     assert rec["error"] == "rejected" and rec["schema_valid"] is False
 
 
+def test_groq_json_validate_failed_is_model_answer_schema_invalid(server):
+    """DECISIONS 2026-11-01 "Groq json_validate_failed": içerik tam kayda, şema dışı, cevapsız değil, tek deneme."""
+    failed = '{"candidates": [{"service": "ad", "confidence": 0. nine, "rationale": "' + "x" * 900 + '"}'
+    body = {"error": {"message": "Failed to generate JSON.", "type": "invalid_request_error",
+                      "code": "json_validate_failed", "failed_generation": failed}}
+    srv = server((400, body), completion(json.dumps(GOOD)))
+    rec, sleeps = run("gpt-oss-120b", srv)
+    assert len(srv.requests) == 1 and sleeps == []
+    assert rec["error"] is None and rec["raw_output"] == failed and len(rec["raw_output"]) > 500
+    assert rec["schema_valid"] is False and rec["answer"] is None
+    assert rec["schema_errors"][0].startswith("json_validate_failed") and rec["attempts"][0]["status"] == 400
+
+
+def test_other_400_with_json_body_is_no_answer(server):
+    body = {"error": {"message": "Invalid API Key", "type": "invalid_request_error", "code": "invalid_api_key"}}
+    srv = server((400, body))
+    rec, _ = run("gpt-oss-120b", srv)
+    assert rec["error"] and "invalid_api_key" in rec["error"] and rec["raw_output"] is None
+    assert rec["schema_errors"] == ["no answer: HTTP 400"]
+
+
 def test_connection_error_retried_once():
     """Bağlantı reddi (-1) taşıma hatası: bir yeniden deneme, iki deneme de kayda."""
     s = FakeServer([])

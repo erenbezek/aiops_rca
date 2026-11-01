@@ -330,3 +330,11 @@ def test_malformed_200_is_no_answer(world, fake):
 def test_length_finish_has_content_so_not_no_answer(world, fake):
     _, row, _, _ = no_answer_row(world, fake, completion(answer(["payment", "checkout", "frontend"]), finish="length"))
     assert (row["no_answer"], row["schema_valid"], row["finish_reason"]) == (False, False, "length")
+
+
+def test_groq_json_validate_failed_row_is_schema_invalid_not_no_answer(world, fake):
+    body = {"error": {"code": "json_validate_failed", "type": "invalid_request_error",
+                      "failed_generation": '{"candidates": [{"confidence": 0. nine'}}
+    _, row, srv, sleeps = no_answer_row(world, fake, (400, body))
+    assert (row["no_answer"], row["schema_valid"], len(row["attempts"]), sleeps) == (False, False, 1, [])
+    assert row["raw_output"].endswith("0. nine") and row["schema_errors"][0].startswith("json_validate_failed")
