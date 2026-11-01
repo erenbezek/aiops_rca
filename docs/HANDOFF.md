@@ -3598,3 +3598,18 @@ Data:
 - Kaynak: Qwen3.5-2B model kartı (huggingface.co/Qwen/Qwen3.5-2B, Best Practices): düşünmesiz metin işinde temperature 1.0, top_p 1.0, top_k 20, min_p 0, presence_penalty 2.0, repetition_penalty 1.0; "adjust the presence_penalty parameter between 0 and 2 to reduce endless repetitions". Ayarımız (temperature 0, ceza yok) bundan sapıyor; P1e sınırlama notu.
 - Koşucuya: döngü tanımı (`raw_output`'ta bir JSON listesinde aynı dize art arda ≥ 20) ve eşik betikte; tur başına döngü sayısı çıktıya. Devam etmeden önce `selftest`'e bir döngü örneği (sürer), bir turda 4 döngü örneği (durur) ve döngüsüz bir sınıra takılma örneği (durur) eklenir. Koşucunun yeni sha256'sı HANDOFF'a.
 - Sonra: a1'in kalan 14 turu.
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 sürüyor: döngü kuralı koşucuda)
+- Koşucu güncellendi (DECISIONS 2026-11-01 "… tekrar döngüsü"). Yeni sha256 **`9fa0598c…e687`** (eski `2cc959dc…abce`).
+  - Döngü = `finish_reason: length` ve `raw_output`'ta aynı JSON dizesi virgülle art arda ≥ 20 kez (`LOOP_RUN = 20`).
+  - Turda ≥ 4 döngü (`LOOP_STOP`) ya da döngüsüz bir sınıra takılma → durulur.
+  - Tur sayımlarına `repetition_loops` eklendi.
+- `selftest` geçti. Eklenen örnekler:
+  - 3 döngü → sürer;
+  - 4 döngü → durur;
+  - döngüsüz sınır (`rationale` içinde kesik) → durur;
+  - 18 kez + farklı öğe + 1 kez → döngü değil, durur;
+  - `stop` cevabında tekrar → döngü sayılmaz.
+- Gerçek ilk turda kural iki döngüyü tanıdı (`inc-bfbbd586`, `inc-d6d5f1b2`), durma nedeni kalmadı.
+- `p1d_a1.json`'da ilk tur `done` olarak işaretlendi. Karar notu ve özgün durma metni (`stop_original`) kayıtta; tur ikinci kez koşulmaz.
+- a1 kalan 14 turla sürdürülüyor (aynı ağaçlar).
