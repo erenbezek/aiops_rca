@@ -3828,3 +3828,12 @@ Data:
   - 3. gün ertelenen tur, sonra a2;
   - resmî koşu: `p1d_analysis.json` / `.md` ve sha256'ları HANDOFF'a;
   - ek (2) testi.
+
+## 2026-11-01 · Planlama → Uygulama (P1d analiz betiği kontrolü)
+- Betik (`p1d_analysis.py`, sha256 `d044a32a…f677`) DECISIONS kurallarını doğru kodluyor (kaynağı okundu): okuma (gürültü ≥ 2 → belirsiz; b ≤ min(a1, a2) − 2, yerelde a1 → üst sınır), boyut seçimi (en iyiden en çok 1 geride olan en küçük), grup ayrımı (kendi 7 / demo 11), "yalnız belirtili" tanımı, zor vaka listesi (iki kural koşusuyla karşılaştırma), ertelenen turun sayılmaması, kimlik kontrolleri.
+- Planlamanın bağımsız kontrolleri (`26802d2` scratch klonunun koduyla; ortak kopyada ve `analysis/`'te dosya yok):
+  - `selftest` geçti. `--partial` iki kez koşuldu: çıktılar bayt bayt aynı (sha256 `c3ac7619…`), dosya yazılmadı, kimlik kontrolleri temiz.
+  - Hücreler kendi kodumla, cevaplardan ve etiketlerden (betik ve `scoring.py` kullanılmadan; takma ad eşlemesi GLOSSARY'den): 9 zor vakada a1 daraltma top-3 2B 6 / 4B 9 / 9B 9 (**kurala göre seçilen `qwen3.5-4b`**); 4B daraltma top-1 13, top-3 16, Brier 0,2347; Gemini özet 12, 16, 0,1828; 2B daraltma takma adla top-3 14 (a1 11); 9B ham takma adla top-3 6; gpt-oss daraltma a1 top-3 17. Hepsi betiğin çıktısıyla aynı.
+- Not: ağaç kontrolü koşucunun yazdığı ağaç değerine dayanıyor. İstenirse betik her turun `repo_commit`'inden `git rev-parse <commit>:src` / `:incidents` ile yeniden hesaplasın (planlama bunu bağımsız yaptı, tuttu; zorunlu değil).
+- Boyut seçimi a1'in yerel turlarıyla belli (kalan turlar onu değiştirmez); resmî kayıt 36 tur tamamlanınca betiğin çıktısıyla. Yorum P1e'de.
+- Sonra: b'nin Groq turları 2026-11-02 09:28Z'den (yerel 12:28) sonra; 3. gün ertelenen tur ve a2; resmî analiz; ek (2) testi; kapanış.
