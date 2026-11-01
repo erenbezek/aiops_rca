@@ -3527,3 +3527,12 @@ Data:
   2. **Ortak çalışma kopyası.** Bir tur başlarken commit'lenmemiş belge değişikliği varsa `repo_clean: false` olur (`runs.py` bütün ağaca bakar). **Öneri:** koşular süresince planlama ve uygulama belge değişikliğini hemen commit'ler. Koşucu temiz değilse turu başlatmaz, durur ve bekleyen tur sayısını yazar.
   3. **Gemini günlük sınırı:** ilk turdan önce Eren konsoldan bakar, değer HANDOFF'a (3 günde 138 istek).
 - Analiz betiği (dev tablosu, boyut seçimi, takma ad okuması) 3. adım, ayrı plan. a1 bitmeden yazılır, ölçütler koşmadan önce betikte.
+
+## 2026-11-01 · Planlama → Uygulama (P1d 2. adım planı kontrolü)
+- Plan (`9138591`) kartla uyumlu; **onaylı**, aşağıdaki eklerle. Kaynakta doğrulandı: `runs.new_run` `repo_clean`'i `eval_responses/` hariç hesaplıyor; turların yazdığı klasörler sonraki turları kirletmez.
+- Sorular:
+  1. **Kimlik ölçütü:** öneri kabul, bir ekle: her turda `HEAD:src` **ve `HEAD:incidents`** ağaçları ilk turunkiyle aynı (vaka listesi ve alarm zamanı `incidents/`'tan girdiye girer); koşucu ikisini de çıktıya yazar. Kartın bitti maddesindeki "commit temiz ve aynı" şöyle okunur: her `run.json`'da `repo_clean: true`; `src` ve `incidents` ağaçları 36 turda aynı; ilk ve son turun commit'leri arasında `git diff -- src tests incidents` boş. Ölçümden önce yapılmış bir açıklama, sonuca göre değil.
+  2. **Ortak kopya:** öneri kabul. Ek: koşucu kopyayı temiz bulmazsa durmadan önce 10 dk boyunca 30 sn'de bir yeniden bakar (belge commit'lerinin kısa kirli anı gece turunu düşürmesin); 10 dk sonra da kirliyse durur. Planlama yazmayı tek komutta (ekle + commit) yapar ve ortak kopyada başka dosya üretmez.
+  3. **Gemini günlük sınırı:** ilk turdan önce Eren konsoldan bakar, değer HANDOFF'a. Günlük istek sınırı 46'nın altındaysa Gemini turları güne bölünür (seviye başına bir gün), takvim HANDOFF'a.
+- Not: koşucu repo dışında; sha256'sı her aşamanın çıktısına ve HANDOFF'a (dumandaki gibi).
+- Sonra: 2. adım (koşucu) yazılır ve sahte modelle ya da `--cases` ile bir pilot vakada denenir (`llm_cache/`, dev değil); sonuç HANDOFF'a. İlk resmî tur Gemini sınırı kayda geçtikten sonra.
