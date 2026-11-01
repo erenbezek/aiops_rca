@@ -3206,3 +3206,61 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   2. **Onay 3'ten sonra, modelden önce:** tam mesaj (şablon + istem + veri) yerel tokenizer'la 43 vaka × 3 seviye × gerçek/takma ad sayılır, hepsi ≤ 6000 (bitti ölçütü "istem dahil ≤ 6K"; DECISIONS "İstem payı": onaylı istemle son kez). Model yok. Aşan çıkarsa durulur, sayıyla planlamaya; dev'e göre istem değişmez.
   3. **5c durma kuralı** (DECISIONS 2026-10-31 "Çıktı sınırı"): sınıra takılan cevap (`finish_reason: length`) ya da Groq'ta boyut reddi olursa P1d'den önce planlama; ayar değişmez, yeniden sorulmaz.
 - Sonra: 5a, yani istem metni ve ölçümü HANDOFF'a (Uygulama → Planlama); Eren onaylar.
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5a: Onay 3 önerisi, istem metni)
+- **Onay bekliyor (Eren): istem metni.** Onaydan önce hiçbir model koşmaz. Metin aşağıda, kelimesi kelimesine; 5b'de `methods/llm.py`'ye aynen girer (`SYSTEM_PROMPT`, `LEVEL_TEXT`, kullanıcı şablonu; `build_messages()`).
+- Yapı: sistem mesajı denemelerdekiyle aynı. Kullanıcı mesajı ortak şablon; seviyeler arasında yalnız veri tarifi (`LEVEL_TEXT`) ve veri bloğu değişir (DECISIONS 2026-10-30 "LLM ayarları"). Takma adlı koşuda aynı istem gider. `{alarm_time}` vakanın alarm zamanı, özetteki `alarm_time_utc` biçiminde (ör. `2027-01-15T08:00:00+00:00`); ham seviyede de verilir (hamda satırlar yalnız saat taşır).
+- Denemelerdeki istemden farklar ve nedenleri:
+  - Cevap biçimi yeni şemaya göre (`confidence`, `evidence_path`, `rationale`, `unsure`). Şablondaki örnek satırda servis adı yok. Şema ayrıca `response_format` ile `strict` gider.
+  - Kök tanımı "kendi kodu ya da yapılandırması bozuk servis" yerine **"sorunun başladığı servis, başka yerdeki bir sorunun yalnız belirtisini gösteren servis değil"**. Vaka setinde altyapı hataları da var (CPU sınırı, ağ gecikmesi, durdurma), eski tanım bunları dışarıda bırakıyordu. Hata türleri istemde sayılmaz.
+  - `confidence` = "bu adayın kök olma olasılığı (0–1)": Brier 1. adayın güveniyle hesaplanıyor. `evidence_path` adaydan belirtinin görüldüğü servise doğru; puanlamadaki "kökten belirtiye" yönüyle aynı. `unsure` = "veri makul bir güvenle seçmeye yetmiyorsa true".
+  - Daraltma tarifinde "sıra bir sıralama değildir" (DECISIONS 2026-10-31 "Daraltma girdisinin biçimi": adaylar ada göre). Kökün adaylar arasında olduğu söylenmez.
+- **Ölçüm** (`~/cerebrum2/analysis/p1c_prompt.py`, sha256 `aba4f6d6…c20c53f1`; çıktı `p1c_prompt.json`; metnin sha256'sı `1b295427…c9bdc60e`; Qwen 4B, `/apply-template` (`enable_thinking: false`) + `/tokenize`, veri bloğu boş, model çıkarımı yok):
+
+  | Seviye | İstem + şablon | Yalnız istem metni |
+  |---|---|---|
+  | ham | 387 | 372 |
+  | özet | 389 | 374 |
+  | daraltma | 431 | 416 |
+
+  - Ölçüt P1 (≤ 1000): **geçti**, en çok 431. 4. adımın en büyük veri bloklarıyla kaba toplam: ham 387 + 4.996 ≈ 5.383, daraltma 431 + 2.502 ≈ 2.933 (kesin sayım Onay 3'ten sonra, tam mesajla, 43 vaka; planlama eki 2).
+  - Ölçüt P2: 4. adımın dedektörü üç seviyenin istem metninde **0**; sızıntı CLI'ı (`{"messages": …}` JSON'ları) çıkış **0**.
+- Sonra (onaydan sonra, model yok): 43 vaka × 3 seviye × gerçek/takma ad tam mesaj sayımı (≤ 6000), ardından 5b kodu.
+
+**Sistem mesajı:**
+```
+You are an SRE assistant doing root cause analysis for a microservice-based online shop.
+```
+
+**Kullanıcı mesajı şablonu** (`{level_text}` aşağıdaki seviye tarifi, `{data}` veri bloğu):
+```
+An alert fired at {alarm_time} (UTC). {level_text}
+
+Find the root cause service: the service where the problem started, not a service that only shows symptoms of a problem elsewhere.
+
+Give exactly 3 different candidate services, most likely first, using service names exactly as they appear in the data. For each candidate:
+- "confidence": the probability (0 to 1) that this candidate is the root cause.
+- "evidence_path": how the problem spread, as service names from the candidate to the service where the symptom shows; the first name is the candidate itself. If you see no spread, give only the candidate.
+- "rationale": one short sentence.
+Set "unsure" to true if the data is not enough to choose with reasonable confidence, otherwise false.
+
+Answer with JSON only, no other text:
+{"candidates": [{"service": "<name>", "confidence": <0-1>, "evidence_path": ["<name>", ...], "rationale": "<one sentence>"}, ... 3 candidates], "unsure": <true or false>}
+
+Data:
+{data}
+```
+
+**Seviye tarifleri** (`LEVEL_TEXT`):
+- ham:
+  ```
+  Below are the warning and error log records and the failed spans of the shop from the 10 minutes before to the 10 minutes after the alert, one per line, in time order: "HH:MM:SS.mmm <service> log <message>" or "HH:MM:SS.mmm <service> error-span <span name>" (UTC). If there were too many lines, the list is cut and its last line is "[truncated: later lines omitted]".
+  ```
+- özet:
+  ```
+  Below is a telemetry summary of the shop for the 10 minutes before and the 10 minutes after the alert, as JSON: for each service, the number of incoming requests, the error rate and the p95 latency in milliseconds; for each container, the CPU usage (percent of one core, average and maximum) and the memory usage in MB (average); and the most frequent warning and error log messages after the alert. Some rows, such as databases, have only some of these fields.
+  ```
+- daraltma:
+  ```
+  Below are 5 candidate services chosen by an automatic pre-filter from the telemetry of the 10 minutes before and the 10 minutes after the alert, as JSON, in alphabetical order (the order is not a ranking). For each candidate: the same fields as in a service summary (incoming requests, error rate and p95 latency in milliseconds; container CPU as percent of one core, average and maximum; memory in MB, average); its incoming operations with the same request fields; the callers of each operation with the same fields; and its 3 most frequent warning and error log messages after the alert, with counts before and after. "calls" lists the calls between the candidates as [caller, callee].
+  ```
