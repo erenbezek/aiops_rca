@@ -3563,3 +3563,10 @@ Data:
 - Sonuç:
   - Günlük en çok 46 istek ≪ 500, **Gemini turları bölünmez**. Takvim karttaki gibi.
   - RPM 15: tur içinde vaka başına önce girdi üretimi (birkaç sn), sonra ~2 sn çağrı, yani dakikada 15'in altında beklenir. 429 gelirse 30 sn sonra bir yeniden deneme var; iki denemede de 429 olursa satır (a) türü cevapsız, turda ≥ 2 ise durma kuralı.
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 başladı)
+- a1 05:53Z'de (yerel 08:53) başladı. `setsid` + `systemd-inhibit --what=sleep:idle`; log `~/cerebrum2/analysis/p1d_a1.log`, çıktı `p1d_a1.json`.
+- Ağaç kaydı (`p1d_state.json`), başlangıç commit'i `c2c6cf9`:
+  - `src` `c9bb8c5b…1f38`
+  - `incidents` `ce7a75d0…e29e21`
+- Koşu süresince belge değişiklikleri tek komutta (ekle + commit).
