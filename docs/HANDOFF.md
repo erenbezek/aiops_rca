@@ -3613,3 +3613,23 @@ Data:
 - Gerçek ilk turda kural iki döngüyü tanıdı (`inc-bfbbd586`, `inc-d6d5f1b2`), durma nedeni kalmadı.
 - `p1d_a1.json`'da ilk tur `done` olarak işaretlendi. Karar notu ve özgün durma metni (`stop_original`) kayıtta; tur ikinci kez koşulmaz.
 - a1 kalan 14 turla sürdürülüyor (aynı ağaçlar).
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 durdu: Groq `json_validate_failed`; karar gerekli)
+- **Ne oldu:**
+  - a1'in 11. turu (gpt-oss, özet, gerçek ad; `eval_responses/20261101T094006Z-llm`, 09:40–09:59Z) bitti, puanlandı.
+  - 2 satır HTTP 400, tek deneme (`inc-0c4902c3`, `inc-8069b709`). Koşucu (b) türü cevapsız kuralıyla durdu (DECISIONS 2026-11-01 "Cevapsız satırın kapsamı ve adı"). Groq daraltma ve Gemini'nin 3 turu koşulmadı.
+- **Neden:** altyapı değil, **modelin bozuk JSON'u**.
+  - Groq `strict` şemada çıktıyı sunucuda doğruluyor. Model `"confidence": 0. nine` yazmış (iki cevapta da aynı bozukluk).
+  - Groq cevabı göndermek yerine `{"type": "invalid_request_error", "code": "json_validate_failed", "failed_generation": "…"}` ile 400 dönmüş. Model içeriği `failed_generation`'da var.
+  - Kayıtta kesik: `post` hata gövdesini 500 karakterde kesiyor, yani tam metin yok.
+- **Kapsam:** a1'in biten 11 turunda (≈ 170 satır) 200 dışı yanıt yalnız bu iki satır. Önceki turların kaydı ve puanı bu konudan etkilenmez.
+- **Groq kotası** (24 saat): deneme ~10K, ham 33,8K, özet 42,1K (+ iki 400'ün girdisi ~4,5K) ≈ 90K kullanıldı. Daraltma ~57K daha tutar ≈ 147K. Özet turu yeniden koşulursa +~42K ≈ 190K (sınır 200K).
+- **Seçenekler (planlama ve Eren):**
+  1. **Öneri: `json_validate_failed` model cevabı sayılır (şema dışı), cevapsız değil.** Gemini ve yerelde bozuk JSON zaten şema dışı sayılıyor; Groq'ta da öyle olmalı.
+     - Kod (`llm_client`): 400 + `code: json_validate_failed` → `content = failed_generation` (gövde kesilmeden), satır `schema_valid: false`, `no_answer: false`, yeniden denenmez. Testi ve kasıtlı kırmızısıyla.
+     - Bu `src/` ağacını aşamanın ortasında değiştirir. Biten 11 turda böyle satır yok, puanları değişmez: eşitlik yeniden puanlamayla gösterilir.
+     - Ağaç kaydı karar notuyla yenilenir; "aynı ağaç" ölçütü "değişiklik bu yanıt türüyle sınırlı" diye okunur.
+     - Duran özet turu yeniden koşulur. Kota için öneri: a1'in Groq daraltması ve Gemini şimdi; Groq özetin tekrarı 3. gün a2'den önce (o gün ~140K + 42K ≈ 182K).
+  2. Kod değişmez, yalnız koşucunun durma kuralı: `json_validate_failed` turu durdurmaz, satır "Cevapsız" kalır. P1e'de analiz betiği bunları model biçim hatası olarak ayrıca sayar. Bedeli: puan tablosu model hatasını altyapı hatası gibi gösterir; "Cevapsız satır" kararının amacına ters.
+  3. Kural aynen: tur başka gün yeniden. gpt-oss aynı hatayı tekrarlayabilir (2/18), yeniden durma olasılığı yüksek.
+- Koşucu durdu, sunucu kapalı. Groq aşama başlangıcı a1 için 09:28:41Z (24 saat sayacı); b'nin Groq turları 2026-11-02 09:28Z'den önce başlayamaz.
