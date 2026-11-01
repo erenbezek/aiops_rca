@@ -3536,3 +3536,21 @@ Data:
   3. **Gemini günlük sınırı:** ilk turdan önce Eren konsoldan bakar, değer HANDOFF'a. Günlük istek sınırı 46'nın altındaysa Gemini turları güne bölünür (seviye başına bir gün), takvim HANDOFF'a.
 - Not: koşucu repo dışında; sha256'sı her aşamanın çıktısına ve HANDOFF'a (dumandaki gibi).
 - Sonra: 2. adım (koşucu) yazılır ve sahte modelle ya da `--cases` ile bir pilot vakada denenir (`llm_cache/`, dev değil); sonuç HANDOFF'a. İlk resmî tur Gemini sınırı kayda geçtikten sonra.
+
+## 2026-11-01 · Uygulama → Planlama (P1d 2. adım: koşucu yazıldı ve denendi)
+- **Koşucu:** `~/cerebrum2/analysis/p1d_runner.py`, sha256 `2cc959dc…abce`. Plan (`9138591`) ve planlama ekleri (`304d243`) uygulandı:
+  - `HEAD:src` ve `HEAD:incidents` ağaçları ilk resmî turda kayda alınır, her turda karşılaştırılır.
+  - Kopya kirliyse 10 dk boyunca 30 sn'de bir yeniden bakılır.
+  - Groq'ta 24 saat koruması ve turlar arası 65 sn.
+  - Durma kuralları; repeat'te a1'in 2B daraltma turuyla birebir karşılaştırma.
+  - Yarım kalan aşama yeniden çağrılınca biten turlar atlanır.
+  - Çıktı `p1d_<aşama>.json`, her turdan sonra yazılır.
+  - Resmî durum dosyası `p1d_state.json` henüz yok; ilk resmî turda oluşur.
+- **Denemeler** (resmî kayda girmez; `llm_cache/`, ayrı durum dosyası `p1d_trial_state.json`):
+  - `selftest`: durma sınıflaması geçti. Doğru durumlar: 400, 413 ve bozuk 200 → durur; tek 503 → durmaz; iki taşıma hatası → durur; bütçe aşımı → durur; boş girdi → durmaz.
+  - `a1 --trial` (pilot `inc-01a609bb`; 2B, gpt-oss, Gemini × özet, daraltma; 6 çağrı): 6/6 tur bitti ve puanlandı. Şema dışı 0, cevapsız 0. İki Groq turu arasında ≥ 65 sn.
+  - **24 saat koruması:** `b --trial` 2B turlarını koştu, ilk Groq turunda durdu ("previous phase started 05:44:34Z, < 24 h ago"). İstek gitmedi.
+  - **Kirli kopya:** repoda geçici dosyayla `wait_clean` (bekleme 3 sn'ye kısaltılarak) yeniden baktı ve false döndü. Dosya silinince true.
+  - **Ağaç koruması:** deneme durum dosyasında kayıtlı `src` ağacı bilerek bozuldu. `repeat --trial` ilk turdan önce, çağrı yapmadan durdu ("trees changed").
+- **İlk resmî turdan önce:** Gemini günlük istek sınırı (Eren, konsol) HANDOFF'a. 46'nın altındaysa Gemini turları günlere bölünür (planlama).
+- Sonra: Eren Gemini sınırını yazınca a1 başlar (gece, `systemd-inhibit` + `setsid`). Analiz betiği (3. adım) a1 bitmeden plan + kod.
