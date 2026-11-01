@@ -3504,3 +3504,26 @@ Data:
   - `eval_responses/` 4 resmî koşu HEAD koduyla yeniden puanlandı: yeni alanlar dışında kayıtlı `scores.json`'larla 4/4 aynı.
   - Duman 30 koşusu HEAD koduyla yeniden puanlandı: `no_answer` dışında önceki kodla (`bb18ce2`) aldığım puanlarla 30/30 aynı; cevapsız 0.
 - Sonra: 2. adım planı (koşucu, takvim, yerel tekrar). İlk turdan önce Gemini'nin günlük istek sınırı (Eren, konsol).
+
+## 2026-11-01 · Uygulama → Planlama (P1d 2. adım planı: koşucu, takvim, yerel tekrar)
+- **Koşucu:** `~/cerebrum2/analysis/p1d_runner.py` (repo dışı; dumandaki gibi sıralı). Kullanım `p1d_runner.py a1|b|a2|repeat`.
+  - **Tur:** `evaluate run --method llm --model <m> --level <s> [--alias] --sets dev --root eval_responses` (repeat'te `--root llm_cache`), ardından `evaluate score <klasör>`.
+  - **Sıra:** her aşamada yerel 2B → 4B → 9B → gpt-oss → Gemini; her modelde ham → özet → daraltma. a2 yalnız iki API modeli. repeat = 2B daraltma, gerçek ad.
+  - Groq turları arasında 65 sn (her tur ayrı süreç; tur içinde `Pacer`).
+  - **Takvim koruması:** koşucu Groq turlarının başlangıç zamanını `~/cerebrum2/analysis/p1d_state.json`'a yazar. Son Groq aşaması başlayalı 24 saat olmadıysa yeni aşamanın Groq turlarını başlatmaz, durur.
+  - **Her turdan önce:** şarj sınırı 80, çalışma kopyası temiz (`git status`, `eval_responses/` hariç), `src/` ağacı ilk turunkiyle aynı (`git rev-parse HEAD:src`). Biri tutmazsa tur başlamaz, koşucu durur.
+  - **Her turdan sonra:** `run.json`'da istem sha `6d05378e…` ve `repo_clean: true`.
+  - **Durma kuralları** (DECISIONS 2026-10-31 "Çıktı sınırı", 2026-11-01 "Cevapsız satırın kapsamı ve adı"; kart): bir satırda `finish_reason: length`; (b) ya da (c) türü cevapsız (son deneme -1, 429, 5xx dışında ya da "malformed") bir kez, Groq 413 dahil; (a) türü cevapsız turda 2 ya da daha çok; bütçe aşımı 1 ya da daha çok; koşu hatası. Durunca o tur ve nedeni çıktıya yazılır, sonraki tur başlamaz. (a) ≥ 2'de kart kuralı uygulanır: o tur başka gün yeniden koşulur, eskisi `llm_cache/`'e taşınır, HANDOFF'a yazılır (elle).
+  - **Çıktı:** `~/cerebrum2/analysis/p1d_<aşama>.json`. Tur başına: klasör, commit, `src` ağacı, satır sayıları (sorulan, boş, bütçe aşımı, cevapsız, şema dışı), süre ve token toplamı, puan tablosu.
+- **Takvim** (kart; tahmin dumandaki sürelerden; dev'de ham 10/18 dolu):
+  - **Gün 1, a1 (15 tur):** yerel ~3,5–4 saat (9B ~1,9 saat), gece. Groq 46 çağrı × 65 sn ≈ 50 dk. Gemini birkaç dk.
+  - **Gün 2, b (15 tur):** aynı süre. Groq aşaması 1. günün Groq başlangıcından ≥ 24 saat sonra.
+  - **Gün 3, a2 (6 tur):** ~1 saat.
+  - **repeat:** a1'in yerel turları bitince (~10 dk, `llm_cache/`). Kontrol: 18 vakada `raw_output` ve `answer`, a1'in 2B daraltma turuyla birebir aynı. Değilse durulur, planlamaya.
+  - Uzun koşu `systemd-inhibit` altında (uyku engeli) ve koşucu oturumdan bağımsız (`setsid`). Başlatma ve bitiş HANDOFF'a.
+- **Planlamaya sorular:**
+  1. **"Koşu commit'i aynı" ölçütü.** Üç gün boyunca HANDOFF/DECISIONS commit'leri HEAD'i değiştirir. **Öneri:** ölçüt "`src/` ağacı aynı" olsun. Koşucu her turda kontrol eder ve kayda geçirir. `run.json`'daki `repo_commit` belge commit'leriyle değişebilir; bunun yalnız belge commit'i olduğu `git diff <ilk> <son> -- src tests` boş çıkmasıyla gösterilir.
+     - Diğer seçenek: koşular süresince dala hiç commit yapılmaz, HANDOFF kayıtları koşudan sonra.
+  2. **Ortak çalışma kopyası.** Bir tur başlarken commit'lenmemiş belge değişikliği varsa `repo_clean: false` olur (`runs.py` bütün ağaca bakar). **Öneri:** koşular süresince planlama ve uygulama belge değişikliğini hemen commit'ler. Koşucu temiz değilse turu başlatmaz, durur ve bekleyen tur sayısını yazar.
+  3. **Gemini günlük sınırı:** ilk turdan önce Eren konsoldan bakar, değer HANDOFF'a (3 günde 138 istek).
+- Analiz betiği (dev tablosu, boyut seçimi, takma ad okuması) 3. adım, ayrı plan. a1 bitmeden yazılır, ölçütler koşmadan önce betikte.
