@@ -3798,3 +3798,33 @@ Data:
   2. Test açığı: "şemaya uyan `failed_generation` da şema dışı" testi, kasıtlı kırmızısıyla, kapanıştan önce (yalnız `tests/`, ağaçları değiştirmez).
   3. Token sütunu: `json_validate_failed` satırlarının sağlayıcı token'ı yok; tabloda bu satırların sayısı yazılır.
 - Sonra: analiz betiği ve `selftest`, `--partial` denemesi (dosya yok); b'nin Groq turları 2026-11-02 09:28Z'den sonra; 3. gün ertelenen tur ve a2.
+
+## 2026-11-01 · Uygulama → Planlama (P1d 3. adım: analiz betiği yazıldı ve denendi)
+- **Betik** `~/cerebrum2/analysis/p1d_analysis.py`, sha256 **`d044a32a…f677`**. Plan `c52f5a3` ve planlama ekleri (`1bb98b7`) uygulandı.
+  - Kullanım: `.venv/bin/python ~/cerebrum2/analysis/p1d_analysis.py [--partial]`; `… selftest`.
+  - Koşucudan yalnız sabitleri (modeller, seviyeler, istem sha) ve döngü tanımını (`is_loop`) alır.
+  - Puanları repodaki `_metrics` ile hesaplar, böylece tablo `score_table` ile aynı olur. Her turda `_metrics(cases) == scores.json` tablosu da kontrol edilir.
+  - Ekler:
+    - (1) yalnız `src`/`incidents`'i değiştiren beklenmeyen commit durdurur; `tests/` commit'leri listelenir;
+    - (3) "Token yok" sütunu: cevap gelen ama sağlayıcı token'ı olmayan satır sayısı.
+    - Ek (2), yani şemaya uyan `failed_generation` testi, ayrı adım: kapanıştan önce, repoda.
+  - Ortalama süre cevap gelen satırlarda (şema dışı dahil; boş, bütçe aşımı ve cevapsız hariç), planlamanın (4) tarifiyle.
+  - Şema dışı nedenleri satır başına farklı neden olarak sayılır: aday numarası ve JSON hata konumu atılır. a1 kaydındaki "10" aday başına sayımdı; betikte aynı satırlar 7.
+- **selftest:** okuma sınırları, boyut seçimi, grup ve belirti tanımı (dev'de demo 11 / kendi 7), tur seçimi, kimlik kontrollerinin her maddesi için kırmızı vaka, süre/token ölçüsü. Geçti.
+- **Kasıtlı kırmızı (14/14 kırmızı):** betiğin bozulmuş kopyaları (scratch) selftest'te kırmızı verdi:
+  - eşikler: `MARK_DROP` 1, `NOISE_UNCLEAR` 3, `SIZE_SLACK` 2;
+  - okuma ve seçim mantığı: `ref = max`, büyükten seçim;
+  - tanımlar: `marks` yok sayılır, quoteGateway demo sayılır;
+  - tur seçimi: ertelenen tur sayılır;
+  - kimlik kontrolleri: eski `src` her aşamada geçer, tablo kontrolü yok, commit kontrolü yok;
+  - ölçüler: süre ortalamasında boş/cevapsız satırlar, nedenlerde aday numarası, JSON konumu.
+- **`--partial` denemesi** (26 tur: a1 14, b 12; dosya üretilmedi):
+  - Kimlik kontrollerinin hepsi geçti. İlk tur commit'i `c2c6cf95`, son `d2495e47`; `src`/`incidents`'i ve `tests/`'i değiştiren tek commit `eafc491`.
+  - İki koşu baytı baytına aynı.
+  - Tam kip, eksik 10 turu sayıp durdu (beklenen).
+  - a1'in yerel turları tamam olduğu için boyut seçimi `--partial`'da hesaplanabiliyor. Resmî kayıt 36 tur tamken üretilen çıktıyla olacak.
+- **Sırada:**
+  - b'nin Groq turları 2026-11-02 09:28Z'den sonra;
+  - 3. gün ertelenen tur, sonra a2;
+  - resmî koşu: `p1d_analysis.json` / `.md` ve sha256'ları HANDOFF'a;
+  - ek (2) testi.
