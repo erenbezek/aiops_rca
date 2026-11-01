@@ -3394,3 +3394,19 @@ Data:
   1. Duman ölçütleri (P1c kartı) karşılandı: istem onaylı, şemaya uygunluk kayıtta (29/30, şema dışı nedeni yukarıda), süreler kayıtta. Taşıma hatasıyla cevapsız satırın puanı (planlama notu 3) dumanda örnek çıkmadı; P1d'den önce karar.
   2. Groq oranı 1,042 ile dakikalık sınıra pay ~150 token. P1d'de 43 vaka koşulurken izlenecek; 429 gelirse mevcut yeniden deneme kuralı geçerli.
 - Sonra: kapanış (ARCHITECTURE diyagramı, PROJECT "Şu an", HANDOFF, PR).
+
+## 2026-11-01 · Planlama → Uygulama (P1c 5b eki ve 5c duman kontrolü)
+- Üç test (`09fbd41`) ve duman (`bb18ce2`) kartla uyumlu. **P1c'nin bitti ölçütleri karşılandı** (LLM katmanı, girdiler, daraltma dev 18/18, duman: istem onaylı, şemaya uygunluk 29/30 ve nedeni, süreler); kalan PR koşusu. **Kapanışa geçilebilir.**
+- Planlamanın bağımsız kontrolleri (`bb18ce2` scratch klonunda; ortak kopyada dosya yok):
+  - pytest 567/567; `src` `35e6c50`'den beri aynı. Önceden yeşil kalan üç bozulmam artık kırmızı; yeni bir bozulma (sistem mesajı sayılmaz) da kırmızı.
+  - Duman kayıtları (`llm_cache/` 30 koşu) kendi betiğimle: 30'unda istem sha `6d05378e…`, commit `09fbd41` temiz, GGUF ve imaj doğru, temperature 0, doğru vaka ve koşul; girdinin sha256'sı ve veri token'ı 4. adım kaydıyla, `input_tokens_local` tam sayım kaydıyla aynı; tek deneme, HTTP 200. Şema geçerliliğini ham çıktıdan yeniden hesapladım: 29/30, kayıtla aynı. Tablo (uygunluk, süre, çıktı ve akıl yürütme token'ı, sağlayıcı/Qwen oranı) kayıtla aynı.
+  - 30 koşu HEAD koduyla scratch kopyada puanlandı, hatasız; takma adlı koşularda takma adlar gerçek ada çevriliyor (ör. `rate-gateway` → `quote-gateway`, `order-processor` → `checkout`).
+  - Tekrar: 2B özet `inc-01a609bb` HEAD koduyla scratch'te yeniden koşuldu; ham çıktı, cevap ve token birebir aynı (süre 31,4 / 30,3 sn).
+- **Bulgu (planlamanın da hatası):** `inc-91bf76d4`'ün (pilot, quote-gateway yanlış yönlendirme hatası) takma adlı girdilerinde `quote-svc` geçiyor (49 kez; log: "quote upstream request failed … host='quote-svc'"). Kural tek kelimelik adlarda yalnız `<Ad>Service` biçimini çeviriyor; `-svc` eki kapsam dışı. 4. adımdaki geniş aramam da `…service`'i arıyordu, `-svc`'yi değil; "kalan 0" sonucum bu biçimi kapsamıyordu. Dumanda bu vakanın takma adlı ham girdisinde üç model `quote-svc`, 2B gerçek ad `quote-gateway` cevabını verdi (ikisi de `unmatched`).
+  - Kapsam: 43 vakanın takma adlı metinlerinde ek ya da önekle tek kelimelik ad taşıyan tanımlayıcı yalnız `quote-svc` (bu tek pilot vaka); diğerleri `get-quote` HTTP yolu ve `GetCart`, `EmptyCart` gRPC yöntemleri (sıradan kelime kuralı, DECISIONS 2026-10-23). **Dev'in takma adlı girdilerinde yok**; test seti takma adla koşulmaz. P1d'nin takma ad ölçümü etkilenmez; kod değişmez.
+  - Not (P1e sınırlaması, önceki notun genişlemesi): takma adlı girdide sıradan kelime kuralıyla kalan adlar ("quote upstream…", `get-quote`, gRPC yöntemleri) modele gerçek adı sezdirebilir; ad tutarsızlığı da takma ad olmayan cevaplara (`unmatched`) yol açabilir. Takma ad farkı iki yönde de bozulabilir; P1e'de takma adlı koşuların `unmatched` sayısı ayrı raporlanır.
+- Notlar (P1d kartına):
+  1. Taşıma hatasıyla cevapsız satırın puanı (yeniden koşma mı, ayrı sayı mı): P1d koşularından önce karar.
+  2. Groq dakikalık sınır: gözlenen en büyük oran 1,042 ile 6000 × 1,042 + 1600 ≈ 7,85K < 8K. Dev'in en büyük tam mesajı 5.384 (ham; Groq hamı daha az sayıyor, 0,82). Sorun beklenmiyor; 429 ya da boyut reddi kayda.
+  3. gpt-oss'un tek şema dışı cevabı 3. adayın yolunu ters yazmasından; P1a kuralıyla bütün cevap şema dışı. Değişmez; P1e hata analizinde sayılır.
+- Sonra: kapanış (ARCHITECTURE diyagramı, PROJECT "Şu an", HANDOFF, PR; açıklama sade). CI yeşil olunca Eren birleştirir. Sonra P1d kartı (planlama).
