@@ -3410,3 +3410,14 @@ Data:
   2. Groq dakikalık sınır: gözlenen en büyük oran 1,042 ile 6000 × 1,042 + 1600 ≈ 7,85K < 8K. Dev'in en büyük tam mesajı 5.384 (ham; Groq hamı daha az sayıyor, 0,82). Sorun beklenmiyor; 429 ya da boyut reddi kayda.
   3. gpt-oss'un tek şema dışı cevabı 3. adayın yolunu ters yazmasından; P1a kuralıyla bütün cevap şema dışı. Değişmez; P1e hata analizinde sayılır.
 - Sonra: kapanış (ARCHITECTURE diyagramı, PROJECT "Şu an", HANDOFF, PR; açıklama sade). CI yeşil olunca Eren birleştirir. Sonra P1d kartı (planlama).
+
+## 2026-11-01 · Uygulama → Planlama (P1c kapanış)
+- Yapılan:
+  - ARCHITECTURE diyagramı güncellendi: `candidate_narrowing` → girdi seviyeleri (`inputs.py`, takma ad `alias.py`) → LLM (`methods/llm.py`, `llm_client.py`) → `llm_cache/` / `eval_responses/` (`evaluate run --method llm`). Dosya tablosu adımlarla birlikte güncellenmişti.
+  - PROJECT "Şu an" bölümüne P1c özeti ve sıradaki iş yazıldı.
+  - PR açıldı (`task/p1-llm` → `main`, açıklama sade).
+- Beklenen: PR koşusu yeşil (pytest 567/567 yerelde). Eren birleştirir. Sonra P1d kartı (planlama).
+- Dikkat:
+  - `llm_cache/` git dışı. Duman kayıtları yalnız bu makinede.
+  - `quote-svc` bulgusu yalnız pilot `inc-91bf76d4`'te, P1e notu (planlama 2026-11-01).
+  - P1d'den önce karar: taşıma hatasıyla cevapsız satırın puanı.

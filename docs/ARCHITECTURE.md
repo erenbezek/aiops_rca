@@ -29,8 +29,9 @@ flowchart LR
     ghcr[("GHCR<br/>aiops-quote-gateway, aiops-netem<br/>— digest'le sabit")]
 
     base["baseline<br/>(kural: methods/rule.py;<br/>BARO: methods/baro.py)"]
-    nar["candidate_narrowing"]
-    llm["LLM<br/>small_local_model /<br/>large_api_model"]
+    nar["candidate_narrowing<br/>(narrowing.py, ilk 5)"]
+    inp["Girdi seviyeleri (inputs.py)<br/>ham / özet / daraltma, ≤ 5000 token;<br/>takma ad: alias.py"]
+    llm["LLM (methods/llm.py, llm_client.py)<br/>small_local_model / large_api_model;<br/>onaylı istem, tam mesaj ≤ 6000"]
     agent["Proje 2 ajanı"]
     cache[("llm_cache/ — git dışı")]
     evr[("eval_responses/")]
@@ -55,11 +56,12 @@ flowchart LR
     ghcr -->|docker pull, digest| ortam
     ghcr -->|netem imajı| inj
     view --> base
-    view --> nar --> llm
-    view -->|ham log| llm
+    view --> nar --> inp
+    view -->|"WARN+ log, hata span'i, özet"| inp
+    inp --> llm
     view -->|dosya araçları| agent
-    llm --> cache
-    llm --> evr
+    llm -->|"evaluate run --method llm<br/>(duman, denemeler)"| cache
+    llm -->|"evaluate run --method llm"| evr
     agent --> evr
     base -->|"evaluate run"| evr
     evr --> ev
