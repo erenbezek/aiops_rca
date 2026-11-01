@@ -3785,3 +3785,16 @@ Data:
   - `duration_s` son denemenin süresi;
   - Qwen tekrar ayarı (temperature 1.0, presence_penalty 2.0) denenmedi;
   - a1'de yeniden koşulan Groq özet turu.
+
+## 2026-11-01 · Planlama → Uygulama (P1d: Groq düzeltmesi, a1 14/15, yerel tekrar, b 12/15 kontrolü; 3. adım planı onayı)
+- Planlamanın bağımsız kontrolleri (`c52f5a3` scratch klonunda; ortak kopyada dosya yok; turlar ortak kopyadan yalnız okundu):
+  - **Kod (`eafc491`)** DECISIONS "Groq `json_validate_failed`" ile uyumlu: yalnız 400 ve `error.code == "json_validate_failed"` tanınıyor, gövde kesilmiyor, yeniden deneme yok, cevap şema dışı. pytest 576/576. Kasıtlı kırmızılarım: 400 yeniden denenir → 5 test kırmızı; kod yerine mesaj metni aranır → 1 kırmızı. **Yeşil kalan:** şemaya uyan bir `failed_generation` kabul edilirse testler fark etmiyor (testteki içerik zaten bozuk JSON). Ayrıca bu satırlarda sağlayıcı token sayısı yok (`tokens: null`).
+  - **Turlar** (26: a1 14, b 12; kendi betiğimle): hepsinde 18 satır, `repo_clean: true`, istem `6d05378e…`; aynı (aşama, model, seviye) iki kez yok. Ağaçlar: a1'in ilk 10 turu `src` `c9bb8c5b`, son 4'ü ve b'nin 12'si `461d037b`; `incidents` 26 turda `ce7a75d0`. Durum tabloları (sorulan, şema dışı, döngü, cevapsız, boş, ortalama süre) uyg4'ün iki tablosuyla birebir aynı; 200 dışı deneme 0. Ertelenen tur `llm_cache/20261101T094006Z-llm`'de.
+  - **Yeniden puanlama:** 26 tur `c52f5a3` koduyla puanlandı; kayıtlı `scores.json`'larla **26/26 birebir aynı** (a1'in ilk 10'u eski kodla puanlanmıştı). Rule/BARO 4 koşu yeni alanlar dışında 4/4 aynı.
+  - **Yerel tekrar:** `llm_cache/20261101T122821Z-llm` ile `eval_responses/20261101T062548Z-llm` (2B, daraltma, gerçek ad): `raw_output`, `answer`, `input_sha256` 18/18 aynı.
+- **3. adım planı (`c52f5a3`) onaylı.** Yorum noktalarının beşi de DECISIONS metniyle uyumlu, önerildiği gibi: (1) takma ad okuması 18 vakalık sayıyla, demo/kendi ayrımı bilgi; (2) gürültü sayı farkı, vaka düzeyi bilgi; (3) "yalnız belirtili" = `checks.symptom.verdict == "symptomatic"` ve `marks` boş (dev'de 18/18; doğruladım); (4) ortalama süre cevap gelen satırlarda (şema dışı dahil; boş, bütçe aşımı ve cevapsız hariç); (5) grup ayrımı senaryo listesiyle (dev'de demo 11 / kendi 7; doğruladım). uyg4'ün b tablolarını görmüş olması kayıtta; kurallar koşulardan önce yazılıydı, betik onları kodlar.
+- Ekler (planlama):
+  1. Kimlik kontrolü 5: durma koşulu `src` ya da `incidents`'i değiştiren beklenmeyen commit; yalnız `tests/`'i değiştiren commit'ler listelenir, durdurmaz (testler turları etkilemez).
+  2. Test açığı: "şemaya uyan `failed_generation` da şema dışı" testi, kasıtlı kırmızısıyla, kapanıştan önce (yalnız `tests/`, ağaçları değiştirmez).
+  3. Token sütunu: `json_validate_failed` satırlarının sağlayıcı token'ı yok; tabloda bu satırların sayısı yazılır.
+- Sonra: analiz betiği ve `selftest`, `--partial` denemesi (dosya yok); b'nin Groq turları 2026-11-02 09:28Z'den sonra; 3. gün ertelenen tur ve a2.
