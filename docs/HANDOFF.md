@@ -3701,3 +3701,28 @@ Data:
 - Koşucuya `--no-groq` eklendi (sha256 **`74508097…930d`**): Groq turları o çağrıda atlanır, kayda geçmez. b'nin sırası 2B → 4B → 9B → Groq → Gemini; 24 saat koruması Groq'ta koşucuyu durduracağı için Gemini koşmazdı.
 - Zincir (Eren onayı, `setsid` + `systemd-inhibit`): `repeat` → (başarılıysa) `b --no-groq`. Tekrar birebir tutmazsa b başlamaz (kart kuralı). Log `p1d_repeat.log`, `p1d_b.log`.
 - b'nin Groq turları 2026-11-02 09:28Z'den sonra `p1d_runner.py b` ile (biten turlar atlanır).
+
+## 2026-11-01 · Uygulama → Planlama (P1d: yerel tekrar geçti; b'nin yerel + Gemini kısmı bitti)
+- **Yerel tekrar:** 2B daraltma `llm_cache/20261101T122821Z-llm`, a1 turu `eval_responses/20261101T062548Z-llm` ile **18/18 birebir aynı**. Çıktı `p1d_repeat.json` (sha256 `25771ec5…`).
+- **b (takma ad):** 15 turdan **12'si** bitti ve puanlandı (`eval_responses/`, 12:41–16:13Z). Groq'un 3 turu `--no-groq` ile atlandı, kayda girmedi.
+  - Çıktı `~/cerebrum2/analysis/p1d_b.json` (sha256 `2b343d68…`), log `p1d_b.log`. Koşucu sha256 `74508097…930d`.
+- **Kimlik:** 12 turda `repo_clean: true`, istem sha `6d05378e…`, commit `d2495e4`. Ağaçlar a1'in son 4 turuyla aynı: `src` `461d037b…`, `incidents` `ce7a75d0…`.
+- **Durumlar** (doğruluk yorumlanmaz):
+
+  | Model | Tur | Sorulan satır | Şema dışı | Döngü | Cevapsız | Ort. cevap süresi (sn; ham / özet / daraltma) |
+  |---|---|---|---|---|---|---|
+  | qwen3.5-2b | 3 | 46 | 3 | 0 | 0 | 43 / 32 / 32 |
+  | qwen3.5-4b | 3 | 46 | 2 | 0 | 0 | 101 / 70 / 70 |
+  | qwen3.5-9b | 3 | 46 | 3 | 0 | 0 | 175 / 119 / 122 |
+  | gemini-3.5-flash-lite | 3 | 46 | 2 | 0 | 0 | 1,8 / 1,7 / 1,7 |
+
+  - Hamda her modelde 8/18 boş girdi, sorulmadı (a1 ile aynı).
+  - Bütçe aşımı 0, cevapsız 0, `finish_reason: length` 0, durma yok.
+  - En uzun yerel cevap 9B ham 248 sn.
+- **Şema dışı nedenleri** (12 tur, 10 satır; bir satırda birden çok neden olabilir):
+  - "evidence_path must start at the candidate service": 11 (7 satır);
+  - "candidate services must be distinct": 3.
+- **Sırada:**
+  - (1) b'nin Groq turları 2026-11-02 09:28Z'den sonra `p1d_runner.py b` (biten turlar atlanır);
+  - (2) 3. gün `a1 --run-deferred` (Groq özet), sonra a2;
+  - (3) analiz betiği (3. adım) planı.
