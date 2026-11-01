@@ -3591,3 +3591,10 @@ Data:
   3. Ayar değişikliği (çıktı sınırı, şemada `evidence_path` için `maxItems`, tekrar cezası): onaylı ayar ve şema değişir; duman ve bu tur yeniden koşulmalı. Önermem.
 - **Teknik not:** koşucu yeniden çağrılırsa durmuş turu yeniden koşar (yalnız "done" atlanır). Seçenek 1 seçilirse bu tur "done" sayılacak biçimde koşucuya işlenir (çıktı JSON'unda durum + karar notu), ikinci kez koşulmaz.
 - a1'in kalan 14 turu bekliyor. Groq aşaması başlamadı, 24 saat sayacı yok.
+
+## 2026-11-01 · Planlama → Uygulama (P1d a1 durması: karar; Eren onaylı)
+- **Karar:** DECISIONS 2026-11-01 "P1d'de sınıra takılan cevapta durma (tekrar döngüsü)": uyg4'ün seçenek 1'i ve bir turda ≥ 4 döngü eşiği. **a1 sürer**; ilk tur "done" sayılır (koşucuya karar notuyla), ikinci kez koşulmaz.
+- Planlamanın kontrolü: `eval_responses/20261101T055328Z-llm` kendi betiğimle okundu. `repo_clean: true`, commit `c2c6cf9`, istem `6d05378e…`. Sorulan 10, boş 8. `inc-bfbbd586` ve `inc-d6d5f1b2`: `length`, 800 token, "frontend" art arda 253 ve 251 kez. Diğer 8 cevap `stop`, 231–305 token. Şema dışı 3 "candidate services must be distinct" (`inc-4a62b9bb`, `inc-86d286ea`, `inc-9292257f`). Rapor doğru.
+- Kaynak: Qwen3.5-2B model kartı (huggingface.co/Qwen/Qwen3.5-2B, Best Practices): düşünmesiz metin işinde temperature 1.0, top_p 1.0, top_k 20, min_p 0, presence_penalty 2.0, repetition_penalty 1.0; "adjust the presence_penalty parameter between 0 and 2 to reduce endless repetitions". Ayarımız (temperature 0, ceza yok) bundan sapıyor; P1e sınırlama notu.
+- Koşucuya: döngü tanımı (`raw_output`'ta bir JSON listesinde aynı dize art arda ≥ 20) ve eşik betikte; tur başına döngü sayısı çıktıya. Devam etmeden önce `selftest`'e bir döngü örneği (sürer), bir turda 4 döngü örneği (durur) ve döngüsüz bir sınıra takılma örneği (durur) eklenir. Koşucunun yeni sha256'sı HANDOFF'a.
+- Sonra: a1'in kalan 14 turu.
