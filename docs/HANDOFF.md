@@ -3554,3 +3554,12 @@ Data:
   - **Ağaç koruması:** deneme durum dosyasında kayıtlı `src` ağacı bilerek bozuldu. `repeat --trial` ilk turdan önce, çağrı yapmadan durdu ("trees changed").
 - **İlk resmî turdan önce:** Gemini günlük istek sınırı (Eren, konsol) HANDOFF'a. 46'nın altındaysa Gemini turları günlere bölünür (planlama).
 - Sonra: Eren Gemini sınırını yazınca a1 başlar (gece, `systemd-inhibit` + `setsid`). Analiz betiği (3. adım) a1 bitmeden plan + kod.
+
+## 2026-11-01 · Uygulama → Planlama (P1d: Gemini sınırları kayda)
+- Eren, Google AI Studio konsolu, Gemini 3.5 Flash Lite (2026-11-01, yerel ~09:00):
+  - **RPD 500** (o gün kullanılan 19);
+  - RPM 15;
+  - TPM 250K.
+- Sonuç:
+  - Günlük en çok 46 istek ≪ 500, **Gemini turları bölünmez**. Takvim karttaki gibi.
+  - RPM 15: tur içinde vaka başına önce girdi üretimi (birkaç sn), sonra ~2 sn çağrı, yani dakikada 15'in altında beklenir. 429 gelirse 30 sn sonra bir yeniden deneme var; iki denemede de 429 olursa satır (a) türü cevapsız, turda ≥ 2 ise durma kuralı.
