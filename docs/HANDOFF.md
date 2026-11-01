@@ -2885,3 +2885,539 @@ Yalnız testte olan 6 birimin pilot etiketleri. Set değeri `pilot` → `heldout
   - numpy `_lerp` yerine düz `a + (b−a)·t` yazılınca test yeşil kaldı: bu 4 örnekte iki formül aynı sonucu verdi (en fazla son bitte ayrışırlar).
 - pytest 467/467. GLOSSARY: `baro_expected.json`, `baro_fixture_result()`. ARCHITECTURE tablosu güncel.
 - Sıradaki: PR (`task/p1-baro` → main); birleştirme planlamanın kapanış kontrolünden sonra.
+
+## 2026-10-31 · Planlama → Uygulama (P1b kapanış kontrolü)
+- P1b kapanışı (`b271358`) kartla uyumlu. Planlamanın bağımsız kontrolleri (main `7744856` kopyasında; ortak kopyada dosya yok):
+  - `test_baro_reproduces_expected_output_on_fixtures` yeşil.
+  - Kasıtlı kırmızı, her biri ayrı kopyada: z'den ölçek kaldırılınca kırmızı; `drop_constant` kaldırılınca kırmızı; `_lerp` yerine düz `a + (b−a)·t` yeşil. Uygulamanın raporuyla aynı. Bu son fark CI'da korunmuyor; RCAEval'le bit düzeyinde eşitlik P1b 2. adımda 5 dev vakasında gösterildi.
+  - Örneklerde top-1 2/4, top-3 4/4: planlamanın betiği etiketlerden saydı, `baro_expected.json` tablosuyla aynı.
+  - `src/`, `tools/`, `pyproject.toml` resmî koşunun commit'inden (`c609b35`) beri değişmedi; P1b 1–3'teki yeniden koşu ve tablo kontrolü main için de geçerli.
+  - PR #30 koşusu yeşil (head `b271358`). Birleşti: main `7744856`, push koşusu yeşil (run 41178530691); main'in ağacı `b271358` ile aynı.
+- P1b kapandı. Sonuç (yorum P1e'de): BARO top-1 11/43, top-3 27/43; üç sınırlama notu 2026-10-31 planlama kaydında.
+
+## 2026-10-31 · Planlama → Uygulama (P1c planı kontrolü; Eren onaylı)
+- Dal `task/p1-llm`: planlama main `7744856`'dan açtı (Eren). Uygulamanın 5 adımlı planı (LLM katmanı → özet ve ham + token sayımı → daraltma → takma ad ve girdi kontrolleri → istem ve duman) kartla uyumlu; aşağıdaki değişikliklerle onaylı. Sonra: GLOSSARY ve 1. adım.
+- Uygulamanın zayıf yer bulguları (planlama doğruladı):
+  1. `ALIASES`'ta quote-gateway yok (kartın boşluğu). **Takma ad `rate-gateway`** (Eren). `ALIASES` ve GLOSSARY "takma ad eşlemesi" birlikte, ekleme tarihiyle.
+  2. Kartta çıktı sınırı yok (kartın boşluğu); denemelerin "sınırda iki katına çıkarıp yeniden sor" kuralı kartla çelişiyor. Eski şemada 2B cevabı 290 token'a çıktı (sınır 300). **Karar: DECISIONS 2026-10-31 "Çıktı sınırı".**
+  3. Groq: denemelerde aynı girdide Groq'un `prompt_tokens`'ı Qwen sayısının 0,95–1,03 katı (özet metni; ham metinde bilinmiyor). Groq belgesi `max_tokens`'ın dakikalık sınıra sayılıp sayılmadığını yazmıyor. Dumanda her Groq isteğinde Groq `prompt_tokens` ve Qwen sayısı yan yana kayda. Boyut yüzünden reddedilen istek: ayar değişmez, planlama.
+  4. Ham seviyede takma adı yazılamayan vaka: plandaki gibi, durup sayıyı getir.
+  5. Tokenizer: plandaki gibi (2B/4B/9B aynı metinde bir kez karşılaştırılır; fark varsa en büyük sayı).
+- Planlamanın ekleri (Eren onaylı):
+  - **İstem payı** (DECISIONS 2026-10-31): 6K'nın 1000'i istem + sohbet şablonu, veri bloğu ≤ 5000. Kesme kuralı (Onay 1) buna göre yazılır. Sayım llama-server `/apply-template` + `/tokenize` ile (şablon dahil). Bitti ölçütündeki "istem dahil ≤ 6K" onaylı istemle son kez ölçülür.
+  - Ad: `src/aiops_rca/llm.py` yerine `llm_client.py` (`methods/llm.py` ile karışmasın). GLOSSARY'de evaluate `--alias` (takma adlı girdi), `trial_ask_models.py`'nin `--alias`'ından (puanlamada çeviri) ayrı yazılır. Diğer adlar plandaki gibi.
+  - 1. adımda açıkça: Qwen `enable_thinking: false`, gpt-oss `reasoning_effort: low`, Gemini `minimal` (DECISIONS 2026-10-30 "LLM ayarları"); anahtarlar `keys.env`'den; CI'da anahtar ve ağ yok.
+  - Girdi üretimi test setini reddeder (evaluate'teki gibi).
+  - Sıra: ham kesme kuralı yalnız pilot boyutlarından; dev sayımı Onay 1'den sonra bir kez. Daraltmada pilot ayar kaydı ve pilotta ilk 5 oranı kayda; dev'in daraltma girdisi (aday listesi ve token sayımı dahil) Onay 2'den önce üretilmez.
+- Not (P1d için, planlama): Groq gpt-oss-120b günlük 200K token sınırı (TPD, console.groq.com/docs/rate-limits). Duman ~50K, sorun yok; dev koşusu tahminen 2 güne bölünür.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 1. adım: LLM çağrı katmanı)
+- `src/aiops_rca/llm_client.py` (`tools/trial_ask_models.py`'den taşındı; deneme betiği değişmedi). Hiçbir model koşmadı.
+  - `MODELS`: beş model, deneme etiketleriyle (`qwen3.5-2b/4b/9b`, `gpt-oss-120b`, `gemini-3.5-flash-lite`). Qwen `enable_thinking: false`, gpt-oss `reasoning_effort: low`, Gemini `minimal`; temperature 0; çıktı sınırı yerel 800, API 1600 (DECISIONS 2026-10-31).
+  - `ANSWER_SCHEMA` / `RESPONSE_FORMAT`: P1a cevap şemasının strict biçimi (bütün alanlar zorunlu, fazladan alan yok, tam 3 aday, `evidence_path` en az 1). LLM'de `confidence` sayı (null değil); 0–1 aralığı, yolun adayla başlaması, farklı adaylar `answer.validate_answer`'da.
+  - `chat()`: taşıma hatasında (bağlantı/zaman aşımı, 429, 500, 502, 503, 504) bir yeniden deneme; bekleme Groq 65 sn, diğerleri 30 sn. Başka HTTP hatası (400, 413…) yeniden denenmez. Şema dışı ve `finish_reason: length` → `schema_valid: false`, yeniden sorulmaz. Okuyucu denemelerdeki gibi ilk JSON nesnesini okur (``` dahil). Kayıtta her deneme, token (girdi, çıktı, akıl yürütme), süre (son deneme).
+  - `Pacer` (Groq istekleri arası 65 sn), `LocalServer` (digest'le sabit imaj, bağlam 8192, 4 iş parçacığı, `127.0.0.1:8081`), `api_key()` (ortam, yoksa `keys.env`; değer kayda girmez).
+- `tests/test_llm_client.py`: 34 test, sahte sunucu `127.0.0.1`'de (ağ ve anahtar yok). pytest 501/501.
+- Kasıtlı kırmızı (kopyada; `src` değişmedi): length kuralı kaldırılınca 1, yeniden deneme kaldırılınca 8, her HTTP hatasında yeniden deneme 16, şemada `unsure` zorunlu değil 1, şema doğrulaması kaldırılınca 5, temperature 0,7 1 test kırmızı.
+- Açık (duman koşusunda görülecek): strict şemanın `minItems: 1` (yol) ve `number` (güven) alanları sağlayıcılarda denenmedi; denemelerde yalnız 3'lük aday dizisi denenmişti.
+- Sıradaki: 2. adım (özet ve ham seviye, token sayımı; ham kesme kuralı pilot boyutlarından → Onay 1).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 1. adım kontrolü; 5. adıma ek)
+- 1. adım (`fee8724`) kartla ve DECISIONS 2026-10-31 ile uyumlu. Planlamanın bağımsız kontrolleri (çalışma kopyasının scratchpad kopyasında; ortak kopyada dosya yok):
+  - pytest 501/501.
+  - İmaj digest'i ve sunucu argümanları denemeler ve hız ölçümüyle aynı; bağlam 4096 → 8192 (kart). Sabit imajın `--help`'i: yuva sayısı otomatik, KV ortak (`--kv-unified` varsayılan); tek istek 8192'nin tamamını kullanır.
+  - Testler anahtarı açıkça veriyor; gerçek `keys.env` okunmuyor.
+  - Planlamanın kasıtlı kırmızıları (raporda olmayan 12 değişiklik, her biri ayrı kopyada): 10'u kırmızı (çıktı sınırları, akıl yürütme ayarları, düşünme, iş parçacığı, bağlam, Groq aralığı, 413'ü yeniden deneme, `strict`). İmaj digest'i ve Gemini model kimliği değişince yeşil: sabit kimlik testle korunmuyor (commit ve `run.json`'daki model kimliği iz bırakır).
+  - İki küçük karar (yeniden deneme beklemesi, ``` içindeki cevap) Eren onaylı; DECISIONS'ta.
+- **5. adıma ek (Eren onaylı):** koşu kaydına (`run.json`) imaj digest'i ve yerel modelin GGUF SHA256'sı yazılır; SHA256 `LOCAL_MODEL_BENCH.md` tablosundakiyle uyuşmazsa koşu başlamaz. Neden: yerel modelin kimliği dosyanın kendisi, commit onu sabitlemiyor.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 2. adım: Onay 1 önerisi, ham kesme kuralı; planlama kararı: boş girdi)
+- Ölçüm yalnız pilot 25 vakada (dev okunmadı, model koşmadı; yalnız llama-server `/tokenize`). Betikler ve çıktılar repo dışı:
+  - `~/cerebrum2/analysis/p1c_raw_size.py` (sha256 `766e681a…b7cd`) → `p1c_raw_size.json` (`c62879ab…3a01`): vaka başına WARN+ log ve hata span'i sayıları, karakter.
+  - `~/cerebrum2/analysis/p1c_raw_tokens.py` (`e77a66c4…60a9`) → `p1c_raw_tokens.json` (`66035ecb…d065`): üç Qwen tokenizer'ıyla token sayısı, iki satır biçimi (A, B).
+- Bulgular:
+  - **Tokenizer:** Qwen 2B, 4B, 9B bütün pilot metinlerinde (tam metin ve ilk 400 satır tek tek) aynı sayıyı verdi → tek tokenizer.
+  - **Ham seviye 11/25 pilot vakada boş:** pencerede WARN+ log da hata span'i da yok.
+  - **Bütçe:** dolu 14 vakanın 5'i veri bütçesini (5000) aşıyor (A biçiminde 108.267 / 64.641 / 53.493 / 5.799 / 5.452 token); diğer 9 vaka 118–3.246 token.
+  - **Pencere:** 25 vakanın hiçbirinde alarmdan önceki 10 dk'da satır yok; ham seviye pratikte yalnız alarm sonrası.
+  - **Satırlar:** ~37–41 token; bütçeye ~125–230 satır sığar. Satırlar çok tekrarlı (büyük vakalarda farklı tür 8–19). En uzun satır 307 karakter; çok satırlı mesaj yok.
+  - Ham seviyede `frontend-web` servisi (tarayıcı span'leri) var; `ALIASES`'ta karşılığı yok → 4. adımda yeni takma ad gerekecek (ad Eren/planlama).
+- **Önerilen kesme kuralı (Onay 1):**
+  1. Satırlar: pencere [alarm − 10 dk, alarm + 10 dk); WARN+ log kayıtları (severityNumber ≥ 13) ve status ERROR span'leri (bütün türler).
+  2. Biçim (kartın alanları: zaman, servis, mesaj ya da span adı): log `HH:MM:SS.mmm <servis> log <mesaj>`; hata span'i `HH:MM:SS.mmm <servis> error-span <span adı>` (UTC). Mesajda boşluk ve satır sonları tek boşluğa iner; kimlik/sayı sadeleştirmesi yok. Satır 500 karakterde kesilir (pilotta etkilenen yok). Sıra: zaman, eşitlikte satır metni.
+  3. Kesme: veri bloğu ≤ 5000 token (Qwen tokenizer). Sığarsa hepsi. Sığmazsa zaman sırasıyla baştan, tam satırlarla, sığan en çok satır; sonra sabit işaret satırı `[truncated: later lines omitted]` (sayı yok; işaret dahil ≤ 5000). Dev'de de kurgu gereği ≤ 5000.
+  4. Neden baştan (etiketsiz ölçü: kesilen metnin koruduğu farklı satır türü, servis + sadeleşmiş mesaj ya da span adı; aşan 5 vakada toplam 62 tür): baştan 62/62, eşit aralıklı örnek 59/62, yarısı baştan yarısı sondan 55/62. İlk hatalar baştaki satırlarda.
+  - Önerilmeyen seçenek B: span satırına tür (CLIENT/SERVER) ve durum mesajı. Kartın biçiminin dışında; aşan vaka 6'ya çıkar (bir vaka 5.218), bir vakada korunan tür 17 → 12.
+- **Planlama kararı gerekiyor: boş ham girdi (pilotta 11/25; gecikme, kaynak, durdurma hataları log ve hata span'i üretmiyor).** Seçenekler:
+  - a) Boş girdiyle yine sorulur: cevap tahmin; modelin ön bilgisini gösterir.
+  - b) Sorulmaz: "girdi boş" diye kaydedilir, ıskalama sayılır, sonuç tablosunda ayrı sütun. Ham seviyenin koşu süresi ~%40 azalır.
+  - c) Ham tanım genişler (ör. yavaş span'ler): eşik gerektirir, "hesaplanmış sayı yok" kuralını bozar.
+  - Uygulamanın önerisi **b**: boş girdiyle sormak yöntemi ölçmez, sonuç ıskalamayla aynı, süre kazandırır. DECISIONS "Ham log yeniden tanımlandı"ya dokunduğu için planlamada.
+- Onaydan sonra 2. adım: `inputs.py` (özet: `tools/trial_summary.py`'nin `build`'i pakete taşınır, eski özetle eşitlik testi; ham: bu kural), tokenizer dışarıdan verilir (testlerde sahte, CI'da docker yok). Boş girdi kararı gelmeden ham seviye koşu tarafına bağlanmaz.
+- Not (planlamanın 1. adım bulgusu): imaj digest'i ve Gemini kimliğini koruyan test 5. adımdaki `run.json` ekiyle birlikte eklenir.
+
+## 2026-10-31 · Planlama → Uygulama (P1c Onay 1 kontrolü; boş ham girdi kararı)
+- Onay 1 kartla uyumlu. **Kesme kuralı Eren onaylı** (DECISIONS 2026-10-31 "Ham kesme kuralı"); 2. adıma geçilebilir.
+- Planlamanın bağımsız sayımı (kendi betiği, yalnız `set: pilot`, snapshot'lardan): 25 vakanın hepsinde WARN+ log (önce/sonra) ve hata span'i sayıları `p1c_raw_size.json` ile aynı; alarm öncesinde hiçbir vakada satır yok.
+- **Düzeltme:** boş vaka 10, 11 değil (`p1c_raw_size.json` ve `p1c_raw_tokens.json` da 10 gösteriyor). Dolu 15: 10'u sığıyor (118–3.246 token), 5'i aşıyor (5.452–108.267). Üstteki kayıttaki "11/25", "dolu 14", "diğer 9" bu düzeltmeyle okunur.
+- Bağımsız tekrarlanmayan: token sayıları (llama-server gerekir) ve "korunan tür 62/62" ölçüsü.
+- **Boş ham girdi: b** (Eren; DECISIONS 2026-10-31 "Boş ham girdi"). Boş = kesmeden önce pencerede WARN+ log ve hata span'i yok. Model sorulmaz; kayıtta "girdi boş"; puanlamada top-1/top-3 ıskalama, çekimser (`unsure`, kapsama dışı), güven yok (Brier'e girmez). Tabloda ham seviyesinde "boş girdi" sütunu. Özet ve daraltmada bütün vakalar sorulur.
+- 4. adım için not: `frontend-web` (tarayıcı span'leri) takma adı gerekecek; ad 4. adımda önerilir, Eren onaylar.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 2. adım: özet ve ham seviye)
+- `src/aiops_rca/inputs.py`:
+  - **Özet:** `trial_summary.build` ve yardımcıları pakete taşındı (`summary_table`, `summary_text`, `p95_ms`, `avg_max`, `TOP_MESSAGES`); `tools/trial_summary.py` bunları içe aktarır, davranışı aynı. `summary_input(case, count_tokens)`.
+  - **Ham:** `raw_input(case, count_tokens)`, DECISIONS 2026-10-31 "Ham kesme kuralı" birebir (satır `raw_line`, kayıtlar `raw_records`, sıra `raw_lines`, kesme `fit_lines`: önce tam metin, aşarsa en uzun önek ikili aramayla + `TRUNCATION_MARK`). Boş → `empty: true`, metin boş, tokenizer çağrılmaz. Kayıt alanları: `lines_total`, `lines_kept`, `truncated`, `data_tokens`.
+  - Token sayımı dışarıdan verilir: koşuda `LocalServer.tokenize` (yeni, `llm_client.count_tokens` → llama-server `/tokenize`), testlerde sahte.
+- Testler: `tests/test_inputs.py` (13) + `test_llm_client.py`'ye `/tokenize` testi; `tests/fixtures/summary_expected.json` = 4 CI örneğinde **eski** (`HEAD` `cd0a063`) `trial_summary.build`'in metinleri, taşınan kod birebir üretir. pytest 515/515.
+- Kasıtlı kırmızı (kopyada): sondan kesme 3, INFO dahil 3, işaret yok 4, boşluk sadeleşmesi yok 2, `TOP_MESSAGES` 9 2, boş girdi işareti yok 2 test kırmızı.
+- Pilot kontrolü (`~/cerebrum2/analysis/p1c_step2_check.py` sha256 `80c5c7ab…930b56cf` → `.json` `f7b29333…737bd700`; yalnız pilot, gerçek Qwen tokenizer, model çıkarımı yok):
+  - Özet metni eski kodla 25/25 aynı. Özet veri bloğu 1.705–1.955 token.
+  - Ham: boş 10, kesilen 5 (223/5010, 224/261, 224/246, 197/2546, 224/2406 satır), en büyük veri bloğu 4.995 ≤ 5000. Kesilmemiş metnin token sayısı `p1c_raw_tokens.json` (A) ile 25/25 aynı.
+  - İki üretim (iki ayrı sunucu açılışı) birebir aynı.
+- Yeni adlar (Eren onaylı, GLOSSARY'de): `summary_table`, `summary_text`, `summary_input`, `raw_input`, `raw_records`, `raw_lines`, `raw_line`, `fit_lines`, `clock_ms`, `DATA_BUDGET`, `RAW_LINE_CHARS`, `TRUNCATION_MARK`, `TokenCounter`, `LEVELS`, `count_tokens`, `LocalServer.tokenize`, `summary_expected.json`.
+- Dev sayımı yapılmadı: 4. adımda (girdi kontrolleri, 43 vaka) bir kez.
+- Sıradaki: 3. adım (daraltma; öne alma kuralı pilotta, dev'e bakmadan önce yazılı → Onay 2).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 2. adım kontrolü)
+- 2. adım (`50ff159`) kartla ve DECISIONS 2026-10-31 ile uyumlu; **3. adıma geçilebilir.** Planlamanın bağımsız kontrolleri (scratchpad; ortak kopyada dosya yok):
+  - pytest 515/515 (`50ff159` kopyasında).
+  - Ham satırlar DECISIONS "Ham kesme kuralı" metninden planlamanın koduyla üretildi: 25 pilot vakada `raw_lines` ile birebir aynı.
+  - Kesme: geçici llama-server (Qwen 2B, ayrı ad ve port, yalnız `/tokenize`) ile bütün önekler tek tek tarandı (tekdüzelik varsayılmadan). 25 vakada son metnin sha256'sı, tutulan satır ve token sayısı `p1c_step2_check.json` ile aynı. Kesilen 5 vaka: 223/5010, 224/261, 224/246, 197/2546, 224/2406 satır; en büyük blok 4.995.
+- Bağımsız tekrarlanmayan: özetin eski kodla eşitliği (uygulamanın testi ve pilot 25/25 kontrolü).
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3. adım: Onay 2 önerisi, daraltmanın öne alma kuralı)
+- Ayar yalnız pilot 25 vakada (etiketler dahil; dev okunmadı, model koşmadı). Betikler repo dışı: `~/cerebrum2/analysis/p1c_narrowing_pilot.py` (sha256 `b0271a1c…69b85426`; v0 ve kural sırası, `--detail` ile sinyaller ve kenarlar), `p1c_narrowing_v1.py` (`cd4962ad…28d88af8`; v1 karşılaştırması).
+- **Güç kontrolü: pilotta ölçüt tavanda.** "Kök ilk 5'te": kuralın kendi sırası 25/25, v0 25/25, v1 25/25. Pilot, ölçütte varyantları ayıramaz; öne almanın etkisi yalnız sıranın başında (top-1: kural 13, v0 21, v1 22). Dev ölçütü (≥ 15/18) kuralın dev top-3'ü; kuralın dev ilk 5'i bilinmiyor (bakılmadı), yani dev ölçütü daraltmadan çok kural sinyallerini sınayabilir. Daraltmanın değeri P1d'de LLM sonuçlarında görülür.
+- **Önerilen kural (Onay 2; DECISIONS 2026-10-30 "Daraltma" metninin kesin hali, v0):**
+  1. Aday kümesi ve puan kuralınkiyle aynı (`signals.signals`, eşikler aynı): izleme araçları, rutin servisler (flagd, flagd-ui, load-generator) ve `<unknown>` dışarıda; astronomy-db ve valkey-cart yalnız CPU/bellek. Puan = gücü ≥ 1 olan sinyal sayısı. **Kural sırası:** puan azalan, eşitlikte en büyük güç (bütün sinyaller) azalan, sonra servis adı.
+  2. **Anormal** = puan ≥ 1.
+  3. **Çağrı kenarları:** snapshot'ın bütün izleri (`call_graph.service_edges`, `traces.jsonl`); A → B = A, B'yi çağırdı. İzlerde olmayan servisin (veritabanları) çağırdığı yok.
+  4. **Derin** = anormal ve çağırdığı servislerin hiçbiri anormal değil.
+  5. **Sıra:** derinler (kural sırasıyla) → diğer anormaller (kural sırasıyla) → anormal olmayanlar (kural sırasıyla). **İlk K = 5** aday.
+- Pilotta v0: ilk 5'te 25/25; kökün sırası 1 (21 vaka), 3 (2), 4 (2). Geri düşen 4 vakanın 3'ünde (01a609bb, 07533a0a, 91bf76d4) kökün çağırdığı servis **yalnız istek düşüşüyle** anormal: kök hata verince arkasına daha az istek gidiyor; bu sonuç, ama v0 onu belirti sayıp kökü engelliyor. 4.'sü (d8f67a48, frontend) hiç anormal servis yok, sıra kuralınki.
+- Önerilmeyen v1: çağırdığı servisin yalnız istek düşüşü engellemez. Pilotta top-1 22 (3 vaka öne çıkar), ama `unavailable` cart vakası (2a87f603; kökün tek belirtisi istek düşüşü) 1 → 2 geriler: durdurulan servisin kendi belirtisi de istek düşüşü. Ölçütte fark yok (25/25); mekanizma iki yönlü. Uygulamanın önerisi: DECISIONS metni olduğu gibi (v0); v1'in mekanizması P1e hata analizine not.
+- Onaydan sonra 3. adım: `narrowing.py` (bu kural; pilotta ayar kaydı ve ilk 5 oranı), dev'de bir kez "kök ilk 5'te mi" (ölçüt ≥ 15/18; tutmazsa planlama, dev'e göre ayar yok), sonra daraltma girdi seviyesi (biçimi adımın özetinde önerilir). Dev'in daraltma girdisi Onay 2'den önce üretilmez.
+
+## 2026-10-31 · Planlama → Uygulama (P1c Onay 2 kontrolü)
+- Onay 2 kartla ve DECISIONS 2026-10-30 "Daraltma" ile uyumlu. **v0 Eren onaylı** (DECISIONS 2026-10-31 "Daraltmanın öne alma kuralı"). 3. adıma geçilebilir: `narrowing.py`, pilot ayar kaydı ve ilk 5 oranı, sonra dev'de bir kez "kök ilk 5'te mi" (≥ 15/18; tutmazsa planlama, dev'e göre ayar yok).
+- Planlamanın bağımsız tekrarı (sıralama kodu Onay 2 metninden planlamanın; sinyaller ve çağrı kenarları paketten, P1a'da doğrulanmıştı; yalnız `set: pilot`): ilk 5'te 25/25; kök sırası 1 (21), 3 (2), 4 (2); kural sırasıyla top-1 13; v1 top-1 22. Uygulamanın sayılarıyla aynı.
+- **Düzeltme:** bu sayılar eşitlikte "bütün sinyallerin en büyük gücü" ile tutuyor. P1a `rule_check`'in kendi eşitliğiyle (yalnız eşiği aşan güç, yoksa 0, sonra ad) ilk 5'te 24/25 (`inc-d8f67a48`, memoryLimit frontend, anormal servis yok: kök 7. sırada). Yani üstteki kayıttaki "kuralın kendi sırası 25/25", kural kodunun sırası değil. Eren güç sırasını seçti; fark DECISIONS'ta açık.
+- `narrowing.py` testinde bu fark sınansın: puanı 0 olanlar ada göre değil, en büyük güce göre sıralanır.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3a: daraltma kodu, pilot ayar kaydı; 2. adım kasıtlı kırmızı düzeltmesi)
+- `src/aiops_rca/narrowing.py`: DECISIONS 2026-10-31 "Daraltmanın öne alma kuralı" birebir. `service_scores` (kural sinyalleri, aynı dışlamalar; `max_strength` bütün sinyallerin en büyüğü), `narrow` (sıra: puan, güç, ad; gruplar `deep` → `anomalous` → `normal`), `candidate_narrowing(case)` (`candidates` ilk 5, `ranking` bütün sıra, `edges` adaylar arasındaki kenarlar `[çağıran, çağrılan, span sayısı]`). `K = 5`.
+- Testler `tests/test_narrowing.py` (9): puanların kural koduyla aynılığı, derin öne alma, kenarsız veritabanı, grup içi sıra, **puanı 0 olanlarda güç sırası (`rule_check` ada göre; planlamanın istediği test)**, CI örneklerinde beklenen çıktı (`tests/fixtures/narrowing_expected.json`, bu kodla üretildi; regresyon). pytest 524/524.
+- Kasıtlı kırmızı (kopyada, `incidents/` bağlantılı; değişmemiş kopyada 9/9 yeşil): öne alma yok 2 test; puanı 0'da ada göre 2; çağırdığı herhangi biri engeller 2; K = 3 2; rutin servisler dahil 1.
+- **Pilot ayar kaydı** (`~/cerebrum2/analysis/p1c_narrowing_record.py` sha256 `58a4171f…ecd31c2e` → `p1c_narrowing_pilot.json` `a98d04b9…dc59e0b3`; modülün kendisiyle): ilk 5'te kök **25/25**; sıra 1 (21), 3 (2), 4 (2). Planlamanın bağımsız sayılarıyla aynı.
+- **Dev ölçümü yapılmadı.** Plan: bu kod commit'lenince, o commit'le (`src` temiz) bir kez `p1c_narrowing_record.py dev`; ölçüt ilk 5'te kök ≥ 15/18, tutmazsa planlama, dev'e göre ayar yok.
+- **Düzeltme (2. adım kaydı, `50ff159`):** oradaki kasıtlı kırmızı sayıları şişkindi. Kopya `src/` dışında olduğu için `cases.REPO` kopyayı gösteriyor, `incidents/` bulunamıyor ve CI örneği kullanan testler her kopyada (değişiklik olmadan da) kırmızıydı. Bağlantılı kopyada yeniden (değişmemiş kopya 13/13 yeşil): sondan kesme 2 (önceki rapor 3), INFO dahil 2 (3), işaret yok 3 (4), boşluk sadeleşmesi yok 1 (2), `TOP_MESSAGES` 9 1 (2), boş girdi işareti yok 1 (2). Altısı yine yakalanıyor. Not: `TOP_MESSAGES`'ı yalnız sabit testi yakalıyor; CI örneklerinin özetinde 10'dan az mesaj var. 1. adımın sayıları etkilenmedi (o testler `incidents/` kullanmıyor; değişmemiş kopya 35/35).
+- Yeni adlar (Eren onaylı, GLOSSARY'de): `service_scores`, `narrow`, `candidate_narrowing()` (kavram adı GLOSSARY'de; fonksiyon), `K`, `GROUPS` (`deep`, `anomalous`, `normal`), `narrowing_expected.json`.
+- Sıradaki: commit → dev'de bir kez ilk 5 → 3b daraltma girdi seviyesi (biçim önerisi).
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3a: dev'de daraltma ölçümü, bir kez)
+- Önceden yazılı ölçüt: dev'de ilk 5'te kök ≥ 15/18 (DECISIONS 2026-10-30 "Daraltma").
+- Koşu: `69769a0` (`src` temiz), `~/cerebrum2/analysis/p1c_narrowing_record.py dev` bir kez → `p1c_narrowing_dev.json` (sha256 `b818d1c0…294aa816`). Model koşmadı, ayar yapılmadı.
+- **Sonuç: ilk 5'te kök 18/18 → geçti.** Kökün sırası: 1 (15), 2 (1), 3 (1), 4 (1).
+- Not (yorum P1e'de): pilot gibi dev de bu ölçütte tavanda; ilk 5 ölçüsü daraltmanın kökü kaybetmediğini gösteriyor, LLM'e katkısını göstermiyor (P1d).
+- Sıradaki: 3b daraltma girdi seviyesi (biçim önerisi; adaylar, aralarındaki kenarlar, aday başına işlem ve çağıran tarafı sinyalleri, en sık log mesajları; ≤ 5000 token).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 3a kontrolü: daraltma kodu ve dev ölçümü)
+- 3a (`69769a0`, `73a348a`) kartla ve DECISIONS 2026-10-31 "Daraltmanın öne alma kuralı" ile uyumlu; **dev ölçütü geçti, 3b'ye geçilebilir.** Planlamanın bağımsız kontrolleri (`73a348a` kopyasında; ortak kopyada dosya yok):
+  - pytest 524/524.
+  - Planlamanın sıralama kodu (Onay 2 metninden) `candidate_narrowing` ile **tam sıra** düzeyinde pilot 25/25, dev 18/18 aynı.
+  - Dev: ilk 5'te kök 18/18; kök sırası 1 (15), 2 (1), 3 (1), 4 (1). `p1c_narrowing_dev.json` sha256 `b818d1c0…` kayıttakiyle aynı; `repo_commit` `69769a0`, `src_clean: true`.
+  - Eşitlik seçimi dev sonucunu değiştirmiyor: P1a `rule_check` eşitliğiyle de dev ilk 5'te 18/18 (yalnız `inc-ac155a23`'te kök 2 → 4).
+- 2. adımın kasıtlı kırmızı düzeltmesi not edildi. Planlamanın 2. adım kontrolü etkilenmedi (kopyası `git archive` ile `incidents/` dahil; 515/515).
+- **3b biçim önerisinde ayrıca yanıtlanacak:** adaylar modele hangi sırayla gösterilir? Daraltmanın sırasıyla (öne alınan önce) gösterilirse model ilk adayı seçmeye yatkın olabilir; o zaman ölçülen, seçimle birlikte sıralamanın da katkısı olur. Seçenekler (ör. daraltma sırası / ada göre), sonuçları ve öneri; Eren onaylar.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3b önerisi: daraltma girdisinin biçimi ve aday sırası)
+- Taslak yalnız pilot 25 vakada (model çıkarımı yok; Qwen tokenizer): `~/cerebrum2/analysis/p1c_narrowed_proto.py` (sha256 `01c32c55…1d285789`; `--show <vaka>` örnek metni basar).
+- **Önerilen biçim** (girintisiz JSON, özetle aynı yazım):
+  - `alarm_time_utc`, `window_minutes` (özetteki gibi).
+  - `candidates`: daraltmanın ilk 5 adayı, her biri:
+    - servis satırı **özetteki satırın aynısı** (istek, hata oranı, p95, CPU, bellek; önce/sonra): aynı servis iki seviyede aynı sayılarla görünür, seviyeler arasında temsil değişmez.
+    - `operations`: adayın gelen span adları (SERVER/CONSUMER; `signals.operation_rows`), her birinde istek, hata oranı, p95 önce/sonra; ada göre; sınır yok (pilotta en çok 12).
+    - `callers`: adayı çağıran istemci span'leri (`signals.caller_rows`, belirti kontrolündeki eşleşme; IP eşleşmesi yok), çağıran + span adı başına aynı alanlar; ada göre (pilotta en çok 4).
+    - `logs`: adayın alarm sonrası en sık 3 WARN+ mesajı (özetteki sadeleştirme), önce/sonra sayısıyla.
+  - `calls`: adaylar arasındaki çağrı kenarları `[çağıran, çağrılan]` (sayısız), sıralı.
+  - Daraltmanın grubu, puanı ve sırası **verilmez**.
+- **Token (pilot):** veri bloğu 1.278–2.502, ortalama 1.900; 5000'in yarısı. Kesme kuralı gerekmez; aşan girdi kartın kuralıyla koşulmaz, kayda geçer.
+- **Aday sırası (planlamanın sorusu):**
+  - a) Daraltma sırası (öne alınan önce): istatistiğin görüşü girdide kalır; model ilk adayı seçmeye yatkınsa ölçülen, sıralama + seçimin birlikte katkısı olur. Pilotta daraltmanın kendi top-1'i 21/25, dev 15/18: model bunu kopyalasa bile yüksek görünür.
+  - b) **Ada göre** (özetteki gibi): daraltmadan modele yalnız seçim (hangi 5 servis) ve ayrıntı geçer; sıra ipucu yok. Özet de ada göre sıralı, yani özet → daraltma adımında değişen yalnız seçim ve ayrıntı (DECISIONS 2026-10-30 "her adımda tek değişken"). Bedeli: istatistiğin sıra bilgisi modele gitmez; model daraltmanın kendi top-1'inin altında kalabilir.
+  - Uygulamanın önerisi **b**. Not (planlamaya): daraltmanın kendi top-1/top-3'ü modelsiz bir referans satırı olarak P1e tablosuna konabilir (hesap hazır; model sıra ipucuyla bunu geçebiliyor mu sorusu böylece ayrı görünür).
+- Süre: pilotun 25 girdisi ~4 dk (aday başına `caller_rows` bütün izleri okuyor); koşuyu etkilemez.
+- Onaydan sonra 3b: `inputs.narrowed_input` (bu biçim), testler, pilot ve dev'de token sayımı (4. adımın 43 vaka kontrolüyle birlikte).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 3b önerisi kontrolü)
+- Biçim kartla uyumlu (ilk 5 aday, aralarındaki çağrılar, aday başına işlem ve çağıran sinyalleri, en sık log mesajları). **Biçim ve aday sırası "ada göre" Eren onaylı** (DECISIONS 2026-10-31 "Daraltma girdisinin biçimi"). 3b'ye geçilebilir: `inputs.narrowed_input`, testler, pilot ve dev'de token sayımı (4. adımın 43 vaka kontrolüyle).
+- Planlamanın kontrolü: özet servisleri kodda ada göre sıralı (`summary_table`, `sorted(names)`); daraltmanın kendi top-1'i pilot 21/25, dev 18'de 15 (planlamanın bağımsız sıralamasıyla aynı). Token sayıları (1.278–2.502) prototipten; uygulamada `narrowed_input` ile yeniden sayılır, planlama 3b kontrolünde bağımsız doğrular.
+- P1e notu: daraltmanın kendi sırası (top-1/top-3) sonuç tablosuna modelsiz referans satırı olarak girer.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 3b: daraltma girdi seviyesi)
+- `inputs.narrowed_input(case, count_tokens)` ve `narrowed_table(case)`: DECISIONS 2026-10-31 "Daraltma girdisinin biçimi" birebir (adaylar ada göre; özet satırı + `operations` + `callers` + en sık 3 log; `calls` sayısız; grup/puan/sıra yok). Yardımcı `span_fields` (işlem satırının istek, hata oranı, p95 alanları), sabit `TOP_CANDIDATE_LOGS = 3`. Kayıtta `candidates` (ada göre).
+- Testler `tests/test_inputs.py` (+3, toplam 16): sahte zincirde biçim (alan sırası, ada göre, kenarlar, servis satırı özetin aynısı, işlem, çağıran, log, grup/puan alanı yok), log sınırı, CI örneklerinde beklenen metin (`tests/fixtures/narrowed_expected.json`, bu kodla üretildi; regresyon). pytest 527/527.
+- Kasıtlı kırmızı (kopyada, `incidents/` bağlantılı; değişmemiş kopya 16/16): daraltma sırasıyla 2 test; log sınırı 4 1; kenarlarda sayı 2; özet satırı yok 2; çağıranlar yok 2.
+- Pilot kontrolü (`~/cerebrum2/analysis/p1c_step3b_check.py` sha256 `65325a80…e27ebe0d` → `.json` `3f915be2…f3924455`; Qwen tokenizer, model çıkarımı yok): metin onaylanan prototiple (ada göre) **25/25 aynı**; veri bloğu 1.278–2.502 token, ortalama 1.900, 5000'i aşan 0; iki üretim birebir aynı.
+- Dev sayımı 4. adımda (43 vaka, üç seviye).
+- Yeni adlar (Eren onaylı, GLOSSARY'de): `narrowed_input`, `narrowed_table`, `span_fields`, `TOP_CANDIDATE_LOGS`, `narrowed_expected.json`.
+- Sıradaki: 4. adım (takma ad üç seviyede; `rate-gateway`, `frontend-web` için ad önerisi; girdi kontrolleri 43 vaka).
+
+## 2026-10-31 · Planlama → Uygulama (P1c 3b kontrolü: daraltma girdi seviyesi)
+- 3b (`a8a9471`) DECISIONS 2026-10-31 "Daraltma girdisinin biçimi" ile uyumlu; **4. adıma geçilebilir.** Planlamanın bağımsız kontrolleri (`a8a9471` kopyasında; ortak kopyada dosya yok; yalnız pilot):
+  - pytest 527/527.
+  - 25/25 vakada: adaylar planlamanın daraltma sırasının ilk 5'i, ada göre; servis satırları özet girdisindekiyle aynı; `calls` adaylar arasındaki izlerdeki kenarlarla aynı ve sıralı; grup/puan/sıra alanı yok.
+  - Metnin sha256'sı `p1c_step3b_check.json` ile 25/25 aynı; geçici llama-server (Qwen 2B, yalnız `/tokenize`) ile token 25/25 aynı: 1.278–2.502, ortalama 1.900.
+  - Hücreler doğrudan izlerden (`inc-8ceb7ae5`, checkout `PlaceOrder`): işlem istek 31 → 25, hata oranı 0 → 0,48, p95 50,0 → 51,0 ms; çağıran frontend 31 → 25, 0 → 0,48, 51,9 → 52,7 ms. Çıktıyla aynı (p95 en yakın sıra).
+- 4. adım için hatırlatma: `quote-gateway` → `rate-gateway` onaylı; `frontend-web` adı önerilir, Eren onaylar. Dev sayımı (43 vaka, üç seviye) bu adımda bir kez.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 4. adım planı: takma ad üç seviyede, girdi kontrolleri; ad önerisi)
+- **Ön tarama** (`~/cerebrum2/analysis/p1c_alias_scan.py`, sha256 `3331c414…7190e0f6`; pilot + dev 43 vaka, üç seviye, model ve tokenizer yok): `trial_alias` kuralları + `quote-gateway → rate-gateway` (onaylı) + `frontend-web → storefront-web` (öneri) ile ad alanlarında adı olmayan servis **0**; taranan 20.424 metinde (ham 19.513, daraltma 883, özet 28) dönüşüm sonrası kalan tanımlayıcı, tireli gerçek ad ya da yasak terim (astronomy, valkey, otel, opentelemetry) **0**. Yani planın 4. maddesindeki "ham seviyede takma adı yazılamayan vaka" bu kurallarla beklenmiyor.
+- **Ad önerisi (Eren onayı):** `frontend-web` → **`storefront-web`** (tarayıcı tarafı; `frontend` → `storefront` ile ilişkisi korunur, `frontend-proxy` → `edge-gateway`'de korunmamıştı). Diğer seçenek `web-client` (ilişki görünmez). `ALIASES` ve GLOSSARY "takma ad eşlemesi" birlikte, ekleme tarihiyle (rate-gateway ile).
+- **Plan:**
+  1. `src/aiops_rca/alias.py`: `ALIASES` ve dönüşüm/kontrol kuralları `tools/trial_alias.py`'den pakete; betik paketten içe aktarır, eski özet çıktısı aynı kalır (CI örneklerinde eşitlik testi).
+  2. Takma ad **gerçek adla üretilmiş girdinin üzerine** uygulanır; ad dışındaki her şey (alanlar, sıra, sayılar, metnin ad dışı parçaları) aynı kalır, kontrol `trial_alias`'taki gibi (geri çevirince gerçek girdi). Sıra gerçek adların sırası kalır (deneme kuralı "sıra aynı").
+     - özet: servis ve log servis alanları, mesajlar.
+     - ham: satırların servis alanı ve metni (log mesajı, span adı). **Aynı satırlar** tutulur; takma adlı metin 5000'i aşarsa sondan satır eksiltilir (aynı kural), kayda geçer. Boş girdi boş kalır.
+     - daraltma: aday `service`, `caller`, `calls`, işlem adları, log mesajları.
+     - Kontrol tutmayan vaka yazılmaz, durulur, sayı getirilir.
+  3. Cevabın gerçek ada çevrilmesi (`real_name`): puanlamada (5. adım, `methods/llm.py`).
+  4. **Girdi kontrolleri (43 vaka; dev'in ilk ve tek sayımı):** üç seviye × gerçek/takma ad: iki üretim birebir aynı; veri bloğu ≤ 5000 (sayılar kayda); takma adlı girdide gerçek ad yok (ad alanları + tanımlayıcı + yasak terim); sızıntı CLI'ı (`aiops_rca.leakage`, girdiler geçici JSON dosyalarında) bütün girdilerde 0. Test seti reddedilir (`load_cases`).
+- Yeni adlar (kodla birlikte önerilir, onaylanınca GLOSSARY): `alias.py` içindeki dönüşüm ve kontrol fonksiyonları.
+
+## 2026-10-31 · Planlama → Uygulama (P1c 4. adım planı kontrolü; Eren onaylı)
+- Plan (`7c2cfb0`) kartla uyumlu; **onaylı**, aşağıdaki eklerle. **`frontend-web` → `storefront-web`** (Eren): gerçek adda görünen `frontend` ilişkisi takma adda da kalsın, iki koşulun farkı yalnız ezberi ölçsün. `ALIASES` ve GLOSSARY "takma ad eşlemesi" birlikte, ekleme tarihiyle (`rate-gateway` ile).
+- Planlamanın bağımsız kontrolleri (`7c2cfb0` kopyasında; ortak kopyada dosya yok; pilot + dev, model ve tokenizer yok; kendi betiği `alias_indep.py`, sha256 `623ad367…ccbf9611a`):
+  - Ön tarama sayıları kendi kodumla aynı: taranan metin 20.424 (ham 19.513, daraltma 883, özet 28); ad alanında adı olmayan servis 0; uyg4'ün dedektörüyle kalan 0.
+  - Daha geniş arama, girdi tablolarının **bütün** metin alanlarında (özet 807, ham 39.026, daraltma 1.745 alan): `ALIASES` dışındaki demo adları (load-generator, flagd, flagd-ui, otel-collector, fraud-detection, accounting, kafka…), boşluklu ve bitişik yazımlar (`Product Catalog`, `productcatalogservice`), tek kelimelik adların `…service` yapışık biçimi, yasak terimler her konumda (+ `flagd`): dönüşümden sonra **0**. Ad alanı dışında tam gerçek ad olan alan 0. Takma adın gerçek metinde zaten geçmesi (çakışma) 0. 500 karakteri aşan ham satır 0 (kesikte yarım ad sorunu yok).
+  - Kasıtlı kırmızı: dedektör bilinen biçimlerin hepsini yakaladı (ör. `grpc.oteldemo.CartService` → `otel` kalır, çünkü `trial_alias`'ın önek kuralı `.`'dan sonra silmez; veride bu biçim yok).
+  - Dönüşümün değiştirdiği metin: ham 3.107/19.513, daraltma 313/883, özet 4/28; hepsi `oteldemo.<Ad>Service/<Yöntem>` span adları ve `demo.` öneki.
+- Ekler (planlama):
+  1. Dev'de özet ya da daraltma veri bloğu 5000'i aşarsa (pilotta en büyük 1.955 ve 2.502): o girdi yazılmaz, durulur, sayıyla planlamaya; dev'e göre biçim değişmez. Takma adlı ham metinde sondan eksiltilen satır sayısı vaka başına kayda.
+  2. Sıra gerçek adların sırası (plandaki gibi): iki koşul arasında yalnız adlar farklı olur; gerçek ada göre sıra puandan bağımsız, daraltmanın sırasını vermez (DECISIONS 2026-10-31 "Daraltma girdisinin biçimi" korunur).
+  3. Puanlamada (5. adım) takma adlı koşuda cevaptaki gerçek ad `unmatched` (2026-10-23 düzeltmesi).
+- Not (P1e sınırlaması; karar değişmez): takma ad yalnız adları gizler. Span adlarındaki yöntemler (`ListRecommendations`, `GetProduct`, `PlaceOrder`, `GetAds`, `Charge`) sıradan kelime kuralıyla kalır (DECISIONS 2026-10-23); demonun tanıdık gRPC yöntemleri. Takma ad farkı ezber etkisinin alt sınırı okunur.
+- Not: ön tarama dev'i de okudu; başarım ölçüsü değil ve hiçbir kural değişmedi, sorun yok. Dev'in token sayımı bu adımda bir kez.
+- Sonra: 4. adım kodu (plan 1–4); sonuç HANDOFF'a, planlama bağımsız doğrular.
+
+## 2026-10-31 · Uygulama → Planlama (P1c 4. adım: takma ad üç seviyede, 43 vaka girdi kontrolleri)
+- **Kod (`20c93bd`):** `src/aiops_rca/alias.py`: `ALIASES` ve mesaj kuralları `tools/trial_alias.py`'den taşındı (betik içe aktarır, kendi `convert`/`check`/`main`'i yerinde); eşlemeye `quote-gateway → rate-gateway`, `frontend-web → storefront-web` eklendi, GLOSSARY "takma ad eşlemesi" satırı tarihleriyle birlikte. Üç seviye `alias.summary_input` / `raw_input` / `narrowed_input` (`inputs.py`'nin dönüş sözlüğü):
+  - özet ve daraltma: gerçek tablo `convert_table` ile çevrilir (ad alanları `service`, `caller`, `calls`; metin alanları `message`, `operation`), `check_table` ad dışındaki her değer, alan ve sıranın aynı olduğunu, her adın eşlemedeki karşılığı olduğunu, metinde tanımlayıcı ve yasak terim kalmadığını, metnin değişmeyen parçalarının durduğunu denetler; tutmazsa `ValueError` (girdi üretilmez).
+  - ham: gerçek girdinin aynı satırları, aynı sıra (gerçek satır metniyle); satır metni 500 karakterde kesilmeden **önce** çevrilir (kesikte yarım gerçek ad kalmaz); gerçek metinle satır eşliği kodda denetlenir; takma adlı metin bütçeyi aşarsa sondan tam satır eksiltilir, sayı `alias_lines_dropped`. Boş girdi boş kalır.
+  - `<unknown>` servis olduğu gibi kalır. Eşlemede olmayan servis → `ValueError` ("no alias for …").
+- **Testler:** `tests/test_alias.py` (21) + `tests/fixtures/alias_summary_expected.json` (eski `trial_alias`, git `37bf845`, + onaylı iki ad ile üretildi; üretici `~/cerebrum2/analysis/p1c_alias_fixture.py`, sha256 `b7754670…d4c3ebea31`). Betiğin paket kurallarını kullanması, eşlemenin GLOSSARY'deki satırla aynılığı (18 ad, takma adlar tekil ve gerçek adlarla çakışmıyor), CI örneklerinde üç seviye, ham sıra ve kesmeden önce çevirme, sondan eksiltme, boş girdi, adı olmayan servis, bozuk kopyalar (8 tür). pytest 548/548.
+- **Kasıtlı kırmızı** (kopya + symlink yöntemi): iki yeni ad silinince 6 test, ham takma ada göre sıralanınca 1 (kodun satır eşliği denetimi de durdurdu), kesikten sonra çevirince 1, sondan eksiltme kapatılınca 1, metin parçası kontrolü kapatılınca 1 test kırmızı.
+- **43 vaka girdi kontrolleri** (`~/cerebrum2/analysis/p1c_step4_check.py`, sha256 `dcf77ab8…4a94`; çıktı `p1c_step4_check.json`, sha256 `23fb8391…5805`; commit `20c93bd`, src temiz; Qwen 4B `/tokenize`, model çıkarımı yok; **dev'in ilk ve tek sayımı**; önce yalnız pilotta deneme koşusu, aynı sonuç). Kriterler betikte koşmadan önce yazılı:
+  - K0 pilotta gerçek girdi önceki kayıtlarla (`p1c_step2_check.json`, `p1c_step3b_check.json`) **25/25 aynı**.
+  - K1 iki üretim (2. ters sırayla) 43 × 3 seviye × gerçek/takma ad **birebir aynı**.
+  - K2 bütün veri blokları ≤ 5000. Token (en az–en çok, ortalama):
+
+    | | özet gerçek | özet takma | daraltma gerçek | daraltma takma | ham gerçek | ham takma |
+    |---|---|---|---|---|---|---|
+    | pilot (25; hamda boş olmayan 15) | 1.705–1.955, 1.762 | 1.710–1.962, 1.767 | 1.278–2.502, 1.900 | 1.284–2.475, 1.893 | 118–4.995, 2.986 | 118–4.987, 2.933 |
+    | dev (18; hamda boş olmayan 10) | 1.821–1.904, 1.861 | 1.826–1.911, 1.866 | 1.373–2.488, 1.884 | 1.353–2.460, 1.879 | 1.101–4.996, 3.205 | 1.076–4.825, 3.141 |
+
+    Ham boş: pilot 10, dev 8. Kesilen ham: pilot 5, dev 2 (gerçek ve takma adda aynı vakalar). Takma adda sondan eksiltilen satır: yalnız `inc-91bf76d4` (pilot) 2 satır; diğer 42 vakada 0.
+  - K3 takma adlı girdide ad alanları hep eşlemenin takma adı ya da `<unknown>`; bağımsız dedektör (eşleme + `load-generator`, `flagd`, `flagd-ui`, `otel-collector`, `fraud-detection`, `accounting`, `kafka`, `product-reviews`; tireli/alt çizgili/boşluklu/bitişik, `…service` yapışık, CamelCase her konumda; `astronomy|valkey|opentelemetry|otel` her konumda) takma adlı metinlerde **0**; aynı dedektör gerçek metinlerde isabet veriyor (çalıştığının göstergesi). Kontrolü tutmayan (`ValueError`) takma adlı girdi **0**.
+  - K4 sızıntı CLI'ı 258 dosyada (43 × 6) çıkış **0**.
+  - K5 test seti reddedildi (`PermissionError: set 'test' needs final_test=True`).
+- Not: ARCHITECTURE diyagramı kapanışta güncellenir (girdi seviyeleri ve takma ad düğümü); tablo satırları bu commit'te.
+- Sonra: planlama bağımsız doğrular; Eren onaylarsa 5. adım (`methods/llm.py`, `evaluate run --method llm`, istem metni → Onay 3; `real_name` puanlamada, takma adlı koşuda cevaptaki gerçek ad `unmatched`).
+
+## 2026-11-01 · Planlama → Uygulama (P1c 4. adım kontrolü; Eren onaylı)
+- 4. adım (`20c93bd`, `69c95ac`) kartla ve plan kontrolündeki eklerle uyumlu; **5. adıma geçilebilir.** Bitti ölçütünün "Girdiler" maddesi karşılandı: üç seviye iki üretimde aynı; 43 vakada veri bloğu ≤ 5000 (istem dahil ≤ 6K, onaylı istemle 5. adımda son kez); takma adlı girdide gerçek ad yok; sızıntı 0. Dev'de 5000'i aşan özet ya da daraltma yok.
+- Planlamanın bağımsız kontrolleri (`69c95ac` scratch klonunda; ortak kopyada dosya yok):
+  - Tablo, `p1c_step4_check.json`'dan (sha256 `23fb8391…5805`, kayıttakiyle aynı) kendi betiğimle (`table.py`, `9ede2585…e53118b6`) yeniden üretildi: pilot ve dev satırları, boş ve kesilen sayıları, `inc-91bf76d4`'teki 2 satır birebir aynı.
+  - Resmî kontrol HEAD koduyla scratch'te yeniden koşuldu (yalnız yollar değişti): 43 vakanın bütün kayıtları (sha256, token, satır alanları, adaylar) **birebir aynı**; sorun 0; sızıntı CLI'ı 258 dosyada çıkış 0; test seti reddedildi.
+  - Kendi takma ad üretimim (`my_alias.py`, `42eb7288…d1d9f50a`; `alias.py` kullanılmadan: eşleme GLOSSARY satırından, kurallar taşınmadan önceki `trial_alias.py` (`37bf845`) + iki ad, alan yürüyüşü ve hamın sıra/kesme/eksiltmesi kendi kodum; tokenizer kendi sunucum, **Qwen 2B** GGUF): 129 takma adlı girdinin (43 × 3) sha256, token, `lines_kept`, `truncated`, `alias_lines_dropped` değerleri **129/129 aynı**; 25 dolu gerçek hamın sha ve token'ı da aynı. 2B ve 4B tokenizer'ı bu metinlerde aynı sayıyı veriyor.
+  - `inc-91bf76d4`: takma adlı metin 195 satırla 4.987, 196 satırla 5.005 token → 2 satır en az eksiltme (gerçek girdi 197 satır, 4.995).
+  - Fikstür `alias_summary_expected.json`, eski `trial_alias` (`37bf845`) + iki adla kendi betiğimle (`fixture_indep.py`, `f6b80e68…37c23f4d`) 4/4 aynı; eski kontrol (`check`) temiz.
+  - pytest 548/548. Planlamanın kasıtlı kırmızıları (uyg4'ünkilerden farklı), hepsi kırmızı: işlem adı çevrilmez 4, `calls` çevrilmez 6, yasak terim kontrolü yok 1, önek silinmez 7, ad kontrolü her şeyi kabul eder 4, tanımlayıcı kalıntı kontrolü yok 1, eksiltme tek satırda kalır 1 test.
+- Süreç: 16 yeni ad (GLOSSARY'de 7 satır: `alias.summary_input` / `raw_input` / `narrowed_input`, `alias_lines_dropped`, `convert_table`, `check_table`, `check_name`, `check_text`, `leftover`, `alias_name`, `aliased_table`, `NAME_KEYS`, `TEXT_KEYS`, `NAME_PAIR_KEYS`, `UNKNOWN_SERVICE`, `alias_summary_expected.json`) GLOSSARY'ye Eren'e sorulmadan yazılmıştı; **Eren sonradan olduğu gibi onayladı** (2026-11-01). 5. adımda yeni adlar (istem, `methods/llm.py`, evaluate seçenekleri) önce önerilir, onaydan sonra GLOSSARY'ye.
+- Not: `inc-91bf76d4` (pilot) gerçek ve takma adlı ham girdi 2 satır farklı (kayıtta). Dev'de eksiltme 0; P1d'nin takma ad alt kümesinde iki koşul yalnız adlarla ayrılır.
+- Sonra: 5. adım (istem metni → Onay 3, model koşmadan önce; duman 5 model × 3 seviye × 2 pilot vaka, birinde takma ad; `run.json`'a imaj digest'i ve GGUF SHA256; Groq `prompt_tokens` ve Qwen sayısı yan yana; takma adlı koşuda cevaptaki gerçek ad `unmatched`).
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5. adım planı: LLM yöntemi, istem, duman; ad önerileri)
+- **Sıra** (her biri ayrı onay ve commit):
+  - **5a: Onay 3 (istem metni).** Sistem + kullanıcı mesajı; seviyeler arasında yalnız veri bloğu ve tarifi değişir (DECISIONS 2026-10-30 "LLM ayarları"). İstem + sohbet şablonunun token'ı veri bloğu boşken Qwen tokenizer'ıyla ölçülür (`/apply-template` + `/tokenize`; üç seviye, gerçek ve takma ad). Ölçüt: her seviyede ≤ 1000 (DECISIONS 2026-10-31 "İstem payı"). Sığmazsa istem kısalır, kesme kuralı değişmez. Bu ölçüm yalnız tokenizer kullanır, model çıkarımı yok. Onaydan önce hiçbir model koşmaz.
+  - **5b: kod** (model koşmaz, testler sahte sunucuyla).
+  - **5c: duman koşusu** (yalnız pilot, `llm_cache/`).
+  - Sonra **kapanış**: ARCHITECTURE diyagramı, GLOSSARY (onaylı adlar), HANDOFF, PR.
+- **5b planı:**
+  1. `src/aiops_rca/methods/llm.py`: model, seviye ve takma ad için bir yöntem kurulur.
+     - Yerel sunucu koşu başında bir kez açılır. API modellerinde de yalnız sayım için Qwen 4B sunucusu açılır.
+     - Girdi `inputs.*_input`'tan, takma adlı koşuda `alias.*_input`'tan gelir. Mesajlar istemle kurulur.
+     - Tam istemin token'ı yerel olarak sayılır (`/apply-template` + `/tokenize`, şablon dahil).
+     - Sorma `llm_client.chat` ile yapılır. Groq aralığı `Pacer` ile korunur.
+     - **Boş ham girdi** sorulmaz (DECISIONS 2026-10-31). **6000'i aşan girdi** de sorulmaz ve kayda geçer (P1c kartı; 4. adımın sayılarıyla beklenen 0).
+  2. `evaluate run --method llm --model <etiket> --level raw|summary|narrowed [--alias] [--cases inc-…,…]`.
+     - `--model` ve `--level` yalnız llm'de ve zorunlu. `--alias` yalnız llm'de.
+     - `--cases` seçilen setlerin içinden vaka süzer. Set dışı ya da test vakası reddedilir.
+     - Yöntem yalnız `Case`'i alır (P1a kuralı). Etiket yönteme gitmez.
+  3. **Kayıt** (`runs.py` biçimi korunur, alan eklenir).
+     - `run.json` → `settings`: `level`, `alias`, `max_tokens`, ek istek alanları, `prompt_sha256`, `data_budget` 5000, `total_budget` 6000, sayım tokenizer'ı. Yerel modelde ek olarak `image` (digest'li imaj) ve `gguf`, `gguf_sha256`.
+     - GGUF dosyasının SHA256'sı koşu başında hesaplanır. `ModelSpec`'teki değerle uyuşmazsa koşu başlamaz.
+     - `responses.jsonl` satırına eklenenler: `input_status` (`ok` / `empty` / `over_budget`), `data_tokens`, `input_tokens_local` (Qwen sayısı, şablon dahil), `input_sha256`, `finish_reason`, `attempts` (HTTP durumu, süre; yeniden deneme), takma adlı hamda `alias_lines_dropped`.
+     - `tokens` = sağlayıcının `{input, output}` sayısı. Groq `prompt_tokens` ile Qwen sayısı yan yana durur (planlama notu).
+  4. **Puanlama** (`scoring.py`, `evaluate score`):
+     - `input_status: empty` → top-1/top-3 ıskalama, çekimser (kapsama dışı), Brier dışı. Şema dışı sayılmaz. Tabloda yeni "Boş girdi" sütunu.
+     - **Takma adlı koşu** (`settings.alias`): cevaptaki adlar (aday ve `evidence_path`) `alias.real_name` ile gerçek ada çevrilip eşlenir. Takma ad olmayan her ad, gerçek ad dahil, `unmatched` olur (2026-10-23 düzeltmesi).
+     - Rule ve BARO koşularının puanı değişmez (mevcut testler + eski `scores.json`'larla eşitlik).
+  5. **Testler** (CI'da ağ, docker ve anahtar yok):
+     - Sahte sunucuyla satır alanları; boş ve aşan girdide sunucuya istek gitmemesi; `finish_reason: length` → şema dışı.
+     - Takma adlı girdinin gittiği ve puanlamada çevrildiği.
+     - `run.json` ayarları; GGUF SHA256 uyuşmazlığında koşunun başlamaması.
+     - **Koruma testleri** (planlama notu): `IMAGE` digest'i ve GGUF SHA256 tablosu `LOCAL_MODEL_BENCH.md` ile aynı. Beş modelin kimlikleri sabit tabloyla aynı (Gemini dahil).
+     - Puanlama: boş girdi sütunu, takma ad çevirisi, rule ve BARO eşitliği.
+     - Kasıtlı kırmızıyla.
+- **5c planı (duman):** 5 model × 3 seviye × 2 pilot vaka = 30 çağrı, `--root llm_cache`.
+  - Repo dışında sıralı koşu betiği: `~/cerebrum2/analysis/p1c_smoke.py`. Groq koşuları arasında 65 sn bekler.
+  - **Vaka önerisi** (koşmadan önce, ölçütten bağımsız):
+    - Gerçek adla `inc-01a609bb`: ham 4.994 token, kesik. 6K sınırına en yakın girdilerden.
+    - Takma adla `inc-91bf76d4`: takma adda sondan 2 satır eksilen tek vaka. Ham 4.987 token.
+    - İkisinde de ham dolu, yani üç seviye de sorulur.
+  - Kayıt: şemaya uygunluk oranı (şema dışıysa nedeni), süreler, `finish_reason`, Groq/Gemini token ve Qwen sayısı yan yana. **Doğruluk yorumlanmaz** (P1c kartı).
+  - Bütçe: Groq ~6 çağrı × ≤ 6K ≈ 36K token (TPD 200K).
+- **Ad önerileri** (onaylanınca GLOSSARY):
+  - `--cases`: `evaluate run` vaka süzgeci.
+  - `llm_method()`: `methods/llm.py`; model, seviye, takma ad için yöntem kurar.
+  - `SYSTEM_PROMPT`, `LEVEL_TEXT`, `build_messages()`: istemin sistem metni / seviye tarifi / mesajları kuran fonksiyon.
+  - `TOTAL_BUDGET` (6000).
+  - `input_status`, `input_tokens_local`, `input_sha256`: kayıt alanları.
+  - `prompt_sha256`, `gguf_sha256`: `run.json` ayarları. `ModelSpec.gguf_sha256` sabit değer.
+  - `alias.real_name()`: takma ad → gerçek ad, takma ad değilse `None`.
+  - "Boş girdi" tablo sütunu ve `score_table`'daki `input_empty` sayısı.
+- **Planlamaya sorular:**
+  1. `over_budget` girdinin puanı: öneri boş girdiyle aynı (ıskalama, çekimser, Brier dışı), ayrı sayı. Beklenen 0.
+  2. API modellerinde 6K kontrolü Qwen sayısıyla mı yapılsın? Öneri evet: tek ölçü bütçe kararındaki gibi yerel tokenizer. Sağlayıcının kendi sayısı yalnız kayda geçer.
+  3. Duman vakaları yukarıdaki iki vaka mı?
+
+## 2026-11-01 · Planlama → Uygulama (P1c 5. adım planı kontrolü; Eren onaylı)
+- Plan (`98f0a89`, `aa13bce`) kartla ve DECISIONS'la uyumlu; **onaylı**, aşağıdaki eklerle. Sıra plandaki gibi: 5a (Onay 3) → 5b → 5c → kapanış.
+- Eren onayları (2026-11-01):
+  - Yeni adlar: plandaki liste + planda eksik kalan kayıt ve ayar alanları: `--cases`, `llm_method()`, `SYSTEM_PROMPT`, `LEVEL_TEXT`, `build_messages()`, `TOTAL_BUDGET`, `input_status`, `input_tokens_local`, `input_sha256`, `finish_reason`, `attempts`, `prompt_sha256`, `gguf_sha256`, `ModelSpec.gguf_sha256`, `image`, `gguf`, `data_budget`, `total_budget`, `alias.real_name()`, "Boş girdi" sütunu ve `input_empty`, "Bütçe aşımı" ve `input_over_budget`. GLOSSARY'ye kodla birlikte. Bunların dışında yeni ad çıkarsa önce sorulur.
+  - Soru 1: aşan girdi → DECISIONS 2026-11-01 "Bütçeyi aşan girdi" (boş girdi gibi puanlanır, ayrı sayı).
+  - Soru 3: duman vakaları `inc-01a609bb` (gerçek ad) ve `inc-91bf76d4` (takma ad). Sayılar 4. adım kaydıyla aynı (ham 4.994 ve takma adlı ham 4.987; pilotun en büyük iki hamı).
+- Soru 2 (mevcut karar, Eren'e gitmedi): evet, 6K kontrolü bütün modellerde yerel Qwen sayısıyla (DECISIONS 2026-10-31 "İstem payı"); Groq ve Gemini'nin sayısı yalnız kayda.
+- Planlamanın kontrolleri: `llm_cache/` `.gitignore`'da; cevap şemasında servis adı listesi (enum) yok, takma adlı koşuda şemadan ad sızmaz.
+- Ekler (planlama):
+  1. **5a:** istem metninde servis adı, demo adı, flag ya da hata türü adı yok; sızıntı CLI'ı ve 4. adımın dedektörü istem metninde 0 (takma adlı koşuda da aynı istem gider). Seviye başına istem + şablon token'ı Onay 3 kaydında.
+  2. **Onay 3'ten sonra, modelden önce:** tam mesaj (şablon + istem + veri) yerel tokenizer'la 43 vaka × 3 seviye × gerçek/takma ad sayılır, hepsi ≤ 6000 (bitti ölçütü "istem dahil ≤ 6K"; DECISIONS "İstem payı": onaylı istemle son kez). Model yok. Aşan çıkarsa durulur, sayıyla planlamaya; dev'e göre istem değişmez.
+  3. **5c durma kuralı** (DECISIONS 2026-10-31 "Çıktı sınırı"): sınıra takılan cevap (`finish_reason: length`) ya da Groq'ta boyut reddi olursa P1d'den önce planlama; ayar değişmez, yeniden sorulmaz.
+- Sonra: 5a, yani istem metni ve ölçümü HANDOFF'a (Uygulama → Planlama); Eren onaylar.
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5a: Onay 3 önerisi, istem metni)
+- **Onay bekliyor (Eren): istem metni.** Onaydan önce hiçbir model koşmaz. Metin aşağıda, kelimesi kelimesine; 5b'de `methods/llm.py`'ye aynen girer (`SYSTEM_PROMPT`, `LEVEL_TEXT`, kullanıcı şablonu; `build_messages()`).
+- Yapı: sistem mesajı denemelerdekiyle aynı. Kullanıcı mesajı ortak şablon; seviyeler arasında yalnız veri tarifi (`LEVEL_TEXT`) ve veri bloğu değişir (DECISIONS 2026-10-30 "LLM ayarları"). Takma adlı koşuda aynı istem gider. `{alarm_time}` vakanın alarm zamanı, özetteki `alarm_time_utc` biçiminde (ör. `2027-01-15T08:00:00+00:00`); ham seviyede de verilir (hamda satırlar yalnız saat taşır).
+- Denemelerdeki istemden farklar ve nedenleri:
+  - Cevap biçimi yeni şemaya göre (`confidence`, `evidence_path`, `rationale`, `unsure`). Şablondaki örnek satırda servis adı yok. Şema ayrıca `response_format` ile `strict` gider.
+  - Kök tanımı "kendi kodu ya da yapılandırması bozuk servis" yerine **"sorunun başladığı servis, başka yerdeki bir sorunun yalnız belirtisini gösteren servis değil"**. Vaka setinde altyapı hataları da var (CPU sınırı, ağ gecikmesi, durdurma), eski tanım bunları dışarıda bırakıyordu. Hata türleri istemde sayılmaz.
+  - `confidence` = "bu adayın kök olma olasılığı (0–1)": Brier 1. adayın güveniyle hesaplanıyor. `evidence_path` adaydan belirtinin görüldüğü servise doğru; puanlamadaki "kökten belirtiye" yönüyle aynı. `unsure` = "veri makul bir güvenle seçmeye yetmiyorsa true".
+  - Daraltma tarifinde "sıra bir sıralama değildir" (DECISIONS 2026-10-31 "Daraltma girdisinin biçimi": adaylar ada göre). Kökün adaylar arasında olduğu söylenmez.
+- **Ölçüm** (`~/cerebrum2/analysis/p1c_prompt.py`, sha256 `aba4f6d6…c20c53f1`; çıktı `p1c_prompt.json`; metnin sha256'sı `1b295427…c9bdc60e`; Qwen 4B, `/apply-template` (`enable_thinking: false`) + `/tokenize`, veri bloğu boş, model çıkarımı yok):
+
+  | Seviye | İstem + şablon | Yalnız istem metni |
+  |---|---|---|
+  | ham | 387 | 372 |
+  | özet | 389 | 374 |
+  | daraltma | 431 | 416 |
+
+  - Ölçüt P1 (≤ 1000): **geçti**, en çok 431. 4. adımın en büyük veri bloklarıyla kaba toplam: ham 387 + 4.996 ≈ 5.383, daraltma 431 + 2.502 ≈ 2.933 (kesin sayım Onay 3'ten sonra, tam mesajla, 43 vaka; planlama eki 2).
+  - Ölçüt P2: 4. adımın dedektörü üç seviyenin istem metninde **0**; sızıntı CLI'ı (`{"messages": …}` JSON'ları) çıkış **0**.
+- Sonra (onaydan sonra, model yok): 43 vaka × 3 seviye × gerçek/takma ad tam mesaj sayımı (≤ 6000), ardından 5b kodu.
+
+**Sistem mesajı:**
+```
+You are an SRE assistant doing root cause analysis for a microservice-based online shop.
+```
+
+**Kullanıcı mesajı şablonu** (`{level_text}` aşağıdaki seviye tarifi, `{data}` veri bloğu):
+```
+An alert fired at {alarm_time} (UTC). {level_text}
+
+Find the root cause service: the service where the problem started, not a service that only shows symptoms of a problem elsewhere.
+
+Give exactly 3 different candidate services, most likely first, using service names exactly as they appear in the data. For each candidate:
+- "confidence": the probability (0 to 1) that this candidate is the root cause.
+- "evidence_path": how the problem spread, as service names from the candidate to the service where the symptom shows; the first name is the candidate itself. If you see no spread, give only the candidate.
+- "rationale": one short sentence.
+Set "unsure" to true if the data is not enough to choose with reasonable confidence, otherwise false.
+
+Answer with JSON only, no other text:
+{"candidates": [{"service": "<name>", "confidence": <0-1>, "evidence_path": ["<name>", ...], "rationale": "<one sentence>"}, ... 3 candidates], "unsure": <true or false>}
+
+Data:
+{data}
+```
+
+**Seviye tarifleri** (`LEVEL_TEXT`):
+- ham:
+  ```
+  Below are the warning and error log records and the failed spans of the shop from the 10 minutes before to the 10 minutes after the alert, one per line, in time order: "HH:MM:SS.mmm <service> log <message>" or "HH:MM:SS.mmm <service> error-span <span name>" (UTC). If there were too many lines, the list is cut and its last line is "[truncated: later lines omitted]".
+  ```
+- özet:
+  ```
+  Below is a telemetry summary of the shop for the 10 minutes before and the 10 minutes after the alert, as JSON: for each service, the number of incoming requests, the error rate and the p95 latency in milliseconds; for each container, the CPU usage (percent of one core, average and maximum) and the memory usage in MB (average); and the most frequent warning and error log messages after the alert. Some rows, such as databases, have only some of these fields.
+  ```
+- daraltma:
+  ```
+  Below are 5 candidate services chosen by an automatic pre-filter from the telemetry of the 10 minutes before and the 10 minutes after the alert, as JSON, in alphabetical order (the order is not a ranking). For each candidate: the same fields as in a service summary (incoming requests, error rate and p95 latency in milliseconds; container CPU as percent of one core, average and maximum; memory in MB, average); its incoming operations with the same request fields; the callers of each operation with the same fields; and its 3 most frequent warning and error log messages after the alert, with counts before and after. "calls" lists the calls between the candidates as [caller, callee].
+  ```
+
+## 2026-11-01 · Planlama → Uygulama (P1c 5a kontrolü: Onay 3; Eren onaylı)
+- **İstem onaylı, iki düzeltmeyle** (Eren; DECISIONS 2026-11-01 "İstem metni (Onay 3)"). Değişen yalnız daraltma tarifi; sistem mesajı, kullanıcı şablonu, ham ve özet tarifleri `c8d4c92`'deki gibi. Daraltma tarifinin onaylı metni:
+  ```
+  Below are 5 candidate services chosen by an automatic pre-filter from the telemetry of the 10 minutes before and the 10 minutes after the alert, as JSON (the order is not a ranking). For each candidate: the same fields as in a service summary (incoming requests, error rate and p95 latency in milliseconds; container CPU as percent of one core, average and maximum; memory in MB, average); its incoming operations with the same request fields; the calls it receives from other services, per caller and call name, with the same fields as measured by the caller; and its 3 most frequent warning and error log messages after the alert, with counts before and after. "calls" lists the calls between the candidates as [caller, callee].
+  ```
+- Planlamanın bağımsız kontrolleri (`c8d4c92`; ortak kopyada dosya yok):
+  - İstemi HANDOFF'taki kod bloklarından okudum (betikten değil): sha256, betikteki tanımla `1b295427…c9bdc60e`, aynı. Yani HANDOFF'taki metin ölçülen metin.
+  - Kendi tokenizer sunucum (Qwen 2B; `/apply-template`, `enable_thinking: false`, + `/tokenize`): 387 / 389 / 431, kayıtla aynı.
+  - Sızıntı CLI'ı üç istemde `clean`. 4. adımdaki geniş dedektörüm: gerçek ad, takma ad ve tek kelimelik demo adı 0.
+  - Şema ve veriyle karşılaştırma doğru: tam 3 farklı aday, yol adayla başlar (`validate_answer`); gelen istek = SERVER/CONSUMER span'leri, CPU = bir çekirdeğin yüzdesi (`signals.py`); daraltmada 43/43 vakada 5 aday; kesme işareti `TRUNCATION_MARK` ile aynı.
+  - Bulgular (düzeltildi): (1) takma adlı daraltma girdisinde adaylar gerçek adların sırasında, takma adlara göre 43/43 alfabetik değil, "in alphabetical order" yanlıştı; (2) `callers` satırları çağıranın istemci span'leri (`caller_rows`), "the callers of each operation with the same fields" ölçüm yerini yanlış anlatıyordu.
+- Sonra (model yok): düzeltilmiş metin yeniden ölçülür (≤ 1000, dedektör ve sızıntı 0), yeni sha kayda; sonra 43 vaka × 3 seviye × gerçek/takma ad tam mesaj sayımı (≤ 6000, planlama eki 2); sonra 5b kodu. `methods/llm.py`'deki metin onaylı metnin birebiri; istemin sha'sı bir koruma testinde sabit (imaj digest'i testi gibi).
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5a sonrası: onaylı istemin ölçümü ve 43 vaka tam mesaj sayımı)
+- **Onaylı istem** (DECISIONS 2026-11-01 "İstem metni (Onay 3)"; daraltma tarifi iki düzeltmeyle, planlamanın kod bloğuyla karakter karakter aynı): `~/cerebrum2/analysis/p1c_prompt.py` güncellendi (sha256 `716ca32e…c45a`). Metnin sha256'sı **`6d05378eba8c386d3e5e32638997a1302dd0de625abd60a160f90396b7f1e3ce`** (`json.dumps([SYSTEM_PROMPT, LEVEL_TEXT, USER_TEMPLATE])`). 5b'deki koruma testi bu değeri sabitler.
+  - İstem + şablon (veri boş): ham 387, özet 389, daraltma **441** (önceki 431; çağıran cümlesi uzadı). ≤ 1000: geçti.
+  - Dedektör üç istemde 0. Sızıntı CLI'ı çıkış 0.
+- **Tam mesaj sayımı** (planlama eki 2; `~/cerebrum2/analysis/p1c_full_count.py`, sha256 `541326d5…a9c3`; çıktı `p1c_full_count.json`):
+  - Yöntem: şablon + onaylı istem + veri bloğu, `/apply-template` (`enable_thinking: false`) + `/tokenize`, Qwen 4B, model çıkarımı yok. Alarm zamanı vakanınki.
+  - Veri metinleri 4. adım kontrol koşusunun yazdığı dosyalardan alındı; 258 metnin sha256'sı `p1c_step4_check.json` ile karşılaştırıldı, hepsi aynı.
+  - Boş olmayan **222 girdinin hepsi ≤ 6000** (aşan 0). En büyük tam mesaj (en az–en çok):
+
+    | | özet gerçek | özet takma | daraltma gerçek | daraltma takma | ham gerçek | ham takma |
+    |---|---|---|---|---|---|---|
+    | pilot | 2.095–2.345 | 2.100–2.352 | 1.720–2.944 | 1.726–2.917 | 506–5.383 | 506–5.375 |
+    | dev | 2.211–2.294 | 2.216–2.301 | 1.815–2.930 | 1.795–2.902 | 1.489–5.384 | 1.464–5.213 |
+
+  - İstem + şablonun veri bloğuna eklediği en çok: ham 388, özet 390, daraltma 442 (boş ölçümden +1: "Data:" sonrası satır sonu).
+- Sonra: 5b kodu (onaylı plan; `methods/llm.py`'deki metin bu metnin birebiri, sha testi).
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5b: LLM yöntemi kodu; model koşmadı)
+- **Kod (`ebccc78`):**
+  - `methods/llm.py`: `llm_method(model, seviye, takma ad)` bağlam yöneticisi.
+    - Koşu başında GGUF SHA256 kontrolü yapılır (yerel modelde modelin dosyası, API'de sayım için Qwen 4B). Uyuşmazsa `ValueError`, koşu klasörü açılmaz.
+    - Sunucu bir kez açılır. Girdi `inputs`/`alias`'tan gelir. Boş ham girdi sorulmaz (`empty`).
+    - Tam mesaj `/apply-template` + `/tokenize` ile sayılır; 6000'i aşan sorulmaz (`over_budget`).
+    - Sorma `llm_client.chat` ile yapılır, Groq'ta `Pacer` kullanılır.
+    - İstem metni `p1c_prompt.py`'den aynen kopyalandı, sha256 `6d05378e…f1e3ce` (testte sabit). Alarm zamanı özetteki biçimde.
+  - `evaluate run`: `--method llm --model --level [--alias]`, `--cases` (bütün yöntemlerde; set dışı kimlik hata). `--model`/`--level` llm'de zorunlu; `--model`/`--level`/`--alias` başka yöntemde hata.
+  - `run.json` `settings`: `model`, `level`, `alias`, `max_tokens`, `extra`, `prompt_sha256`, `data_budget`, `total_budget`, `image`, `gguf`, `gguf_sha256`; API'de ayrıca `tokenizer`.
+  - Kayıt satırı: `input_status`, `data_tokens`, `input_sha256`, `input_tokens_local`, `finish_reason`, `attempts`, `tokens` (sağlayıcının), takma adlı hamda `alias_lines_dropped`. Sorulmayan satırda `schema_valid: null` olur ve şema dışı sayılmaz.
+  - `duration_s` LLM'de modelin cevap süresi (son deneme). Groq aralığı ve girdi üretimi dahil değil.
+  - `scoring.py`:
+    - `score_case(..., input_status=, alias=)`: sorulmayan girdi ıskalama sayılır, `unsure: true` (kapsama dışı), güven yok. Şema dışı ve kanıt sayılarına girmez.
+    - `match_service(..., alias=True)`: ad önce sadeleşir, sonra `alias.real_name` ile çevrilir. Takma ad olmayan her ad (gerçek ad dahil) eşleşmez.
+    - Tabloya `input_empty` ("Boş girdi") ve `input_over_budget` ("Bütçe aşımı") eklendi.
+  - `llm_client.ModelSpec.gguf_sha256`: üç Qwen için LOCAL_MODEL_BENCH değerleri.
+- **Rule/BARO eşitliği:**
+  - CI beklenen çıktıları (`rule_expected.json`, `baro_expected.json`) yeni alanlar (`input_status: "ok"`, `input_empty: 0`, `input_over_budget: 0`) çıkarılınca eskisiyle aynı. Dosyalara bu alanlar eklendi; diff yalnız 16 satır ekleme, silinen ya da değişen satır yok.
+  - Resmî koşular (`eval_responses/` 2 rule + 2 BARO) geçici kopyada yeniden puanlandı: yeni alanlar dışında kayıtlı `scores.json`'larla **4/4 aynı** (rule 22/43, BARO 11/43). Kayıtlı dosyalar değişmedi.
+- **Testler:** pytest **564/564** (+16).
+  - `tests/test_llm_method.py` (11): sahte llama-server (`/apply-template`, `/tokenize`, sohbet).
+  - Koruma testleri `test_llm_client.py`'de: `IMAGE` digest'i ve üç GGUF SHA256'sı `LOCAL_MODEL_BENCH.md`'den okunup karşılaştırılır; Gemini kimliği sabit.
+  - Puanlama testleri `test_scoring.py`'de: sorulmayan girdi, takma ad çevirisi ve gerçek adın eşleşmemesi. `real_name` testi `test_alias.py`'de.
+- **Kasıtlı kırmızı** (kopya yöntemi; dokuz bozulmanın hepsi kırmızı):
+  - boş girdi sorulur → 1 test
+  - bütçe kontrolü kaldırılır → 1
+  - puanlamada takma ad çevirisi kapatılır → 2
+  - takma adlı girdi gitmez → 1
+  - GGUF kontrolü kaldırılır → 1
+  - istemde tek kelime değişir → 2
+  - sorulmayan girdi şema dışı sayılır → 4
+  - Groq aralığı kaldırılır → 1
+  - imaj digest'inde tek hane değişir → 1
+- **Onay bekleyen adlar** (onaylı listede yoktu; GLOSSARY'ye yazılmadı):
+  - `USER_TEMPLATE`: istemin kullanıcı mesajı şablonu. Denemelerin kodundaki ad; 5a kaydında "kullanıcı şablonu" diye geçti, sha'ya giriyor.
+  - `prompt_sha256()`: onaylı ayar adıyla aynı adlı fonksiyon.
+  - `TOKENIZER` sabiti ve `run.json`'da `tokenizer`: API modellerinde sayım modeli (`qwen3.5-4b`).
+  - `run.json` `settings` anahtarları `model` (model etiketi), `level`, `alias`, `max_tokens`, `extra` (ek istek alanları). Planda "seviye, takma ad, max_tokens, ek istek alanları" diye geçiyordu, adları yazılmamıştı.
+  - Özel yardımcılar (`_alarm_time`, `_file_sha256`, `_checked_gguf`, `_template_tokens`, `evaluate._run_llm`) modül içi.
+- Sonra: 5c duman koşusu (onaylı plan; 30 çağrı, `llm_cache/`, durma kuralı DECISIONS 2026-10-31 "Çıktı sınırı"). Önce şarj sınırı kontrolü; Groq ve Gemini anahtarları `keys.env`'den.
+
+## 2026-11-01 · Planlama → Uygulama (P1c 5a sonrası ve 5b kontrolü; Eren onaylı)
+- 5a sonrası (`3fda13f`) ve 5b (`ebccc78`, `35e6c50`) kartla ve kararlarla uyumlu. **5c'ye (duman) geçilebilir; önce aşağıdaki üç test (küçük commit).**
+- Eren onayı (2026-11-01): `USER_TEMPLATE`, `prompt_sha256()`, `TOKENIZER` ve `run.json`'da `tokenizer`, `settings` anahtarları `model`, `level`, `alias`, `max_tokens`, `extra`. GLOSSARY'ye.
+- Planlamanın bağımsız kontrolleri (`35e6c50` scratch klonunda; ortak kopyada dosya yok):
+  - İstem HANDOFF'tan kuruldu (5a öneri blokları + 5a kontrol kaydındaki onaylı daraltma tarifi): sha256 `6d05378e…`, `methods/llm.py`'nin `prompt_sha256()`'sıyla ve kayıtla aynı. Kendi tokenizer sunucum (Qwen 2B): istem + şablon 387 / 389 / 441.
+  - Tam mesaj sayımı (veri metinleri benim 4. adım yeniden koşumun dosyalarından, alarm zamanı vakadan, kendi tokenizer'ım): 222 girdinin 222'si `p1c_full_count.json` (sha256 `e1e1d308…5085`) ile aynı; en çok 5.384, 6000'i aşan 0. Tablo kayıttan yeniden üretildi, aynı.
+  - GGUF: üç dosyanın SHA256'sı (kendi hesabım) = `ModelSpec.gguf_sha256` = `LOCAL_MODEL_BENCH.md`.
+  - Rule ve BARO: `eval_responses/`'taki 4 koşu HEAD koduyla scratch kopyada yeniden puanlandı; yeni alanlar (`input_status`, `input_empty`, `input_over_budget`) dışında kayıtlı `scores.json`'larla 4/4 aynı (top-1 22, 22, 11, 11). Fikstür farkı yalnız 16 satır ekleme, silinen satır 0.
+  - pytest 564/564.
+  - Kod okuması: boş ve bütçeyi aşan girdi sorulmuyor; puanda ıskalama, çekimser, Brier dışı, şema dışı ve kanıt sayılarına girmiyor (DECISIONS). Takma adlı koşuda ad `real_name` ile çevriliyor, gerçek ad eşleşmiyor. Bütçe kontrolü şablon dahil tam mesajda. GGUF kontrolü koşu klasörü açılmadan önce.
+  - Planlamanın kasıtlı kırmızıları (9 bozulma): 6'sı kırmızı (takma adlı koşuda gerçek ad eşleşir 2 test, kanıt sayıları sorulmayanı da sayar 3, bütçe 60000 2, `--cases` süzmez 2, sorulmayan satır çekimser değil 4, API'de GGUF kontrolü yok 1). **Yeşil kalan 3 (test açığı):** bütçe kontrolü `>=` (tam 6000 aşım sayılır); şablon ve sistem mesajı sayılmaz, yalnız kullanıcı metni sayılır; alarm zamanı milisaniyeli yazılır.
+- Ekler (planlama):
+  1. **5c'den önce üç test**, her biri kasıtlı kırmızıyla: tam mesaj 6000 token → sorulur, 6001 → `over_budget`; `input_tokens_local` şablon ve sistem mesajı dahil sayı (sahte `/apply-template` bir işaret ekler, sayı onu içerir); istemdeki alarm zamanı özetteki `alarm_time_utc` ile aynı biçim. Kod değişmez.
+  2. **5c durma kuralına ek:** taşıma hatasıyla cevapsız satır (`schema_errors`: "no answer: HTTP …") çıkarsa durulur, planlamaya. Şu an böyle satır "şema dışı" sayılıyor; bu model hatası değil, altyapı hatası.
+  3. Not (P1d'den önce karar): taşıma hatasıyla cevapsız satırın puanı (yeniden koşma mı, ayrı sayı mı). Dumanın sonucuyla birlikte sorulur.
+  4. Not: LLM'de `duration_s` son denemenin cevap süresi (yeniden deneme ve Groq beklemesi dahil değil; denemeler `attempts`'ta). P1e'de tablonun "Süre" sütununun altına not.
+- Sonra: üç test → 5c duman (onaylı plan; önce şarj sınırı kontrolü; durma kuralları: DECISIONS 2026-10-31 "Çıktı sınırı" + ek 2).
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5b ek: üç test açığı kapatıldı; onaylı adlar GLOSSARY'de)
+- `tests/test_llm_method.py`'ye üç test eklendi (planlama eki 1; kod değişmedi). Kasıtlı kırmızılar planlamanın yeşil kalan bozulmalarıyla aynı, üçü de artık kırmızı:
+  - `test_budget_boundary_6000_asked_6001_not`: sınır tam mesajın sayısına eşitken sorulur, bir eksiğindeyken `over_budget` ve istek yok. Bozulma `>=` → 1 test kırmızı.
+  - `test_local_count_includes_template_and_system_message`: sahte `/apply-template` `<tpl>` işareti ekler; `input_tokens_local` = işaret + sistem + kullanıcı metni. Bozulma "yalnız kullanıcı metni sayılır" → 2 test kırmızı.
+  - `test_prompt_alarm_time_same_format_as_summary`: istemdeki alarm zamanı, veri bloğundaki `alarm_time_utc` ile aynı (`2027-01-15T08:00:00+00:00`). Bozulma milisaniyeli yazım → 1 test kırmızı.
+- pytest **567/567**.
+- GLOSSARY'ye yazıldı (Eren onaylı): `USER_TEMPLATE`, `prompt_sha256()`, `TOKENIZER` / `tokenizer`, `settings` anahtarları `model`, `level`, `alias`, `max_tokens`, `extra`.
+- Sonra: 5c duman (Eren'in başlat demesiyle). Durma kuralları: `finish_reason: length`, Groq boyut reddi, taşıma hatasıyla cevapsız satır (ek 2) → durulur, planlamaya.
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5c: duman koşusu)
+- **Koşu:**
+  - Betik: `~/cerebrum2/analysis/p1c_smoke.py`, sha256 `6cdd662b…afb2`.
+  - Çıktı: `p1c_smoke.json`; koşu klasörleri `llm_cache/`, git dışı.
+  - Kod: commit `09fbd41`, 30 koşunun hepsinde `repo_clean: true`.
+  - Kapsam: 5 model × 3 seviye × 2 pilot vaka = **30 çağrı**. `inc-01a609bb` gerçek adla, `inc-91bf76d4` takma adla.
+  - Toplam 41 dk. Şarj sınırı 80.
+- **Durma kuralı tetiklenmedi:** `finish_reason` 30/30 `stop`. Groq boyut reddi 0. Taşıma hatası 0: her koşu tek deneme, HTTP 200. Boş ya da bütçeyi aşan girdi yok (iki vakada da ham dolu, tam mesaj ≤ 5.382).
+- **Sonuçlar** (doğruluk yorumlanmaz):
+
+  | Model | Şemaya uygun | Cevap süresi (sn) | Çıktı token | Akıl yürütme token (en çok) | Sağlayıcı / Qwen girdi sayısı |
+  |---|---|---|---|---|---|
+  | qwen3.5-2b | 6/6 | 27–57 | 256–348 | 0 | 1,000 (aynı) |
+  | qwen3.5-4b | 6/6 | 55–149 | 204–261 | 0 | 1,000 |
+  | qwen3.5-9b | 6/6 | 95–249 | 201–261 | 0 | 1,000 |
+  | gpt-oss-120b | **5/6** | 1,6–1,9 | 401–457 | 241 | 0,82–1,04 |
+  | gemini-3.5-flash-lite | 6/6 | 1,5–2,2 | 196–282 | 0 | 1,03–1,20 |
+
+  - Toplam şemaya uygunluk **29/30**.
+  - **Şema dışı tek cevap:** gpt-oss, daraltma, `inc-91bf76d4` (takma ad); `llm_cache/20261101T042343Z-llm`. Hata: "candidate 3: evidence_path must start at the candidate service". Model 3. adayın (`notifier`) yolunu ters yönde yazdı: `["order-processor", "notifier"]`, çağırandan adaya. İlk iki adayın yolu doğru biçimde, `unsure: true`. Neden model hatası; istem yolun adayla başladığını söylüyor. Yeniden sorulmadı (DECISIONS 2026-10-31).
+  - Yerel sayım sunucunun `prompt_tokens`'ıyla 18/18 birebir aynı. Ham girdi en büyük, 9B'de en çok 249 sn (`TIMEOUT` 900).
+  - Çıktılar sınırın çok altında: yerelde en çok 348 / 800, API'de en çok 457 / 1600 (akıl yürütme dahil).
+- **Sayım farkı (kayıt, karar değil):**
+  - Groq girdiyi Qwen'den 0,82–1,04 kat sayıyor: hamda daha az (4.428'e karşı 5.382), özet ve daraltmada yakın.
+  - Dakikalık sınır hesabı (DECISIONS 2026-10-31 "Çıktı sınırı": 6000 × 1,03 + 1600 ≈ 7,8K): gözlenen en büyük oran 1,042 ile 6000 × 1,042 + 1600 ≈ 7,85K < 8K. Pay var ama dar.
+  - Gemini Qwen'den 1,03–1,20 kat fazla sayıyor (en çok 5.569); bağlamı geniş, sınır sorunu yok. 6K bütçesi kararındaki gibi yerel sayımla uygulanıyor.
+- **Planlamaya:**
+  1. Duman ölçütleri (P1c kartı) karşılandı: istem onaylı, şemaya uygunluk kayıtta (29/30, şema dışı nedeni yukarıda), süreler kayıtta. Taşıma hatasıyla cevapsız satırın puanı (planlama notu 3) dumanda örnek çıkmadı; P1d'den önce karar.
+  2. Groq oranı 1,042 ile dakikalık sınıra pay ~150 token. P1d'de 43 vaka koşulurken izlenecek; 429 gelirse mevcut yeniden deneme kuralı geçerli.
+- Sonra: kapanış (ARCHITECTURE diyagramı, PROJECT "Şu an", HANDOFF, PR).
+
+## 2026-11-01 · Planlama → Uygulama (P1c 5b eki ve 5c duman kontrolü)
+- Üç test (`09fbd41`) ve duman (`bb18ce2`) kartla uyumlu. **P1c'nin bitti ölçütleri karşılandı** (LLM katmanı, girdiler, daraltma dev 18/18, duman: istem onaylı, şemaya uygunluk 29/30 ve nedeni, süreler); kalan PR koşusu. **Kapanışa geçilebilir.**
+- Planlamanın bağımsız kontrolleri (`bb18ce2` scratch klonunda; ortak kopyada dosya yok):
+  - pytest 567/567; `src` `35e6c50`'den beri aynı. Önceden yeşil kalan üç bozulmam artık kırmızı; yeni bir bozulma (sistem mesajı sayılmaz) da kırmızı.
+  - Duman kayıtları (`llm_cache/` 30 koşu) kendi betiğimle: 30'unda istem sha `6d05378e…`, commit `09fbd41` temiz, GGUF ve imaj doğru, temperature 0, doğru vaka ve koşul; girdinin sha256'sı ve veri token'ı 4. adım kaydıyla, `input_tokens_local` tam sayım kaydıyla aynı; tek deneme, HTTP 200. Şema geçerliliğini ham çıktıdan yeniden hesapladım: 29/30, kayıtla aynı. Tablo (uygunluk, süre, çıktı ve akıl yürütme token'ı, sağlayıcı/Qwen oranı) kayıtla aynı.
+  - 30 koşu HEAD koduyla scratch kopyada puanlandı, hatasız; takma adlı koşularda takma adlar gerçek ada çevriliyor (ör. `rate-gateway` → `quote-gateway`, `order-processor` → `checkout`).
+  - Tekrar: 2B özet `inc-01a609bb` HEAD koduyla scratch'te yeniden koşuldu; ham çıktı, cevap ve token birebir aynı (süre 31,4 / 30,3 sn).
+- **Bulgu (planlamanın da hatası):** `inc-91bf76d4`'ün (pilot, quote-gateway yanlış yönlendirme hatası) takma adlı girdilerinde `quote-svc` geçiyor (49 kez; log: "quote upstream request failed … host='quote-svc'"). Kural tek kelimelik adlarda yalnız `<Ad>Service` biçimini çeviriyor; `-svc` eki kapsam dışı. 4. adımdaki geniş aramam da `…service`'i arıyordu, `-svc`'yi değil; "kalan 0" sonucum bu biçimi kapsamıyordu. Dumanda bu vakanın takma adlı ham girdisinde üç model `quote-svc`, 2B gerçek ad `quote-gateway` cevabını verdi (ikisi de `unmatched`).
+  - Kapsam: 43 vakanın takma adlı metinlerinde ek ya da önekle tek kelimelik ad taşıyan tanımlayıcı yalnız `quote-svc` (bu tek pilot vaka); diğerleri `get-quote` HTTP yolu ve `GetCart`, `EmptyCart` gRPC yöntemleri (sıradan kelime kuralı, DECISIONS 2026-10-23). **Dev'in takma adlı girdilerinde yok**; test seti takma adla koşulmaz. P1d'nin takma ad ölçümü etkilenmez; kod değişmez.
+  - Not (P1e sınırlaması, önceki notun genişlemesi): takma adlı girdide sıradan kelime kuralıyla kalan adlar ("quote upstream…", `get-quote`, gRPC yöntemleri) modele gerçek adı sezdirebilir; ad tutarsızlığı da takma ad olmayan cevaplara (`unmatched`) yol açabilir. Takma ad farkı iki yönde de bozulabilir; P1e'de takma adlı koşuların `unmatched` sayısı ayrı raporlanır.
+- Notlar (P1d kartına):
+  1. Taşıma hatasıyla cevapsız satırın puanı (yeniden koşma mı, ayrı sayı mı): P1d koşularından önce karar.
+  2. Groq dakikalık sınır: gözlenen en büyük oran 1,042 ile 6000 × 1,042 + 1600 ≈ 7,85K < 8K. Dev'in en büyük tam mesajı 5.384 (ham; Groq hamı daha az sayıyor, 0,82). Sorun beklenmiyor; 429 ya da boyut reddi kayda.
+  3. gpt-oss'un tek şema dışı cevabı 3. adayın yolunu ters yazmasından; P1a kuralıyla bütün cevap şema dışı. Değişmez; P1e hata analizinde sayılır.
+- Sonra: kapanış (ARCHITECTURE diyagramı, PROJECT "Şu an", HANDOFF, PR; açıklama sade). CI yeşil olunca Eren birleştirir. Sonra P1d kartı (planlama).
+
+## 2026-11-01 · Uygulama → Planlama (P1c kapanış)
+- Yapılan:
+  - ARCHITECTURE diyagramı güncellendi: `candidate_narrowing` → girdi seviyeleri (`inputs.py`, takma ad `alias.py`) → LLM (`methods/llm.py`, `llm_client.py`) → `llm_cache/` / `eval_responses/` (`evaluate run --method llm`). Dosya tablosu adımlarla birlikte güncellenmişti.
+  - PROJECT "Şu an" bölümüne P1c özeti ve sıradaki iş yazıldı.
+  - PR açıldı (`task/p1-llm` → `main`, açıklama sade).
+- Beklenen: PR koşusu yeşil (pytest 567/567 yerelde). Eren birleştirir. Sonra P1d kartı (planlama).
+- Dikkat:
+  - `llm_cache/` git dışı. Duman kayıtları yalnız bu makinede.
+  - `quote-svc` bulgusu yalnız pilot `inc-91bf76d4`'te, P1e notu (planlama 2026-11-01).
+  - P1d'den önce karar: taşıma hatasıyla cevapsız satırın puanı.

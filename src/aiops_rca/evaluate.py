@@ -1,11 +1,17 @@
 """Değerlendirme CLI'ı (HANDOFF 2026-10-30 P1a kartı).
 
-    python -m aiops_rca.evaluate run --method rule [--sets pilot,dev] [--final-test] [--root eval_responses]
+    python -m aiops_rca.evaluate run --method rule [--sets pilot,dev] [--cases inc-…,…] [--final-test] [--root eval_responses]
+    python -m aiops_rca.evaluate run --method llm --model <etiket> --level raw|summary|narrowed [--alias] [--sets …]
+                                     [--cases …] [--root llm_cache]
     python -m aiops_rca.evaluate score <koşu klasörü> [--final-test]
 
 `run`: seçilen setlerin geçerli vakalarında yöntemi koşar, her cevabı şemayla doğrular ve kaydeder (`runs.py`).
-Yöntem yalnız `Case`'i alır. `score`: kayıtlardan ve etiketlerden puanlar (çağrı kenarları snapshot'tan), `scores.json`
-yazar ve set başına tabloyu basar. `test` seti iki komutta da yalnız `--final-test` ile; `heldout` hiç.
+Yöntem yalnız `Case`'i alır. `--cases` seçilen setlerin
+içinden vaka süzer (set dışı kimlik hata). `llm` yöntemi (`methods/llm.py`) bir model × seviye × gerçek/takma ad koşar;
+`--model` ve `--level` yalnız onda ve zorunlu, `--alias` yalnız onda; satıra girdi durumu, token ve denemeler eklenir,
+`run.json`'a model, istem ve sunucu ayarları. `score`: kayıtlardan ve etiketlerden puanlar (çağrı kenarları snapshot'tan), `scores.json`
+yazar ve set başına tabloyu basar. Sorulmayan girdi (`input_status`
+`empty` / `over_budget`) ıskalama ve çekimser sayılır; takma adlı koşuda cevaptaki adlar gerçek ada çevrilip eşlenir. `test` seti iki komutta da yalnız `--final-test` ile; `heldout` hiç.
 Çıkış: 0 tamam, 2 kullanım hatası.
 """
 from __future__ import annotations
@@ -19,24 +25,41 @@ from pathlib import Path
 from aiops_rca.answer import Answer, validate_answer
 from aiops_rca.call_graph import metric_containers, service_edges
 from aiops_rca.cases import DEFAULT_SETS, INCIDENTS, SNAPSHOTS, load_cases, load_labels
+from aiops_rca.inputs import LEVELS
+from aiops_rca.llm_client import MODELS
 from aiops_rca.methods.baro import baro_baseline
+from aiops_rca.methods.llm import llm_method
 from aiops_rca.methods.rule import rule_baseline
 from aiops_rca.runs import EVAL_RESPONSES, append_response, new_run, read_run
 from aiops_rca.scoring import score_case, score_table
 
-METHODS = {"rule": rule_baseline, "baro": baro_baseline}
+METHODS = {"rule": rule_baseline, "baro": baro_baseline}  # + "llm" (model, seviye ve takma adla kurulur)
 TABLE_COLUMNS = (("n", "Vaka"), ("top1", "top-1"), ("top3", "top-3"), ("evidence_valid", "Kanıt geçerli"),
                  ("evidence_invalid", "Kanıt geçersiz"), ("evidence_null", "Kenarsız"),
                  ("label_path_overlap_mean", "Örtüşme"), ("brier", "Brier"), ("selective_accuracy", "Seçici doğruluk"),
-                 ("coverage", "Kapsama"), ("schema_invalid", "Şema dışı"), ("duration_s_total", "Süre (sn)"))
+                 ("coverage", "Kapsama"), ("schema_invalid", "Şema dışı"), ("input_empty", "Boş girdi"),
+                 ("input_over_budget", "Bütçe aşımı"), ("duration_s_total", "Süre (sn)"))
 
 
 def cmd_run(method: str, sets: tuple[str, ...], final_test: bool, root: Path, *, incidents: Path = INCIDENTS,
-            snapshots: Path = SNAPSHOTS) -> Path:
-    cases = load_cases(sets, final_test=final_test, incidents=incidents, snapshots=snapshots)
-    run_dir = new_run(method, sets, len(cases), root=root)
+            snapshots: Path = SNAPSHOTS, cases: tuple[str, ...] | None = None, model: str | None = None,
+            level: str | None = None, alias: bool = False, llm_options: dict | None = None) -> Path:
+    if method == "llm":
+        if model is None or level is None:
+            raise ValueError("--method llm needs --model and --level")
+    elif model is not None or level is not None or alias:
+        raise ValueError("--model, --level and --alias are only for --method llm")
+    selected = load_cases(sets, final_test=final_test, incidents=incidents, snapshots=snapshots)
+    if cases is not None:
+        missing = sorted(set(cases) - {c.incident_id for c in selected})
+        if missing:
+            raise ValueError(f"cases not in the selected sets: {missing}")
+        selected = [c for c in selected if c.incident_id in set(cases)]
+    if method == "llm":
+        return _run_llm(selected, sets, root, model, level, alias, llm_options or {})
+    run_dir = new_run(method, sets, len(selected), root=root)
     fn = METHODS[method]
-    for case in cases:
+    for case in selected:
         t0 = time.perf_counter()
         obj, raw = fn(case)
         duration = round(time.perf_counter() - t0, 3)
@@ -44,6 +67,17 @@ def cmd_run(method: str, sets: tuple[str, ...], final_test: bool, root: Path, *,
         append_response(run_dir, {"incident_id": case.incident_id, "answer": None if errors else obj,
                                   "schema_valid": not errors, "schema_errors": errors, "raw_output": raw,
                                   "duration_s": duration, "tokens": None})
+    return run_dir
+
+
+def _run_llm(selected: list, sets: tuple[str, ...], root: Path, model: str, level: str, alias: bool,
+             options: dict) -> Path:
+    spec = MODELS.get(model)
+    with llm_method(model, level, alias, **options) as (ask, settings):  # GGUF ve sunucu kontrolü koşu klasöründen önce
+        run_dir = new_run("llm", sets, len(selected), root=root, model_id=spec.model_id, provider=spec.provider,
+                          temperature=0, settings={"model": model, **settings})
+        for case in selected:
+            append_response(run_dir, {"incident_id": case.incident_id, **ask(case)})
     return run_dir
 
 
@@ -57,7 +91,10 @@ def cmd_score(run_dir: Path, final_test: bool, *, incidents: Path = INCIDENTS, s
         edges, traced = service_edges([view / "traces.jsonl"])
         known = traced | metric_containers(sorted(view.glob("metrics*.jsonl")))
         answer = Answer.from_dict(r["answer"]) if r["schema_valid"] else None
-        rows.append({"incident_id": r["incident_id"], "set": label["set"], **score_case(answer, label, edges, known),
+        status = r.get("input_status", "ok")  # rule ve BARO satırlarında alan yok: sorulmuş
+        alias = bool(run.get("settings", {}).get("alias"))
+        rows.append({"incident_id": r["incident_id"], "set": label["set"],
+                     **score_case(answer, label, edges, known, input_status=status, alias=alias),
                      "duration_s": r["duration_s"], "tokens": r["tokens"]})
     out = {"run": run, "table": score_table(rows), "cases": rows}
     (run_dir / "scores.json").write_text(json.dumps(out, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
@@ -83,8 +120,12 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m aiops_rca.evaluate", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--method", required=True, choices=sorted(METHODS))
+    r.add_argument("--method", required=True, choices=sorted([*METHODS, "llm"]))
+    r.add_argument("--model", choices=list(MODELS))
+    r.add_argument("--level", choices=list(LEVELS))
+    r.add_argument("--alias", action="store_true")
     r.add_argument("--sets", default=",".join(DEFAULT_SETS))
+    r.add_argument("--cases", help="comma-separated incident ids within the selected sets")
     r.add_argument("--final-test", action="store_true")
     r.add_argument("--root", type=Path, default=EVAL_RESPONSES)
     s = sub.add_parser("score")
@@ -93,7 +134,9 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     try:
         if args.cmd == "run":
-            run_dir = cmd_run(args.method, tuple(x for x in args.sets.split(",") if x), args.final_test, args.root)
+            cases = tuple(x for x in args.cases.split(",") if x) if args.cases else None
+            run_dir = cmd_run(args.method, tuple(x for x in args.sets.split(",") if x), args.final_test, args.root,
+                              cases=cases, model=args.model, level=args.level, alias=args.alias)
             print(run_dir)
         else:
             print(markdown_table(cmd_score(args.run_dir, args.final_test)["table"]))

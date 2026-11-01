@@ -90,8 +90,8 @@ Sadece Eren'in onayladığı isimler.
 | `~/cerebrum2/quality_trial/` | Kaba kalite denemesi çıktıları; `case1/`, `case2/` altında `view/summary.json` (modele giden, sızıntı CLI'ın taradığı), `answers/` (model cevapları), `case.json` (doğru cevap, `view/` dışında); repo dışı |
 | `task/ci-red-check` | Kasıtlı kırmızı dalı: CI'ın bozuk testte ve hiç test toplanmadığında kırmızı olduğunu gösterir; birleştirilmez |
 | takma ad | Modele giden girdide servis adlarının (ve log mesajlarındaki tanımlayıcı biçimlerinin: tireli, CamelCase, `…Service`; sıradan kelimeler değil) yerine konan, OTel Demo'yu ve Online Boutique'i çağrıştırmayan anlamlı adlar; ezber etkisini kaldırmak ve ölçmek için. Cevap eşleme tablosuyla gerçek ada çevrilip puanlanır. Kod adı uygulamada önerilir |
-| takma ad eşlemesi (2026-10-23) | frontend → storefront, frontend-proxy → edge-gateway, ad → promotions, cart → basket, checkout → order-processor, payment → billing, product-catalog → inventory, recommendation → suggestions, shipping → logistics, quote → rate-calculator, currency → fx-rates, email → notifier, image-provider → media-server, telemetry-docs → docs-site, astronomy-db → main-db, valkey-cart → session-cache |
-| `tools/trial_alias.py`, `ALIASES` | Takma ad ön denemesi: `view/summary.json`'dan takma adlı kopya üretir ve kontrol eder / koddaki eşleme tablosu (GLOSSARY eşlemesinin aynısı) |
+| takma ad eşlemesi | 2026-10-23: frontend → storefront, frontend-proxy → edge-gateway, ad → promotions, cart → basket, checkout → order-processor, payment → billing, product-catalog → inventory, recommendation → suggestions, shipping → logistics, quote → rate-calculator, currency → fx-rates, email → notifier, image-provider → media-server, telemetry-docs → docs-site, astronomy-db → main-db, valkey-cart → session-cache; 2026-10-31: quote-gateway → rate-gateway, frontend-web → storefront-web |
+| `tools/trial_alias.py`, `ALIASES` | Takma ad ön denemesi: `view/summary.json`'dan takma adlı kopya üretir ve kontrol eder / koddaki eşleme tablosu (GLOSSARY eşlemesinin aynısı; 2026-10-31'den beri `aiops_rca.alias`'ta, betik oradan içe aktarır) |
 | `view_alias/` | Vaka klasöründe takma adlı özetin klasörü (`view_alias/summary.json`; modele giden, sızıntı CLI'ın taradığı) |
 | `answers_a1/`, `answers_a2/`, `answers_alias/` | Takma ad ön denemesinin cevap klasörleri: gerçek adla 1. ve 2. koşu / takma adla koşu (eski `answers/` yerinde) |
 | `--view`, `--answers`, `--alias`, `--probe` | `trial_ask_models.py` seçenekleri: özetin okunduğu klasör / cevapların yazıldığı klasör / puanlamada takma adları gerçek ada çevir / bilgi yoklaması kipi (cevaplar verilen klasöre) |
@@ -224,3 +224,55 @@ Sadece Eren'in onayladığı isimler.
 | `v3_night2b` | 2. gece listesinin kalan parçası (16–20. girişler, 5 vaka) |
 | `tests/test_v3_lists.py` | V3 gece listelerinin kart tablosuyla birebir karşılaştırması (bileşim, gece sayıları, gece sonları, ortak çiftler ayrı gecede, ayrılan birimler yalnız testte, koşucunun liste denetimi) |
 | `~/cerebrum2/analysis/` | Repo dışı analiz betikleri ve çıktıları (ör. `v3a_categories.py` kategori kanıtı, `v3_lists.py` liste üreticisi; P1a: `p1a_equality.py`, `p1a_path_check.py`, `p1a_fixtures.py` CI örneği üreticisi, `p1a_rawlog_size.py`; P1b: `p1b_equality.py` ve çıktı klasörü `p1b_eq/`); yol ve sha256 HANDOFF'ta |
+| `task/p1-llm` | P1c dalı: LLM çağrı katmanı, üç girdi seviyesi, daraltma, istem ve duman koşusu |
+| `src/aiops_rca/llm_client.py` | LLM çağrı katmanı: beş model, istek, taşıma hatasında tek yeniden deneme, şema kontrolü, token ve süre; yerel sunucu (`methods/llm.py` ile karışmasın diye bu ad) |
+| `src/aiops_rca/inputs.py`, `raw` / `summary` / `narrowed` | Modele giden girdinin üç seviyesi: ham (hesaplanmış sayı yok, WARN+ log satırları ve hata span'leri) / özet (bütün servislerin önce/sonra sinyal tablosu) / daraltma (ilk K aday ve ayrıntıları) |
+| `src/aiops_rca/narrowing.py` | `candidate_narrowing`'in kodu: aday servisleri sıralar, ilk K'yı seçer |
+| `src/aiops_rca/alias.py` | Takma ad: üç seviyenin takma adlı kopyası ve kontrolü (`trial_alias` mantığı) |
+| `alias.summary_input()`, `alias.raw_input()`, `alias.narrowed_input()` | `alias.py`: bir vakanın takma adlı özet / ham / daraltma girdisi; `inputs.py`'deki aynı adlı fonksiyonların dönüş sözlüğü (hamda ek olarak `alias_lines_dropped`) |
+| `alias_lines_dropped` | Takma adlı ham girdide, metin bütçeyi aştığı için gerçek girdiye göre sondan eksiltilen satır sayısı |
+| `convert_table()`, `check_table()` | Özet ya da daraltma tablosunun takma adlı kopyası / kopyanın yalnız adları ve metindeki tanımlayıcıları değişmiş olduğunun kontrolü (sorun listesi) |
+| `check_name()`, `check_text()`, `leftover()` | Kontrol parçaları: ad alanı eşlemedeki karşılığı mı / metinde tanımlayıcı ya da yasak terim kalmamış ve değişmeyen parçalar duruyor mu / yalnız kalan tanımlayıcı ve yasak terim |
+| `alias_name()`, `aliased_table()` | Gerçek adın takma adı (eşlemede yoksa aynısı; kontrol yakalar) / tabloyu çevirip kontrol eder, tutmazsa `ValueError` |
+| `NAME_KEYS`, `TEXT_KEYS`, `NAME_PAIR_KEYS`, `UNKNOWN_SERVICE` | Takma adın uygulandığı alanlar: ad (`service`, `caller`) / metin (`message`, `operation`) / ad çiftleri (`calls`); çevrilmeyen `<unknown>` servis |
+| `tests/fixtures/alias_summary_expected.json` | CI örneklerinde eski `trial_alias`'ın (+ onaylı iki ad) takma adlı özet metinleri (taşınan kurallar aynısını üretmeli) |
+| `src/aiops_rca/methods/llm.py` | LLM yöntemi: istem, girdi seviyesi, modele sorma, cevabı şemaya çevirme |
+| evaluate `--model`, `--level`, `--alias` | `evaluate run --method llm` seçenekleri: model etiketi / girdi seviyesi / takma adlı girdi ver (cevap gerçek ada çevrilip puanlanır). `trial_ask_models.py`'nin `--alias`'ından farklı (orada yalnız puanlamada çeviri) |
+| evaluate `--cases` | `evaluate run` vaka süzgeci: seçilen setlerin içinden virgülle ayrılmış kimlikler (set dışı kimlik hata); bütün yöntemlerde |
+| `llm_method()` | `methods/llm.py`: bir model × seviye × gerçek/takma ad için yöntemi kurar (sunucu, GGUF kontrolü, sayım, sorma); vaka → kayıt satırı ve `run.json` ayarlarını verir |
+| `SYSTEM_PROMPT`, `LEVEL_TEXT`, `build_messages()` | Onaylı istemin sistem mesajı / seviye tarifleri (ham, özet, daraltma) / sistem + kullanıcı mesajlarını kuran fonksiyon (DECISIONS 2026-11-01 "İstem metni") |
+| `USER_TEMPLATE`, `prompt_sha256()` | Onaylı istemin kullanıcı mesajı şablonu (`{alarm_time}`, `{level_text}`, `{data}`) / istem metninin sha256'sı (`json.dumps([SYSTEM_PROMPT, LEVEL_TEXT, USER_TEMPLATE])`; testte sabit) |
+| `TOKENIZER`, `tokenizer` | API modellerinde tam mesajı sayan yerel model (`qwen3.5-4b`) / LLM koşusunun `run.json` ayarındaki adı (yalnız API modellerinde) |
+| `model`, `level`, `alias`, `max_tokens`, `extra` | LLM koşusunun `run.json` ayarları: model etiketi / girdi seviyesi / takma adlı girdi / çıktı sınırı / istek gövdesine eklenen alanlar |
+| `TOTAL_BUDGET` | Tam mesajın (sohbet şablonu + istem + veri) en çok token'ı: 6000; aşan girdi sorulmaz |
+| `input_status`, `input_tokens_local`, `input_sha256` | LLM kayıt satırı: girdi durumu (`ok` / `empty` / `over_budget`) / tam mesajın yerel Qwen sayısı (şablon dahil) / veri bloğunun sha256'sı |
+| `finish_reason`, `attempts` | LLM kayıt satırı: sağlayıcının bitiş nedeni (`length` = sınıra takıldı, şema dışı) / her deneme (HTTP durumu, süre; taşıma hatasında ikincisi) |
+| `prompt_sha256`, `image`, `gguf`, `gguf_sha256`, `data_budget`, `total_budget` | LLM koşusunun `run.json` ayarları: istem metninin sha256'sı / digest'li llama.cpp imajı / sunucunun GGUF dosyası ve SHA256'sı / veri bloğu ve tam mesaj bütçesi (5000, 6000) |
+| `ModelSpec.gguf_sha256` | Yerel modelin GGUF SHA256'sı (LOCAL_MODEL_BENCH.md ile aynı, testle korunur); dosya uyuşmazsa koşu başlamaz |
+| `alias.real_name()` | Takma ad → gerçek ad; takma ad değilse (gerçek ad dahil) `None`, puanlamada `unmatched` |
+| "Boş girdi", `input_empty` | Sonuç tablosu sütunu ve `score_table` sayısı: sorulmayan boş ham girdiler (ıskalama, çekimser, Brier dışı) |
+| "Bütçe aşımı", `input_over_budget` | Sonuç tablosu sütunu ve `score_table` sayısı: tam mesajı 6000'i aşan, sorulmayan girdiler (boş girdi gibi puanlanır) |
+| `MODELS`, `ModelSpec` | `llm_client.py`: beş modelin sabit ayar tablosu (etiket → `ModelSpec`) / bir modelin etiketi, sağlayıcısı, istekteki kimliği, çıktı sınırı, ek istek alanları |
+| `ANSWER_SCHEMA`, `RESPONSE_FORMAT` | Cevap şemasının modele giden strict biçimi / `response_format` alanı (`json_schema`, `strict`) |
+| `chat()` | Modele bir kez sorar (taşıma hatasında bir yeniden deneme), deneme kayıtlarını, şemaya uyan cevabı, token ve süreyi döndürür |
+| `Pacer` | İki istek arasında en az belirli süre bekletir (Groq: 65 sn) |
+| `LocalServer` | Yerel llama.cpp sunucusunu açar, sağlık kontrolünü bekler, kapatır (bir model için bir kez) |
+| `api_key()`, `parse_content()` | API anahtarını ortamdan ya da `keys.env`'den okur / cevaptaki ilk JSON nesnesini okuyup cevap şemasıyla doğrular |
+| `summary_input()`, `raw_input()` | `inputs.py`: bir vakanın özet / ham girdisini üretir (`level`, `text`, `data_tokens`, `empty`; hamda `lines_total`, `lines_kept`, `truncated`) |
+| `summary_table()`, `summary_text()` | Özet tablosu (eski `trial_summary.build`) / tablonun modele giden girintisiz JSON metni |
+| `raw_records()`, `raw_lines()`, `raw_line()` | Ham: penceredeki (zaman, servis, tür, metin) kayıtları / zaman sonra metin sırasıyla satırlar / tek satırın biçimi |
+| `fit_lines()` | Satırları veri bütçesine sığdırır: hepsi ya da baştan en uzun önek + `TRUNCATION_MARK` |
+| `clock_ms()` | UTC `HH:MM:SS.mmm` (milisaniye aşağı yuvarlanır) |
+| `DATA_BUDGET`, `RAW_LINE_CHARS`, `TRUNCATION_MARK` | Veri bloğu sınırı (5000 token) / ham satır sınırı (500 karakter) / kesme işareti satırı `[truncated: later lines omitted]` |
+| `TokenCounter`, `LEVELS` | Token sayan fonksiyonun türü (metin → sayı) / üç seviye adı (`raw`, `summary`, `narrowed`) |
+| `count_tokens()`, `LocalServer.tokenize()` | `llm_client.py`: llama-server `/tokenize` ile token sayısı (çıkarım yok) |
+| `tests/fixtures/summary_expected.json` | CI örneklerinde eski `trial_summary.build`'in özet metinleri; taşınan kod aynısını üretmeli |
+| `service_scores()` | `narrowing.py`: servis başına kural puanı, bütün sinyallerin en büyük gücü (`max_strength`), eşiği aşan sinyaller; kuralın dışlamalarıyla |
+| `narrow()` | Bütün servislerin daraltma sırası: grup (`deep` → `anomalous` → `normal`), grup içinde puan, güç, ad |
+| `candidate_narrowing()` | Bir vakanın daraltması: `candidates` (ilk K), `ranking` (bütün sıra), `edges` (adaylar arasındaki çağrı kenarları) |
+| `K`, `GROUPS` (`deep`, `anomalous`, `normal`) | Daraltmada aday sayısı (5) / grup adları: derin (anormal, çağırdıklarında anormallik yok) / diğer anormal / anormal değil |
+| `tests/fixtures/narrowing_expected.json` | CI örneklerinde daraltmanın beklenen çıktısı (regresyon) |
+| `narrowed_input()`, `narrowed_table()` | `inputs.py`: bir vakanın daraltma girdisi (`candidates` ada göre) / girdinin metne çevrilmeden önceki tablosu |
+| `span_fields()` | Bir işlem satırının istek, hata oranı, p95 alanları (özetteki yazımla), önce/sonra |
+| `TOP_CANDIDATE_LOGS` | Daraltma girdisinde aday başına en sık WARN+ mesaj sayısı (3) |
+| `tests/fixtures/narrowed_expected.json` | CI örneklerinde daraltma girdisinin beklenen metni (regresyon) |

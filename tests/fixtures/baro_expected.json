@@ -151,6 +151,7 @@
    "evidence_edges": [],
    "evidence_valid": null,
    "incident_id": "inc-0f31ed0e",
+   "input_status": "ok",
    "label_path_overlap": 0.0,
    "matched": [
     "product-catalog",
@@ -170,6 +171,7 @@
    "evidence_edges": [],
    "evidence_valid": null,
    "incident_id": "inc-2dd806a2",
+   "input_status": "ok",
    "label_path_overlap": 0.0,
    "matched": [
     "telemetry-docs",
@@ -189,6 +191,7 @@
    "evidence_edges": [],
    "evidence_valid": null,
    "incident_id": "inc-2e5706ab",
+   "input_status": "ok",
    "label_path_overlap": 0.0,
    "matched": [
     "cart",
@@ -208,6 +211,7 @@
    "evidence_edges": [],
    "evidence_valid": null,
    "incident_id": "inc-8ceb7ae5",
+   "input_status": "ok",
    "label_path_overlap": 0.0,
    "matched": [
     "shipping",
@@ -231,6 +235,8 @@
    "evidence_invalid": 0,
    "evidence_null": 4,
    "evidence_valid": 0,
+   "input_empty": 0,
+   "input_over_budget": 0,
    "label_path_overlap_mean": 0.0,
    "label_path_overlap_n": 4,
    "n": 4,
@@ -250,6 +256,8 @@
    "evidence_invalid": 0,
    "evidence_null": 4,
    "evidence_valid": 0,
+   "input_empty": 0,
+   "input_over_budget": 0,
    "label_path_overlap_mean": 0.0,
    "label_path_overlap_n": 4,
    "n": 4,
