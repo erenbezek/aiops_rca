@@ -3264,3 +3264,16 @@ Data:
   ```
   Below are 5 candidate services chosen by an automatic pre-filter from the telemetry of the 10 minutes before and the 10 minutes after the alert, as JSON, in alphabetical order (the order is not a ranking). For each candidate: the same fields as in a service summary (incoming requests, error rate and p95 latency in milliseconds; container CPU as percent of one core, average and maximum; memory in MB, average); its incoming operations with the same request fields; the callers of each operation with the same fields; and its 3 most frequent warning and error log messages after the alert, with counts before and after. "calls" lists the calls between the candidates as [caller, callee].
   ```
+
+## 2026-11-01 · Planlama → Uygulama (P1c 5a kontrolü: Onay 3; Eren onaylı)
+- **İstem onaylı, iki düzeltmeyle** (Eren; DECISIONS 2026-11-01 "İstem metni (Onay 3)"). Değişen yalnız daraltma tarifi; sistem mesajı, kullanıcı şablonu, ham ve özet tarifleri `c8d4c92`'deki gibi. Daraltma tarifinin onaylı metni:
+  ```
+  Below are 5 candidate services chosen by an automatic pre-filter from the telemetry of the 10 minutes before and the 10 minutes after the alert, as JSON (the order is not a ranking). For each candidate: the same fields as in a service summary (incoming requests, error rate and p95 latency in milliseconds; container CPU as percent of one core, average and maximum; memory in MB, average); its incoming operations with the same request fields; the calls it receives from other services, per caller and call name, with the same fields as measured by the caller; and its 3 most frequent warning and error log messages after the alert, with counts before and after. "calls" lists the calls between the candidates as [caller, callee].
+  ```
+- Planlamanın bağımsız kontrolleri (`c8d4c92`; ortak kopyada dosya yok):
+  - İstemi HANDOFF'taki kod bloklarından okudum (betikten değil): sha256, betikteki tanımla `1b295427…c9bdc60e`, aynı. Yani HANDOFF'taki metin ölçülen metin.
+  - Kendi tokenizer sunucum (Qwen 2B; `/apply-template`, `enable_thinking: false`, + `/tokenize`): 387 / 389 / 431, kayıtla aynı.
+  - Sızıntı CLI'ı üç istemde `clean`. 4. adımdaki geniş dedektörüm: gerçek ad, takma ad ve tek kelimelik demo adı 0.
+  - Şema ve veriyle karşılaştırma doğru: tam 3 farklı aday, yol adayla başlar (`validate_answer`); gelen istek = SERVER/CONSUMER span'leri, CPU = bir çekirdeğin yüzdesi (`signals.py`); daraltmada 43/43 vakada 5 aday; kesme işareti `TRUNCATION_MARK` ile aynı.
+  - Bulgular (düzeltildi): (1) takma adlı daraltma girdisinde adaylar gerçek adların sırasında, takma adlara göre 43/43 alfabetik değil, "in alphabetical order" yanlıştı; (2) `callers` satırları çağıranın istemci span'leri (`caller_rows`), "the callers of each operation with the same fields" ölçüm yerini yanlış anlatıyordu.
+- Sonra (model yok): düzeltilmiş metin yeniden ölçülür (≤ 1000, dedektör ve sızıntı 0), yeni sha kayda; sonra 43 vaka × 3 seviye × gerçek/takma ad tam mesaj sayımı (≤ 6000, planlama eki 2); sonra 5b kodu. `methods/llm.py`'deki metin onaylı metnin birebiri; istemin sha'sı bir koruma testinde sabit (imaj digest'i testi gibi).
