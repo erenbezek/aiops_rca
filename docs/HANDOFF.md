@@ -3570,3 +3570,24 @@ Data:
   - `src` `c9bb8c5b…1f38`
   - `incidents` `ce7a75d0…e29e21`
 - Koşu süresince belge değişiklikleri tek komutta (ekle + commit).
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 durdu: 2B hamda sınıra takılan iki cevap; karar gerekli)
+- **Ne oldu:**
+  - a1'in ilk turu (2B, ham, gerçek ad; `eval_responses/20261101T055328Z-llm`, 05:53–06:02Z) bitti, puanlandı.
+  - Durma kuralı tetiklendi (DECISIONS 2026-10-31 "Çıktı sınırı"): **2 satırda `finish_reason: length`** (`inc-bfbbd586`, `inc-d6d5f1b2`; çıktı 800/800).
+  - Koşucu durdu, sonraki tur başlamadı, sunucu kapalı. Ayar değişmedi, yeniden sorulmadı.
+- **Neden:** iki cevapta da model **tekrar döngüsüne** girmiş. 1. adayın `evidence_path` listesine `"frontend"` yüzlerce kez yazılmış (`["frontend", "frontend", …]` / `["frontend", "frontend-proxy", "frontend", …]`), 3.160 karakterde kesilmiş.
+  - Sınır darlığı değil: aynı turdaki diğer 8 cevap 231–305 token.
+  - Sınır büyüse döngü daha uzun sürerdi.
+- **Turun geri kalanı** (doğruluk yorumlanmaz):
+  - sorulan 10 (8 boş girdi);
+  - şemaya uygun 5;
+  - şema dışı 5: 2 sınır, 3 "candidate services must be distinct" (`inc-4a62b9bb`, `inc-86d286ea`, `inc-9292257f`);
+  - cevapsız 0;
+  - en uzun cevap 508 sn duvar saati.
+- **Seçenekler (planlama ve Eren):**
+  1. **Öneri: tur geçerli kalır, a1 sürer.** Sınıra takılan cevap kararındaki gibi şema dışı (2B'nin hatası, tabloda görünür). Durma kuralının amacı sınırın yetip yetmediğini görmekti: neden döngü, sınır değil. Kalan turlarda `length` için **ölçmeden önce yazılı ek kural**: `raw_output`'ta aynı öğe bir listede art arda ≥ 20 kez geçiyorsa "tekrar döngüsü", kayda geçer, tur sürer. Böyle değilse (gerçek uzun cevap) durulur.
+  2. Kural aynen: her `length`'te durulur. 2B'nin diğer seviyelerinde de döngü olursa a1 her seferinde durur, takvim kayar.
+  3. Ayar değişikliği (çıktı sınırı, şemada `evidence_path` için `maxItems`, tekrar cezası): onaylı ayar ve şema değişir; duman ve bu tur yeniden koşulmalı. Önermem.
+- **Teknik not:** koşucu yeniden çağrılırsa durmuş turu yeniden koşar (yalnız "done" atlanır). Seçenek 1 seçilirse bu tur "done" sayılacak biçimde koşucuya işlenir (çıktı JSON'unda durum + karar notu), ikinci kez koşulmaz.
+- a1'in kalan 14 turu bekliyor. Groq aşaması başlamadı, 24 saat sayacı yok.
