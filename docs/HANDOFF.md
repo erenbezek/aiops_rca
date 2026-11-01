@@ -3495,3 +3495,12 @@ Data:
   - `eval_responses/` 4 koşu geçici kopyada yeniden puanlandı: yeni alanlar dışında kayıtlı `scores.json` ile **4/4 aynı** (22, 22, 11, 11 / 43). Kayıtlı dosyalar değişmedi.
 - GLOSSARY: `no_answer`, "Cevapsız" (Eren onaylı).
 - Sonra: 2. adım planı. Koşucu, takvim ve yerel tekrar; analiz betiği ayrı.
+
+## 2026-11-01 · Planlama → Uygulama (P1d 1. adım kontrolü)
+- 1. adım (`93d149d`, `381ff35`) DECISIONS 2026-11-01 "Cevapsız satır" ve "… kapsamı ve adı" ile uyumlu; **2. adıma geçilebilir.**
+- Planlamanın bağımsız kontrolleri (`381ff35` scratch klonunda; ortak kopyada dosya yok):
+  - pytest 573/573. Fikstür farkı yalnız ekleme (silinen satır 0).
+  - Planlamanın kasıtlı kırmızıları (uyg4'ünkilerden farklı), beşi de kırmızı: yalnız taşıma hatası cevapsız sayılır 2 test; sınıra takılan cevap da cevapsız sayılır 2; cevapsız satır şema dışı sayılır 2; cevapsız satır kapsamaya girer 2; `evaluate` `no_answer`'ı geçirmez 1.
+  - `eval_responses/` 4 resmî koşu HEAD koduyla yeniden puanlandı: yeni alanlar dışında kayıtlı `scores.json`'larla 4/4 aynı.
+  - Duman 30 koşusu HEAD koduyla yeniden puanlandı: `no_answer` dışında önceki kodla (`bb18ce2`) aldığım puanlarla 30/30 aynı; cevapsız 0.
+- Sonra: 2. adım planı (koşucu, takvim, yerel tekrar). İlk turdan önce Gemini'nin günlük istek sınırı (Eren, konsol).
