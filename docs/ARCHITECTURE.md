@@ -108,11 +108,12 @@ flowchart LR
 | `src/aiops_rca/cases.py` | Vaka erişimi: `load_cases()` (yönteme yalnız `incident_id`, `view`, `alarm_ns`), `load_labels()` (puanlama için); `test` yalnız `final_test`, `heldout` hiç |
 | `src/aiops_rca/answer.py` | Cevap şeması ve doğrulayıcı (tam 3 aday, güven, kanıt yolu, gerekçe, `unsure`) |
 | `src/aiops_rca/call_graph.py` | Snapshot izlerinden servisler arası çağrı kenarları |
-| `src/aiops_rca/scoring.py` | Puanlama: ad eşleme, top-1/top-3, kanıt geçerliliği, etiket yoluyla örtüşme, Brier, seçici doğruluk, kapsama, set özeti |
+| `src/aiops_rca/scoring.py` | Puanlama: ad eşleme (takma adlı koşuda önce gerçek ada çeviri), top-1/top-3, kanıt geçerliliği, etiket yoluyla örtüşme, Brier, seçici doğruluk, kapsama, sorulmayan girdi (boş, bütçe aşımı), set özeti |
 | `src/aiops_rca/methods/rule.py` | Kural baseline (`rule_baseline`): `signals.rule_check` ilk 3'ü şemadaki cevaba |
 | `src/aiops_rca/methods/baro.py` | BARO baseline: `baro_table` (10 sn ızgara, konteyner ve iz sütunları), `baro_rank` (RCAEval 1.9.0 `main.py` ön adımları + `baro`, saf Python), `baro_baseline` (CLI `--method baro`) |
 | `src/aiops_rca/runs.py` | Koşu kaydı: `run.json`, `responses.jsonl` (koşu klasörü `<UTC>-<yöntem>/`) |
-| `src/aiops_rca/evaluate.py` | CLI `python -m aiops_rca.evaluate run` / `score`: yöntemi vakalarda koşar ve kaydeder / kayıtlardan puanlar, `scores.json` ve set tablosu |
+| `src/aiops_rca/evaluate.py` | CLI `python -m aiops_rca.evaluate run` / `score`: yöntemi vakalarda koşar ve kaydeder (`--cases` süzgeci; `--method llm --model --level [--alias]`) / kayıtlardan puanlar, `scores.json` ve set tablosu |
+| `src/aiops_rca/methods/llm.py` | LLM yöntemi (P1c): onaylı istem, girdi seviyesi (gerçek ya da takma ad), boş ve bütçeyi aşan girdiyi sormama, tam mesajın yerel sayımı, `llm_client.chat` ile sorma; GGUF SHA256 kontrolü, `run.json` ayarları |
 | `src/aiops_rca/llm_client.py` | LLM çağrı katmanı (P1c): beş model (`MODELS`), cevap şemasının strict biçimi, istek, taşıma hatasında tek yeniden deneme, şema kontrolü (şema dışı ve sınıra takılan yeniden sorulmaz), token ve süre; Groq aralığı (`Pacer`), yerel llama.cpp sunucusu (`LocalServer`) |
 | `src/aiops_rca/inputs.py` | Girdi seviyeleri (P1c): özet (`summary_input`; `trial_summary.build`'in taşınmış hali `summary_table`) ham (`raw_input`: pencerenin WARN+ log ve hata span'i satırları, ≤ 5000 token, baştan kesme + işaret; boş girdi işareti) ve daraltma (`narrowed_input`: ilk 5 aday ada göre, özet satırı + işlemler + çağıranlar + en sık 3 log, adaylar arası kenarlar). Token sayımı dışarıdan verilir |
 | `src/aiops_rca/narrowing.py` | Aday daraltma (`candidate_narrowing`, P1c): kural puanı, derin servislerin öne alınması (DECISIONS 2026-10-31), ilk K = 5 aday ve aralarındaki çağrı kenarları |
@@ -120,7 +121,8 @@ flowchart LR
 | `eval_responses/` | Resmî koşuların kayıtları (repoda) |
 | `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi |
 | `tests/test_baro.py` | BARO tablosu (ve portu) birim testleri, sentetik verilerle |
-| `tests/test_llm_client.py` | LLM katmanı birim testleri, sahte sunucuyla (`127.0.0.1`, ağ ve anahtar yok): model ayarları, şema dönüşümü, şema dışı kaydı, yeniden deneme, token ve süre, Groq aralığı, anahtar okuma |
+| `tests/test_llm_client.py` | LLM katmanı birim testleri, sahte sunucuyla (`127.0.0.1`, ağ ve anahtar yok): model ayarları, şema dönüşümü, şema dışı kaydı, yeniden deneme, token ve süre, Groq aralığı, anahtar okuma; imaj digest'i ve GGUF SHA256'larının LOCAL_MODEL_BENCH.md ile aynılığı |
+| `tests/test_llm_method.py` | LLM yöntemi uçtan uca, sahte llama-server ile: onaylı istemin sha'sı, mesaj yapısı, kayıt ve ayar alanları, boş ve bütçeyi aşan girdi sorulmaz, `length` şema dışı, takma adlı girdi ve puanlamada çeviri, API'de yerel sayım ve Groq aralığı, GGUF uyuşmazlığı, CLI seçenekleri, `--cases` |
 | `tests/test_inputs.py`, `tests/fixtures/summary_expected.json`, `tests/fixtures/narrowed_expected.json` | Girdi seviyeleri birim testleri (sahte tokenizer): ham satır biçimi, pencere, seçim, sıra, kesme, boş girdi; daraltma biçimi / CI örneklerinde eski `trial_summary.build`'in özet metinleri (taşınan kod aynısını üretmeli) / CI örneklerinde daraltma girdisinin beklenen metni |
 | `tests/test_narrowing.py`, `tests/fixtures/narrowing_expected.json` | Daraltma birim testleri (puan, öne alma, gruplar, K, dışlamalar, puanı 0 olanlarda güç sırası) / CI örneklerinde beklenen daraltma çıktısı |
 | `tests/test_alias.py`, `tests/fixtures/alias_summary_expected.json` | Takma ad birim testleri: betiğin paket kurallarını kullanması, eşlemenin GLOSSARY ile aynılığı, CI örneklerinde üç seviye (yalnız adlar değişir, gerçek ad kalmaz), ham satır sırası ve kesmeden önce çevirme, sondan eksiltme, bozuk kopyaların yakalanması / CI örneklerinde eski `trial_alias`'ın (+ onaylı iki ad) takma adlı özet metinleri |

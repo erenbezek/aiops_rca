@@ -87,8 +87,21 @@ def test_models_fixed_settings():
     assert (MODELS["gpt-oss-120b"].provider, MODELS["gpt-oss-120b"].model_id, MODELS["gpt-oss-120b"].max_tokens,
             MODELS["gpt-oss-120b"].extra) == ("groq", "openai/gpt-oss-120b", 1600, {"reasoning_effort": "low"})
     g = MODELS["gemini-3.5-flash-lite"]
-    assert (g.provider, g.max_tokens, g.extra) == ("gemini", 1600, {"reasoning_effort": "minimal"})
-    assert g.gguf is None
+    assert (g.provider, g.model_id, g.max_tokens, g.extra) == \
+        ("gemini", "gemini-3.5-flash-lite", 1600, {"reasoning_effort": "minimal"})
+    assert g.gguf is None and g.gguf_sha256 is None and MODELS["gpt-oss-120b"].gguf_sha256 is None
+
+
+def test_image_and_gguf_match_local_model_bench():
+    """Koruma (planlama notu 2026-10-31): imaj digest'i ve GGUF SHA256'ları LOCAL_MODEL_BENCH.md ile aynı."""
+    import re
+    from pathlib import Path
+    bench = (Path(__file__).resolve().parents[1] / "docs" / "LOCAL_MODEL_BENCH.md").read_text(encoding="utf-8")
+    digest = re.search(r"digest `(sha256:[0-9a-f]{64})`", bench).group(1)
+    assert llm_client.IMAGE == f"ghcr.io/ggml-org/llama.cpp@{digest}"
+    table = dict(re.findall(r"\| `(Qwen3\.5-\dB-Q4_K_M\.gguf)` \| `[0-9a-f]{40}` \| [^|]+ \| `([0-9a-f]{64})` \|", bench))
+    local = {m.gguf: m.gguf_sha256 for m in MODELS.values() if m.provider == "local"}
+    assert len(table) == 3 and local == table
 
 
 def test_local_server_command_pinned():

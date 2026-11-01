@@ -57,12 +57,14 @@ KEY_ENV = {"local": None, "groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
 
 @dataclass(frozen=True)
 class ModelSpec:
-    """Bir model: kayıt etiketi, sağlayıcı, istekteki model kimliği, çıktı sınırı, istek gövdesine eklenen alanlar."""
+    """Bir model: kayıt etiketi, sağlayıcı, istekteki model kimliği, çıktı sınırı, istek gövdesine eklenen alanlar;
+    yerel modelde GGUF dosyasının SHA256'sı (LOCAL_MODEL_BENCH.md ile aynı; uyuşmazsa koşu başlamaz)."""
     label: str
     provider: str
     model_id: str
     max_tokens: int
     extra: dict = field(default_factory=dict)
+    gguf_sha256: str | None = None
 
     @property
     def gguf(self) -> str | None:
@@ -71,9 +73,12 @@ class ModelSpec:
 
 _NO_THINK = {"chat_template_kwargs": {"enable_thinking": False}}
 MODELS = {m.label: m for m in (
-    ModelSpec("qwen3.5-2b", "local", "Qwen3.5-2B-Q4_K_M.gguf", LOCAL_MAX_TOKENS, _NO_THINK),
-    ModelSpec("qwen3.5-4b", "local", "Qwen3.5-4B-Q4_K_M.gguf", LOCAL_MAX_TOKENS, _NO_THINK),
-    ModelSpec("qwen3.5-9b", "local", "Qwen3.5-9B-Q4_K_M.gguf", LOCAL_MAX_TOKENS, _NO_THINK),
+    ModelSpec("qwen3.5-2b", "local", "Qwen3.5-2B-Q4_K_M.gguf", LOCAL_MAX_TOKENS, _NO_THINK,
+              "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223"),
+    ModelSpec("qwen3.5-4b", "local", "Qwen3.5-4B-Q4_K_M.gguf", LOCAL_MAX_TOKENS, _NO_THINK,
+              "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4"),
+    ModelSpec("qwen3.5-9b", "local", "Qwen3.5-9B-Q4_K_M.gguf", LOCAL_MAX_TOKENS, _NO_THINK,
+              "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8"),
     ModelSpec("gpt-oss-120b", "groq", "openai/gpt-oss-120b", API_MAX_TOKENS, {"reasoning_effort": "low"}),
     ModelSpec("gemini-3.5-flash-lite", "gemini", "gemini-3.5-flash-lite", API_MAX_TOKENS, {"reasoning_effort": "minimal"}),
 )}

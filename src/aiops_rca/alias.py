@@ -105,6 +105,11 @@ def alias_name(name: str) -> str:
     return ALIASES.get(name, name)
 
 
+def real_name(name: str) -> str | None:
+    """Takma adın gerçek adı; takma ad değilse (gerçek ad dahil) None (puanlamada `unmatched`)."""
+    return next((r for r, a in ALIASES.items() if a == name), None)
+
+
 def convert_table(node, key: str | None = None):
     """Özet ya da daraltma tablosunun takma adlı kopyası (yalnız ad ve metin alanları değişir)."""
     if isinstance(node, dict):

@@ -238,6 +238,17 @@ Sadece Eren'in onayladığı isimler.
 | `tests/fixtures/alias_summary_expected.json` | CI örneklerinde eski `trial_alias`'ın (+ onaylı iki ad) takma adlı özet metinleri (taşınan kurallar aynısını üretmeli) |
 | `src/aiops_rca/methods/llm.py` | LLM yöntemi: istem, girdi seviyesi, modele sorma, cevabı şemaya çevirme |
 | evaluate `--model`, `--level`, `--alias` | `evaluate run --method llm` seçenekleri: model etiketi / girdi seviyesi / takma adlı girdi ver (cevap gerçek ada çevrilip puanlanır). `trial_ask_models.py`'nin `--alias`'ından farklı (orada yalnız puanlamada çeviri) |
+| evaluate `--cases` | `evaluate run` vaka süzgeci: seçilen setlerin içinden virgülle ayrılmış kimlikler (set dışı kimlik hata); bütün yöntemlerde |
+| `llm_method()` | `methods/llm.py`: bir model × seviye × gerçek/takma ad için yöntemi kurar (sunucu, GGUF kontrolü, sayım, sorma); vaka → kayıt satırı ve `run.json` ayarlarını verir |
+| `SYSTEM_PROMPT`, `LEVEL_TEXT`, `build_messages()` | Onaylı istemin sistem mesajı / seviye tarifleri (ham, özet, daraltma) / sistem + kullanıcı mesajlarını kuran fonksiyon (DECISIONS 2026-11-01 "İstem metni") |
+| `TOTAL_BUDGET` | Tam mesajın (sohbet şablonu + istem + veri) en çok token'ı: 6000; aşan girdi sorulmaz |
+| `input_status`, `input_tokens_local`, `input_sha256` | LLM kayıt satırı: girdi durumu (`ok` / `empty` / `over_budget`) / tam mesajın yerel Qwen sayısı (şablon dahil) / veri bloğunun sha256'sı |
+| `finish_reason`, `attempts` | LLM kayıt satırı: sağlayıcının bitiş nedeni (`length` = sınıra takıldı, şema dışı) / her deneme (HTTP durumu, süre; taşıma hatasında ikincisi) |
+| `prompt_sha256`, `image`, `gguf`, `gguf_sha256`, `data_budget`, `total_budget` | LLM koşusunun `run.json` ayarları: istem metninin sha256'sı / digest'li llama.cpp imajı / sunucunun GGUF dosyası ve SHA256'sı / veri bloğu ve tam mesaj bütçesi (5000, 6000) |
+| `ModelSpec.gguf_sha256` | Yerel modelin GGUF SHA256'sı (LOCAL_MODEL_BENCH.md ile aynı, testle korunur); dosya uyuşmazsa koşu başlamaz |
+| `alias.real_name()` | Takma ad → gerçek ad; takma ad değilse (gerçek ad dahil) `None`, puanlamada `unmatched` |
+| "Boş girdi", `input_empty` | Sonuç tablosu sütunu ve `score_table` sayısı: sorulmayan boş ham girdiler (ıskalama, çekimser, Brier dışı) |
+| "Bütçe aşımı", `input_over_budget` | Sonuç tablosu sütunu ve `score_table` sayısı: tam mesajı 6000'i aşan, sorulmayan girdiler (boş girdi gibi puanlanır) |
 | `MODELS`, `ModelSpec` | `llm_client.py`: beş modelin sabit ayar tablosu (etiket → `ModelSpec`) / bir modelin etiketi, sağlayıcısı, istekteki kimliği, çıktı sınırı, ek istek alanları |
 | `ANSWER_SCHEMA`, `RESPONSE_FORMAT` | Cevap şemasının modele giden strict biçimi / `response_format` alanı (`json_schema`, `strict`) |
 | `chat()` | Modele bir kez sorar (taşıma hatasında bir yeniden deneme), deneme kayıtlarını, şemaya uyan cevabı, token ve süreyi döndürür |

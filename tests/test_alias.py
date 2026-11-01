@@ -219,3 +219,8 @@ def test_check_catches_forbidden_term_left():
     # `.` sonrası önek silinmez (veride bu biçim yok); `otel` kalır, kontrol yakalar
     real = "grpc.oteldemo.CartService/GetCart"
     assert any("forbidden" in p for p in check_text(real, convert_message(real), "x"))
+
+
+def test_real_name_inverts_mapping_only():
+    assert all(alias.real_name(a) == r for r, a in ALIASES.items())
+    assert alias.real_name("payment") is None and alias.real_name("Billing") is None  # sadeleştirme puanlamada

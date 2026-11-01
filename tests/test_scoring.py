@@ -121,3 +121,26 @@ def test_metric_containers_known_names(tmp_path):
     a = answer(["payment", "astronomy-db", "cart"])
     assert score_case(a, LABEL, EDGES, KNOWN)["unmatched"] == ["astronomy-db"]  # yalnız izlerden: eşleşmez
     assert score_case(a, LABEL, EDGES, KNOWN | names)["unmatched"] == []
+
+
+# --- sorulmayan girdi ve takma ad (P1c 5b) ---
+
+@pytest.mark.parametrize("status,col", [("empty", "input_empty"), ("over_budget", "input_over_budget")])
+def test_not_asked_is_miss_and_abstain(status, col):
+    rows = [row(answer(["payment", "cart", "frontend"], conf=[0.8, 0.1, 0.1])),
+            {"set": "dev", **score_case(None, LABEL, EDGES, KNOWN, input_status=status)}]
+    t = score_table(rows)["dev"]
+    assert (t[col], t["schema_invalid"], t["top1"], t["top3"], t["brier_n"], t["coverage"]) == (1, 0, 1, 1, 1, 0.5)
+    assert (t["evidence_null"], t["selective_accuracy"]) == (1, 1.0)  # yalnız sorulan satır
+
+
+def test_alias_names_map_back_and_real_names_do_not_match():
+    assert match_service(" Billing ", KNOWN, alias=True) == "payment"
+    assert match_service("session_cache", KNOWN, alias=True) == "valkey-cart"
+    assert match_service("payment", KNOWN, alias=True) is None  # takma adlı koşuda gerçek ad eşleşmez
+    assert match_service("billing", KNOWN) is None
+    a = answer(["billing", "payment", "storefront"], paths=[["billing", "order-processor", "storefront"],
+                                                            ["payment"], ["storefront"]])
+    s = score_case(a, LABEL, EDGES, KNOWN, alias=True)
+    assert (s["top1"], s["matched"], s["unmatched"], s["evidence_valid"], s["label_path_overlap"]) == \
+        (True, ["payment", None, "frontend"], ["payment"], True, 1.0)
