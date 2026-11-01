@@ -3421,3 +3421,28 @@ Data:
   - `llm_cache/` git dışı. Duman kayıtları yalnız bu makinede.
   - `quote-svc` bulgusu yalnız pilot `inc-91bf76d4`'te, P1e notu (planlama 2026-11-01).
   - P1d'den önce karar: taşıma hatasıyla cevapsız satırın puanı.
+
+## 2026-11-01 · Planlama → Uygulama (P1d kartı: dev koşuları ve yerel model boyutu)
+- P1c birleşti (PR #31, main `9a8cd14`; PR ve main koşuları yeşil, 564 geçti + 3 atlandı). Kapanış (`0a7adb5`) kontrol edildi.
+- **Dal `task/p1-dev-runs`** (Eren); planlama main `9a8cd14`'ten açtı. Kararlar: DECISIONS 2026-11-01 "P1d koşu seti", "Yerel model boyutu seçimi", "Cevapsız satır" (Eren onaylı). Yeni adlar uygulama önerir, Eren onaylar, sonra GLOSSARY.
+- Yapılacak:
+  1. **Kod (küçük):** cevapsız satır durumu (DECISIONS "Cevapsız satır"): kayıt, puanlama ve tablo sütunu; testler ve kasıtlı kırmızı; rule ve BARO puanları değişmez (eşitlik). Koşulardan önce birleşmez, aynı dalda.
+  2. **Koşucu** (repo dışı betik, dumandaki gibi): tur = `evaluate run --method llm --model <m> --level <s> [--alias] --sets dev --root eval_responses`, sonra `evaluate score`. Sıralı; şarj sınırı 80 kontrolü; Groq aralığı kodda.
+  3. **Takvim** (Groq günde bir tur; aynı 24 saatte ikinci Groq turu yok):
+     - Gün 1: gerçek ad (a1) 15 tur: 3 yerel × 3 seviye (yaklaşık 5 saat, gece), Groq, Gemini.
+     - Gün 2: takma ad (b) 15 tur.
+     - Gün 3: API ikinci tur (a2) 6 tur, gerçek ad.
+     - Gemini'nin günlük istek sınırı ilk turdan önce konsoldan bakılıp kayda (3 günde 138 istek).
+  4. **Yerel tekrar:** bir yerel tur (2B, daraltma, gerçek ad) ikinci kez `llm_cache/`'e; cevaplar birebir aynı olmalı. Değilse durulur, planlamaya (yerel gürültü 0 varsayımı düşer).
+  5. **Analiz** (repo dışı betik; ölçütler ve kurallar betikte, koşmadan önce yazılı; tek komutla yeniden üretilir):
+     - Dev tablosu (a1, model × seviye): top-1, top-3, kanıt, Brier, seçici doğruluk, kapsama, şema dışı, boş girdi, bütçe aşımı, cevapsız, süre (ortalama ve en çok), token. Satırlar: tümü; demo senaryoları (11); kendi hatalarımız (altyapı 5 + quote-gateway 2). "Yalnız belirtili" sütunu (dev'de işaretli vaka yok; yine yazılır).
+     - Boyut seçimi: DECISIONS kuralıyla betik hesaplar.
+     - Takma ad: model × seviye başına a1, a2 (API), b top-3; 18 vaka ve 9 zor vaka; gürültü; okuma (üst sınır / belirsiz / görülmedi); takma adlı turların `unmatched` sayısı.
+- **Durma kuralları** (durulur, sayıyla planlamaya; ayar değişmez, yeniden sorulmaz): `finish_reason: length` ya da Groq boyut reddi (DECISIONS 2026-10-31 "Çıktı sınırı"); bir turda ≥ 2 cevapsız; bütçe aşımı (beklenen 0).
+- **Dev'e göre ayar yok:** istem (sha256 `6d05378e…`), girdi kodu, model ayarları ve koşu commit'i turlar boyunca aynı. Dev sonucuna bağlı tek seçim yerel model boyutu, önceden yazılı kuralla.
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - `eval_responses/`'ta 36 tur (a1 15, b 15, a2 6), hepsi puanlı; `run.json`'larda istem sha `6d05378e…`, commit temiz ve aynı.
+  - Yerel tekrar birebir aynı.
+  - Dev tablosu, boyut seçimi ve takma ad okuması betikle üretilmiş ve kayıtta; planlama bağımsız doğrular.
+  - pytest yeşil; PR koşusu yeşil.
+- Dikkat: test seti okunmaz. Sonuçların yorumu P1e'de (test ile yan yana); P1d dev sayılarını ve seçimi kayda geçirir. P1e kartı ayrı (planlama).
