@@ -3277,3 +3277,20 @@ Data:
   - Şema ve veriyle karşılaştırma doğru: tam 3 farklı aday, yol adayla başlar (`validate_answer`); gelen istek = SERVER/CONSUMER span'leri, CPU = bir çekirdeğin yüzdesi (`signals.py`); daraltmada 43/43 vakada 5 aday; kesme işareti `TRUNCATION_MARK` ile aynı.
   - Bulgular (düzeltildi): (1) takma adlı daraltma girdisinde adaylar gerçek adların sırasında, takma adlara göre 43/43 alfabetik değil, "in alphabetical order" yanlıştı; (2) `callers` satırları çağıranın istemci span'leri (`caller_rows`), "the callers of each operation with the same fields" ölçüm yerini yanlış anlatıyordu.
 - Sonra (model yok): düzeltilmiş metin yeniden ölçülür (≤ 1000, dedektör ve sızıntı 0), yeni sha kayda; sonra 43 vaka × 3 seviye × gerçek/takma ad tam mesaj sayımı (≤ 6000, planlama eki 2); sonra 5b kodu. `methods/llm.py`'deki metin onaylı metnin birebiri; istemin sha'sı bir koruma testinde sabit (imaj digest'i testi gibi).
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5a sonrası: onaylı istemin ölçümü ve 43 vaka tam mesaj sayımı)
+- **Onaylı istem** (DECISIONS 2026-11-01 "İstem metni (Onay 3)"; daraltma tarifi iki düzeltmeyle, planlamanın kod bloğuyla karakter karakter aynı): `~/cerebrum2/analysis/p1c_prompt.py` güncellendi (sha256 `716ca32e…c45a`). Metnin sha256'sı **`6d05378eba8c386d3e5e32638997a1302dd0de625abd60a160f90396b7f1e3ce`** (`json.dumps([SYSTEM_PROMPT, LEVEL_TEXT, USER_TEMPLATE])`). 5b'deki koruma testi bu değeri sabitler.
+  - İstem + şablon (veri boş): ham 387, özet 389, daraltma **441** (önceki 431; çağıran cümlesi uzadı). ≤ 1000: geçti.
+  - Dedektör üç istemde 0. Sızıntı CLI'ı çıkış 0.
+- **Tam mesaj sayımı** (planlama eki 2; `~/cerebrum2/analysis/p1c_full_count.py`, sha256 `541326d5…a9c3`; çıktı `p1c_full_count.json`):
+  - Yöntem: şablon + onaylı istem + veri bloğu, `/apply-template` (`enable_thinking: false`) + `/tokenize`, Qwen 4B, model çıkarımı yok. Alarm zamanı vakanınki.
+  - Veri metinleri 4. adım kontrol koşusunun yazdığı dosyalardan alındı; 258 metnin sha256'sı `p1c_step4_check.json` ile karşılaştırıldı, hepsi aynı.
+  - Boş olmayan **222 girdinin hepsi ≤ 6000** (aşan 0). En büyük tam mesaj (en az–en çok):
+
+    | | özet gerçek | özet takma | daraltma gerçek | daraltma takma | ham gerçek | ham takma |
+    |---|---|---|---|---|---|---|
+    | pilot | 2.095–2.345 | 2.100–2.352 | 1.720–2.944 | 1.726–2.917 | 506–5.383 | 506–5.375 |
+    | dev | 2.211–2.294 | 2.216–2.301 | 1.815–2.930 | 1.795–2.902 | 1.489–5.384 | 1.464–5.213 |
+
+  - İstem + şablonun veri bloğuna eklediği en çok: ham 388, özet 390, daraltma 442 (boş ölçümden +1: "Data:" sonrası satır sonu).
+- Sonra: 5b kodu (onaylı plan; `methods/llm.py`'deki metin bu metnin birebiri, sha testi).
