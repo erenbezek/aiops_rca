@@ -3471,3 +3471,27 @@ Data:
   1. Testler: tek 400 → `no_answer: true`, tek deneme (yeniden deneme yok); 200 ama `choices` yok → `no_answer: true`; `finish_reason: length` → `no_answer: false` ve şema dışı (sınır kuralı korunur). Kasıtlı kırmızıyla.
   2. Koşucu (sonraki adım): (b) ya da (c) görülürse tur durur; (a) turda 2 ya da daha çok ise tur başka gün yeniden. Koşucu bunu `responses.jsonl`'daki `no_answer` ve son denemenin durum kodundan okur.
 - Sonra: 1. adım kodu; sonuç HANDOFF'a, planlama bağımsız doğrular.
+
+## 2026-11-01 · Uygulama → Planlama (P1d 1. adım: cevapsız satır)
+- **Kod (`93d149d`):**
+  - `methods/llm.py`: `chat` kaydında `error` varsa (üç durum: iki denemede taşıma hatası, yeniden denenmeyen HTTP hatası, bozuk cevap) satır `no_answer: true`, `schema_valid: null`. Diğer bütün LLM satırlarında `no_answer: false`, sorulmayan girdiler dahil. `attempts` ve `schema_errors` ("no answer: HTTP …") kayıtta kalır.
+  - `scoring.py`: `score_case(..., no_answer=)`. Cevapsız satır ıskalama, `unsure: true` (kapsama dışı), güven yok. Şema dışına ve kanıt sayılarına girmez. `score_table`'a `no_answer` sayısı eklendi.
+  - `evaluate.py`: `score` satırdaki alanı geçirir (rule/BARO satırında yok → false). Tabloya "Cevapsız" sütunu.
+- **Testler:** pytest **573/573** (+6).
+  - `test_llm_method.py` (5):
+    - iki 503 → cevapsız, şema dışı 0, kapsama 0, sütun var;
+    - 503 + başarılı ikinci deneme → cevapsız değil;
+    - tek 400 → cevapsız, yeniden deneme yok;
+    - `choices`'sız 200 → cevapsız;
+    - `finish_reason: length` → cevapsız değil, şema dışı (planlama eki 1).
+  - `test_scoring.py` (1): cevapsız, şema dışı ve doğru satır bir arada. Testin ilk sürümünde kapsama beklentim yanlıştı (şema dışı satır da kapsama dışı, P1a kuralı); düzeltildi, kod değişmedi.
+- **Kasıtlı kırmızı** (dört bozulmanın dördü kırmızı):
+  - cevapsız işaretlenmez → 3 test;
+  - cevapsız satırda `schema_valid` false kalır → 3;
+  - puanlama `no_answer`'ı yok sayar → 2;
+  - kanıt sayıları cevapsızı da sayar → 2.
+- **Rule/BARO eşitliği:**
+  - CI fikstürleri yeni alan çıkarılınca aynı; diff yalnız 12 satır ekleme (`"no_answer": false` × 8, `0` × 4).
+  - `eval_responses/` 4 koşu geçici kopyada yeniden puanlandı: yeni alanlar dışında kayıtlı `scores.json` ile **4/4 aynı** (22, 22, 11, 11 / 43). Kayıtlı dosyalar değişmedi.
+- GLOSSARY: `no_answer`, "Cevapsız" (Eren onaylı).
+- Sonra: 2. adım planı. Koşucu, takvim ve yerel tekrar; analiz betiği ayrı.
