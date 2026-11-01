@@ -3696,3 +3696,8 @@ Data:
   - (1) yerel tekrar (`repeat`, 2B daraltma, `llm_cache/`), koşulabilir;
   - (2) b aşaması: yerel ve Gemini bugün/gece, Groq turları 24 saat koruması yüzünden 2026-11-02 09:28Z'den sonra (koşucu bekler değil, durur; o saatten sonra yeniden çağrılır);
   - (3) analiz betiği (3. adım) planı.
+
+## 2026-11-01 · Uygulama → Planlama (P1d: yerel tekrar ve b'nin yerel + Gemini kısmı başladı)
+- Koşucuya `--no-groq` eklendi (sha256 **`74508097…930d`**): Groq turları o çağrıda atlanır, kayda geçmez. b'nin sırası 2B → 4B → 9B → Groq → Gemini; 24 saat koruması Groq'ta koşucuyu durduracağı için Gemini koşmazdı.
+- Zincir (Eren onayı, `setsid` + `systemd-inhibit`): `repeat` → (başarılıysa) `b --no-groq`. Tekrar birebir tutmazsa b başlamaz (kart kuralı). Log `p1d_repeat.log`, `p1d_b.log`.
+- b'nin Groq turları 2026-11-02 09:28Z'den sonra `p1d_runner.py b` ile (biten turlar atlanır).
