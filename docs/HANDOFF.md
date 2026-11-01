@@ -3294,3 +3294,45 @@ Data:
 
   - İstem + şablonun veri bloğuna eklediği en çok: ham 388, özet 390, daraltma 442 (boş ölçümden +1: "Data:" sonrası satır sonu).
 - Sonra: 5b kodu (onaylı plan; `methods/llm.py`'deki metin bu metnin birebiri, sha testi).
+
+## 2026-11-01 · Uygulama → Planlama (P1c 5b: LLM yöntemi kodu; model koşmadı)
+- **Kod (`ebccc78`):**
+  - `methods/llm.py`: `llm_method(model, seviye, takma ad)` bağlam yöneticisi.
+    - Koşu başında GGUF SHA256 kontrolü yapılır (yerel modelde modelin dosyası, API'de sayım için Qwen 4B). Uyuşmazsa `ValueError`, koşu klasörü açılmaz.
+    - Sunucu bir kez açılır. Girdi `inputs`/`alias`'tan gelir. Boş ham girdi sorulmaz (`empty`).
+    - Tam mesaj `/apply-template` + `/tokenize` ile sayılır; 6000'i aşan sorulmaz (`over_budget`).
+    - Sorma `llm_client.chat` ile yapılır, Groq'ta `Pacer` kullanılır.
+    - İstem metni `p1c_prompt.py`'den aynen kopyalandı, sha256 `6d05378e…f1e3ce` (testte sabit). Alarm zamanı özetteki biçimde.
+  - `evaluate run`: `--method llm --model --level [--alias]`, `--cases` (bütün yöntemlerde; set dışı kimlik hata). `--model`/`--level` llm'de zorunlu; `--model`/`--level`/`--alias` başka yöntemde hata.
+  - `run.json` `settings`: `model`, `level`, `alias`, `max_tokens`, `extra`, `prompt_sha256`, `data_budget`, `total_budget`, `image`, `gguf`, `gguf_sha256`; API'de ayrıca `tokenizer`.
+  - Kayıt satırı: `input_status`, `data_tokens`, `input_sha256`, `input_tokens_local`, `finish_reason`, `attempts`, `tokens` (sağlayıcının), takma adlı hamda `alias_lines_dropped`. Sorulmayan satırda `schema_valid: null` olur ve şema dışı sayılmaz.
+  - `duration_s` LLM'de modelin cevap süresi (son deneme). Groq aralığı ve girdi üretimi dahil değil.
+  - `scoring.py`:
+    - `score_case(..., input_status=, alias=)`: sorulmayan girdi ıskalama sayılır, `unsure: true` (kapsama dışı), güven yok. Şema dışı ve kanıt sayılarına girmez.
+    - `match_service(..., alias=True)`: ad önce sadeleşir, sonra `alias.real_name` ile çevrilir. Takma ad olmayan her ad (gerçek ad dahil) eşleşmez.
+    - Tabloya `input_empty` ("Boş girdi") ve `input_over_budget` ("Bütçe aşımı") eklendi.
+  - `llm_client.ModelSpec.gguf_sha256`: üç Qwen için LOCAL_MODEL_BENCH değerleri.
+- **Rule/BARO eşitliği:**
+  - CI beklenen çıktıları (`rule_expected.json`, `baro_expected.json`) yeni alanlar (`input_status: "ok"`, `input_empty: 0`, `input_over_budget: 0`) çıkarılınca eskisiyle aynı. Dosyalara bu alanlar eklendi; diff yalnız 16 satır ekleme, silinen ya da değişen satır yok.
+  - Resmî koşular (`eval_responses/` 2 rule + 2 BARO) geçici kopyada yeniden puanlandı: yeni alanlar dışında kayıtlı `scores.json`'larla **4/4 aynı** (rule 22/43, BARO 11/43). Kayıtlı dosyalar değişmedi.
+- **Testler:** pytest **564/564** (+16).
+  - `tests/test_llm_method.py` (11): sahte llama-server (`/apply-template`, `/tokenize`, sohbet).
+  - Koruma testleri `test_llm_client.py`'de: `IMAGE` digest'i ve üç GGUF SHA256'sı `LOCAL_MODEL_BENCH.md`'den okunup karşılaştırılır; Gemini kimliği sabit.
+  - Puanlama testleri `test_scoring.py`'de: sorulmayan girdi, takma ad çevirisi ve gerçek adın eşleşmemesi. `real_name` testi `test_alias.py`'de.
+- **Kasıtlı kırmızı** (kopya yöntemi; dokuz bozulmanın hepsi kırmızı):
+  - boş girdi sorulur → 1 test
+  - bütçe kontrolü kaldırılır → 1
+  - puanlamada takma ad çevirisi kapatılır → 2
+  - takma adlı girdi gitmez → 1
+  - GGUF kontrolü kaldırılır → 1
+  - istemde tek kelime değişir → 2
+  - sorulmayan girdi şema dışı sayılır → 4
+  - Groq aralığı kaldırılır → 1
+  - imaj digest'inde tek hane değişir → 1
+- **Onay bekleyen adlar** (onaylı listede yoktu; GLOSSARY'ye yazılmadı):
+  - `USER_TEMPLATE`: istemin kullanıcı mesajı şablonu. Denemelerin kodundaki ad; 5a kaydında "kullanıcı şablonu" diye geçti, sha'ya giriyor.
+  - `prompt_sha256()`: onaylı ayar adıyla aynı adlı fonksiyon.
+  - `TOKENIZER` sabiti ve `run.json`'da `tokenizer`: API modellerinde sayım modeli (`qwen3.5-4b`).
+  - `run.json` `settings` anahtarları `model` (model etiketi), `level`, `alias`, `max_tokens`, `extra` (ek istek alanları). Planda "seviye, takma ad, max_tokens, ek istek alanları" diye geçiyordu, adları yazılmamıştı.
+  - Özel yardımcılar (`_alarm_time`, `_file_sha256`, `_checked_gguf`, `_template_tokens`, `evaluate._run_llm`) modül içi.
+- Sonra: 5c duman koşusu (onaylı plan; 30 çağrı, `llm_cache/`, durma kuralı DECISIONS 2026-10-31 "Çıktı sınırı"). Önce şarj sınırı kontrolü; Groq ve Gemini anahtarları `keys.env`'den.
