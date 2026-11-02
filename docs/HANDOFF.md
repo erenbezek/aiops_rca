@@ -3901,3 +3901,19 @@ Data:
 - **Kasıtlı kırmızı** (scratch kopyada, 15/15 kırmızı): karşılaştırma kaldırılınca kırmızı; önceki 14 bozma güncel sürümde yine kırmızı.
   - Not: "beklenen değeri kayıttan oku" bozması yeşil kalıyor. Karşılaştırma kayıt ile commit'in eşitliğini şart koştuğu için davranışı değiştirmiyor; açık değil.
 - **`--partial`** (29 tur: a1 14, b 15): kimlik kontrolleri temiz, iki koşu baytı baytına aynı, dosya yazılmadı. `tests/`'i değiştiren commit'ler listesinde `8716719` (ek 2 testi) de görünüyor, durdurmuyor.
+
+## 2026-11-02 · Planlama → Uygulama (P1d kontrolü: b bitti, analiz betiği ağaçları commit'ten)
+- **b'nin üç Groq turu bağımsız doğrulandı, uyg4 tablosuyla aynı:**
+  - Kendi sayım betiğim (29 tur: a1 14, b 15): sorulan, şema dışı ve nedenleri, denemeler (ham 9× 200 + 1× 400; özet ve daraltma 18× 200), token (26 342 / 3 090; 40 113 / 7 371; 41 393 / 6 884), cevapsız 0, döngü 0.
+  - Kimlik: üç turda `repo_clean: true`, istem `6d05378e…`; ağaçlar commit'ten `461d037b…` / `ce7a75d0…`, b'nin 15 turu aynı ağaçta. `day_guard: skipped` `p1d_b.json`'da.
+  - Yeniden puanlama (`4093de0` scratch klonunda): 3/3 `scores.json` bayt aynı.
+- **Analiz betiği `981375d5…` doğru:**
+  - Eski sürümle (planlamanın okuduğu 40–304. satırlar) fark yalnız kimlik 4: `tour_errors`'a commit ağaçları, kayıtla karşılaştırma, çağrı yerinde `rev-parse`. selftest geçti.
+  - `--partial` iki koşu bayt aynı (sha256 `79d00110…`), dosya yazılmadı. 26 turluk önceki çıktıyla farkı yalnız: betik sha, tur sayısı, son commit, `tests/` listesine `8716719`, b gpt-oss hücreleri, şema dışı nedenleri ve token oranı satırları. a1 kısmı aynı.
+  - b gpt-oss hücreleri kendi sayımımla aynı (top-3 / zor 9 / demo / kendi / unmatched): ham 6 / 2 / 6 / 0 / 3 (gerçek ad 1, diğer 2); özet 16 / 8 / 11 / 5 / 0; daraltma 16 / 8 / 9 / 7 / 0.
+- **Bilgi (P1e "unmatched" notuna):** b gpt-oss ham turunda unmatched `checkout` (gerçek ad), `BasketService`, `BillingService`. Kaynağı (girdide kalan ad mı, modelin tahmini mi) P1e hata analizinde bakılır; P1d'yi değiştirmez.
+- **3. gün planı uygun:** 2026-11-03 10:55Z (yerel 13:55) sonrası önce `a1 --run-deferred`, sonra a2. Kota hesabı tutuyor (~172K < 200K).
+- **Ek (yarın için): kapak uykusu.**
+  - Neden oldu: logind kapak olayında `sleep`/`idle` kilitlerini varsayılan olarak yok sayar (`LidSwitchIgnoreInhibited=yes`, bu makinede değiştirilmemiş). Yalnız `handle-lid-switch` kilidine uyar; şu an onu tutan başka süreç (gsd-power) yok.
+  - Planlama denedi: `systemd-inhibit --what=handle-lid-switch:sleep:idle --mode=block` bu makinede kullanıcı olarak alınabiliyor (çıkış 0). Kapak kapatılarak denenmedi.
+  - Öneri: yarınki bekleme ve koşular bu kilitle başlasın. Koşu ortasında uyku çağrıyı koparabilir: (a) türü cevapsız, turda ≥ 2 olursa tur başka güne kalır.
