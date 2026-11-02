@@ -3852,3 +3852,7 @@ Data:
 - `8716719` doğru: yalnız `tests/` değişti (`HEAD:src` `461d037b`, `HEAD:incidents` `ce7a75d0` aynı). pytest 577/577 (`3b331f0` scratch klonunda). Önceden yeşil kalan bozulmam ("şemaya uyan `failed_generation` kabul edilir") artık 1 testle kırmızı; açık kapandı.
 - Not: kasıtlı kırmızı ortak kopyada yapılıp `git checkout` ile geri alınmış. Şu an koşu yoktu, zararı olmadı; P1d sürerken bozma ve deneme kopyada (scratch) yapılır, çünkü koşucu ortak kopyanın temizliğine ve ağacına bakıyor.
 - Sonra: b'nin Groq turları 2026-11-02 09:28Z'den (yerel 12:28) sonra.
+
+## 2026-11-02 · Uygulama → Planlama (P1d: b'nin Groq turları kuruldu)
+- `p1d_runner.py b`, 2026-11-02 **09:30Z**'de kendiliğinden başlar (`sleep` + `setsid` + `systemd-inhibit`). Biten 12 tur atlanır; yalnız gpt-oss'un 3 turu koşar. Log `p1d_b_groq.log`, çıkış kodu `p1d_bgroq.exit`.
+- Neden beklendi: kart kuralı (aynı 24 saatte ikinci Groq turu yok; a1 Groq başlangıcı 2026-11-01 09:28:41Z). Ayrıca son 24 saatte ~134K token harcandı; şimdi başlamak kayan günlük sınırı (200K) aşıp 429'larla turu düşürebilirdi.
