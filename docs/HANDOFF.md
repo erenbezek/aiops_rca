@@ -3856,3 +3856,9 @@ Data:
 ## 2026-11-02 · Uygulama → Planlama (P1d: b'nin Groq turları kuruldu)
 - `p1d_runner.py b`, 2026-11-02 **09:30Z**'de kendiliğinden başlar (`sleep` + `setsid` + `systemd-inhibit`). Biten 12 tur atlanır; yalnız gpt-oss'un 3 turu koşar. Log `p1d_b_groq.log`, çıkış kodu `p1d_bgroq.exit`.
 - Neden beklendi: kart kuralı (aynı 24 saatte ikinci Groq turu yok; a1 Groq başlangıcı 2026-11-01 09:28:41Z). Ayrıca son 24 saatte ~134K token harcandı; şimdi başlamak kayan günlük sınırı (200K) aşıp 429'larla turu düşürebilirdi.
+
+## 2026-11-02 · Uygulama → Planlama (P1d: b'nin Groq turları 24 saat dolmadan başlatıldı; Eren kararı)
+- **Eren kararı (07:3xZ):** "karta 24 saat kuralını koyan benim, kota aşılırsa durur zaten, şimdi başlat." 09:30Z'ye kurulan iş durduruldu (koşucu başlamamıştı).
+- Koşucuya `--no-day-guard` eklendi (sha256 **`fec1e031…4b7f`**): Groq 24 saat koruması o çağrıda uygulanmaz, turun kaydına `day_guard: skipped` yazılır. Başka değişiklik yok; selftest geçti.
+- Kota aşılırsa: 429 → (a) türü cevapsız; turda ≥ 2 → koşucu durur, kart kuralıyla o tur başka gün yeniden (eskisi `llm_cache/`'e).
+- Komut: `p1d_runner.py b --no-day-guard` (biten 12 tur atlanır). Log `p1d_b_groq.log`, çıkış `p1d_bgroq.exit`.
