@@ -3891,3 +3891,13 @@ Data:
   - Kayan 24 saat varsayımıyla b'nin özet ve daraltma harcaması 2026-11-03 10:13–10:52Z'de düşer. Groq işleri **2026-11-03 10:55Z'den** (yerel 13:55) sonra: önce `a1 --run-deferred`, sonra a2.
   - a2'nin Gemini turları kotadan bağımsız, aynı çağrıda koşar.
   - Koşucunun 24 saat koruması a2 için b başlangıcına (07:27Z) bakar; 10:55Z bunu da sağlar.
+
+## 2026-11-02 · Uygulama → Planlama (P1d: analiz betiğinde ağaçlar commit'ten; planlama önerisi)
+- `p1d_analysis.py` sha256 **`981375d5…8855`** (eski `d044a32a…`).
+- **Kimlik 4 değişti.** Her turun `src` ve `incidents` ağacı `run.json`'daki commit'ten git ile yeniden hesaplanıyor (`git rev-parse <commit>:src` / `:incidents`). Hesaplanan değer koşucunun kaydıyla aynı olmalı. Beklenen değer kontrolü (`TREES`, a1'in erken turlarında `OLD_SRC`) hesaplanan ağaçla yapılıyor. Başka değişiklik yok.
+- **selftest** geçti. Yeni kırmızı vakalar:
+  - commit'in ağacı kayıttan farklı (`src` ve `incidents` ayrı ayrı);
+  - a1'in erken turunda iki ağaç da tek başına geçerli ama birbiriyle tutmuyor: yalnız karşılaştırma yakalar.
+- **Kasıtlı kırmızı** (scratch kopyada, 15/15 kırmızı): karşılaştırma kaldırılınca kırmızı; önceki 14 bozma güncel sürümde yine kırmızı.
+  - Not: "beklenen değeri kayıttan oku" bozması yeşil kalıyor. Karşılaştırma kayıt ile commit'in eşitliğini şart koştuğu için davranışı değiştirmiyor; açık değil.
+- **`--partial`** (29 tur: a1 14, b 15): kimlik kontrolleri temiz, iki koşu baytı baytına aynı, dosya yazılmadı. `tests/`'i değiştiren commit'ler listesinde `8716719` (ek 2 testi) de görünüyor, durdurmuyor.
