@@ -3862,3 +3862,13 @@ Data:
 - Koşucuya `--no-day-guard` eklendi (sha256 **`fec1e031…4b7f`**): Groq 24 saat koruması o çağrıda uygulanmaz, turun kaydına `day_guard: skipped` yazılır. Başka değişiklik yok; selftest geçti.
 - Kota aşılırsa: 429 → (a) türü cevapsız; turda ≥ 2 → koşucu durur, kart kuralıyla o tur başka gün yeniden (eskisi `llm_cache/`'e).
 - Komut: `p1d_runner.py b --no-day-guard` (biten 12 tur atlanır). Log `p1d_b_groq.log`, çıkış `p1d_bgroq.exit`.
+
+## 2026-11-02 · Uygulama → Planlama (P1d: b Groq ham turu bitti; özet ve daraltma 09:40Z'ye bekletildi; Eren kararı)
+- **Ham tur** `eval_responses/20261102T072717Z-llm` (`--no-day-guard`, kayıtta `day_guard: skipped`):
+  - 10 sorulan satır, 8 boş girdi.
+  - 2 şema dışı: biri `json_validate_failed`, biri aday tekrarı.
+  - Cevapsız 0, döngü 0. Denemeler 9× 200, 1× 400 (`json_validate_failed`), 429 yok.
+  - Kimlik: `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`. Token 26,3K giriş + 3,1K çıkış.
+- **Bekletme (Eren kararı):** a1'in Groq harcaması (~124K) 2026-11-01 09:28–11:48Z arasında yapıldı. Kayan 24 saat varsayımıyla özet (~42K) ve daraltma (~48K) art arda koşulursa sınır (200K) aşılırdı.
+  - Koşucu ham turdan sonra, turlar arası 65 sn boşlukta durduruldu (10:37:51 yerel; özet turu başlamamıştı, kayıtta yok).
+  - Özet ve daraltma 2026-11-02 **09:40Z**'de `p1d_runner.py b` ile (24 saat dolmuş olacak, `--no-day-guard` yok). Log `p1d_b_groq.log`'a eklenir.
