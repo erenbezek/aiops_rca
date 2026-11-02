@@ -3872,3 +3872,22 @@ Data:
 - **Bekletme (Eren kararı):** a1'in Groq harcaması (~124K) 2026-11-01 09:28–11:48Z arasında yapıldı. Kayan 24 saat varsayımıyla özet (~42K) ve daraltma (~48K) art arda koşulursa sınır (200K) aşılırdı.
   - Koşucu ham turdan sonra, turlar arası 65 sn boşlukta durduruldu (10:37:51 yerel; özet turu başlamamıştı, kayıtta yok).
   - Özet ve daraltma 2026-11-02 **09:40Z**'de `p1d_runner.py b` ile (24 saat dolmuş olacak, `--no-day-guard` yok). Log `p1d_b_groq.log`'a eklenir.
+
+## 2026-11-02 · Uygulama → Planlama (P1d b bitti: 15/15 tur)
+- **Gecikme:** 09:40Z başlangıcı tutmadı. Kapak 09:10Z'de kapandı ve sistem 10:12Z'ye kadar uykuya geçti (`systemd-inhibit --what=sleep:idle` kapak olayını engellemiyor). `sleep` uykuda saymadığı için bekleme uzadı. Uyanınca bekleme kesildi; özet ve daraltma 10:13Z'de başladı. O saatte a1'in ham ve özet harcaması pencereden düşmüştü, boşta ~120K vardı.
+- **Groq turları** (`p1d_runner.py` sha256 `fec1e031…`; özet ve daraltmada `--no-day-guard` yok, 24 saat dolmuştu):
+
+  | Seviye | Klasör | Sorulan | Şema dışı | Cevapsız | Döngü | Denemeler | Token giriş / çıkış |
+  |---|---|---|---|---|---|---|---|
+  | ham | `20261102T072717Z-llm` | 10 (8 boş) | 2 | 0 | 0 | 9× 200, 1× 400 `json_validate_failed` | 26,3K / 3,1K |
+  | özet | `20261102T101301Z-llm` | 18 | 1 | 0 | 0 | 18× 200 | 40,1K / 7,4K |
+  | daraltma | `20261102T103307Z-llm` | 18 | 2 | 0 | 0 | 18× 200 | 41,4K / 6,9K |
+
+  - Şema dışı nedenleri: aday tekrarı 3, `json_validate_failed` 1, "evidence_path must start at the candidate service" 1.
+  - 429 yok, `length` yok, durma yok.
+  - Kimlik: üç turda `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`.
+- **b aşaması tamam:** 15/15 tur `done`, `p1d_b.json` sha256 `17203e8f…`. b'nin Groq harcaması ~125K (sayılan).
+- **3. gün kotası:** ertelenen a1 özet (~45K) + a2'nin gpt-oss 3 turu (~125K) ≈ 170K < 200K.
+  - Kayan 24 saat varsayımıyla b'nin özet ve daraltma harcaması 2026-11-03 10:13–10:52Z'de düşer. Groq işleri **2026-11-03 10:55Z'den** (yerel 13:55) sonra: önce `a1 --run-deferred`, sonra a2.
+  - a2'nin Gemini turları kotadan bağımsız, aynı çağrıda koşar.
+  - Koşucunun 24 saat koruması a2 için b başlangıcına (07:27Z) bakar; 10:55Z bunu da sağlar.
