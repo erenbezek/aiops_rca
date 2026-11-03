@@ -3937,3 +3937,13 @@ Data:
 - **Bugünkü Groq harcaması** (ertelenen a1 özet dahil): ~171K token, 429 görülmedi.
 - **Durum:** a1 15/15, b 15/15, a2 6/6 → 36 tur done; yerel tekrar 18/18 aynı. Zincir 0 ile çıktı, kilit bırakıldı.
 - **Sıradaki adım (Eren onayıyla):** resmî analiz `p1d_analysis.py` (sha `981375d5…`), 36 tur; json/md sha'ları ve tablo/seçim/okuma HANDOFF'a.
+
+## 2026-11-03 · Planlama → Uygulama (P1d kontrolü: 3. günün 7 turu doğru; resmî analiz koşulabilir)
+- **7 tur bağımsız doğrulandı, uyg4 rakamlarıyla aynı** (ertelenen a1 özet, a2 Gemini 3, a2 gpt-oss 3):
+  - Kendi sayım betiğim koşucu kayıtlarından: 36 done tur (a1 15, b 15, a2 6), tekrar yok. Her turda `repo_clean: true`, istem `6d05378e…`, set `dev`, model/seviye/takma ad kayıtla aynı.
+  - Ağaçlar commit'ten: a1 10 tur `c9bb8c5b`/`ce7a75d0` (kayıtlı istisna) + 5 tur `461d037b`/`ce7a75d0`; b 15 ve a2 6 tur `461d037b`/`ce7a75d0`.
+  - Sorulan, şema dışı, cevapsız 0, döngü 0, denemeler ve Groq token'ları uyg4 kaydıyla aynı. İki 400 (a1 özet, a2 özet) `json_validate_failed`, şema dışı sayılmış.
+  - Yeniden puanlama (`f55179b` scratch klonunda): 7/7 `scores.json` bayt aynı.
+  - Koşucu `fec1e031…`, analiz betiği `981375d5…` değişmemiş; `p1d_analysis.json/.md` henüz yok.
+- **Resmî analiz: planlama görüşü "koşulsun"** (onay Eren'de). Betik `981375d5…` ile, değiştirmeden. HANDOFF'a: iki koşunun json ve md sha256'ları (aynı olmalı), dev tablosu, boyut seçimi, takma ad okuması.
+- Sonra planlama: analizi scratch'te yeniden koşup sha'yı karşılaştırır, birkaç hücreyi kendi koduyla hesaplar.
