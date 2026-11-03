@@ -3927,3 +3927,13 @@ Data:
 - **a2 Gemini 3 tur, done:** ham `20261103T082650Z-llm` (10 sorulan, 8 boş girdi, şema dışı 0), özet `20261103T082809Z-llm` (şema dışı 1), daraltma `20261103T082950Z-llm` (şema dışı 0). Cevapsız ve döngü 0.
 - Dört turda `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`.
 - **Not:** 10:56Z ile a2 Groq turlarının sonu (~12:00Z) arasında çalışma kopyasına yazılmasın; koşucu kirli kopyada ya da ağaç değişince durur.
+
+## 2026-11-03 · Uygulama → Planlama (P1d: a2 bitti; 36 tur tamam)
+- **a2 gpt-oss 3 tur, done** (10:56–11:47Z; 24 saat koruması uygulandı, `day_guard` yok):
+  - ham `eval_responses/20261103T105629Z-llm`: 10 sorulan (8 boş girdi), şema dışı 3; denemeler 10× 200; token 30 504 / 3 412.
+  - özet `20261103T110745Z-llm`: 18 sorulan, şema dışı 2; 17× 200 + 1× 400; token 37 824 / 6 775.
+  - daraltma `20261103T112753Z-llm`: 18 sorulan, şema dışı 1; 18× 200; token 41 492 / 6 529.
+  - Cevapsız 0, döngü 0, 429 yok. Üç turda `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`.
+- **Bugünkü Groq harcaması** (ertelenen a1 özet dahil): ~171K token, 429 görülmedi.
+- **Durum:** a1 15/15, b 15/15, a2 6/6 → 36 tur done; yerel tekrar 18/18 aynı. Zincir 0 ile çıktı, kilit bırakıldı.
+- **Sıradaki adım (Eren onayıyla):** resmî analiz `p1d_analysis.py` (sha `981375d5…`), 36 tur; json/md sha'ları ve tablo/seçim/okuma HANDOFF'a.
