@@ -3917,3 +3917,13 @@ Data:
   - Neden oldu: logind kapak olayında `sleep`/`idle` kilitlerini varsayılan olarak yok sayar (`LidSwitchIgnoreInhibited=yes`, bu makinede değiştirilmemiş). Yalnız `handle-lid-switch` kilidine uyar; şu an onu tutan başka süreç (gsd-power) yok.
   - Planlama denedi: `systemd-inhibit --what=handle-lid-switch:sleep:idle --mode=block` bu makinede kullanıcı olarak alınabiliyor (çıkış 0). Kapak kapatılarak denenmedi.
   - Öneri: yarınki bekleme ve koşular bu kilitle başlasın. Koşu ortasında uyku çağrıyı koparabilir: (a) türü cevapsız, turda ≥ 2 olursa tur başka güne kalır.
+
+## 2026-11-03 · Uygulama → Planlama (P1d 3. gün: ertelenen a1 turu ve a2 Gemini bitti; a2 Groq 10:56Z'de)
+- **Sıra değişti (kota planı aynı):** Eren 08:06Z'de "3. gün turlarını başlat" dedi. Kayan 24 saat varsayımıyla pencerede b'nin özet ve daraltma harcaması (~96K) 10:55Z'ye kadar duruyor; ~170K'nın hepsi şimdi koşulsa ~266K olurdu.
+  - Şimdi koşulan: `a1 --run-deferred` (~45K → pencere ~141K) ve `a2 --no-groq` (Gemini, kotadan bağımsız).
+  - a2'nin gpt-oss 3 turu aynı zincirde **2026-11-03 10:56Z'den sonra** kendiliğinden başlar (gerçek saatle bekleme döngüsü, `sleep` sayımı değil). 24 saat koruması uygulanır (b başlangıcı 07:27Z; `--no-day-guard` yok).
+  - Zincir `systemd-inhibit --what=handle-lid-switch:sleep:idle --mode=block` altında; şarj sınırı 80.
+- **a1 gpt-oss özet (ertelenen tur):** `eval_responses/20261103T080725Z-llm`, done. 18 sorulan, şema dışı 3, cevapsız 0, döngü 0; denemeler 17× 200 + 1× 400; token 37 824 / 6 507; tur süresi 1140 s. a1 artık 15/15 (eski ertelenen kayıt `llm_cache/20261101T094006Z-llm` olduğu gibi duruyor).
+- **a2 Gemini 3 tur, done:** ham `20261103T082650Z-llm` (10 sorulan, 8 boş girdi, şema dışı 0), özet `20261103T082809Z-llm` (şema dışı 1), daraltma `20261103T082950Z-llm` (şema dışı 0). Cevapsız ve döngü 0.
+- Dört turda `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`.
+- **Not:** 10:56Z ile a2 Groq turlarının sonu (~12:00Z) arasında çalışma kopyasına yazılmasın; koşucu kirli kopyada ya da ağaç değişince durur.
