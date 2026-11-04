@@ -109,3 +109,24 @@ def test_direct_raw_counts_root_log_lines_by_time():
     early = 2 * 60 * 10**9                                                               # alarm 00:02, önce 23:55
     lines = [f"00:0{i}:00.000 ad log boom" for i in range(3, 8)] + ["23:55:00.000 ad log boom"]
     assert ea.direct_signals("raw", "\n".join(lines), "ad", early) == []                # 23:55 alarm öncesi
+
+
+def test_labels_file_matches_code():
+    # Etiket dosyası: sorular sha'sıyla donmuş; satırlar seçimle aynı; kodla dolan alanlar kodla tutarlı.
+    import hashlib
+    doc = json.loads((ea.REPO / "results" / "p1_error_labels.json").read_text(encoding="utf-8"))
+    assert hashlib.sha256("\n".join(doc["questions"]).encode()).hexdigest() == doc["questions_sha256"]
+    assert doc["questions_sha256"] == "dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7"
+    rows, _ = ea.select()
+    by = {r["key"]: r for r in rows}
+    assert [x["key"] for x in doc["rows"]] == [r["key"] for r in rows]
+    for x in doc["rows"]:
+        r = by[x["key"]]
+        assert all(x[t] in ("yes", "no", "undetermined") for t in ("T1", "T2", "T3", "T4", "T5", "T6"))
+        assert x["root_visibility"] in ("direct", "indirect", "absent")
+        assert (x["root_visibility"] == "direct") == bool(x["direct_signals"])
+        assert x["top3"] == r["top3"] and x["T3"] == r["t3"]
+        assert x["T2"] == ("no" if r["top3"] else "undetermined" if x["root_visibility"] == "absent" else "yes")
+        if x["root_visibility"] != "direct":
+            assert x["T4"] == "undetermined"
+        assert x["reason"]
