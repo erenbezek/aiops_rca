@@ -282,3 +282,9 @@ Sadece Eren'in onayladığı isimler.
 | `results/` | Sonuç tablosu ve koşu listesinin klasörü (repoda; sınırlamalar metni de burada) |
 | `p1_runs.json` | `results/`: sonuç tablosunun resmî koşu listesi (satır → dev / test koşu klasörü) |
 | `p1_table.md`, `p1_table.json` | `results/`: komutla üretilen P1 sonuç tablosu (CI bayt aynı yeniden üretir) |
+| `aiops_rca.error_analysis` | Dev hata analizi modülü ve komutu (`python -m aiops_rca.error_analysis select\|dossier\|sample`): kapsamdaki satırlar, otomatik türler, T3 ve kök görünürlüğü (direct) kodla, çalışma dosyaları, doğrulama örneklemi (P1e) |
+| `p1_error_labels.json` | `results/`: dev hata analizinin donmuş soruları (metin + sha256) ve 29 satırın etiketleri |
+| `p1_error_summary.md`, `p1_error_summary.json` | `results/`: hata analizi özeti (tuzak × model × seviye), komutla üretilir |
+| `p1e_dossier/` | `~/cerebrum2/analysis/` altında (repo dışı): satır başına çalışma dosyası (yeniden üretilmiş girdi, sha kayıtla aynı; etiket, cevap) |
+| `root_visibility` | Hata analizi etiketi: kök girdide `direct` (kendi satırında kuralın sinyali, kodla) / `indirect` (yalnız çağıranların hata satırlarında ya da işlem adlarında hedef) / `absent` |
+| `note` | Hata analizi etiket satırında isteğe bağlı tek satır gözlem (sayılmaz) |
