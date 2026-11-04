@@ -4148,3 +4148,13 @@ Data:
 - **Soruya cevap (3. adım, hata analizi özeti):** ayrı bir modül. Böylece `results.py` hiç değişmez ve donma sha ile kanıtlanır; ekleme olduğunu fark ve CI'yla göstermeye gerek kalmaz. Modül ve çıktı adlarını uyg4 önerir, Eren onaylar. Özet yalnız dev etiket dosyasını okur.
 - **Bilgi (yorum P1e'de, testle birlikte):** dev'de modelsiz daraltma referansı top-1 15/18, top-3 17/18. Bu, 4B daraltmadan (13 / 16) yüksek; gpt-oss (15 / 17) ile aynı, Gemini'ye (17 / 18) yakın. Modele verilen daraltma girdisinde adaylar ada göre sıralı (sıra ipucu yok). Daraltmanın öne alma kuralı geliştirilirken pilot ve dev görülmüştü; daraltma referansının test satırı bu yüzden önemli. Sınırlamalara yazılır.
 - Hatırlatma: GLOSSARY commit'i (onaylı adlar) bekliyor. ARCHITECTURE'daki kesik çizgi notu kapanışta.
+
+## 2026-11-04 · Uygulama → Planlama (P1e 2. adım: test yolu testi eklendi; donma)
+- **Test yolu testi** (`2c294ca`, yalnız `tests/test_results.py`; `results.py` değişmedi, sha256 hâlâ **`b626765f…`**): `tmp_path`'te sahte, test biçimli küçük repo (dev 18: 7 kendi / 11 demo; test 18: 5 kendi / 13 demo; `set: test` etiketleri ve `scores.json` vakaları; `p1_runs.json`'da test girişleri). Satırlar: kural (yalnız dev), 4B daraltma (dev top-3 18, top-1 9; test top-3 13, top-1 9), 9B daraltma (bilgi).
+  - `test_test_path_end_to_end` (3 parametre): dev–test okuması top-3 ile (18 / 13; top-1 9 / 9 değil), p = `fisher(18, 18, 13, 18)` ve yön "düşüş"; kuralda test yok → okuma yok; 9B sayıları yönüyle — (yalnız 9B, yalnız 4B, ikisi) = (4, 3, 10) "none", (5, 0, 13) "none", (0, 6, 7) "4b"; test grupları test etiketlerinden (18 / 5 / 13, top-3 13 / 5 / 8), dev kendi 7; md'de test grup başlığı ve "fark (düşüş)"; `inc-test` md'de ve json'da yok.
+  - `test_test_path_9b_difference_for_9b`: 4B testte 12, 9B 18 → (6, 0, 12) "9b", md'de "fark (9B lehine)".
+- **Kasıtlı kırmızı** (scratch kopya): okuma top-1 ile → 3 kırmızı; 9B sayıları ters → 4 kırmızı; test grupları dev etiketleriyle (aynı sıradaki dev vakasının grubu) → 3 kırmızı; test kimlikleri çıktıda kalıyor (`pop` yok) → 3 kırmızı. Bozmasız 14/14. (Gruplar bozmasının ilk biçimi sözdizimi hatası verdi, sayılmadı; temiz biçimiyle yeniden denendi.)
+- pytest 592/592.
+- **Donma noktası:** `results.py` `b626765f1a2c1c0ac559cf0944e9a5e3f6264c9b190be3cabb1a587f2f328238` (`d2da4db`'den beri aynı). Bundan sonra test puanlaması ve test sütunları; `p1_runs.json`'a test girişleri ve tablo dosyaları dışında `results.py` değişmez.
+- **3. adım:** hata analizi özeti planlamanın cevabıyla ayrı modül; adını 3. adımın planında öneririm.
+- GLOSSARY: onaylı adlar eklendi (`narrowing`, `aiops_rca.results`, `results/`, `p1_runs.json`, `p1_table.md` / `.json`).
