@@ -1,0 +1,17 @@
+{
+ "questions": [
+  "P1e dev hata analizi soruları (DECISIONS 2026-11-04 \"P1e hata sınıflaması\"; uyg4 önerisi HANDOFF 2026-11-04, Eren onayı planlamanın iki düzeltmesiyle, HANDOFF 2026-11-04 planlama kaydı).",
+  "Kapsam: a1 4B / gpt-oss / Gemini × ham / özet / daraltma; girdi sorulmuş, cevap gelmiş, şema içi, top-1 ıskalama (29 satır, `error_analysis.select`). Sorular yalnız 1. adaya ve onun `rationale` / `evidence_path`'ine bakar (T2 hariç: üç aday). Cevaplar: yes / no / undetermined; çok etiketli.",
+  "Değişmiş / anormal sinyal: kuralın sinyal tanımı (`signals.signals`, güç ≥ 1): hata oranı sonra ≥ önce + 0,05; p95 / p99 ≥ max(1,5 × önce, önce + 20 ms); istek düşüşü (önce ≥ 20 ve sonra ≤ önce / 2); CPU ≥ max(1,5 × önce, önce + 5); bellek ≥ 1,2 × önce; yeni WARN+ mesajı alarmdan sonra ≥ 5 kez, önce 0. Veritabanlarında (astronomy-db, valkey-cart) yalnız CPU / bellek. Girdide bulunan alanlara uygulanır; girdide olmayan alan sayılmaz; ham seviyede yalnız log satırları, satır saatine göre alarm öncesi / sonrası. \"Daha büyük değişim\" = en büyük güç.",
+  "root_visibility: `direct` = kökün girdideki kendi satırında / satırlarında bu tanımla en az bir sinyal (kodla, `error_analysis.direct_signals`). `indirect` = direct değil, ama kök çağıranların hata satırlarında / işlem adlarında / daraltmanın çağıranlar listesinde hedef olarak geçiyor. `absent` = ikisi de yok.",
+  "T1 yorumda uydurma: 1. adayın `rationale`'ı ya da `evidence_path`'i girdide olmayan ya da girdiyle çelişen bir veri iddiası içeriyor mu? Girdide hiç geçmeyen servis adı (gerekçede ya da yolda) ya da girdideki değerin yönünü / büyüklüğünü ters söyleme (ör. düşen p95'e \"arttı\") yes. Yoldaki kenarların izlerde görülüp görülmediği T1'e girmez (tabloda kanıt geçerliliği).",
+  "T2 eksik inceleme: `root_visibility` ≠ absent ve kök üç adayın hiçbirinde değil (eşlenmiş adlarla) → yes; kök ilk 3'teyse no; absent → undetermined ve \"kök girdide yok\" sayılır. Yargı yalnız görünürlükte; ikinci kısım kodla.",
+  "T3 belirtiyi neden sanma (kodla, `error_analysis.t3`): 1. aday etiketin yayılım yolunda kökten başka bir servis mi? Yolda değilse no; ad eşleşmediyse undetermined.",
+  "T4 tek kaynak: kökün değişen sinyali girdide bir telemetri türünde var (iz türevi: istek / hata oranı / p95 / hata span'i; metrik: CPU / bellek; log) ve 1. adayın gerekçesi yalnız başka bir türe mi dayanıyor? Gerekçe birden çok türe dayanıyorsa ya da kökün sinyali gerekçenin türündeyse no; root_visibility indirect ya da absent ise undetermined.",
+  "T5 zaman hatası: 1. adayın gerekçesi alarm öncesine ait bir değeri alarm sonrası belirti gibi kullanıyor ya da önce / sonra değerlerini karıştırıyor mu? Girdide önce / sonra ayrımı yoksa ve gerekçe zaman karşılaştırması yapmıyorsa no. Aynı iddia T1 ve T5'e birlikte girebilir.",
+  "T6 çapraz kontrol yok: 1. adayın gerekçesi tek bir ölçüye dayanıyor, adayın girdideki diğer ölçüleri değişmemiş ve başka bir servisin değişimi daha büyük mü (en büyük güç)? Gerekçe birden çok sinyale dayanıyorsa no.",
+  "note: isteğe bağlı tek satır, sayılmaz (altı tuzağın dışındaki gözlemler)."
+ ],
+ "questions_sha256": "dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7",
+ "rows": []
+}
