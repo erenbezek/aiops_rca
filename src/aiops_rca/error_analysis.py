@@ -13,6 +13,12 @@ aşımı, cevapsız, şema dışı (sınıra takılan dahil; tekrar döngüsü a
 T3 (belirtiyi neden sanma) kodla: 1. aday (eşlenmiş adıyla) etiketin yayılım yolunda kökten başka bir servisse evet;
 yolda değilse hayır; ad eşleşmediyse belirlenemez.
 
+`root_visibility: direct` kodla (planlama + Eren, 2026-11-04): kuralın sinyal tanımı (`signals.signals`, güç ≥ 1) kökün
+girdideki kendi değerlerine uygulanır; girdide olmayan alan sayılmaz. Özet ve daraltmada kökün satırı (istek, hata
+oranı, p95, CPU ve bellek ortalaması; veritabanlarında yalnız CPU/bellek) ve girdideki logları (`count_before` 0 olan
+mesajın `count_after`'ı); ham seviyede yalnız kökün `log` satırları, mesaj `signals.normalize` ile, alarmdan önce / sonra
+satırın saatine göre sayılır. En az bir sinyal → `direct`. `indirect` / `absent` etiketlemede.
+
 `dossier`: her satır için modelin o seviyedeki girdisi yeniden üretilir (`inputs.<seviye>_input`, sayım yerel Qwen
 tokenizer'ıyla; sunucu açılır, üretim yapılmaz) ve sha256'sı kayıttaki `input_sha256` ile aynı olmalı (değilse
 durur). Dosyada etiket, T3, modelin cevabı ve girdi. Test vakası hiç okunmaz.
@@ -28,6 +34,7 @@ import sys
 from pathlib import Path
 
 from aiops_rca.cases import REPO, _check_sets, _labels
+from aiops_rca.signals import DB_SERVICES, normalize, signals
 
 MODELS_IN = ("qwen3.5-4b", "gpt-oss-120b", "gemini-3.5-flash-lite")
 LEVELS = ("raw", "summary", "narrowed")
@@ -53,6 +60,64 @@ def t3(matched_first: str | None, label: dict) -> str:
     root = label["answer"]["root_cause_service"]
     on_path = {s for edge in label["answer"]["propagation_path"] for s in edge}
     return "yes" if matched_first != root and matched_first in on_path else "no"
+
+
+RAW_LINE = re.compile(r"^(\d\d):(\d\d):(\d\d)\.(\d{3}) (\S+) (log|error-span) (.*)$")
+DAY_MS = 24 * 3600 * 1000
+
+
+def _row_from_input(entry: dict, logs: list[dict]) -> dict:
+    """Girdideki servis satırını `signals.signals`'ın alan adlarına çevirir (yalnız girdide olan alanlar)."""
+    row = {k: entry[k] for k in ("requests_before", "requests_after", "error_rate_before", "error_rate_after",
+                                 "p95_ms_before", "p95_ms_after") if k in entry}
+    for src, dst in (("cpu_pct_avg", "cpu_pct"), ("mem_mb_avg", "mem_mb")):
+        for side in ("before", "after"):
+            if f"{src}_{side}" in entry:
+                row[f"{dst}_{side}"] = entry[f"{src}_{side}"]
+    new = [(m["count_after"], m["message"]) for m in logs if m["count_before"] == 0 and m["count_after"] > 0]
+    if new:
+        row["new_warn_top"] = max(new)
+    return row
+
+
+def _raw_row(text: str, root: str, alarm_ns: int) -> dict:
+    alarm_ms = (alarm_ns // 10**6) % DAY_MS
+    counts: dict[str, list[int]] = {}
+    for line in text.splitlines():
+        m = RAW_LINE.match(line)
+        if not m or m.group(5) != root or m.group(6) != "log":
+            continue
+        t = ((int(m.group(1)) * 60 + int(m.group(2))) * 60 + int(m.group(3))) * 1000 + int(m.group(4))
+        if t - alarm_ms > DAY_MS / 2:      # pencere gece yarısını aşarsa
+            t -= DAY_MS
+        elif alarm_ms - t > DAY_MS / 2:
+            t += DAY_MS
+        c = counts.setdefault(normalize(m.group(7)), [0, 0])
+        c[t >= alarm_ms] += 1
+    new = [(after, msg) for msg, (before, after) in counts.items() if before == 0 and after > 0]
+    return {"new_warn_top": max(new)} if new else {}
+
+
+def direct_signals(level: str, text: str, root: str, alarm_ns: int) -> list[str]:
+    """Kökün girdideki kendi değerlerinde gücü ≥ 1 olan sinyaller (boş liste = `direct` değil)."""
+    if level == "raw":
+        row = _raw_row(text, root, alarm_ns)
+        sig = {"new_warn_log": signals(row)[0]["new_warn_log"]} if row else {}
+    else:
+        data = json.loads(text)
+        if level == "summary":
+            entry = next((s for s in data["services"] if s["service"] == root), None)
+            logs = [m for m in data["top_warning_and_error_logs_after_alarm"] if m["service"] == root]
+        else:
+            entry = next((c for c in data["candidates"] if c["service"] == root), None)
+            logs = entry.get("logs", []) if entry else []
+        if entry is None and not logs:
+            return []
+        row = _row_from_input(entry or {}, logs)
+        sig, _ = signals(row, root in DB_SERVICES)
+        if "new_warn_top" not in row:
+            sig.pop("new_warn_log", None)
+    return sorted(k for k, v in sig.items() if v["strength"] >= 1)
 
 
 def kind(score: dict, resp: dict) -> str:
@@ -120,6 +185,7 @@ def dossier(out: Path, repo: Path = REPO) -> list[dict]:
             if sha != resp["input_sha256"]:
                 raise RuntimeError(f"{r['key']}: input sha {sha} != recorded {resp['input_sha256']}")
             ans = labels[r["incident_id"]]["answer"]
+            direct = direct_signals(r["level"], inp["text"], ans["root_cause_service"], cases[r["incident_id"]].alarm_ns)
             name = f"{r['model']}__{r['level']}__{r['incident_id']}.md"
             text = "\n".join([
                 f"# {r['key']}", "",
@@ -127,11 +193,13 @@ def dossier(out: Path, repo: Path = REPO) -> list[dict]:
                 f"- Etiket: kök `{ans['root_cause_service']}`, senaryo `{ans['scenario']}`, hata türü "
                 f"`{ans.get('fault_type')}`, kategoriler {ans.get('categories')}",
                 f"- Yayılım yolu: {ans['propagation_path']}",
-                f"- 1. aday (eşlenmiş): `{r['first_matched']}`; kök ilk 3'te: {r['top3']}; T3 (kod): {r['t3']}", "",
+                f"- 1. aday (eşlenmiş): `{r['first_matched']}`; kök ilk 3'te: {r['top3']}; T3 (kod): {r['t3']}",
+                f"- Kökün girdideki kendi sinyalleri (kod, güç ≥ 1): {direct or 'yok'} → "
+                f"{'direct' if direct else 'direct değil (indirect / absent etiketlemede)'}", "",
                 "## Cevap", "", "```json", json.dumps(resp["answer"], ensure_ascii=False, indent=1), "```", "",
                 "## Girdi", "", "```", inp["text"], "```", ""])
             (out / name).write_text(text, encoding="utf-8")
-            index.append({"key": r["key"], "file": name, "input_sha256": sha})
+            index.append({"key": r["key"], "file": name, "input_sha256": sha, "direct_signals": direct})
     (out / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     return index
 

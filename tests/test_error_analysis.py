@@ -1,5 +1,7 @@
 """Dev hata analizi seçimi (DECISIONS 2026-11-04 "P1e hata analizi kapsamı", "P1e hata sınıflaması"): kapsam, otomatik
-türler, T3 kuralı, örneklem tohumu."""
+türler, T3 kuralı, örneklem tohumu, `root_visibility: direct` hesabı."""
+import json
+
 from aiops_rca import error_analysis as ea
 
 
@@ -47,3 +49,63 @@ def test_sample_is_fixed_by_seed():
     s = ea.sample(rows)
     assert len(s) == 10 and len(set(s)) == 10 and set(s) <= {r["key"] for r in rows}
     assert s == ea.sample(rows) and s != ea.sample(rows, seed=ea.SEED + 1)
+
+
+# --- root_visibility: direct (kuralın sinyal tanımı, girdideki değerlere) ---
+
+ALARM = (12 * 3600 + 59 * 60 + 33) * 10**9  # 12:59:33 UTC (gün içi; tarih farkı sonucu değiştirmez)
+
+
+def svc(name, **k):
+    return {"service": name, **k}
+
+
+def summary_text(services, logs=()):
+    return json.dumps({"alarm_time_utc": "x", "services": services, "top_warning_and_error_logs_after_alarm": list(logs)})
+
+
+def test_direct_summary_uses_rule_thresholds_on_input_values():
+    gw = svc("quote-gateway", requests_before=113, requests_after=83, error_rate_before=0.0, error_rate_after=0.0,
+             p95_ms_before=7.5, p95_ms_after=37.1, cpu_pct_avg_before=1.33, cpu_pct_avg_after=1.27,
+             mem_mb_avg_before=48, mem_mb_avg_after=48)
+    assert ea.direct_signals("summary", summary_text([gw]), "quote-gateway", ALARM) == ["p95_ms"]
+    small = dict(gw, p95_ms_after=27.0)                       # 1,5 kat ama +20 ms değil: sinyal yok
+    assert ea.direct_signals("summary", summary_text([small]), "quote-gateway", ALARM) == []
+    assert ea.direct_signals("summary", summary_text([gw]), "cart", ALARM) == []          # kök girdide yok
+    err = svc("payment", requests_before=100, requests_after=100, error_rate_before=0.0, error_rate_after=0.05)
+    assert ea.direct_signals("summary", summary_text([err]), "payment", ALARM) == ["error_rate"]   # +0,05: güç 1
+
+
+def test_direct_db_only_resources_and_logs_need_zero_before():
+    db = svc("valkey-cart", requests_before=100, requests_after=0, cpu_pct_avg_before=1.0, cpu_pct_avg_after=1.0,
+             mem_mb_avg_before=10, mem_mb_avg_after=10)
+    assert ea.direct_signals("summary", summary_text([db]), "valkey-cart", ALARM) == []    # istek düşüşü sayılmaz
+    logs = [{"service": "ad", "message": "boom", "count_before": 0, "count_after": 5},
+            {"service": "ad", "message": "old", "count_before": 3, "count_after": 50}]
+    assert ea.direct_signals("summary", summary_text([svc("ad")], logs), "ad", ALARM) == ["new_warn_log"]
+    assert ea.direct_signals("summary", summary_text([svc("ad")], logs[1:]), "ad", ALARM) == []
+
+
+def test_direct_narrowed_only_if_root_is_candidate():
+    block = svc("cart", requests_before=851, requests_after=902, error_rate_before=0.0, error_rate_after=0.0,
+                p95_ms_before=1.1, p95_ms_after=150.0, logs=[])
+    text = json.dumps({"candidates": [block, svc("checkout", logs=[])], "calls": []})
+    assert ea.direct_signals("narrowed", text, "cart", ALARM) == ["p95_ms"]
+    assert ea.direct_signals("narrowed", text, "recommendation", ALARM) == []
+
+
+def test_direct_raw_counts_root_log_lines_by_time():
+    after = [f"13:0{i}:00.000 ad log failed to fetch ad 4711" for i in range(5)]
+    before = ["12:50:00.000 ad log failed to fetch ad 99"]
+    spans = [f"13:0{i}:00.000 ad error-span GET /ad" for i in range(9)]
+    assert ea.direct_signals("raw", "\n".join(after), "ad", ALARM) == ["new_warn_log"]   # sayı sadeleşir: aynı mesaj
+    assert ea.direct_signals("raw", "\n".join(after[:4]), "ad", ALARM) == []             # 4 < 5
+    assert ea.direct_signals("raw", "\n".join(before + after), "ad", ALARM) == []        # önce de var: yeni değil
+    assert ea.direct_signals("raw", "\n".join(spans), "ad", ALARM) == []                 # hata span'i log değil
+    assert ea.direct_signals("raw", "\n".join(after), "frontend", ALARM) == []
+    late = 23 * 3600 * 10**9 + 58 * 60 * 10**9                                           # alarm 23:58, satırlar 00:0x
+    lines = [f"00:0{i}:00.000 ad log boom" for i in range(5)] + ["23:50:00.000 ad log other"]
+    assert ea.direct_signals("raw", "\n".join(lines), "ad", late) == ["new_warn_log"]
+    early = 2 * 60 * 10**9                                                               # alarm 00:02, önce 23:55
+    lines = [f"00:0{i}:00.000 ad log boom" for i in range(3, 8)] + ["23:55:00.000 ad log boom"]
+    assert ea.direct_signals("raw", "\n".join(lines), "ad", early) == []                # 23:55 alarm öncesi
