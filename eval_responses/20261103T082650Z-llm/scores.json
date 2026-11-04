@@ -1,0 +1,557 @@
+{
+ "run": {
+  "method": "llm",
+  "model_id": "gemini-3.5-flash-lite",
+  "provider": "gemini",
+  "temperature": 0,
+  "settings": {
+   "model": "gemini-3.5-flash-lite",
+   "level": "raw",
+   "alias": false,
+   "max_tokens": 1600,
+   "extra": {
+    "reasoning_effort": "minimal"
+   },
+   "prompt_sha256": "6d05378eba8c386d3e5e32638997a1302dd0de625abd60a160f90396b7f1e3ce",
+   "data_budget": 5000,
+   "total_budget": 6000,
+   "image": "ghcr.io/ggml-org/llama.cpp@sha256:8f3c2cd0808a394d1e7ce02f025f453caacbf163389fe6b6443ec3a1efff96a0",
+   "gguf": "Qwen3.5-4B-Q4_K_M.gguf",
+   "gguf_sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+   "tokenizer": "qwen3.5-4b"
+  },
+  "sets": [
+   "dev"
+  ],
+  "started_at": "2026-11-03T08:26:50Z",
+  "repo_commit": "7104fe5397630152e299cc95f7f4c50bd1a8134f",
+  "repo_clean": true,
+  "n_cases": 18
+ },
+ "table": {
+  "dev": {
+   "n": 18,
+   "schema_invalid": 0,
+   "input_empty": 8,
+   "input_over_budget": 0,
+   "no_answer": 0,
+   "top1": 7,
+   "top1_rate": 0.389,
+   "top3": 7,
+   "top3_rate": 0.389,
+   "evidence_valid": 6,
+   "evidence_invalid": 1,
+   "evidence_null": 3,
+   "label_path_overlap_mean": 0.383,
+   "label_path_overlap_n": 10,
+   "brier": 0.159,
+   "brier_n": 10,
+   "selective_accuracy": 0.778,
+   "coverage": 0.5,
+   "duration_s_total": 19.262,
+   "tokens_input": 37510,
+   "tokens_output": 2227
+  },
+  "all": {
+   "n": 18,
+   "schema_invalid": 0,
+   "input_empty": 8,
+   "input_over_budget": 0,
+   "no_answer": 0,
+   "top1": 7,
+   "top1_rate": 0.389,
+   "top3": 7,
+   "top3_rate": 0.389,
+   "evidence_valid": 6,
+   "evidence_invalid": 1,
+   "evidence_null": 3,
+   "label_path_overlap_mean": 0.383,
+   "label_path_overlap_n": 10,
+   "brier": 0.159,
+   "brier_n": 10,
+   "selective_accuracy": 0.778,
+   "coverage": 0.5,
+   "duration_s_total": 19.262,
+   "tokens_input": 37510,
+   "tokens_output": 2227
+  }
+ },
+ "cases": [
+  {
+   "incident_id": "inc-0c4902c3",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "ad",
+    "frontend",
+    "frontend-proxy"
+   ],
+   "unmatched": [],
+   "evidence_valid": true,
+   "evidence_edges": [
+    {
+     "from": "ad",
+     "to": "frontend",
+     "seen": "reverse"
+    },
+    {
+     "from": "frontend",
+     "to": "frontend-proxy",
+     "seen": "reverse"
+    },
+    {
+     "from": "frontend-proxy",
+     "to": "frontend-web",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 1.0,
+   "confidence": 0.95,
+   "unsure": false,
+   "duration_s": 2.361,
+   "tokens": {
+    "input": 4100,
+    "output": 238,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-230c9d46",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": false,
+   "matched": [
+    "frontend",
+    "frontend-proxy",
+    "frontend-web"
+   ],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 0.6,
+   "unsure": false,
+   "duration_s": 1.711,
+   "tokens": {
+    "input": 5552,
+    "output": 240,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-234d34cf",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "checkout",
+    "frontend",
+    "frontend-proxy"
+   ],
+   "unmatched": [],
+   "evidence_valid": true,
+   "evidence_edges": [
+    {
+     "from": "checkout",
+     "to": "frontend",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 1.0,
+   "confidence": 0.8,
+   "unsure": false,
+   "duration_s": 1.728,
+   "tokens": {
+    "input": 3942,
+    "output": 210,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-320c56f9",
+   "set": "dev",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-4a62b9bb",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": false,
+   "matched": [
+    "frontend-proxy",
+    "frontend-web",
+    "frontend"
+   ],
+   "unmatched": [],
+   "evidence_valid": true,
+   "evidence_edges": [
+    {
+     "from": "frontend-proxy",
+     "to": "frontend-web",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 0.0,
+   "confidence": 0.7,
+   "unsure": true,
+   "duration_s": 1.951,
+   "tokens": {
+    "input": 2232,
+    "output": 222,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-5cb2c977",
+   "set": "dev",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-73ac64e9",
+   "set": "dev",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-8069b709",
+   "set": "dev",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-86d286ea",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "ad",
+    "frontend",
+    "cart"
+   ],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 1.0,
+   "unsure": false,
+   "duration_s": 1.869,
+   "tokens": {
+    "input": 2997,
+    "output": 181,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-9292257f",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": false,
+   "matched": [
+    "checkout",
+    "frontend",
+    "frontend-proxy"
+   ],
+   "unmatched": [],
+   "evidence_valid": true,
+   "evidence_edges": [
+    {
+     "from": "checkout",
+     "to": "frontend",
+     "seen": "reverse"
+    },
+    {
+     "from": "frontend",
+     "to": "frontend-proxy",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 0.0,
+   "confidence": 0.8,
+   "unsure": false,
+   "duration_s": 1.846,
+   "tokens": {
+    "input": 3153,
+    "output": 243,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-ac155a23",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "cart",
+    "checkout",
+    "frontend-proxy"
+   ],
+   "unmatched": [],
+   "evidence_valid": false,
+   "evidence_edges": [
+    {
+     "from": "cart",
+     "to": "checkout",
+     "seen": "reverse"
+    },
+    {
+     "from": "checkout",
+     "to": "frontend-proxy",
+     "seen": null
+    }
+   ],
+   "label_path_overlap": 0.5,
+   "confidence": 0.85,
+   "unsure": false,
+   "duration_s": 1.931,
+   "tokens": {
+    "input": 1554,
+    "output": 216,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-ac820869",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "payment",
+    "checkout",
+    "frontend"
+   ],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 0.95,
+   "unsure": false,
+   "duration_s": 1.522,
+   "tokens": {
+    "input": 3620,
+    "output": 193,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-ae15665a",
+   "set": "dev",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-b4d12a5e",
+   "set": "dev",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-bfbbd586",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "recommendation",
+    "frontend",
+    "frontend-proxy"
+   ],
+   "unmatched": [],
+   "evidence_valid": true,
+   "evidence_edges": [
+    {
+     "from": "recommendation",
+     "to": "frontend",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 1.0,
+   "confidence": 0.85,
+   "unsure": false,
+   "duration_s": 2.116,
+   "tokens": {
+    "input": 4699,
+    "output": 229,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-d6d5f1b2",
+   "set": "dev",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "product-catalog",
+    "frontend",
+    "frontend-proxy"
+   ],
+   "unmatched": [],
+   "evidence_valid": true,
+   "evidence_edges": [
+    {
+     "from": "product-catalog",
+     "to": "frontend",
+     "seen": "reverse"
+    },
+    {
+     "from": "frontend",
+     "to": "frontend-proxy",
+     "seen": "reverse"
+    },
+    {
+     "from": "frontend-proxy",
+     "to": "frontend-web",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 0.333,
+   "confidence": 0.9,
+   "unsure": false,
+   "duration_s": 2.227,
+   "tokens": {
+    "input": 5661,
+    "output": 255,
+    "reasoning": 0
+   }
+  },
+  {
+   "incident_id": "inc-d9ea423d",
+   "set": "dev",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-fa775703",
+   "set": "dev",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  }
+ ]
+}
