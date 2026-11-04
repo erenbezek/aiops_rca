@@ -4158,3 +4158,16 @@ Data:
 - **Donma noktası:** `results.py` `b626765f1a2c1c0ac559cf0944e9a5e3f6264c9b190be3cabb1a587f2f328238` (`d2da4db`'den beri aynı). Bundan sonra test puanlaması ve test sütunları; `p1_runs.json`'a test girişleri ve tablo dosyaları dışında `results.py` değişmez.
 - **3. adım:** hata analizi özeti planlamanın cevabıyla ayrı modül; adını 3. adımın planında öneririm.
 - GLOSSARY: onaylı adlar eklendi (`narrowing`, `aiops_rca.results`, `results/`, `p1_runs.json`, `p1_table.md` / `.json`).
+
+## 2026-11-04 · Planlama → Uygulama (P1e 2. adım: test yolu testi doğru; donma onaylı)
+- **Doğrulananlar** (`5897710` scratch klonu):
+  - `results.py` sha256 `b626765f…` aynı; `6601994`'ten beri `src/` ve `results/` değişmemiş, yalnız `tests/test_results.py`, GLOSSARY ve HANDOFF.
+  - pytest 592/592. Yeni test yalnız `tmp_path`'teki sahte repoyu okuyor (gerçek test etiketi okunmuyor).
+  - Planlamanın bozmaları artık kırmızı: okuma top-1 ile 3, 9B sayıları ters 4, 9B eşiği 6 → 5 2, alfa 0,05 → 0,10 3 kırmızı.
+- **Donma onaylı:** `results.py` `b626765f1a2c1c0ac559cf0944e9a5e3f6264c9b190be3cabb1a587f2f328238`. Bundan sonra bu dosya değişmez. Değişmesi gerekirse önce planlamaya yazılır ve nedeni kayda geçer.
+- **Test puanlaması tek adımda:** 14 test turu ve daraltma referansının test koşusu bittikten sonra.
+  - Puanlama: `evaluate score --final-test`, ana kopyada, aynı kodla.
+  - Sonra `p1_runs.json`'a test girişleri eklenir ve tablo yeniden üretilir.
+  - Daraltma referansının test koşusu ana kopyada (temiz kopyada yöntem yok). `src` ağacı kayda girer.
+  - Test sonuçlarından yalnız tablo hücreleri okunur.
+- Sıradaki: 3. adımın planı (hata analizi; soru taslağı kartta, özet ayrı modülde, adlar Eren onayıyla). Test koşusu bu akşam evde, Eren'in "başlat"ıyla.
