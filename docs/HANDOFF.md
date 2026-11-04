@@ -3994,3 +3994,21 @@ Data:
   - 36 tur klasörü `eval_responses/`'a commit'lenir (P1a/P1b'deki gibi; ~3 MB). Planlama 36 klasörde anahtar kalıplarını taradı (`gsk_…`, `AIza…`, `Bearer`, `api_key`): eşleşme 0. Ertelenen eski kayıt ve yerel tekrar `llm_cache/`'te kalır.
   - PROJECT "Şu an", gerekiyorsa ARCHITECTURE. PR açıklaması sade; birleştirme Eren'de.
 - Sonra planlama: P1e kartı (test koşusu: kural, BARO, 4B, gpt-oss, Gemini × 3 seviye + 9B bilgi satırı, DECISIONS 2026-11-03), main'den yeni dalda.
+
+## 2026-11-04 · Uygulama → Planlama (P1d kapanışı)
+- **Tur kayıtları commit'lendi** (`f7623f6`): `eval_responses/`'ta 36 klasör (a1 15, b 15, a2 6; 108 dosya, ~3 MB). Commit'lenmemiş klasörler koşucunun 36 done turuyla birebir aynıydı, fazla ya da eksik yok. Anahtar taraması (kalıplar ve `keys.env`'deki iki anahtarın değeri, yalnız sayım): 0. Ertelenen eski kayıt `llm_cache/20261101T094006Z-llm` ve yerel tekrar `llm_cache/20261101T122821Z-llm` `llm_cache/`'te kaldı (izlenmiyor).
+- **pytest:** 577/577.
+- **Bitti ölçütleri:**
+  1. 36 tur puanlı, istem `6d05378e…`, her turda `repo_clean: true`: tutuyor. Ağaçlar: `incidents` hep `ce7a75d0…`; `src` a1'in ilk 10 turunda `c9bb8c5b…`, sonra `461d037b…` (kayıtlı istisna `eafc491`, DECISIONS 2026-11-01 "Groq `json_validate_failed`"). İlk ve son tur arasında `git diff -- src tests incidents` boş değil: `src` ve `tests` `eafc491`'de; `tests` ayrıca `8716719`'da (planlamanın eki 2: yalnız test eklendi, `src`/`incidents` ağaçları değişmedi).
+  2. Yerel tekrar 18/18 aynı: tutuyor (`p1d_repeat.json`).
+  3. Tablo, boyut seçimi ve takma ad okuması betikle üretildi (`p1d_analysis.py` `981375d5…`; json `ee3e6a0f…`, md `be4167ad…`), planlama yeniden koşup bağımsız doğruladı: tutuyor.
+  4. pytest yeşil; PR koşusu PR açılınca.
+- **Düzeltme (2026-11-04 analiz kaydındaki özet tablo):** iki Brier değeri çift yuvarlanmıştı. 2B daraltma 0.452 (yazılan 0.453), gpt-oss ham 0.075 (yazılan 0.076). Kaynak md/json (0.4525, 0.0755); rapor sayıları oradan alınır.
+- **P1e'ye devreden notlar:**
+  - `quote-svc` takma ad sızıntısı yalnız pilot `inc-91bf76d4`'te (dev/test'te yok).
+  - `duration_s` son denemenin süresi; yeniden denenen satırlarda toplam süre değil.
+  - Qwen3.5 üretici ayarı (temperature 1.0, top_k 20, presence_penalty 2.0) denenmedi; deterministik ayar yerel sonuçları alt sınırda tutabilir (DECISIONS 2026-11-01 "tekrar döngüsü").
+  - a1'de gpt-oss özet turu iki kez koşuldu: 2026-11-01'de durdu (`json_validate_failed`, Groq kotası), resmî kayıt 2026-11-03 `20261103T080725Z-llm`.
+  - b'nin Groq turları `--no-day-guard` ile (Eren kararı, `day_guard: skipped`); b'nin yerel turlarında kapak uykusu ~1 saat gecikme yarattı, sonucu etkilemedi. 3. günde sıra kota için bölündü (HANDOFF 2026-11-03).
+  - b gpt-oss ham unmatched `checkout` (gerçek ad), `BasketService`, `BillingService`: kaynağı P1e hata analizinde.
+- PROJECT "Şu an" güncellendi; ARCHITECTURE değişmedi (repoda yeni dosya/yapı yok; koşucu ve analiz betiği repo dışında). PR açılıyor; birleştirme Eren'de.
