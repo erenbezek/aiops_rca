@@ -4121,3 +4121,30 @@ Data:
 - **Planlamaya soru (3. adım):** hata analizi özeti (tuzak × model × seviye) karta göre bu komutla üretilecek. Önerim: etiketler donunca `results.py`'ye ayrı bir bölüm olarak eklensin; yalnız dev etiket dosyasını okur, test sütunlarına ve okumalara dokunmaz. Bu, donmuş kodun değişmesi demek; değişikliğin yalnız ekleme olduğu (test bölümlerinin çıktısı bayt aynı kalır) CI'daki tablo testiyle ve farkla gösterilir. Uygun mu, yoksa özet ayrı bir modül mü olsun?
 - **Sınırlamalar notu:** CI puanlamayı yeniden yapmaz (snapshot repoda yok), tabloyu commit'lenmiş `scores.json`'lardan üretir.
 - **Not (kapsam dışı, yalnız kayıt):** ARCHITECTURE diyagramında `base`, `nar`, `llm`, `cache`, `evr`, `ev` hâlâ kesik çizgili ("yok") sınıfta; P1a–P1c'de yapıldılar. Yalnız `tab`'ı çıkardım, diğerleri ayrı bir düzeltme.
+
+## 2026-11-04 · Planlama → Uygulama (P1e 2. adım kontrolü: kod doğru; donmadan önce test yolu testi)
+- **Bağımsız doğrulananlar** (`6601994` scratch klonu; `aiops_rca` scratch'ten):
+  - `python -m aiops_rca.results` tabloyu yeniden üretti: `p1_table.md` `8d14b91a…`, `.json` `6e596e18…`, repodakilerle bayt aynı. pytest 588/588.
+  - Daraltma referansının dev koşusu HEAD koduyla yeniden koşuldu ve puanlandı: 18 cevap ve vaka puanları süre hariç aynı (fark yalnız `duration_s_total`).
+  - `src` farkı `461d037b` → `ed1bfa28`: yalnız `evaluate.py` (yöntem kaydı) ve iki yeni dosya; `scoring.py` değişmedi.
+  - `p1_runs.json` 15 satır. LLM dev girişleri P1d koşucu kaydındaki a1 done turlarıyla aynı; 9B'nin üç satırı "bilgi"; test girişleri boş.
+  - Kendi sayımım (yalnız dev vakaları): kural 9 / 15, BARO 5 / 10, daraltma referansı 15 / 17 (top-1 / top-3).
+  - `fisher` planlamanın kendi fonksiyonuyla 0–18 × 0–18 (361 tablo) karşılaştırıldı: p < 0,05 kararı hepsinde aynı.
+  - Kod okundu, kartla ve kararlarla uyumlu: iki yönlü Fisher (tam sayı), yön, 9B kuralı, gruplar, `check_run`; test etiketleri yalnız test girişi varken okunuyor; test vaka kimlikleri çıktıya girmiyor.
+- **Açık (donmadan önce kapanmalı): test yolu hiç sınanmıyor.**
+  - Test girişi olmadığı için `build()`'in test dalı (dev–test okumasının bağlantısı, 9B sayıları, test grupları) bugünkü testlerde çalışmıyor.
+  - Planlama scratch'te iki bozma denedi, ikisi de yeşil kaldı (10/10 geçti):
+    - okumanın top-1 ile beslenmesi (`dev["all"]["top1"]`, `test["all"]["top1"]`);
+    - 9B sayılarının ters çevrilmesi (`only_9b` ↔ `only_4b`).
+  - Kod bu hâliyle donarsa test yolundaki bir hata ancak test sonuçları görüldükten sonra bulunur ve donmuş kod değiştirilmek zorunda kalır.
+  - İstenen: `tests/test_results.py`'ye test biçimli sahte verilerle uçtan uca bir test (`tmp_path`'te küçük bir repo: `set: test` etiketleri, `scores.json` vakalarında `set: test`, `p1_runs.json`'da test girişleri). Test şunları doğrulamalı:
+    - dev–test okumasının top-3 ile beslendiğini, bilinen bir tabloda p'yi ve yönü;
+    - 9B'de `only_9b` / `only_4b` / `both` sayılarının yönünü ve okumayı;
+    - test grup bölümlerinin üretildiğini;
+    - test vaka kimliklerinin md ve json çıktısına girmediğini.
+  - Kasıtlı kırmızı (scratch): yukarıdaki iki bozma ve test gruplarının dev etiketleriyle hesaplanması.
+  - `results.py` değişmezse donma noktası aynı kalır (`b626765f…`); değişirse yeni sha ile.
+- **Donma:** test yolu testi geçip planlama baktıktan sonra. Test puanlaması ve test sütunları ondan sonra; test koşusu Eren'in kararıyla bu akşam evde.
+- **Soruya cevap (3. adım, hata analizi özeti):** ayrı bir modül. Böylece `results.py` hiç değişmez ve donma sha ile kanıtlanır; ekleme olduğunu fark ve CI'yla göstermeye gerek kalmaz. Modül ve çıktı adlarını uyg4 önerir, Eren onaylar. Özet yalnız dev etiket dosyasını okur.
+- **Bilgi (yorum P1e'de, testle birlikte):** dev'de modelsiz daraltma referansı top-1 15/18, top-3 17/18. Bu, 4B daraltmadan (13 / 16) yüksek; gpt-oss (15 / 17) ile aynı, Gemini'ye (17 / 18) yakın. Modele verilen daraltma girdisinde adaylar ada göre sıralı (sıra ipucu yok). Daraltmanın öne alma kuralı geliştirilirken pilot ve dev görülmüştü; daraltma referansının test satırı bu yüzden önemli. Sınırlamalara yazılır.
+- Hatırlatma: GLOSSARY commit'i (onaylı adlar) bekliyor. ARCHITECTURE'daki kesik çizgi notu kapanışta.
