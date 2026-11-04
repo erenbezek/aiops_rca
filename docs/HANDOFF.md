@@ -3975,3 +3975,22 @@ Data:
   - Bilgi: b unmatched — 2B ham 5, 4B ham 2, 9B ham 3, gpt-oss ham 3 (1 gerçek ad), Gemini ham 2; özet/daraltmada 0.
 - **Bilgi kayıtları:** şema dışı nedenlerinde en sık "evidence_path must start at the candidate service" (a1 9, b 8, a2 4) ve "candidate services must be distinct" (5 / 6 / 2); döngü yalnız a1'de 2 (bilinen 2B ham). Sağlayıcı / Qwen giriş token oranı Gemini 1.03–1.20, gpt-oss 0.84–0.99.
 - **Sıradaki:** planlama analizi scratch'te yeniden koşup sha'ları karşılaştırır. Sonra P1d kapanışı (PR, PROJECT "Şu an", P1e notları).
+
+## 2026-11-04 · Planlama → Uygulama (P1d resmî analiz kontrolü; kapanış)
+- **Resmî analiz doğru:**
+  - Planlama betiği (`981375d5…`, değiştirmeden) koşucu kayıtlarıyla scratch klasöründe yeniden koştu (`50a4cf6` klonu, `aiops_rca` ve `p1d_runner` scratch'ten). Çıkış 0. `p1d_analysis.json` `ee3e6a0f…` ve `p1d_analysis.md` `be4167ad…`, resmî dosyalarla bayt aynı.
+  - Kendi kodumla (`scores.json` vaka satırlarından, betik kullanılmadan) hesaplananlar uyg4 özetiyle ve md ile aynı:
+    - dev tablosunun 15 hücresi (top-1, top-3, Brier, şema dışı, ort. süre);
+    - takma ad okumasının 15 hücresi (a1 / a2 / b, gürültü, okuma; yalnız gpt-oss ham "belirsiz", "üst sınır" yok);
+    - boyut seçimi (2B 6, 4B 9, 9B 9 → 4B);
+    - b unmatched (ham 5 / 2 / 3 / 3 / 2, özet ve daraltmada 0).
+  - Küçük not: HANDOFF özetinde iki Brier değeri çift yuvarlanmış: 2B daraltma 0.453 ve gpt-oss ham 0.076. Kesin değerler 0.45249… ve 0.07546…, üç basamakta 0.452 ve 0.075; md'deki dört basamak (0.4525, 0.0755) doğru. Rapor sayıları md/json'dan alınır.
+- **Bitti ölçütleri:**
+  1. 36 tur puanlı, istem `6d05378e…`, `repo_clean: true`: tutuyor. "Commit aynı": `src` için kayıtlı istisna `eafc491` (DECISIONS "Groq `json_validate_failed`"). Ölçütün "ilk ve son tur arasında `git diff -- src tests incidents` boş" kısmı `tests/` için tutmuyor: `eafc491` ve `8716719`. İkincisi planlamanın eki 2'siydi, yalnız test ekledi, ağaçları değiştirmedi. Kapanış kaydında böyle yazılsın.
+  2. Yerel tekrar 18/18: tutuyor.
+  3. Analiz betikle üretildi, kayıtta, planlama doğruladı: tutuyor.
+  4. pytest ve PR koşusu: kapanışta.
+- **Kapanış (uyg4):**
+  - 36 tur klasörü `eval_responses/`'a commit'lenir (P1a/P1b'deki gibi; ~3 MB). Planlama 36 klasörde anahtar kalıplarını taradı (`gsk_…`, `AIza…`, `Bearer`, `api_key`): eşleşme 0. Ertelenen eski kayıt ve yerel tekrar `llm_cache/`'te kalır.
+  - PROJECT "Şu an", gerekiyorsa ARCHITECTURE. PR açıklaması sade; birleştirme Eren'de.
+- Sonra planlama: P1e kartı (test koşusu: kural, BARO, 4B, gpt-oss, Gemini × 3 seviye + 9B bilgi satırı, DECISIONS 2026-11-03), main'den yeni dalda.
