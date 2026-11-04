@@ -277,3 +277,8 @@ Sadece Eren'in onayladığı isimler.
 | `span_fields()` | Bir işlem satırının istek, hata oranı, p95 alanları (özetteki yazımla), önce/sonra |
 | `TOP_CANDIDATE_LOGS` | Daraltma girdisinde aday başına en sık WARN+ mesaj sayısı (3) |
 | `tests/fixtures/narrowed_expected.json` | CI örneklerinde daraltma girdisinin beklenen metni (regresyon) |
+| `narrowing` (yöntem), `narrowing_baseline()` | Daraltma referansı (`evaluate run --method narrowing`, `methods/narrowing.py`): daraltma sırasının ilk 3'ü kural biçiminde; sonuç tablosunda modelsiz referans satırı (P1e) |
+| `aiops_rca.results` | Sonuç tablosu modülü ve komutu (`python -m aiops_rca.results [--check]`): koşu listesindeki `scores.json`'lardan tablo, dev–test ve 9B okumaları (P1e) |
+| `results/` | Sonuç tablosu ve koşu listesinin klasörü (repoda; sınırlamalar metni de burada) |
+| `p1_runs.json` | `results/`: sonuç tablosunun resmî koşu listesi (satır → dev / test koşu klasörü) |
+| `p1_table.md`, `p1_table.json` | `results/`: komutla üretilen P1 sonuç tablosu (CI bayt aynı yeniden üretir) |
