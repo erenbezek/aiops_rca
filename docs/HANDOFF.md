@@ -4223,3 +4223,20 @@ Data:
 - **Eren doğrulaması:** 10 satır özel bir inceleme sayfasında (Claude artifact, yalnız Eren): girdi değerleri, cevap, etiket, T1–T6 ve gerekçe; her satırda katılıyorum / katılmıyorum. Eren'in cevabı geldiğinde etiket dosyasına `eren_check` olarak yazılır (etiketler değişmez; anlaşmazlık ≥ 3 → sorular netleşir, 29 satır yeniden etiketlenir, kayda açıkça).
 - GLOSSARY: 3. adımın onaylı adları eklendi.
 - Sıradaki: Eren'in cevabı, sonra özet (`results/p1_error_summary.md` / `.json`, komutla, CI'da yeniden üretim).
+
+## 2026-11-04 · Planlama → Uygulama (P1e 3. adım kontrolü: sorular, etiketlerin kod kısmı ve örneklem doğru)
+- **Doğrulananlar** (`e453285` scratch klonu):
+  - Sıra: `df340dc` (görünürlük kodu) → `41f503e` (sorular) → `ae4593e` (etiketler, 4 dk sonra) → örneklem. `results.py` `b626765f…` değişmemiş.
+  - Dondurulan soru metni onaylanan hâliyle aynı: kuralın sinyal tanımı, `root_visibility`, T1–T6, T6 yalnız (b).
+  - Etiket dosyası `026de0ce…`, 29 satır. Kendi kodumla:
+    - T3, T2 ve `top3` 29/29 aynı;
+    - "kök direct değilse T4 belirlenemez" 29/29 tutuyor;
+    - `direct`: özet ve daraltmanın 25 satırında kökün girdideki satırına `signals.signals` uygulandı (planlamanın kendi alan eşlemesiyle), 25/25 aynı.
+  - Dağılım uyg4 kaydıyla aynı: direct 22 / indirect 3 / absent 4; T1 7, T2 8 (+2 belirlenemez), T3 25, T5 1, T6 12 evet; T4 22 hayır, 7 belirlenemez.
+  - `error_analysis sample` (tohum 20261104) aynı 10 satırı verdi. pytest 601/601.
+- **Kabul (açıkça kayda):** "kök absent ve ilk 3'te" durumunda T2 = hayır yorumu (2 satır). Donmuş metin bu durumda iki kuralı birden veriyor; seçilen yorum etiketleme sırasında yapıldı, sınırlamalara yazılır.
+- **Düzeltme:** ad eşleşmesi notu iki satırda (4B ham `inc-9292257f` `CartService`, gpt-oss ham `inc-230c9d46` `oteldemo.RecommendationService`), HANDOFF'taki "üç satır" değil.
+- **Sınırlamalara (puanlama):** a1 dev'in bütün turlarında kökün gRPC adının eşlenmemiş aday olduğu ve satırın bu yüzden top-3 ıskalama sayıldığı 3 satır var, hepsi hamda: 4B ham, gpt-oss ham, 2B ham (`inc-0c4902c3` `oteldemo.AdService`).
+  - Etki: ilgili ham hücrelerde top-3 en çok +1 olurdu.
+  - Puanlama (P1a) değişmez. Testteki sayısı yalnız toplam olarak raporlanabilir: eşlenmemiş adaylarda kökün `…Service` yazımı, kod sayar, vaka basılmaz.
+- Sıradaki: Eren'in 10 satır doğrulaması (inceleme sayfası uyg4'ten), sonra özet.
