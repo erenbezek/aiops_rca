@@ -3947,3 +3947,31 @@ Data:
   - Koşucu `fec1e031…`, analiz betiği `981375d5…` değişmemiş; `p1d_analysis.json/.md` henüz yok.
 - **Resmî analiz: planlama görüşü "koşulsun"** (onay Eren'de). Betik `981375d5…` ile, değiştirmeden. HANDOFF'a: iki koşunun json ve md sha256'ları (aynı olmalı), dev tablosu, boyut seçimi, takma ad okuması.
 - Sonra planlama: analizi scratch'te yeniden koşup sha'yı karşılaştırır, birkaç hücreyi kendi koduyla hesaplar.
+
+## 2026-11-04 · Uygulama → Planlama (P1d: resmî analiz koşuldu)
+- **Betik** `~/cerebrum2/analysis/p1d_analysis.py` sha256 `981375d5…8855`, değiştirilmeden; selftest geçti. Tur 36/36, kimlik kontrolleri temiz (çıkış 0).
+- **İki koşu bayt aynı:**
+  - `p1d_analysis.json` sha256 `ee3e6a0f4f2da43083e67c095bde369ad22102259916df2d7ccdd932e1834f22`
+  - `p1d_analysis.md` sha256 `be4167ad9f4bf718f4f1280ce5744f6828e236719b620026241104982ca43651`
+  - Tam tablolar (tümü / demo 11 / kendi 7, bütün sütunlar) md dosyasında; aşağıda özet.
+- Commit aralığı: ilk tur `c2c6cf95`, son `691e3c20`. `src`/`incidents`'i değiştiren yalnız `eafc4914`; `tests/`'i değiştiren `8716719a`, `eafc4914`.
+- **Dev tablosu (a1, gerçek ad, 18 vaka; top-1 / top-3 / Brier / şema dışı / ort. süre sn):**
+
+| Model | ham | özet | daraltma |
+|---|---|---|---|
+| qwen3.5-2b | 0 / 3 / 0.903 / 5 / 47.6 | 3 / 7 / 0.758 / 0 / 33.4 | 9 / 11 / 0.453 / 0 / 31.7 |
+| qwen3.5-4b | 6 / 6 / 0.228 / 2 / 102.1 | 9 / 15 / 0.444 / 0 / 67.4 | 13 / 16 / 0.235 / 0 / 68.4 |
+| qwen3.5-9b | 7 / 7 / 0.272 / 0 / 175.3 | 8 / 14 / 0.423 / 0 / 117.9 | 11 / 16 / 0.320 / 1 / 119.4 |
+| gpt-oss-120b | 7 / 7 / 0.076 / 2 / 1.5 | 12 / 15 / 0.165 / 3 / 1.5 | 15 / 17 / 0.086 / 1 / 1.7 |
+| gemini-3.5-flash-lite | 7 / 7 / 0.071 / 2 / 1.9 | 12 / 16 / 0.183 / 1 / 1.9 | 17 / 18 / 0.063 / 0 / 1.9 |
+
+  - Ham seviyede 8 vaka boş girdi (her modelde). "Belirtili" sütunları her hücrede top-1/top-3 ile aynı. Cevapsız ve bütçe aşımı her yerde 0. "Token yok" yalnız a1 gpt-oss özet 1 (json_validate_failed satırı).
+- **Yerel model boyutu (a1 daraltma, 9 zor vaka, top-3):** 2B 6, 4B 9, 9B 9; en iyi 9, kural "en iyiden ≤ 1 geride en küçük" → **seçilen qwen3.5-4b** (ön sonuçla aynı).
+- **Takma ad okuması (18 vaka top-3; a1 / a2 / b; gürültü; okuma):**
+  - Yerel 9 hücrenin hepsi "görülmedi" (gürültü 0; b hiçbir hücrede a1 − 2'nin altına düşmedi).
+  - gpt-oss: ham 7 / 5 / 6, gürültü 2 → **belirsiz**; özet 15 / 16 / 16 → görülmedi; daraltma 17 / 17 / 16 → görülmedi.
+  - Gemini: ham 7 / 7 / 6, özet 16 / 16 / 16, daraltma 18 / 18 / 18 → üçü de görülmedi.
+  - **"Üst sınır" hiçbir hücrede yok:** takma ad etkisi (modelin gerçek servis adını tanıması) bu turlarda görülmedi; gpt-oss ham hücresi gürültü yüzünden okunamadı.
+  - Bilgi: b unmatched — 2B ham 5, 4B ham 2, 9B ham 3, gpt-oss ham 3 (1 gerçek ad), Gemini ham 2; özet/daraltmada 0.
+- **Bilgi kayıtları:** şema dışı nedenlerinde en sık "evidence_path must start at the candidate service" (a1 9, b 8, a2 4) ve "candidate services must be distinct" (5 / 6 / 2); döngü yalnız a1'de 2 (bilinen 2B ham). Sağlayıcı / Qwen giriş token oranı Gemini 1.03–1.20, gpt-oss 0.84–0.99.
+- **Sıradaki:** planlama analizi scratch'te yeniden koşup sha'ları karşılaştırır. Sonra P1d kapanışı (PR, PROJECT "Şu an", P1e notları).
