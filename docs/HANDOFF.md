@@ -4190,3 +4190,23 @@ Data:
   - **T6 çapraz kontrol yok:** aynı; "çelişen sinyal" iki türle sınırlanır: (a) girdideki çağrı kenarlarına göre 1. aday, kendisi de değişmiş bir servisi çağırıyor (belirti daha derinden gelebilir; kenar yalnız daraltmada ve hamdaki işlem adlarında var); (b) gerekçenin dayandığı tek ölçü dışında adayın diğer ölçüleri değişmemiş ve başka bir servisin değişimi daha büyük. Gerekçe birden çok sinyale dayanıyorsa hayır.
   - Etiket satırında ayrıca isteğe bağlı tek satırlık `note` (sayılmaz): ör. daraltma `inc-73ac64e9`'da gpt-oss çağıranı (checkout) çağrılanın (cart) önüne koymuş, yolu ters yazmış — altı tuzağın dışında kalan gözlemler için.
 - Onaylanınca sorular `results/p1_error_labels.json`'ın başına metin ve sha256'sıyla yazılır, donar; sonra 29 satır etiketlenir.
+
+## 2026-11-04 · Planlama → Uygulama (P1e 3. adım kontrolü; sorular Eren onaylı, iki düzeltmeyle)
+- **Doğrulananlar** (`03f985e` scratch klonu ve repo dışı çalışma dosyaları):
+  - Kendi sayımım a1 `scores.json`'larından (girdi var, cevapsız değil, şema içi, top-1 ıskalama): 4B 2 / 9 / 5, gpt-oss 1 / 3 / 2, Gemini 1 / 5 / 1 = 29. Seçimle aynı. Gemini özette 2 satır çekimser (`unsure: true`) ve kapsamda.
+  - T3: kendi hesabım (1. aday, yayılım yolunda kökten başka servis) 29/29 dosyadakiyle aynı; 25 evet.
+  - Çalışma dosyaları: `index.json` sha'ları kayıttaki `input_sha256` ile 29/29 aynı. Dosyalardaki girdi metninin sha'sı da 29/29 aynı.
+  - pytest 596/596; `results.py` `b626765f…` değişmemiş; `error_analysis.py` yalnız dev etiketlerini ve dev vakalarını okuyor.
+  - Örneklemin etiketlemeden sonraya bırakılması doğru.
+- **Sorular (Eren onaylı, 2026-11-04): uyg4 önerisi ve iki düzeltme.**
+  1. **"Değişmiş / anormal" tek tanımla:** kuralın sinyal tanımı (`signals.signals`, güç ≥ 1; DECISIONS'ta kural ve daraltma için zaten kullanılan). uyg4'ün yeni eşikleri (hata oranı +0,01, p95 2 kat, CPU ve bellek 2 kat, herhangi bir WARN+) kullanılmaz; başarısız satırlar okunduktan sonra seçilmişlerdi.
+     - Eşikler: hata oranı sonra ≥ önce + 0,05; p95 / p99 ≥ max(1,5 × önce, önce + 20 ms); istek düşüşü (önce ≥ 20 ve sonra ≤ önce / 2); CPU ≥ max(1,5 × önce, önce + 5); bellek ≥ 1,2 × önce; yeni WARN+ mesajı alarmdan sonra ≥ 5 kez, önce 0.
+     - Girdide bulunan alanlara uygulanır, girdide olmayan alan sayılmaz. Ham seviyede log sinyali satırların zamanına göre (alarm öncesi / sonrası).
+     - `root_visibility: direct` = kökün girdideki kendi satırında / satırlarında bu tanımla en az bir sinyal. Mümkünse kodla hesaplanır (T3 gibi); uygulama tek satırla kayda yazılır. `indirect` ve `absent` uyg4'ün tanımıyla.
+     - Aynı tanım T4'te ("kökün değişen sinyali") ve T6'da ("değişmemiş", "daha büyük değişim" = en büyük güç) kullanılır.
+  2. **T6 yalnız (b):** gerekçe tek bir ölçüye dayanıyor, adayın girdideki diğer ölçüleri değişmemiş ve başka bir servisin değişimi daha büyük → evet. Gerekçe birden çok sinyale dayanıyorsa hayır.
+     - (a) "aday, kendisi de değişmiş bir servisi çağırıyor" çıkar: bu belirtiyi neden sanma (T3). T6'da kalırsa T6'yı şişirir.
+     - Onun yerine özet, T3'ü `root_visibility`'ye göre ayrı gösterir. T3 evet ve kök `direct` / `indirect` ise model kanıtı görmüş ama belirtiyi seçmiş demektir.
+  - Diğerleri uyg4 önerisiyle: T1 netleştirmesi (kanıt kenarları T1'e girmez), T2 (`root_visibility` ≠ `absent` ve kök üç adayda değil; ikinci kısım kodla), T3 kodla, T4 yeniden yazım, T5 netleştirmesi, isteğe bağlı `note`.
+- Sıra: sorular metin ve sha256'sıyla `results/p1_error_labels.json`'ın başına yazılır ve donar. Sonra 29 satır etiketlenir, etiketler donar. Sonra örneklem (tohum 20261104) ve Eren'in 10 satırı.
+- Yeni ad: `root_visibility` (değerler `direct` / `indirect` / `absent`) bu onayla kabul; GLOSSARY'ye uyg4 yazar.
