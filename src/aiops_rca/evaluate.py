@@ -1,6 +1,6 @@
 """Değerlendirme CLI'ı (HANDOFF 2026-10-30 P1a kartı).
 
-    python -m aiops_rca.evaluate run --method rule [--sets pilot,dev] [--cases inc-…,…] [--final-test] [--root eval_responses]
+    python -m aiops_rca.evaluate run --method rule|baro|narrowing [--sets pilot,dev] [--cases inc-…,…] [--final-test] [--root eval_responses]
     python -m aiops_rca.evaluate run --method llm --model <etiket> --level raw|summary|narrowed [--alias] [--sets …]
                                      [--cases …] [--root llm_cache]
     python -m aiops_rca.evaluate score <koşu klasörü> [--final-test]
@@ -29,11 +29,12 @@ from aiops_rca.inputs import LEVELS
 from aiops_rca.llm_client import MODELS
 from aiops_rca.methods.baro import baro_baseline
 from aiops_rca.methods.llm import llm_method
+from aiops_rca.methods.narrowing import narrowing_baseline
 from aiops_rca.methods.rule import rule_baseline
 from aiops_rca.runs import EVAL_RESPONSES, append_response, new_run, read_run
 from aiops_rca.scoring import score_case, score_table
 
-METHODS = {"rule": rule_baseline, "baro": baro_baseline}  # + "llm" (model, seviye ve takma adla kurulur)
+METHODS = {"rule": rule_baseline, "baro": baro_baseline, "narrowing": narrowing_baseline}  # + "llm" (model, seviye ve takma adla kurulur)
 TABLE_COLUMNS = (("n", "Vaka"), ("top1", "top-1"), ("top3", "top-3"), ("evidence_valid", "Kanıt geçerli"),
                  ("evidence_invalid", "Kanıt geçersiz"), ("evidence_null", "Kenarsız"),
                  ("label_path_overlap_mean", "Örtüşme"), ("brier", "Brier"), ("selective_accuracy", "Seçici doğruluk"),
