@@ -9,6 +9,9 @@
   length`) şema dışı sayılır, yeniden sorulmaz.
 - Taşıma hatasında (bağlantı/zaman aşımı, 429, 500, 502, 503, 504) bir kez yeniden denenir; ilk deneme kayda girer,
   süre ve cevap ikinci denemedendir. Başka HTTP hatası (ör. 400, 413) yeniden denenmez, kayda girer.
+- Groq `strict` şemada modelin bozuk JSON'unu 400 ile reddederse (`error.code: json_validate_failed`) bu modelin
+  cevabıdır: içerik `failed_generation`'dan (kesilmeden) okunur, şema dışı, yeniden denenmez (DECISIONS 2026-11-01
+  "Groq `json_validate_failed`"). Diğer 400'ler cevapsız.
 - Şema dışı cevap yeniden sorulmaz: `schema_valid: false`, hatalar `schema_errors`'a. Okuyucu denemelerdeki gibi
   cevaptaki ilk JSON nesnesini okur (``` dahil); nesne `answer.validate_answer`'dan geçmelidir.
 - Token (girdi, çıktı, akıl yürütme; sağlayıcının `usage`'ı) ve süre kayda. Kaydı yazmak çağıranın işi (`runs.py`).
@@ -145,7 +148,15 @@ def post(url: str, body: dict, key: str | None, timeout: float) -> tuple[int, di
         except ValueError:
             return r.status, text[:500]
     except urllib.error.HTTPError as e:
-        return e.code, e.read().decode("utf-8", errors="replace")[:500]
+        text = e.read().decode("utf-8", errors="replace")
+        try:
+            parsed = json.loads(text)
+        except ValueError:
+            parsed = None
+        if e.code == 400 and isinstance(parsed, dict) and isinstance(parsed.get("error"), dict) \
+                and parsed["error"].get("code") == "json_validate_failed":
+            return e.code, parsed  # modelin reddedilen cevabı: gövde kesilmez
+        return e.code, text[:500]
     except Exception as e:  # zaman aşımı, bağlantı reddi
         return -1, f"{type(e).__name__}: {e}"[:500]
 
@@ -168,6 +179,10 @@ def parse_content(content: str | None) -> tuple[dict | None, list[str]]:
 
 def _attempt(status: int, resp: dict | str, elapsed: float) -> dict:
     out = {"status": status, "elapsed_s": round(elapsed, 3)}
+    if status == 400 and isinstance(resp, dict):  # yalnız json_validate_failed gelir (`post`)
+        out.update(finish_reason=None, content=resp["error"].get("failed_generation"), reasoning_text=None,
+                   usage={}, tokens=None)
+        return out
     if status != 200 or not isinstance(resp, dict):
         out["error"] = resp if isinstance(resp, str) else json.dumps(resp)[:500]
         return out
@@ -213,6 +228,8 @@ def chat(spec: ModelSpec, messages: list[dict], *, url: str | None = None, key: 
         record["schema_errors"] = [f"no answer: HTTP {last['status']}"]
         return record
     obj, errors = parse_content(last.get("content"))
+    if last["status"] == 400:  # sağlayıcı modelin JSON'unu reddetti: şema dışı
+        obj, errors = None, ["json_validate_failed (provider rejected the model's JSON)"] + errors
     if last.get("finish_reason") == "length":  # sınıra takılan cevap şema dışı (DECISIONS 2026-10-31)
         obj, errors = None, ["finish_reason length (output limit reached)"] + errors
     record.update(answer=obj, schema_valid=obj is not None, schema_errors=errors)

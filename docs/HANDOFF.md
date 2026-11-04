@@ -3421,3 +3421,594 @@ Data:
   - `llm_cache/` git dışı. Duman kayıtları yalnız bu makinede.
   - `quote-svc` bulgusu yalnız pilot `inc-91bf76d4`'te, P1e notu (planlama 2026-11-01).
   - P1d'den önce karar: taşıma hatasıyla cevapsız satırın puanı.
+
+## 2026-11-01 · Planlama → Uygulama (P1d kartı: dev koşuları ve yerel model boyutu)
+- P1c birleşti (PR #31, main `9a8cd14`; PR ve main koşuları yeşil, 564 geçti + 3 atlandı). Kapanış (`0a7adb5`) kontrol edildi.
+- **Dal `task/p1-dev-runs`** (Eren); planlama main `9a8cd14`'ten açtı. Kararlar: DECISIONS 2026-11-01 "P1d koşu seti", "Yerel model boyutu seçimi", "Cevapsız satır" (Eren onaylı). Yeni adlar uygulama önerir, Eren onaylar, sonra GLOSSARY.
+- Yapılacak:
+  1. **Kod (küçük):** cevapsız satır durumu (DECISIONS "Cevapsız satır"): kayıt, puanlama ve tablo sütunu; testler ve kasıtlı kırmızı; rule ve BARO puanları değişmez (eşitlik). Koşulardan önce birleşmez, aynı dalda.
+  2. **Koşucu** (repo dışı betik, dumandaki gibi): tur = `evaluate run --method llm --model <m> --level <s> [--alias] --sets dev --root eval_responses`, sonra `evaluate score`. Sıralı; şarj sınırı 80 kontrolü; Groq aralığı kodda.
+  3. **Takvim** (Groq günde bir tur; aynı 24 saatte ikinci Groq turu yok):
+     - Gün 1: gerçek ad (a1) 15 tur: 3 yerel × 3 seviye (yaklaşık 5 saat, gece), Groq, Gemini.
+     - Gün 2: takma ad (b) 15 tur.
+     - Gün 3: API ikinci tur (a2) 6 tur, gerçek ad.
+     - Gemini'nin günlük istek sınırı ilk turdan önce konsoldan bakılıp kayda (3 günde 138 istek).
+  4. **Yerel tekrar:** bir yerel tur (2B, daraltma, gerçek ad) ikinci kez `llm_cache/`'e; cevaplar birebir aynı olmalı. Değilse durulur, planlamaya (yerel gürültü 0 varsayımı düşer).
+  5. **Analiz** (repo dışı betik; ölçütler ve kurallar betikte, koşmadan önce yazılı; tek komutla yeniden üretilir):
+     - Dev tablosu (a1, model × seviye): top-1, top-3, kanıt, Brier, seçici doğruluk, kapsama, şema dışı, boş girdi, bütçe aşımı, cevapsız, süre (ortalama ve en çok), token. Satırlar: tümü; demo senaryoları (11); kendi hatalarımız (altyapı 5 + quote-gateway 2). "Yalnız belirtili" sütunu (dev'de işaretli vaka yok; yine yazılır).
+     - Boyut seçimi: DECISIONS kuralıyla betik hesaplar.
+     - Takma ad: model × seviye başına a1, a2 (API), b top-3; 18 vaka ve 9 zor vaka; gürültü; okuma (üst sınır / belirsiz / görülmedi); takma adlı turların `unmatched` sayısı.
+- **Durma kuralları** (durulur, sayıyla planlamaya; ayar değişmez, yeniden sorulmaz): `finish_reason: length` ya da Groq boyut reddi (DECISIONS 2026-10-31 "Çıktı sınırı"); bir turda ≥ 2 cevapsız; bütçe aşımı (beklenen 0).
+- **Dev'e göre ayar yok:** istem (sha256 `6d05378e…`), girdi kodu, model ayarları ve koşu commit'i turlar boyunca aynı. Dev sonucuna bağlı tek seçim yerel model boyutu, önceden yazılı kuralla.
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - `eval_responses/`'ta 36 tur (a1 15, b 15, a2 6), hepsi puanlı; `run.json`'larda istem sha `6d05378e…`, commit temiz ve aynı.
+  - Yerel tekrar birebir aynı.
+  - Dev tablosu, boyut seçimi ve takma ad okuması betikle üretilmiş ve kayıtta; planlama bağımsız doğrular.
+  - pytest yeşil; PR koşusu yeşil.
+- Dikkat: test seti okunmaz. Sonuçların yorumu P1e'de (test ile yan yana); P1d dev sayılarını ve seçimi kayda geçirir. P1e kartı ayrı (planlama).
+
+## 2026-11-01 · Uygulama → Planlama (P1d 1. adım planı: cevapsız satır; ad önerisi)
+- **Ad önerisi (Eren onayı):** kayıt satırında **`no_answer`** (bool; LLM satırlarında her zaman var), tabloda **"Cevapsız"** sütunu ve `score_table`'da `no_answer` sayısı.
+  - Gerekçe: kayıttaki mevcut hata metniyle ("no answer: HTTP …") aynı söz; girdi ile ilgili değil, bu yüzden `input_status`'a eklenmez.
+  - Diğer seçenek: `transport_failed`. Bu ad 400/413 gibi taşıma dışı hataları kapsamaz.
+- **Kapsam sorusu (planlama):** bugün `chat()` son denemede yanıt yoksa (`error`) "no answer" yazıyor. Bu üç durumu kapsıyor:
+  - (a) taşıma hatası: iki deneme (-1, 429, 5xx);
+  - (b) yeniden denenmeyen HTTP hatası (400, 401, 413…);
+  - (c) bozuk sağlayıcı cevabı (`choices` yok).
+  - Karar metni yalnız (a)'yı sayıyor. **Öneri:** üçü de `no_answer` olsun; hiçbiri modelin şema hatası değil, model içerik döndürmedi. Groq boyut reddi (413) ayrıca durma kuralı olarak kalır (koşucu durur).
+  - Diğer seçenek: yalnız (a) `no_answer`; (b) ve (c) şema dışı kalır.
+- **Plan** (dosya: `methods/llm.py`, `scoring.py`, `evaluate.py`, testler, fikstürler):
+  1. `methods/llm.py`: `chat` kaydında `error` varsa satır `no_answer: true`, `schema_valid: null`; diğer satırlarda `no_answer: false`. `attempts` ve hata metni kayıtta kalır.
+  2. `scoring.py`: `score_case(..., no_answer=)`. Cevapsız satır: top-1/top-3 ıskalama, `unsure: true` (kapsama dışı), güven yok (Brier dışı), şema dışına ve kanıt sayılarına girmez. `score_table`'a `no_answer` sayısı.
+  3. `evaluate.py`: `score` satırdaki `no_answer`'ı geçirir (rule/BARO satırlarında alan yok → `false`); tabloya "Cevapsız" sütunu.
+  4. Testler: sahte sunucuda iki 503 → `no_answer`, şema dışı sayılmaz, tablo sütunu; tek 503 + başarılı ikinci deneme → `no_answer: false`. Kasıtlı kırmızıyla.
+  5. Rule/BARO eşitliği: CI fikstürleri ve `eval_responses/` 4 koşu, yeni alan dışında aynı (P1c'deki yöntem). Fikstürlere yalnız `no_answer: 0` eklenir.
+- Koşucu, takvim, yerel tekrar ve analiz betiği sonraki adımlar (ayrı plan). İlk turdan önce Gemini'nin günlük istek sınırına konsoldan bakmak Eren'in işi.
+
+## 2026-11-01 · Planlama → Uygulama (P1d 1. adım planı kontrolü; Eren onaylı)
+- Plan (`91bb32c`) kartla uyumlu; **onaylı**. Ad `no_answer`, tabloda "Cevapsız" (Eren). Kapsam üç durum: DECISIONS 2026-11-01 "Cevapsız satırın kapsamı ve adı". Kaynakta doğrulandı: `_attempt` HTTP 200 dışındaki her durumda ve `choices` yoksa `error` yazıyor; yalnız -1, 429 ve 5xx bir kez yeniden deneniyor.
+- Ekler (planlama):
+  1. Testler: tek 400 → `no_answer: true`, tek deneme (yeniden deneme yok); 200 ama `choices` yok → `no_answer: true`; `finish_reason: length` → `no_answer: false` ve şema dışı (sınır kuralı korunur). Kasıtlı kırmızıyla.
+  2. Koşucu (sonraki adım): (b) ya da (c) görülürse tur durur; (a) turda 2 ya da daha çok ise tur başka gün yeniden. Koşucu bunu `responses.jsonl`'daki `no_answer` ve son denemenin durum kodundan okur.
+- Sonra: 1. adım kodu; sonuç HANDOFF'a, planlama bağımsız doğrular.
+
+## 2026-11-01 · Uygulama → Planlama (P1d 1. adım: cevapsız satır)
+- **Kod (`93d149d`):**
+  - `methods/llm.py`: `chat` kaydında `error` varsa (üç durum: iki denemede taşıma hatası, yeniden denenmeyen HTTP hatası, bozuk cevap) satır `no_answer: true`, `schema_valid: null`. Diğer bütün LLM satırlarında `no_answer: false`, sorulmayan girdiler dahil. `attempts` ve `schema_errors` ("no answer: HTTP …") kayıtta kalır.
+  - `scoring.py`: `score_case(..., no_answer=)`. Cevapsız satır ıskalama, `unsure: true` (kapsama dışı), güven yok. Şema dışına ve kanıt sayılarına girmez. `score_table`'a `no_answer` sayısı eklendi.
+  - `evaluate.py`: `score` satırdaki alanı geçirir (rule/BARO satırında yok → false). Tabloya "Cevapsız" sütunu.
+- **Testler:** pytest **573/573** (+6).
+  - `test_llm_method.py` (5):
+    - iki 503 → cevapsız, şema dışı 0, kapsama 0, sütun var;
+    - 503 + başarılı ikinci deneme → cevapsız değil;
+    - tek 400 → cevapsız, yeniden deneme yok;
+    - `choices`'sız 200 → cevapsız;
+    - `finish_reason: length` → cevapsız değil, şema dışı (planlama eki 1).
+  - `test_scoring.py` (1): cevapsız, şema dışı ve doğru satır bir arada. Testin ilk sürümünde kapsama beklentim yanlıştı (şema dışı satır da kapsama dışı, P1a kuralı); düzeltildi, kod değişmedi.
+- **Kasıtlı kırmızı** (dört bozulmanın dördü kırmızı):
+  - cevapsız işaretlenmez → 3 test;
+  - cevapsız satırda `schema_valid` false kalır → 3;
+  - puanlama `no_answer`'ı yok sayar → 2;
+  - kanıt sayıları cevapsızı da sayar → 2.
+- **Rule/BARO eşitliği:**
+  - CI fikstürleri yeni alan çıkarılınca aynı; diff yalnız 12 satır ekleme (`"no_answer": false` × 8, `0` × 4).
+  - `eval_responses/` 4 koşu geçici kopyada yeniden puanlandı: yeni alanlar dışında kayıtlı `scores.json` ile **4/4 aynı** (22, 22, 11, 11 / 43). Kayıtlı dosyalar değişmedi.
+- GLOSSARY: `no_answer`, "Cevapsız" (Eren onaylı).
+- Sonra: 2. adım planı. Koşucu, takvim ve yerel tekrar; analiz betiği ayrı.
+
+## 2026-11-01 · Planlama → Uygulama (P1d 1. adım kontrolü)
+- 1. adım (`93d149d`, `381ff35`) DECISIONS 2026-11-01 "Cevapsız satır" ve "… kapsamı ve adı" ile uyumlu; **2. adıma geçilebilir.**
+- Planlamanın bağımsız kontrolleri (`381ff35` scratch klonunda; ortak kopyada dosya yok):
+  - pytest 573/573. Fikstür farkı yalnız ekleme (silinen satır 0).
+  - Planlamanın kasıtlı kırmızıları (uyg4'ünkilerden farklı), beşi de kırmızı: yalnız taşıma hatası cevapsız sayılır 2 test; sınıra takılan cevap da cevapsız sayılır 2; cevapsız satır şema dışı sayılır 2; cevapsız satır kapsamaya girer 2; `evaluate` `no_answer`'ı geçirmez 1.
+  - `eval_responses/` 4 resmî koşu HEAD koduyla yeniden puanlandı: yeni alanlar dışında kayıtlı `scores.json`'larla 4/4 aynı.
+  - Duman 30 koşusu HEAD koduyla yeniden puanlandı: `no_answer` dışında önceki kodla (`bb18ce2`) aldığım puanlarla 30/30 aynı; cevapsız 0.
+- Sonra: 2. adım planı (koşucu, takvim, yerel tekrar). İlk turdan önce Gemini'nin günlük istek sınırı (Eren, konsol).
+
+## 2026-11-01 · Uygulama → Planlama (P1d 2. adım planı: koşucu, takvim, yerel tekrar)
+- **Koşucu:** `~/cerebrum2/analysis/p1d_runner.py` (repo dışı; dumandaki gibi sıralı). Kullanım `p1d_runner.py a1|b|a2|repeat`.
+  - **Tur:** `evaluate run --method llm --model <m> --level <s> [--alias] --sets dev --root eval_responses` (repeat'te `--root llm_cache`), ardından `evaluate score <klasör>`.
+  - **Sıra:** her aşamada yerel 2B → 4B → 9B → gpt-oss → Gemini; her modelde ham → özet → daraltma. a2 yalnız iki API modeli. repeat = 2B daraltma, gerçek ad.
+  - Groq turları arasında 65 sn (her tur ayrı süreç; tur içinde `Pacer`).
+  - **Takvim koruması:** koşucu Groq turlarının başlangıç zamanını `~/cerebrum2/analysis/p1d_state.json`'a yazar. Son Groq aşaması başlayalı 24 saat olmadıysa yeni aşamanın Groq turlarını başlatmaz, durur.
+  - **Her turdan önce:** şarj sınırı 80, çalışma kopyası temiz (`git status`, `eval_responses/` hariç), `src/` ağacı ilk turunkiyle aynı (`git rev-parse HEAD:src`). Biri tutmazsa tur başlamaz, koşucu durur.
+  - **Her turdan sonra:** `run.json`'da istem sha `6d05378e…` ve `repo_clean: true`.
+  - **Durma kuralları** (DECISIONS 2026-10-31 "Çıktı sınırı", 2026-11-01 "Cevapsız satırın kapsamı ve adı"; kart): bir satırda `finish_reason: length`; (b) ya da (c) türü cevapsız (son deneme -1, 429, 5xx dışında ya da "malformed") bir kez, Groq 413 dahil; (a) türü cevapsız turda 2 ya da daha çok; bütçe aşımı 1 ya da daha çok; koşu hatası. Durunca o tur ve nedeni çıktıya yazılır, sonraki tur başlamaz. (a) ≥ 2'de kart kuralı uygulanır: o tur başka gün yeniden koşulur, eskisi `llm_cache/`'e taşınır, HANDOFF'a yazılır (elle).
+  - **Çıktı:** `~/cerebrum2/analysis/p1d_<aşama>.json`. Tur başına: klasör, commit, `src` ağacı, satır sayıları (sorulan, boş, bütçe aşımı, cevapsız, şema dışı), süre ve token toplamı, puan tablosu.
+- **Takvim** (kart; tahmin dumandaki sürelerden; dev'de ham 10/18 dolu):
+  - **Gün 1, a1 (15 tur):** yerel ~3,5–4 saat (9B ~1,9 saat), gece. Groq 46 çağrı × 65 sn ≈ 50 dk. Gemini birkaç dk.
+  - **Gün 2, b (15 tur):** aynı süre. Groq aşaması 1. günün Groq başlangıcından ≥ 24 saat sonra.
+  - **Gün 3, a2 (6 tur):** ~1 saat.
+  - **repeat:** a1'in yerel turları bitince (~10 dk, `llm_cache/`). Kontrol: 18 vakada `raw_output` ve `answer`, a1'in 2B daraltma turuyla birebir aynı. Değilse durulur, planlamaya.
+  - Uzun koşu `systemd-inhibit` altında (uyku engeli) ve koşucu oturumdan bağımsız (`setsid`). Başlatma ve bitiş HANDOFF'a.
+- **Planlamaya sorular:**
+  1. **"Koşu commit'i aynı" ölçütü.** Üç gün boyunca HANDOFF/DECISIONS commit'leri HEAD'i değiştirir. **Öneri:** ölçüt "`src/` ağacı aynı" olsun. Koşucu her turda kontrol eder ve kayda geçirir. `run.json`'daki `repo_commit` belge commit'leriyle değişebilir; bunun yalnız belge commit'i olduğu `git diff <ilk> <son> -- src tests` boş çıkmasıyla gösterilir.
+     - Diğer seçenek: koşular süresince dala hiç commit yapılmaz, HANDOFF kayıtları koşudan sonra.
+  2. **Ortak çalışma kopyası.** Bir tur başlarken commit'lenmemiş belge değişikliği varsa `repo_clean: false` olur (`runs.py` bütün ağaca bakar). **Öneri:** koşular süresince planlama ve uygulama belge değişikliğini hemen commit'ler. Koşucu temiz değilse turu başlatmaz, durur ve bekleyen tur sayısını yazar.
+  3. **Gemini günlük sınırı:** ilk turdan önce Eren konsoldan bakar, değer HANDOFF'a (3 günde 138 istek).
+- Analiz betiği (dev tablosu, boyut seçimi, takma ad okuması) 3. adım, ayrı plan. a1 bitmeden yazılır, ölçütler koşmadan önce betikte.
+
+## 2026-11-01 · Planlama → Uygulama (P1d 2. adım planı kontrolü)
+- Plan (`9138591`) kartla uyumlu; **onaylı**, aşağıdaki eklerle. Kaynakta doğrulandı: `runs.new_run` `repo_clean`'i `eval_responses/` hariç hesaplıyor; turların yazdığı klasörler sonraki turları kirletmez.
+- Sorular:
+  1. **Kimlik ölçütü:** öneri kabul, bir ekle: her turda `HEAD:src` **ve `HEAD:incidents`** ağaçları ilk turunkiyle aynı (vaka listesi ve alarm zamanı `incidents/`'tan girdiye girer); koşucu ikisini de çıktıya yazar. Kartın bitti maddesindeki "commit temiz ve aynı" şöyle okunur: her `run.json`'da `repo_clean: true`; `src` ve `incidents` ağaçları 36 turda aynı; ilk ve son turun commit'leri arasında `git diff -- src tests incidents` boş. Ölçümden önce yapılmış bir açıklama, sonuca göre değil.
+  2. **Ortak kopya:** öneri kabul. Ek: koşucu kopyayı temiz bulmazsa durmadan önce 10 dk boyunca 30 sn'de bir yeniden bakar (belge commit'lerinin kısa kirli anı gece turunu düşürmesin); 10 dk sonra da kirliyse durur. Planlama yazmayı tek komutta (ekle + commit) yapar ve ortak kopyada başka dosya üretmez.
+  3. **Gemini günlük sınırı:** ilk turdan önce Eren konsoldan bakar, değer HANDOFF'a. Günlük istek sınırı 46'nın altındaysa Gemini turları güne bölünür (seviye başına bir gün), takvim HANDOFF'a.
+- Not: koşucu repo dışında; sha256'sı her aşamanın çıktısına ve HANDOFF'a (dumandaki gibi).
+- Sonra: 2. adım (koşucu) yazılır ve sahte modelle ya da `--cases` ile bir pilot vakada denenir (`llm_cache/`, dev değil); sonuç HANDOFF'a. İlk resmî tur Gemini sınırı kayda geçtikten sonra.
+
+## 2026-11-01 · Uygulama → Planlama (P1d 2. adım: koşucu yazıldı ve denendi)
+- **Koşucu:** `~/cerebrum2/analysis/p1d_runner.py`, sha256 `2cc959dc…abce`. Plan (`9138591`) ve planlama ekleri (`304d243`) uygulandı:
+  - `HEAD:src` ve `HEAD:incidents` ağaçları ilk resmî turda kayda alınır, her turda karşılaştırılır.
+  - Kopya kirliyse 10 dk boyunca 30 sn'de bir yeniden bakılır.
+  - Groq'ta 24 saat koruması ve turlar arası 65 sn.
+  - Durma kuralları; repeat'te a1'in 2B daraltma turuyla birebir karşılaştırma.
+  - Yarım kalan aşama yeniden çağrılınca biten turlar atlanır.
+  - Çıktı `p1d_<aşama>.json`, her turdan sonra yazılır.
+  - Resmî durum dosyası `p1d_state.json` henüz yok; ilk resmî turda oluşur.
+- **Denemeler** (resmî kayda girmez; `llm_cache/`, ayrı durum dosyası `p1d_trial_state.json`):
+  - `selftest`: durma sınıflaması geçti. Doğru durumlar: 400, 413 ve bozuk 200 → durur; tek 503 → durmaz; iki taşıma hatası → durur; bütçe aşımı → durur; boş girdi → durmaz.
+  - `a1 --trial` (pilot `inc-01a609bb`; 2B, gpt-oss, Gemini × özet, daraltma; 6 çağrı): 6/6 tur bitti ve puanlandı. Şema dışı 0, cevapsız 0. İki Groq turu arasında ≥ 65 sn.
+  - **24 saat koruması:** `b --trial` 2B turlarını koştu, ilk Groq turunda durdu ("previous phase started 05:44:34Z, < 24 h ago"). İstek gitmedi.
+  - **Kirli kopya:** repoda geçici dosyayla `wait_clean` (bekleme 3 sn'ye kısaltılarak) yeniden baktı ve false döndü. Dosya silinince true.
+  - **Ağaç koruması:** deneme durum dosyasında kayıtlı `src` ağacı bilerek bozuldu. `repeat --trial` ilk turdan önce, çağrı yapmadan durdu ("trees changed").
+- **İlk resmî turdan önce:** Gemini günlük istek sınırı (Eren, konsol) HANDOFF'a. 46'nın altındaysa Gemini turları günlere bölünür (planlama).
+- Sonra: Eren Gemini sınırını yazınca a1 başlar (gece, `systemd-inhibit` + `setsid`). Analiz betiği (3. adım) a1 bitmeden plan + kod.
+
+## 2026-11-01 · Uygulama → Planlama (P1d: Gemini sınırları kayda)
+- Eren, Google AI Studio konsolu, Gemini 3.5 Flash Lite (2026-11-01, yerel ~09:00):
+  - **RPD 500** (o gün kullanılan 19);
+  - RPM 15;
+  - TPM 250K.
+- Sonuç:
+  - Günlük en çok 46 istek ≪ 500, **Gemini turları bölünmez**. Takvim karttaki gibi.
+  - RPM 15: tur içinde vaka başına önce girdi üretimi (birkaç sn), sonra ~2 sn çağrı, yani dakikada 15'in altında beklenir. 429 gelirse 30 sn sonra bir yeniden deneme var; iki denemede de 429 olursa satır (a) türü cevapsız, turda ≥ 2 ise durma kuralı.
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 başladı)
+- a1 05:53Z'de (yerel 08:53) başladı. `setsid` + `systemd-inhibit --what=sleep:idle`; log `~/cerebrum2/analysis/p1d_a1.log`, çıktı `p1d_a1.json`.
+- Ağaç kaydı (`p1d_state.json`), başlangıç commit'i `c2c6cf9`:
+  - `src` `c9bb8c5b…1f38`
+  - `incidents` `ce7a75d0…e29e21`
+- Koşu süresince belge değişiklikleri tek komutta (ekle + commit).
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 durdu: 2B hamda sınıra takılan iki cevap; karar gerekli)
+- **Ne oldu:**
+  - a1'in ilk turu (2B, ham, gerçek ad; `eval_responses/20261101T055328Z-llm`, 05:53–06:02Z) bitti, puanlandı.
+  - Durma kuralı tetiklendi (DECISIONS 2026-10-31 "Çıktı sınırı"): **2 satırda `finish_reason: length`** (`inc-bfbbd586`, `inc-d6d5f1b2`; çıktı 800/800).
+  - Koşucu durdu, sonraki tur başlamadı, sunucu kapalı. Ayar değişmedi, yeniden sorulmadı.
+- **Neden:** iki cevapta da model **tekrar döngüsüne** girmiş. 1. adayın `evidence_path` listesine `"frontend"` yüzlerce kez yazılmış (`["frontend", "frontend", …]` / `["frontend", "frontend-proxy", "frontend", …]`), 3.160 karakterde kesilmiş.
+  - Sınır darlığı değil: aynı turdaki diğer 8 cevap 231–305 token.
+  - Sınır büyüse döngü daha uzun sürerdi.
+- **Turun geri kalanı** (doğruluk yorumlanmaz):
+  - sorulan 10 (8 boş girdi);
+  - şemaya uygun 5;
+  - şema dışı 5: 2 sınır, 3 "candidate services must be distinct" (`inc-4a62b9bb`, `inc-86d286ea`, `inc-9292257f`);
+  - cevapsız 0;
+  - en uzun cevap 508 sn duvar saati.
+- **Seçenekler (planlama ve Eren):**
+  1. **Öneri: tur geçerli kalır, a1 sürer.** Sınıra takılan cevap kararındaki gibi şema dışı (2B'nin hatası, tabloda görünür). Durma kuralının amacı sınırın yetip yetmediğini görmekti: neden döngü, sınır değil. Kalan turlarda `length` için **ölçmeden önce yazılı ek kural**: `raw_output`'ta aynı öğe bir listede art arda ≥ 20 kez geçiyorsa "tekrar döngüsü", kayda geçer, tur sürer. Böyle değilse (gerçek uzun cevap) durulur.
+  2. Kural aynen: her `length`'te durulur. 2B'nin diğer seviyelerinde de döngü olursa a1 her seferinde durur, takvim kayar.
+  3. Ayar değişikliği (çıktı sınırı, şemada `evidence_path` için `maxItems`, tekrar cezası): onaylı ayar ve şema değişir; duman ve bu tur yeniden koşulmalı. Önermem.
+- **Teknik not:** koşucu yeniden çağrılırsa durmuş turu yeniden koşar (yalnız "done" atlanır). Seçenek 1 seçilirse bu tur "done" sayılacak biçimde koşucuya işlenir (çıktı JSON'unda durum + karar notu), ikinci kez koşulmaz.
+- a1'in kalan 14 turu bekliyor. Groq aşaması başlamadı, 24 saat sayacı yok.
+
+## 2026-11-01 · Planlama → Uygulama (P1d a1 durması: karar; Eren onaylı)
+- **Karar:** DECISIONS 2026-11-01 "P1d'de sınıra takılan cevapta durma (tekrar döngüsü)": uyg4'ün seçenek 1'i ve bir turda ≥ 4 döngü eşiği. **a1 sürer**; ilk tur "done" sayılır (koşucuya karar notuyla), ikinci kez koşulmaz.
+- Planlamanın kontrolü: `eval_responses/20261101T055328Z-llm` kendi betiğimle okundu. `repo_clean: true`, commit `c2c6cf9`, istem `6d05378e…`. Sorulan 10, boş 8. `inc-bfbbd586` ve `inc-d6d5f1b2`: `length`, 800 token, "frontend" art arda 253 ve 251 kez. Diğer 8 cevap `stop`, 231–305 token. Şema dışı 3 "candidate services must be distinct" (`inc-4a62b9bb`, `inc-86d286ea`, `inc-9292257f`). Rapor doğru.
+- Kaynak: Qwen3.5-2B model kartı (huggingface.co/Qwen/Qwen3.5-2B, Best Practices): düşünmesiz metin işinde temperature 1.0, top_p 1.0, top_k 20, min_p 0, presence_penalty 2.0, repetition_penalty 1.0; "adjust the presence_penalty parameter between 0 and 2 to reduce endless repetitions". Ayarımız (temperature 0, ceza yok) bundan sapıyor; P1e sınırlama notu.
+- Koşucuya: döngü tanımı (`raw_output`'ta bir JSON listesinde aynı dize art arda ≥ 20) ve eşik betikte; tur başına döngü sayısı çıktıya. Devam etmeden önce `selftest`'e bir döngü örneği (sürer), bir turda 4 döngü örneği (durur) ve döngüsüz bir sınıra takılma örneği (durur) eklenir. Koşucunun yeni sha256'sı HANDOFF'a.
+- Sonra: a1'in kalan 14 turu.
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 sürüyor: döngü kuralı koşucuda)
+- Koşucu güncellendi (DECISIONS 2026-11-01 "… tekrar döngüsü"). Yeni sha256 **`9fa0598c…e687`** (eski `2cc959dc…abce`).
+  - Döngü = `finish_reason: length` ve `raw_output`'ta aynı JSON dizesi virgülle art arda ≥ 20 kez (`LOOP_RUN = 20`).
+  - Turda ≥ 4 döngü (`LOOP_STOP`) ya da döngüsüz bir sınıra takılma → durulur.
+  - Tur sayımlarına `repetition_loops` eklendi.
+- `selftest` geçti. Eklenen örnekler:
+  - 3 döngü → sürer;
+  - 4 döngü → durur;
+  - döngüsüz sınır (`rationale` içinde kesik) → durur;
+  - 18 kez + farklı öğe + 1 kez → döngü değil, durur;
+  - `stop` cevabında tekrar → döngü sayılmaz.
+- Gerçek ilk turda kural iki döngüyü tanıdı (`inc-bfbbd586`, `inc-d6d5f1b2`), durma nedeni kalmadı.
+- `p1d_a1.json`'da ilk tur `done` olarak işaretlendi. Karar notu ve özgün durma metni (`stop_original`) kayıtta; tur ikinci kez koşulmaz.
+- a1 kalan 14 turla sürdürülüyor (aynı ağaçlar).
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 durdu: Groq `json_validate_failed`; karar gerekli)
+- **Ne oldu:**
+  - a1'in 11. turu (gpt-oss, özet, gerçek ad; `eval_responses/20261101T094006Z-llm`, 09:40–09:59Z) bitti, puanlandı.
+  - 2 satır HTTP 400, tek deneme (`inc-0c4902c3`, `inc-8069b709`). Koşucu (b) türü cevapsız kuralıyla durdu (DECISIONS 2026-11-01 "Cevapsız satırın kapsamı ve adı"). Groq daraltma ve Gemini'nin 3 turu koşulmadı.
+- **Neden:** altyapı değil, **modelin bozuk JSON'u**.
+  - Groq `strict` şemada çıktıyı sunucuda doğruluyor. Model `"confidence": 0. nine` yazmış (iki cevapta da aynı bozukluk).
+  - Groq cevabı göndermek yerine `{"type": "invalid_request_error", "code": "json_validate_failed", "failed_generation": "…"}` ile 400 dönmüş. Model içeriği `failed_generation`'da var.
+  - Kayıtta kesik: `post` hata gövdesini 500 karakterde kesiyor, yani tam metin yok.
+- **Kapsam:** a1'in biten 11 turunda (≈ 170 satır) 200 dışı yanıt yalnız bu iki satır. Önceki turların kaydı ve puanı bu konudan etkilenmez.
+- **Groq kotası** (24 saat): deneme ~10K, ham 33,8K, özet 42,1K (+ iki 400'ün girdisi ~4,5K) ≈ 90K kullanıldı. Daraltma ~57K daha tutar ≈ 147K. Özet turu yeniden koşulursa +~42K ≈ 190K (sınır 200K).
+- **Seçenekler (planlama ve Eren):**
+  1. **Öneri: `json_validate_failed` model cevabı sayılır (şema dışı), cevapsız değil.** Gemini ve yerelde bozuk JSON zaten şema dışı sayılıyor; Groq'ta da öyle olmalı.
+     - Kod (`llm_client`): 400 + `code: json_validate_failed` → `content = failed_generation` (gövde kesilmeden), satır `schema_valid: false`, `no_answer: false`, yeniden denenmez. Testi ve kasıtlı kırmızısıyla.
+     - Bu `src/` ağacını aşamanın ortasında değiştirir. Biten 11 turda böyle satır yok, puanları değişmez: eşitlik yeniden puanlamayla gösterilir.
+     - Ağaç kaydı karar notuyla yenilenir; "aynı ağaç" ölçütü "değişiklik bu yanıt türüyle sınırlı" diye okunur.
+     - Duran özet turu yeniden koşulur. Kota için öneri: a1'in Groq daraltması ve Gemini şimdi; Groq özetin tekrarı 3. gün a2'den önce (o gün ~140K + 42K ≈ 182K).
+  2. Kod değişmez, yalnız koşucunun durma kuralı: `json_validate_failed` turu durdurmaz, satır "Cevapsız" kalır. P1e'de analiz betiği bunları model biçim hatası olarak ayrıca sayar. Bedeli: puan tablosu model hatasını altyapı hatası gibi gösterir; "Cevapsız satır" kararının amacına ters.
+  3. Kural aynen: tur başka gün yeniden. gpt-oss aynı hatayı tekrarlayabilir (2/18), yeniden durma olasılığı yüksek.
+- Koşucu durdu, sunucu kapalı. Groq aşama başlangıcı a1 için 09:28:41Z (24 saat sayacı); b'nin Groq turları 2026-11-02 09:28Z'den önce başlayamaz.
+
+## 2026-11-01 · Planlama → Uygulama (P1d a1 ikinci durma: Groq 400; Eren onaylı)
+- **Karar:** DECISIONS 2026-11-01 "Groq `json_validate_failed`" (uyg4'ün seçenek 1'i).
+- Planlamanın kontrolü: `eval_responses/20261101T094006Z-llm` (gpt-oss, özet, commit `7b8d74d`, temiz) okundu. `inc-0c4902c3` ve `inc-8069b709`: 400 `json_validate_failed`, `failed_generation`'da `"confidence": 0. nine`. a1'in 11 turunda 184 deneme: 182'si 200, 2'si bu 400. Groq'un a1'deki kendi sayısı 75,9K (400'ler hariç); denemeyle ve 400'lerin girdisiyle ~90K. Rapor doğru.
+- Ekler (planlama):
+  1. **Dar tanım:** yalnız HTTP 400 ve gövdede `error.code == "json_validate_failed"`. `failed_generation` kesilmeden `raw_output`'a, neden `schema_errors`'a. Diğer 400'ler (b) türü cevapsız kalır, koşucu durur. Testler: bu 400 → şema dışı, cevapsız değil, tek deneme; başka bir 400 (ör. `invalid_api_key`) → cevapsız. Kasıtlı kırmızıyla.
+  2. **Eşitlik:** biten 11 tur ve rule/BARO'nun 4 resmî koşusu yeni kodla yeniden puanlanır, `scores.json`'lar aynı. Yeni ağaç değerleri ve karar notu `p1d_state.json`'a ve HANDOFF'a.
+  3. **Kota:** uyg4'ün takvimi uygun. Şimdi a1'in Groq daraltması (~57K, toplam ~147K) ve Gemini'nin üç turu; gpt-oss özetin tekrarı 3. gün a2'den önce (~182K < 200K). 24 saat sayacı a1'in Groq başlangıcından (09:28:41Z) işler.
+  4. Duran turun klasörü silinmez, `llm_cache/`'e taşınır; P1e'de "yeniden koşulan tur" notu.
+- Sonra: kod ve testler (kısa kayıt), sonra a1'in kalan turları.
+
+## 2026-11-01 · Uygulama → Planlama (P1d: Groq `json_validate_failed` düzeltmesi; a1 sürüyor)
+- **Kod (`eafc491`):**
+  - `llm_client.post`: 400 gövdesi JSON ve `error.code == "json_validate_failed"` ise gövde kesilmeden döner. Diğer hatalar eskisi gibi 500 karakter.
+  - `_attempt`: bu yanıtta `content = failed_generation`.
+  - `chat`: 400 ise cevap şema dışı, `schema_errors[0]` = "json_validate_failed (provider rejected the model's JSON)". `error` yok, yani `methods/llm.py` satırı `no_answer: false`. Yeniden deneme yok.
+- **Testler** (pytest **576/576**, +3):
+  - Bu 400 → şema dışı, tek deneme, içerik 900+ karakter tam.
+  - JSON gövdeli başka 400 (`invalid_api_key`) → cevapsız.
+  - Yöntem satırında `no_answer: false`, `schema_valid: false`.
+- **Kasıtlı kırmızı** (dört bozulmanın dördü kırmızı):
+  - kod tanınmaz → 2 test;
+  - her JSON gövdeli 400 cevap sayılır → 1;
+  - neden yazılmaz → 2;
+  - içerik 500'de kesilir → 1.
+- **Eşitlik:** yeni kodla a1'in biten 10 turunun `scores.json`'u **10/10 birebir aynı**. Rule/BARO 4 resmî koşu yeni alanlar dışında 4/4 aynı.
+- **Kayıtlar:**
+  - Duran gpt-oss özet turu `llm_cache/20261101T094006Z-llm`'e taşındı. `p1d_a1.json`'da `status: deferred`; özgün durma metni ve karar notu kayıtta.
+  - `p1d_state.json` ağaç kaydı yenilendi: `src` `461d037b…5dc2` (eski `c9bb8c5b…1f38`, `baseline_history`'de nedeniyle), `incidents` aynı, commit `eafc491`.
+- **Koşucu** sha256 **`e130ee22…4164`**: ertelenen tur atlanır, `--run-deferred` yalnız ertelenenleri koşar (3. gün, a2'den önce).
+- a1 sürdürülüyor: kalan Groq daraltma ve Gemini'nin 3 turu.
+
+## 2026-11-01 · Uygulama → Planlama (P1d a1 bitti; Groq özet turu ertelendi)
+- **a1:** 15 turdan **14'ü** bitti ve puanlandı (`eval_responses/`, 05:53–11:55Z). gpt-oss özet turu ertelendi (3. gün a2'den önce, `--run-deferred`).
+  - Çıktı `~/cerebrum2/analysis/p1d_a1.json` (sha256 `269ce1e6…`), log `p1d_a1.log`.
+  - Koşucu sha256 `e130ee22…4164` (son 4 tur). İlk 10 tur `2cc959dc…` / `9fa0598c…` sürümleriyle koşuldu; sürümler arası fark yalnız durma kuralları ve ertelenen tur işleme, `evaluate` çağrısı aynı.
+- **Kimlik:**
+  - 14 turun hepsinde `repo_clean: true`, istem sha `6d05378e…`.
+  - `src` ağacı ilk 10 turda `c9bb8c5b…`, son 4 turda `461d037b…`. Fark yalnız `json_validate_failed` düzeltmesi (`eafc491`); biten 10 tur yeni kodla 10/10 aynı puanlandı.
+  - `incidents` 14 turda aynı (`ce7a75d0…`).
+- **Durumlar** (doğruluk yorumlanmaz):
+
+  | Model | Tur | Sorulan satır | Şema dışı | Döngü | Cevapsız | Ort. cevap süresi (sn; ham / özet / daraltma) |
+  |---|---|---|---|---|---|---|
+  | qwen3.5-2b | 3 | 46 | 5 | 2 | 0 | 48 / 33 / 32 |
+  | qwen3.5-4b | 3 | 46 | 2 | 0 | 0 | 102 / 67 / 68 |
+  | qwen3.5-9b | 3 | 46 | 1 | 0 | 0 | 175 / 118 / 119 |
+  | gpt-oss-120b | 2 (ham, daraltma) | 28 | 3 | 0 | 0 | 1,5 / — / 1,7 |
+  | gemini-3.5-flash-lite | 3 | 46 | 3 | 0 | 0 | 1,9 / 1,9 / 1,9 |
+
+  - Hamda her modelde 8/18 boş girdi, sorulmadı.
+  - Bütçe aşımı 0. Cevapsız 0.
+  - En uzun yerel cevap 9B ham 256 sn.
+- **Şema dışı nedenleri** (14 tur, 14 satır; bir satırda birden çok neden olabilir):
+  - "evidence_path must start at the candidate service": 10;
+  - "candidate services must be distinct": 5;
+  - tekrar döngüsü (`length` + kesik JSON): 2, 2B ham.
+  - Duran özet turundaki iki `json_validate_failed` satırı ertelenen turla yeniden sorulacak, bu sayıya girmez.
+- **Groq kotası:** a1'in biten iki Groq turu 81,7K token. Duran özet turu (~42K) ve deneme (~10K) ile 24 saat içinde ~134K. Sayaç 09:28:41Z'den. b'nin Groq turları 2026-11-02 09:28Z'den sonra.
+- **Sırada:**
+  - (1) yerel tekrar (`repeat`, 2B daraltma, `llm_cache/`), koşulabilir;
+  - (2) b aşaması: yerel ve Gemini bugün/gece, Groq turları 24 saat koruması yüzünden 2026-11-02 09:28Z'den sonra (koşucu bekler değil, durur; o saatten sonra yeniden çağrılır);
+  - (3) analiz betiği (3. adım) planı.
+
+## 2026-11-01 · Uygulama → Planlama (P1d: yerel tekrar ve b'nin yerel + Gemini kısmı başladı)
+- Koşucuya `--no-groq` eklendi (sha256 **`74508097…930d`**): Groq turları o çağrıda atlanır, kayda geçmez. b'nin sırası 2B → 4B → 9B → Groq → Gemini; 24 saat koruması Groq'ta koşucuyu durduracağı için Gemini koşmazdı.
+- Zincir (Eren onayı, `setsid` + `systemd-inhibit`): `repeat` → (başarılıysa) `b --no-groq`. Tekrar birebir tutmazsa b başlamaz (kart kuralı). Log `p1d_repeat.log`, `p1d_b.log`.
+- b'nin Groq turları 2026-11-02 09:28Z'den sonra `p1d_runner.py b` ile (biten turlar atlanır).
+
+## 2026-11-01 · Uygulama → Planlama (P1d: yerel tekrar geçti; b'nin yerel + Gemini kısmı bitti)
+- **Yerel tekrar:** 2B daraltma `llm_cache/20261101T122821Z-llm`, a1 turu `eval_responses/20261101T062548Z-llm` ile **18/18 birebir aynı**. Çıktı `p1d_repeat.json` (sha256 `25771ec5…`).
+- **b (takma ad):** 15 turdan **12'si** bitti ve puanlandı (`eval_responses/`, 12:41–16:13Z). Groq'un 3 turu `--no-groq` ile atlandı, kayda girmedi.
+  - Çıktı `~/cerebrum2/analysis/p1d_b.json` (sha256 `2b343d68…`), log `p1d_b.log`. Koşucu sha256 `74508097…930d`.
+- **Kimlik:** 12 turda `repo_clean: true`, istem sha `6d05378e…`, commit `d2495e4`. Ağaçlar a1'in son 4 turuyla aynı: `src` `461d037b…`, `incidents` `ce7a75d0…`.
+- **Durumlar** (doğruluk yorumlanmaz):
+
+  | Model | Tur | Sorulan satır | Şema dışı | Döngü | Cevapsız | Ort. cevap süresi (sn; ham / özet / daraltma) |
+  |---|---|---|---|---|---|---|
+  | qwen3.5-2b | 3 | 46 | 3 | 0 | 0 | 43 / 32 / 32 |
+  | qwen3.5-4b | 3 | 46 | 2 | 0 | 0 | 101 / 70 / 70 |
+  | qwen3.5-9b | 3 | 46 | 3 | 0 | 0 | 175 / 119 / 122 |
+  | gemini-3.5-flash-lite | 3 | 46 | 2 | 0 | 0 | 1,8 / 1,7 / 1,7 |
+
+  - Hamda her modelde 8/18 boş girdi, sorulmadı (a1 ile aynı).
+  - Bütçe aşımı 0, cevapsız 0, `finish_reason: length` 0, durma yok.
+  - En uzun yerel cevap 9B ham 248 sn.
+- **Şema dışı nedenleri** (12 tur, 10 satır; bir satırda birden çok neden olabilir):
+  - "evidence_path must start at the candidate service": 11 (7 satır);
+  - "candidate services must be distinct": 3.
+- **Sırada:**
+  - (1) b'nin Groq turları 2026-11-02 09:28Z'den sonra `p1d_runner.py b` (biten turlar atlanır);
+  - (2) 3. gün `a1 --run-deferred` (Groq özet), sonra a2;
+  - (3) analiz betiği (3. adım) planı.
+
+## 2026-11-01 · Uygulama → Planlama (P1d 3. adım planı: analiz betiği)
+- **Açıklama (plandan önce):**
+  - Kurallar DECISIONS 2026-11-01'de koşulardan önce yazıldı; betik onları kodlar, değiştirmez.
+  - Ancak a1 bitti ve b'nin 12 turu koştu. b'nin tur tablolarını (top-1/top-3 dahil) koşucu çıktısını okurken gördüm.
+  - Bu yüzden aşağıdaki "yorum gerektiren yerler" planlamanın onayına bırakılıyor. Hepsinde kural metnine en yakın seçeneği öneriyorum.
+- **Betik:** `~/cerebrum2/analysis/p1d_analysis.py` (repo dışı, koşucu gibi).
+  - Kullanım: `cd aiops_rca && .venv/bin/python ~/cerebrum2/analysis/p1d_analysis.py`.
+  - Çıktı `p1d_analysis.json` ve `p1d_analysis.md`, sha256'larıyla birlikte HANDOFF'a.
+  - Çıktıda zaman damgası yok; planlama yeniden koşup baytı baytına aynı dosyayı almalı (bağımsız doğrulama).
+  - Model koşmaz, `evaluate score` çağırmaz. Okuduğu: `p1d_a1.json`, `p1d_b.json`, `p1d_a2.json`; her turun `run.json`, `responses.jsonl`, `scores.json` dosyaları; dev vakalarının etiketleri (`load_labels(("dev",))`, test okunmaz).
+- **Kimlik kontrolleri** (biri tutmazsa betik hata verip durur, tablo yazmaz):
+  1. 36 tur: a1 15, b 15, a2 6. Her (aşama, model, seviye) için tam bir `status: done` tur. Ertelenen gpt-oss özet turunun eski kaydı (`deferred`) sayılmaz, yeniden koşulanı sayılır.
+  2. Her `run.json`'da istem sha `6d05378e…`, `repo_clean: true`. Ayarlardaki model, seviye ve takma ad turla aynı.
+  3. Her turda `scores.json` 18 vaka. Tablosu koşucu çıktısındaki tabloyla aynı.
+  4. Ağaçlar: `incidents` 36 turda `ce7a75d0…`. `src` 36 turda `461d037b…`; tek istisna a1'in ilk 10 turu (`c9bb8c5b…`, DECISIONS "Groq `json_validate_failed`").
+  5. İlk ve son turun commit'leri arasında `git diff -- src tests incidents`: beklenen tek kod commit'i `eafc491`. Betik bu aralıkta bu yolları değiştiren commit listesini yazar; listede başka commit varsa durur.
+- **1. Dev tablosu** (a1, 5 model × 3 seviye = 15 satır), üç grupta:
+  - Gruplar: tümü (18), demo senaryoları (11), kendi hatalarımız (7).
+  - Grup ayrımı etiketteki `scenario`'dan: kendi hatalarımız = `networkDelay`, `packetLoss`, `cpuThrottle`, `containerPause`, `containerStop`, `quoteGateway*`; geri kalanı demo. Betik 11/7'yi doğrular.
+  - Sütunlar `score_table` ile aynı: top-1, top-3, kanıt (geçerli / geçersiz / kenarsız), örtüşme, Brier, seçici doğruluk, kapsama, şema dışı, boş girdi, bütçe aşımı, cevapsız. Bunlara ek olarak:
+    - süre: ortalama ve en çok, sn;
+    - token: sağlayıcı giriş ve çıkış toplamı, ayrıca yerel Qwen sayımıyla giriş toplamı.
+  - "Yalnız belirtili" sütunu: top-1 ve top-3, yalnız `checks.symptom.verdict == "symptomatic"` ve `marks` boş olan vakalarda. Dev'de 18/18 böyle, sayı "tümü" ile aynı çıkar; yine yazılır.
+- **2. Boyut seçimi** (DECISIONS "Yerel model boyutu seçimi"):
+  - Ölçü: a1 daraltma, 9 zor vakada 2B / 4B / 9B top-3.
+  - Kural: en iyiden en çok 1 geride olan en küçük boyut seçilir.
+  - Betik zor vaka listesini P1a kural koşularından da çıkarıp DECISIONS'takiyle karşılaştırır: iki kural koşusunda (`20261030T104544Z-rule`, `…104651Z-rule`) dev'de top-1 ıskalanan 9 vaka listeyle birebir aynı (kontrol ettim). Fark çıkarsa durur.
+  - Süre yanında yazılır, eleme ölçütü değil. Çıktıda seçilen boyut (`small_local_model` değeri).
+- **3. Takma ad okuması** (DECISIONS "P1d koşu seti"; model × seviye başına, 15 satır):
+  - top-3 sayıları: a1, a2 (yalnız API), b; 18 vakada, ayrıca 9 zor vakada.
+  - Gürültü: API'de |a1 − a2|. Yerelde 0; yerel tekrar 18/18 aynı çıktı, varsayım doğrulandı.
+  - Okuma 18 vakalık sayıyla:
+    - gürültü ≥ 2 → **belirsiz**;
+    - değilse b ≤ min(a1, a2) − 2 → **üst sınır** (ezber işareti; o model × seviyenin demo satırları P1e'de "üst sınır" okunur); yerelde min(a1, a2) = a1;
+    - değilse → **görülmedi**.
+  - Yalnız bilgi olarak (kurala girmez):
+    - 9 zor vakadaki aynı sayılar;
+    - API'de a1 ile a2 arasında top-3'ü değişen vaka sayısı;
+    - takma adlı turlarda `unmatched` aday sayısı (gerçek ad yazılan / diğer).
+- **4. Bilgi kayıtları** (yorumsuz): aşama başına şema dışı nedenleri ve döngü sayısı; tur başına sağlayıcı token / Qwen token oranı (P1e notu).
+- **Deneme:**
+  - `selftest`: sahte turlarla sınırları sınar.
+    - Okuma: gürültü 1 / 2; b = min − 1 / min − 2.
+    - Boyut seçimi: eşitlik, 1 geride, 2 geride.
+    - Grup sayımı 11/7. Kimlik kontrolünün her maddesi için bir kırmızı vaka.
+  - `--partial`: eksik turlar "—" olur, okuma eksik satırda yapılmaz. Bu kipte yalnız ekrana yazar, dosya üretmez; resmî çıktı yalnız 36 tur tamken.
+- **Yorum gerektiren yerler** (planlama onayı; öneriler kural metnine en yakın olanlar):
+  1. Takma ad okuması 18 vakalık sayıyla. Demo 11 / kendi 7 ayrımı a1 ve b için yalnız bilgi olarak gösterilir.
+  2. Gürültü sayı farkıyla (kural metni). Vaka düzeyinde değişim yalnız bilgi.
+  3. "Yalnız belirtili" = verdict `symptomatic` ve `marks` boş (2026-10-29 kararı).
+  4. Ortalama süre sorulan ve cevap gelen satırlar üzerinden. Boş girdi ve cevapsız satırların süresi yok (`duration_s: null`).
+  5. Grup ayrımı yukarıdaki senaryo listesiyle (V3 bileşimi; DECISIONS 2026-10-29).
+- **Sıra:** plan onayı → betik ve `selftest` → `--partial` ile mevcut turlarda dene (dosya yok) → b'nin Groq turları ve a2 bitince resmî koşu → HANDOFF'a tablolar, seçim ve okuma.
+- P1e notları resmî kayda metin olarak eklenir:
+  - quote-svc sızıntısı yalnız pilot `inc-91bf76d4`'te;
+  - `duration_s` son denemenin süresi;
+  - Qwen tekrar ayarı (temperature 1.0, presence_penalty 2.0) denenmedi;
+  - a1'de yeniden koşulan Groq özet turu.
+
+## 2026-11-01 · Planlama → Uygulama (P1d: Groq düzeltmesi, a1 14/15, yerel tekrar, b 12/15 kontrolü; 3. adım planı onayı)
+- Planlamanın bağımsız kontrolleri (`c52f5a3` scratch klonunda; ortak kopyada dosya yok; turlar ortak kopyadan yalnız okundu):
+  - **Kod (`eafc491`)** DECISIONS "Groq `json_validate_failed`" ile uyumlu: yalnız 400 ve `error.code == "json_validate_failed"` tanınıyor, gövde kesilmiyor, yeniden deneme yok, cevap şema dışı. pytest 576/576. Kasıtlı kırmızılarım: 400 yeniden denenir → 5 test kırmızı; kod yerine mesaj metni aranır → 1 kırmızı. **Yeşil kalan:** şemaya uyan bir `failed_generation` kabul edilirse testler fark etmiyor (testteki içerik zaten bozuk JSON). Ayrıca bu satırlarda sağlayıcı token sayısı yok (`tokens: null`).
+  - **Turlar** (26: a1 14, b 12; kendi betiğimle): hepsinde 18 satır, `repo_clean: true`, istem `6d05378e…`; aynı (aşama, model, seviye) iki kez yok. Ağaçlar: a1'in ilk 10 turu `src` `c9bb8c5b`, son 4'ü ve b'nin 12'si `461d037b`; `incidents` 26 turda `ce7a75d0`. Durum tabloları (sorulan, şema dışı, döngü, cevapsız, boş, ortalama süre) uyg4'ün iki tablosuyla birebir aynı; 200 dışı deneme 0. Ertelenen tur `llm_cache/20261101T094006Z-llm`'de.
+  - **Yeniden puanlama:** 26 tur `c52f5a3` koduyla puanlandı; kayıtlı `scores.json`'larla **26/26 birebir aynı** (a1'in ilk 10'u eski kodla puanlanmıştı). Rule/BARO 4 koşu yeni alanlar dışında 4/4 aynı.
+  - **Yerel tekrar:** `llm_cache/20261101T122821Z-llm` ile `eval_responses/20261101T062548Z-llm` (2B, daraltma, gerçek ad): `raw_output`, `answer`, `input_sha256` 18/18 aynı.
+- **3. adım planı (`c52f5a3`) onaylı.** Yorum noktalarının beşi de DECISIONS metniyle uyumlu, önerildiği gibi: (1) takma ad okuması 18 vakalık sayıyla, demo/kendi ayrımı bilgi; (2) gürültü sayı farkı, vaka düzeyi bilgi; (3) "yalnız belirtili" = `checks.symptom.verdict == "symptomatic"` ve `marks` boş (dev'de 18/18; doğruladım); (4) ortalama süre cevap gelen satırlarda (şema dışı dahil; boş, bütçe aşımı ve cevapsız hariç); (5) grup ayrımı senaryo listesiyle (dev'de demo 11 / kendi 7; doğruladım). uyg4'ün b tablolarını görmüş olması kayıtta; kurallar koşulardan önce yazılıydı, betik onları kodlar.
+- Ekler (planlama):
+  1. Kimlik kontrolü 5: durma koşulu `src` ya da `incidents`'i değiştiren beklenmeyen commit; yalnız `tests/`'i değiştiren commit'ler listelenir, durdurmaz (testler turları etkilemez).
+  2. Test açığı: "şemaya uyan `failed_generation` da şema dışı" testi, kasıtlı kırmızısıyla, kapanıştan önce (yalnız `tests/`, ağaçları değiştirmez).
+  3. Token sütunu: `json_validate_failed` satırlarının sağlayıcı token'ı yok; tabloda bu satırların sayısı yazılır.
+- Sonra: analiz betiği ve `selftest`, `--partial` denemesi (dosya yok); b'nin Groq turları 2026-11-02 09:28Z'den sonra; 3. gün ertelenen tur ve a2.
+
+## 2026-11-01 · Uygulama → Planlama (P1d 3. adım: analiz betiği yazıldı ve denendi)
+- **Betik** `~/cerebrum2/analysis/p1d_analysis.py`, sha256 **`d044a32a…f677`**. Plan `c52f5a3` ve planlama ekleri (`1bb98b7`) uygulandı.
+  - Kullanım: `.venv/bin/python ~/cerebrum2/analysis/p1d_analysis.py [--partial]`; `… selftest`.
+  - Koşucudan yalnız sabitleri (modeller, seviyeler, istem sha) ve döngü tanımını (`is_loop`) alır.
+  - Puanları repodaki `_metrics` ile hesaplar, böylece tablo `score_table` ile aynı olur. Her turda `_metrics(cases) == scores.json` tablosu da kontrol edilir.
+  - Ekler:
+    - (1) yalnız `src`/`incidents`'i değiştiren beklenmeyen commit durdurur; `tests/` commit'leri listelenir;
+    - (3) "Token yok" sütunu: cevap gelen ama sağlayıcı token'ı olmayan satır sayısı.
+    - Ek (2), yani şemaya uyan `failed_generation` testi, ayrı adım: kapanıştan önce, repoda.
+  - Ortalama süre cevap gelen satırlarda (şema dışı dahil; boş, bütçe aşımı ve cevapsız hariç), planlamanın (4) tarifiyle.
+  - Şema dışı nedenleri satır başına farklı neden olarak sayılır: aday numarası ve JSON hata konumu atılır. a1 kaydındaki "10" aday başına sayımdı; betikte aynı satırlar 7.
+- **selftest:** okuma sınırları, boyut seçimi, grup ve belirti tanımı (dev'de demo 11 / kendi 7), tur seçimi, kimlik kontrollerinin her maddesi için kırmızı vaka, süre/token ölçüsü. Geçti.
+- **Kasıtlı kırmızı (14/14 kırmızı):** betiğin bozulmuş kopyaları (scratch) selftest'te kırmızı verdi:
+  - eşikler: `MARK_DROP` 1, `NOISE_UNCLEAR` 3, `SIZE_SLACK` 2;
+  - okuma ve seçim mantığı: `ref = max`, büyükten seçim;
+  - tanımlar: `marks` yok sayılır, quoteGateway demo sayılır;
+  - tur seçimi: ertelenen tur sayılır;
+  - kimlik kontrolleri: eski `src` her aşamada geçer, tablo kontrolü yok, commit kontrolü yok;
+  - ölçüler: süre ortalamasında boş/cevapsız satırlar, nedenlerde aday numarası, JSON konumu.
+- **`--partial` denemesi** (26 tur: a1 14, b 12; dosya üretilmedi):
+  - Kimlik kontrollerinin hepsi geçti. İlk tur commit'i `c2c6cf95`, son `d2495e47`; `src`/`incidents`'i ve `tests/`'i değiştiren tek commit `eafc491`.
+  - İki koşu baytı baytına aynı.
+  - Tam kip, eksik 10 turu sayıp durdu (beklenen).
+  - a1'in yerel turları tamam olduğu için boyut seçimi `--partial`'da hesaplanabiliyor. Resmî kayıt 36 tur tamken üretilen çıktıyla olacak.
+- **Sırada:**
+  - b'nin Groq turları 2026-11-02 09:28Z'den sonra;
+  - 3. gün ertelenen tur, sonra a2;
+  - resmî koşu: `p1d_analysis.json` / `.md` ve sha256'ları HANDOFF'a;
+  - ek (2) testi.
+
+## 2026-11-01 · Planlama → Uygulama (P1d analiz betiği kontrolü)
+- Betik (`p1d_analysis.py`, sha256 `d044a32a…f677`) DECISIONS kurallarını doğru kodluyor (kaynağı okundu): okuma (gürültü ≥ 2 → belirsiz; b ≤ min(a1, a2) − 2, yerelde a1 → üst sınır), boyut seçimi (en iyiden en çok 1 geride olan en küçük), grup ayrımı (kendi 7 / demo 11), "yalnız belirtili" tanımı, zor vaka listesi (iki kural koşusuyla karşılaştırma), ertelenen turun sayılmaması, kimlik kontrolleri.
+- Planlamanın bağımsız kontrolleri (`26802d2` scratch klonunun koduyla; ortak kopyada ve `analysis/`'te dosya yok):
+  - `selftest` geçti. `--partial` iki kez koşuldu: çıktılar bayt bayt aynı (sha256 `c3ac7619…`), dosya yazılmadı, kimlik kontrolleri temiz.
+  - Hücreler kendi kodumla, cevaplardan ve etiketlerden (betik ve `scoring.py` kullanılmadan; takma ad eşlemesi GLOSSARY'den): 9 zor vakada a1 daraltma top-3 2B 6 / 4B 9 / 9B 9 (**kurala göre seçilen `qwen3.5-4b`**); 4B daraltma top-1 13, top-3 16, Brier 0,2347; Gemini özet 12, 16, 0,1828; 2B daraltma takma adla top-3 14 (a1 11); 9B ham takma adla top-3 6; gpt-oss daraltma a1 top-3 17. Hepsi betiğin çıktısıyla aynı.
+- Not: ağaç kontrolü koşucunun yazdığı ağaç değerine dayanıyor. İstenirse betik her turun `repo_commit`'inden `git rev-parse <commit>:src` / `:incidents` ile yeniden hesaplasın (planlama bunu bağımsız yaptı, tuttu; zorunlu değil).
+- Boyut seçimi a1'in yerel turlarıyla belli (kalan turlar onu değiştirmez); resmî kayıt 36 tur tamamlanınca betiğin çıktısıyla. Yorum P1e'de.
+- Sonra: b'nin Groq turları 2026-11-02 09:28Z'den (yerel 12:28) sonra; 3. gün ertelenen tur ve a2; resmî analiz; ek (2) testi; kapanış.
+
+## 2026-11-01 · Uygulama → Planlama (P1d: planlama eki 2, şemaya uyan `failed_generation` testi)
+- `8716719`: `tests/test_llm_client.py::test_groq_json_validate_failed_with_schema_valid_content_is_still_schema_invalid`.
+  - Groq 400 `json_validate_failed` cevabında `failed_generation` şemaya uyan bir JSON olsa da kayıt şema dışı.
+  - `answer` None, `schema_errors` yalnız `json_validate_failed` satırı.
+  - `raw_output` içerikle aynı, `error` None, tek deneme.
+- **Kasıtlı kırmızı:** planlamanın tarif ettiği açık, yani `chat`'te `if last["status"] == 400 and errors:` (şemaya uyan içerik kabul edilir).
+  - Tüm testlerde **yalnız yeni test** kırmızı (1 kırmızı, 576 geçti). Eski test bu bozmayı görmüyordu, açık kapandı.
+  - Kod `git checkout` ile geri alındı.
+- pytest **577/577**. Yalnız `tests/` değişti: `HEAD:src` `461d037b…`, `HEAD:incidents` `ce7a75d0…` aynı. Kalan turlar ve analiz betiğinin kimlik kontrolü etkilenmez; bu commit "`tests/`'i değiştiren" listesine girer.
+
+## 2026-11-01 · Planlama → Uygulama (P1d ek 2 testi kontrolü)
+- `8716719` doğru: yalnız `tests/` değişti (`HEAD:src` `461d037b`, `HEAD:incidents` `ce7a75d0` aynı). pytest 577/577 (`3b331f0` scratch klonunda). Önceden yeşil kalan bozulmam ("şemaya uyan `failed_generation` kabul edilir") artık 1 testle kırmızı; açık kapandı.
+- Not: kasıtlı kırmızı ortak kopyada yapılıp `git checkout` ile geri alınmış. Şu an koşu yoktu, zararı olmadı; P1d sürerken bozma ve deneme kopyada (scratch) yapılır, çünkü koşucu ortak kopyanın temizliğine ve ağacına bakıyor.
+- Sonra: b'nin Groq turları 2026-11-02 09:28Z'den (yerel 12:28) sonra.
+
+## 2026-11-02 · Uygulama → Planlama (P1d: b'nin Groq turları kuruldu)
+- `p1d_runner.py b`, 2026-11-02 **09:30Z**'de kendiliğinden başlar (`sleep` + `setsid` + `systemd-inhibit`). Biten 12 tur atlanır; yalnız gpt-oss'un 3 turu koşar. Log `p1d_b_groq.log`, çıkış kodu `p1d_bgroq.exit`.
+- Neden beklendi: kart kuralı (aynı 24 saatte ikinci Groq turu yok; a1 Groq başlangıcı 2026-11-01 09:28:41Z). Ayrıca son 24 saatte ~134K token harcandı; şimdi başlamak kayan günlük sınırı (200K) aşıp 429'larla turu düşürebilirdi.
+
+## 2026-11-02 · Uygulama → Planlama (P1d: b'nin Groq turları 24 saat dolmadan başlatıldı; Eren kararı)
+- **Eren kararı (07:3xZ):** "karta 24 saat kuralını koyan benim, kota aşılırsa durur zaten, şimdi başlat." 09:30Z'ye kurulan iş durduruldu (koşucu başlamamıştı).
+- Koşucuya `--no-day-guard` eklendi (sha256 **`fec1e031…4b7f`**): Groq 24 saat koruması o çağrıda uygulanmaz, turun kaydına `day_guard: skipped` yazılır. Başka değişiklik yok; selftest geçti.
+- Kota aşılırsa: 429 → (a) türü cevapsız; turda ≥ 2 → koşucu durur, kart kuralıyla o tur başka gün yeniden (eskisi `llm_cache/`'e).
+- Komut: `p1d_runner.py b --no-day-guard` (biten 12 tur atlanır). Log `p1d_b_groq.log`, çıkış `p1d_bgroq.exit`.
+
+## 2026-11-02 · Uygulama → Planlama (P1d: b Groq ham turu bitti; özet ve daraltma 09:40Z'ye bekletildi; Eren kararı)
+- **Ham tur** `eval_responses/20261102T072717Z-llm` (`--no-day-guard`, kayıtta `day_guard: skipped`):
+  - 10 sorulan satır, 8 boş girdi.
+  - 2 şema dışı: biri `json_validate_failed`, biri aday tekrarı.
+  - Cevapsız 0, döngü 0. Denemeler 9× 200, 1× 400 (`json_validate_failed`), 429 yok.
+  - Kimlik: `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`. Token 26,3K giriş + 3,1K çıkış.
+- **Bekletme (Eren kararı):** a1'in Groq harcaması (~124K) 2026-11-01 09:28–11:48Z arasında yapıldı. Kayan 24 saat varsayımıyla özet (~42K) ve daraltma (~48K) art arda koşulursa sınır (200K) aşılırdı.
+  - Koşucu ham turdan sonra, turlar arası 65 sn boşlukta durduruldu (10:37:51 yerel; özet turu başlamamıştı, kayıtta yok).
+  - Özet ve daraltma 2026-11-02 **09:40Z**'de `p1d_runner.py b` ile (24 saat dolmuş olacak, `--no-day-guard` yok). Log `p1d_b_groq.log`'a eklenir.
+
+## 2026-11-02 · Uygulama → Planlama (P1d b bitti: 15/15 tur)
+- **Gecikme:** 09:40Z başlangıcı tutmadı. Kapak 09:10Z'de kapandı ve sistem 10:12Z'ye kadar uykuya geçti (`systemd-inhibit --what=sleep:idle` kapak olayını engellemiyor). `sleep` uykuda saymadığı için bekleme uzadı. Uyanınca bekleme kesildi; özet ve daraltma 10:13Z'de başladı. O saatte a1'in ham ve özet harcaması pencereden düşmüştü, boşta ~120K vardı.
+- **Groq turları** (`p1d_runner.py` sha256 `fec1e031…`; özet ve daraltmada `--no-day-guard` yok, 24 saat dolmuştu):
+
+  | Seviye | Klasör | Sorulan | Şema dışı | Cevapsız | Döngü | Denemeler | Token giriş / çıkış |
+  |---|---|---|---|---|---|---|---|
+  | ham | `20261102T072717Z-llm` | 10 (8 boş) | 2 | 0 | 0 | 9× 200, 1× 400 `json_validate_failed` | 26,3K / 3,1K |
+  | özet | `20261102T101301Z-llm` | 18 | 1 | 0 | 0 | 18× 200 | 40,1K / 7,4K |
+  | daraltma | `20261102T103307Z-llm` | 18 | 2 | 0 | 0 | 18× 200 | 41,4K / 6,9K |
+
+  - Şema dışı nedenleri: aday tekrarı 3, `json_validate_failed` 1, "evidence_path must start at the candidate service" 1.
+  - 429 yok, `length` yok, durma yok.
+  - Kimlik: üç turda `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`.
+- **b aşaması tamam:** 15/15 tur `done`, `p1d_b.json` sha256 `17203e8f…`. b'nin Groq harcaması ~125K (sayılan).
+- **3. gün kotası:** ertelenen a1 özet (~45K) + a2'nin gpt-oss 3 turu (~125K) ≈ 170K < 200K.
+  - Kayan 24 saat varsayımıyla b'nin özet ve daraltma harcaması 2026-11-03 10:13–10:52Z'de düşer. Groq işleri **2026-11-03 10:55Z'den** (yerel 13:55) sonra: önce `a1 --run-deferred`, sonra a2.
+  - a2'nin Gemini turları kotadan bağımsız, aynı çağrıda koşar.
+  - Koşucunun 24 saat koruması a2 için b başlangıcına (07:27Z) bakar; 10:55Z bunu da sağlar.
+
+## 2026-11-02 · Uygulama → Planlama (P1d: analiz betiğinde ağaçlar commit'ten; planlama önerisi)
+- `p1d_analysis.py` sha256 **`981375d5…8855`** (eski `d044a32a…`).
+- **Kimlik 4 değişti.** Her turun `src` ve `incidents` ağacı `run.json`'daki commit'ten git ile yeniden hesaplanıyor (`git rev-parse <commit>:src` / `:incidents`). Hesaplanan değer koşucunun kaydıyla aynı olmalı. Beklenen değer kontrolü (`TREES`, a1'in erken turlarında `OLD_SRC`) hesaplanan ağaçla yapılıyor. Başka değişiklik yok.
+- **selftest** geçti. Yeni kırmızı vakalar:
+  - commit'in ağacı kayıttan farklı (`src` ve `incidents` ayrı ayrı);
+  - a1'in erken turunda iki ağaç da tek başına geçerli ama birbiriyle tutmuyor: yalnız karşılaştırma yakalar.
+- **Kasıtlı kırmızı** (scratch kopyada, 15/15 kırmızı): karşılaştırma kaldırılınca kırmızı; önceki 14 bozma güncel sürümde yine kırmızı.
+  - Not: "beklenen değeri kayıttan oku" bozması yeşil kalıyor. Karşılaştırma kayıt ile commit'in eşitliğini şart koştuğu için davranışı değiştirmiyor; açık değil.
+- **`--partial`** (29 tur: a1 14, b 15): kimlik kontrolleri temiz, iki koşu baytı baytına aynı, dosya yazılmadı. `tests/`'i değiştiren commit'ler listesinde `8716719` (ek 2 testi) de görünüyor, durdurmuyor.
+
+## 2026-11-02 · Planlama → Uygulama (P1d kontrolü: b bitti, analiz betiği ağaçları commit'ten)
+- **b'nin üç Groq turu bağımsız doğrulandı, uyg4 tablosuyla aynı:**
+  - Kendi sayım betiğim (29 tur: a1 14, b 15): sorulan, şema dışı ve nedenleri, denemeler (ham 9× 200 + 1× 400; özet ve daraltma 18× 200), token (26 342 / 3 090; 40 113 / 7 371; 41 393 / 6 884), cevapsız 0, döngü 0.
+  - Kimlik: üç turda `repo_clean: true`, istem `6d05378e…`; ağaçlar commit'ten `461d037b…` / `ce7a75d0…`, b'nin 15 turu aynı ağaçta. `day_guard: skipped` `p1d_b.json`'da.
+  - Yeniden puanlama (`4093de0` scratch klonunda): 3/3 `scores.json` bayt aynı.
+- **Analiz betiği `981375d5…` doğru:**
+  - Eski sürümle (planlamanın okuduğu 40–304. satırlar) fark yalnız kimlik 4: `tour_errors`'a commit ağaçları, kayıtla karşılaştırma, çağrı yerinde `rev-parse`. selftest geçti.
+  - `--partial` iki koşu bayt aynı (sha256 `79d00110…`), dosya yazılmadı. 26 turluk önceki çıktıyla farkı yalnız: betik sha, tur sayısı, son commit, `tests/` listesine `8716719`, b gpt-oss hücreleri, şema dışı nedenleri ve token oranı satırları. a1 kısmı aynı.
+  - b gpt-oss hücreleri kendi sayımımla aynı (top-3 / zor 9 / demo / kendi / unmatched): ham 6 / 2 / 6 / 0 / 3 (gerçek ad 1, diğer 2); özet 16 / 8 / 11 / 5 / 0; daraltma 16 / 8 / 9 / 7 / 0.
+- **Bilgi (P1e "unmatched" notuna):** b gpt-oss ham turunda unmatched `checkout` (gerçek ad), `BasketService`, `BillingService`. Kaynağı (girdide kalan ad mı, modelin tahmini mi) P1e hata analizinde bakılır; P1d'yi değiştirmez.
+- **3. gün planı uygun:** 2026-11-03 10:55Z (yerel 13:55) sonrası önce `a1 --run-deferred`, sonra a2. Kota hesabı tutuyor (~172K < 200K).
+- **Ek (yarın için): kapak uykusu.**
+  - Neden oldu: logind kapak olayında `sleep`/`idle` kilitlerini varsayılan olarak yok sayar (`LidSwitchIgnoreInhibited=yes`, bu makinede değiştirilmemiş). Yalnız `handle-lid-switch` kilidine uyar; şu an onu tutan başka süreç (gsd-power) yok.
+  - Planlama denedi: `systemd-inhibit --what=handle-lid-switch:sleep:idle --mode=block` bu makinede kullanıcı olarak alınabiliyor (çıkış 0). Kapak kapatılarak denenmedi.
+  - Öneri: yarınki bekleme ve koşular bu kilitle başlasın. Koşu ortasında uyku çağrıyı koparabilir: (a) türü cevapsız, turda ≥ 2 olursa tur başka güne kalır.
+
+## 2026-11-03 · Uygulama → Planlama (P1d 3. gün: ertelenen a1 turu ve a2 Gemini bitti; a2 Groq 10:56Z'de)
+- **Sıra değişti (kota planı aynı):** Eren 08:06Z'de "3. gün turlarını başlat" dedi. Kayan 24 saat varsayımıyla pencerede b'nin özet ve daraltma harcaması (~96K) 10:55Z'ye kadar duruyor; ~170K'nın hepsi şimdi koşulsa ~266K olurdu.
+  - Şimdi koşulan: `a1 --run-deferred` (~45K → pencere ~141K) ve `a2 --no-groq` (Gemini, kotadan bağımsız).
+  - a2'nin gpt-oss 3 turu aynı zincirde **2026-11-03 10:56Z'den sonra** kendiliğinden başlar (gerçek saatle bekleme döngüsü, `sleep` sayımı değil). 24 saat koruması uygulanır (b başlangıcı 07:27Z; `--no-day-guard` yok).
+  - Zincir `systemd-inhibit --what=handle-lid-switch:sleep:idle --mode=block` altında; şarj sınırı 80.
+- **a1 gpt-oss özet (ertelenen tur):** `eval_responses/20261103T080725Z-llm`, done. 18 sorulan, şema dışı 3, cevapsız 0, döngü 0; denemeler 17× 200 + 1× 400; token 37 824 / 6 507; tur süresi 1140 s. a1 artık 15/15 (eski ertelenen kayıt `llm_cache/20261101T094006Z-llm` olduğu gibi duruyor).
+- **a2 Gemini 3 tur, done:** ham `20261103T082650Z-llm` (10 sorulan, 8 boş girdi, şema dışı 0), özet `20261103T082809Z-llm` (şema dışı 1), daraltma `20261103T082950Z-llm` (şema dışı 0). Cevapsız ve döngü 0.
+- Dört turda `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`.
+- **Not:** 10:56Z ile a2 Groq turlarının sonu (~12:00Z) arasında çalışma kopyasına yazılmasın; koşucu kirli kopyada ya da ağaç değişince durur.
+
+## 2026-11-03 · Uygulama → Planlama (P1d: a2 bitti; 36 tur tamam)
+- **a2 gpt-oss 3 tur, done** (10:56–11:47Z; 24 saat koruması uygulandı, `day_guard` yok):
+  - ham `eval_responses/20261103T105629Z-llm`: 10 sorulan (8 boş girdi), şema dışı 3; denemeler 10× 200; token 30 504 / 3 412.
+  - özet `20261103T110745Z-llm`: 18 sorulan, şema dışı 2; 17× 200 + 1× 400; token 37 824 / 6 775.
+  - daraltma `20261103T112753Z-llm`: 18 sorulan, şema dışı 1; 18× 200; token 41 492 / 6 529.
+  - Cevapsız 0, döngü 0, 429 yok. Üç turda `repo_clean: true`, istem `6d05378e…`, ağaçlar `461d037b…` / `ce7a75d0…`.
+- **Bugünkü Groq harcaması** (ertelenen a1 özet dahil): ~171K token, 429 görülmedi.
+- **Durum:** a1 15/15, b 15/15, a2 6/6 → 36 tur done; yerel tekrar 18/18 aynı. Zincir 0 ile çıktı, kilit bırakıldı.
+- **Sıradaki adım (Eren onayıyla):** resmî analiz `p1d_analysis.py` (sha `981375d5…`), 36 tur; json/md sha'ları ve tablo/seçim/okuma HANDOFF'a.
+
+## 2026-11-03 · Planlama → Uygulama (P1d kontrolü: 3. günün 7 turu doğru; resmî analiz koşulabilir)
+- **7 tur bağımsız doğrulandı, uyg4 rakamlarıyla aynı** (ertelenen a1 özet, a2 Gemini 3, a2 gpt-oss 3):
+  - Kendi sayım betiğim koşucu kayıtlarından: 36 done tur (a1 15, b 15, a2 6), tekrar yok. Her turda `repo_clean: true`, istem `6d05378e…`, set `dev`, model/seviye/takma ad kayıtla aynı.
+  - Ağaçlar commit'ten: a1 10 tur `c9bb8c5b`/`ce7a75d0` (kayıtlı istisna) + 5 tur `461d037b`/`ce7a75d0`; b 15 ve a2 6 tur `461d037b`/`ce7a75d0`.
+  - Sorulan, şema dışı, cevapsız 0, döngü 0, denemeler ve Groq token'ları uyg4 kaydıyla aynı. İki 400 (a1 özet, a2 özet) `json_validate_failed`, şema dışı sayılmış.
+  - Yeniden puanlama (`f55179b` scratch klonunda): 7/7 `scores.json` bayt aynı.
+  - Koşucu `fec1e031…`, analiz betiği `981375d5…` değişmemiş; `p1d_analysis.json/.md` henüz yok.
+- **Resmî analiz: planlama görüşü "koşulsun"** (onay Eren'de). Betik `981375d5…` ile, değiştirmeden. HANDOFF'a: iki koşunun json ve md sha256'ları (aynı olmalı), dev tablosu, boyut seçimi, takma ad okuması.
+- Sonra planlama: analizi scratch'te yeniden koşup sha'yı karşılaştırır, birkaç hücreyi kendi koduyla hesaplar.
+
+## 2026-11-04 · Uygulama → Planlama (P1d: resmî analiz koşuldu)
+- **Betik** `~/cerebrum2/analysis/p1d_analysis.py` sha256 `981375d5…8855`, değiştirilmeden; selftest geçti. Tur 36/36, kimlik kontrolleri temiz (çıkış 0).
+- **İki koşu bayt aynı:**
+  - `p1d_analysis.json` sha256 `ee3e6a0f4f2da43083e67c095bde369ad22102259916df2d7ccdd932e1834f22`
+  - `p1d_analysis.md` sha256 `be4167ad9f4bf718f4f1280ce5744f6828e236719b620026241104982ca43651`
+  - Tam tablolar (tümü / demo 11 / kendi 7, bütün sütunlar) md dosyasında; aşağıda özet.
+- Commit aralığı: ilk tur `c2c6cf95`, son `691e3c20`. `src`/`incidents`'i değiştiren yalnız `eafc4914`; `tests/`'i değiştiren `8716719a`, `eafc4914`.
+- **Dev tablosu (a1, gerçek ad, 18 vaka; top-1 / top-3 / Brier / şema dışı / ort. süre sn):**
+
+| Model | ham | özet | daraltma |
+|---|---|---|---|
+| qwen3.5-2b | 0 / 3 / 0.903 / 5 / 47.6 | 3 / 7 / 0.758 / 0 / 33.4 | 9 / 11 / 0.453 / 0 / 31.7 |
+| qwen3.5-4b | 6 / 6 / 0.228 / 2 / 102.1 | 9 / 15 / 0.444 / 0 / 67.4 | 13 / 16 / 0.235 / 0 / 68.4 |
+| qwen3.5-9b | 7 / 7 / 0.272 / 0 / 175.3 | 8 / 14 / 0.423 / 0 / 117.9 | 11 / 16 / 0.320 / 1 / 119.4 |
+| gpt-oss-120b | 7 / 7 / 0.076 / 2 / 1.5 | 12 / 15 / 0.165 / 3 / 1.5 | 15 / 17 / 0.086 / 1 / 1.7 |
+| gemini-3.5-flash-lite | 7 / 7 / 0.071 / 2 / 1.9 | 12 / 16 / 0.183 / 1 / 1.9 | 17 / 18 / 0.063 / 0 / 1.9 |
+
+  - Ham seviyede 8 vaka boş girdi (her modelde). "Belirtili" sütunları her hücrede top-1/top-3 ile aynı. Cevapsız ve bütçe aşımı her yerde 0. "Token yok" yalnız a1 gpt-oss özet 1 (json_validate_failed satırı).
+- **Yerel model boyutu (a1 daraltma, 9 zor vaka, top-3):** 2B 6, 4B 9, 9B 9; en iyi 9, kural "en iyiden ≤ 1 geride en küçük" → **seçilen qwen3.5-4b** (ön sonuçla aynı).
+- **Takma ad okuması (18 vaka top-3; a1 / a2 / b; gürültü; okuma):**
+  - Yerel 9 hücrenin hepsi "görülmedi" (gürültü 0; b hiçbir hücrede a1 − 2'nin altına düşmedi).
+  - gpt-oss: ham 7 / 5 / 6, gürültü 2 → **belirsiz**; özet 15 / 16 / 16 → görülmedi; daraltma 17 / 17 / 16 → görülmedi.
+  - Gemini: ham 7 / 7 / 6, özet 16 / 16 / 16, daraltma 18 / 18 / 18 → üçü de görülmedi.
+  - **"Üst sınır" hiçbir hücrede yok:** takma ad etkisi (modelin gerçek servis adını tanıması) bu turlarda görülmedi; gpt-oss ham hücresi gürültü yüzünden okunamadı.
+  - Bilgi: b unmatched — 2B ham 5, 4B ham 2, 9B ham 3, gpt-oss ham 3 (1 gerçek ad), Gemini ham 2; özet/daraltmada 0.
+- **Bilgi kayıtları:** şema dışı nedenlerinde en sık "evidence_path must start at the candidate service" (a1 9, b 8, a2 4) ve "candidate services must be distinct" (5 / 6 / 2); döngü yalnız a1'de 2 (bilinen 2B ham). Sağlayıcı / Qwen giriş token oranı Gemini 1.03–1.20, gpt-oss 0.84–0.99.
+- **Sıradaki:** planlama analizi scratch'te yeniden koşup sha'ları karşılaştırır. Sonra P1d kapanışı (PR, PROJECT "Şu an", P1e notları).
+
+## 2026-11-04 · Planlama → Uygulama (P1d resmî analiz kontrolü; kapanış)
+- **Resmî analiz doğru:**
+  - Planlama betiği (`981375d5…`, değiştirmeden) koşucu kayıtlarıyla scratch klasöründe yeniden koştu (`50a4cf6` klonu, `aiops_rca` ve `p1d_runner` scratch'ten). Çıkış 0. `p1d_analysis.json` `ee3e6a0f…` ve `p1d_analysis.md` `be4167ad…`, resmî dosyalarla bayt aynı.
+  - Kendi kodumla (`scores.json` vaka satırlarından, betik kullanılmadan) hesaplananlar uyg4 özetiyle ve md ile aynı:
+    - dev tablosunun 15 hücresi (top-1, top-3, Brier, şema dışı, ort. süre);
+    - takma ad okumasının 15 hücresi (a1 / a2 / b, gürültü, okuma; yalnız gpt-oss ham "belirsiz", "üst sınır" yok);
+    - boyut seçimi (2B 6, 4B 9, 9B 9 → 4B);
+    - b unmatched (ham 5 / 2 / 3 / 3 / 2, özet ve daraltmada 0).
+  - Küçük not: HANDOFF özetinde iki Brier değeri çift yuvarlanmış: 2B daraltma 0.453 ve gpt-oss ham 0.076. Kesin değerler 0.45249… ve 0.07546…, üç basamakta 0.452 ve 0.075; md'deki dört basamak (0.4525, 0.0755) doğru. Rapor sayıları md/json'dan alınır.
+- **Bitti ölçütleri:**
+  1. 36 tur puanlı, istem `6d05378e…`, `repo_clean: true`: tutuyor. "Commit aynı": `src` için kayıtlı istisna `eafc491` (DECISIONS "Groq `json_validate_failed`"). Ölçütün "ilk ve son tur arasında `git diff -- src tests incidents` boş" kısmı `tests/` için tutmuyor: `eafc491` ve `8716719`. İkincisi planlamanın eki 2'siydi, yalnız test ekledi, ağaçları değiştirmedi. Kapanış kaydında böyle yazılsın.
+  2. Yerel tekrar 18/18: tutuyor.
+  3. Analiz betikle üretildi, kayıtta, planlama doğruladı: tutuyor.
+  4. pytest ve PR koşusu: kapanışta.
+- **Kapanış (uyg4):**
+  - 36 tur klasörü `eval_responses/`'a commit'lenir (P1a/P1b'deki gibi; ~3 MB). Planlama 36 klasörde anahtar kalıplarını taradı (`gsk_…`, `AIza…`, `Bearer`, `api_key`): eşleşme 0. Ertelenen eski kayıt ve yerel tekrar `llm_cache/`'te kalır.
+  - PROJECT "Şu an", gerekiyorsa ARCHITECTURE. PR açıklaması sade; birleştirme Eren'de.
+- Sonra planlama: P1e kartı (test koşusu: kural, BARO, 4B, gpt-oss, Gemini × 3 seviye + 9B bilgi satırı, DECISIONS 2026-11-03), main'den yeni dalda.
+
+## 2026-11-04 · Uygulama → Planlama (P1d kapanışı)
+- **Tur kayıtları commit'lendi** (`f7623f6`): `eval_responses/`'ta 36 klasör (a1 15, b 15, a2 6; 108 dosya, ~3 MB). Commit'lenmemiş klasörler koşucunun 36 done turuyla birebir aynıydı, fazla ya da eksik yok. Anahtar taraması (kalıplar ve `keys.env`'deki iki anahtarın değeri, yalnız sayım): 0. Ertelenen eski kayıt `llm_cache/20261101T094006Z-llm` ve yerel tekrar `llm_cache/20261101T122821Z-llm` `llm_cache/`'te kaldı (izlenmiyor).
+- **pytest:** 577/577.
+- **Bitti ölçütleri:**
+  1. 36 tur puanlı, istem `6d05378e…`, her turda `repo_clean: true`: tutuyor. Ağaçlar: `incidents` hep `ce7a75d0…`; `src` a1'in ilk 10 turunda `c9bb8c5b…`, sonra `461d037b…` (kayıtlı istisna `eafc491`, DECISIONS 2026-11-01 "Groq `json_validate_failed`"). İlk ve son tur arasında `git diff -- src tests incidents` boş değil: `src` ve `tests` `eafc491`'de; `tests` ayrıca `8716719`'da (planlamanın eki 2: yalnız test eklendi, `src`/`incidents` ağaçları değişmedi).
+  2. Yerel tekrar 18/18 aynı: tutuyor (`p1d_repeat.json`).
+  3. Tablo, boyut seçimi ve takma ad okuması betikle üretildi (`p1d_analysis.py` `981375d5…`; json `ee3e6a0f…`, md `be4167ad…`), planlama yeniden koşup bağımsız doğruladı: tutuyor.
+  4. pytest yeşil; PR koşusu PR açılınca.
+- **Düzeltme (2026-11-04 analiz kaydındaki özet tablo):** iki Brier değeri çift yuvarlanmıştı. 2B daraltma 0.452 (yazılan 0.453), gpt-oss ham 0.075 (yazılan 0.076). Kaynak md/json (0.4525, 0.0755); rapor sayıları oradan alınır.
+- **P1e'ye devreden notlar:**
+  - `quote-svc` takma ad sızıntısı yalnız pilot `inc-91bf76d4`'te (dev/test'te yok).
+  - `duration_s` son denemenin süresi; yeniden denenen satırlarda toplam süre değil.
+  - Qwen3.5 üretici ayarı (temperature 1.0, top_k 20, presence_penalty 2.0) denenmedi; deterministik ayar yerel sonuçları alt sınırda tutabilir (DECISIONS 2026-11-01 "tekrar döngüsü").
+  - a1'de gpt-oss özet turu iki kez koşuldu: 2026-11-01'de durdu (`json_validate_failed`, Groq kotası), resmî kayıt 2026-11-03 `20261103T080725Z-llm`.
+  - b'nin Groq turları `--no-day-guard` ile (Eren kararı, `day_guard: skipped`); b'nin yerel turlarında kapak uykusu ~1 saat gecikme yarattı, sonucu etkilemedi. 3. günde sıra kota için bölündü (HANDOFF 2026-11-03).
+  - b gpt-oss ham unmatched `checkout` (gerçek ad), `BasketService`, `BillingService`: kaynağı P1e hata analizinde.
+- PROJECT "Şu an" güncellendi; ARCHITECTURE değişmedi (repoda yeni dosya/yapı yok; koşucu ve analiz betiği repo dışında). PR açılıyor; birleştirme Eren'de.

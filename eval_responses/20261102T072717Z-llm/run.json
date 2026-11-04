@@ -1,0 +1,29 @@
+{
+ "method": "llm",
+ "model_id": "openai/gpt-oss-120b",
+ "provider": "groq",
+ "temperature": 0,
+ "settings": {
+  "model": "gpt-oss-120b",
+  "level": "raw",
+  "alias": true,
+  "max_tokens": 1600,
+  "extra": {
+   "reasoning_effort": "low"
+  },
+  "prompt_sha256": "6d05378eba8c386d3e5e32638997a1302dd0de625abd60a160f90396b7f1e3ce",
+  "data_budget": 5000,
+  "total_budget": 6000,
+  "image": "ghcr.io/ggml-org/llama.cpp@sha256:8f3c2cd0808a394d1e7ce02f025f453caacbf163389fe6b6443ec3a1efff96a0",
+  "gguf": "Qwen3.5-4B-Q4_K_M.gguf",
+  "gguf_sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+  "tokenizer": "qwen3.5-4b"
+ },
+ "sets": [
+  "dev"
+ ],
+ "started_at": "2026-11-02T07:27:17Z",
+ "repo_commit": "5540c024006aacfd082ca1227bb5059b404f2fe2",
+ "repo_clean": true,
+ "n_cases": 18
+}
