@@ -4012,3 +4012,64 @@ Data:
   - b'nin Groq turları `--no-day-guard` ile (Eren kararı, `day_guard: skipped`); b'nin yerel turlarında kapak uykusu ~1 saat gecikme yarattı, sonucu etkilemedi. 3. günde sıra kota için bölündü (HANDOFF 2026-11-03).
   - b gpt-oss ham unmatched `checkout` (gerçek ad), `BasketService`, `BillingService`: kaynağı P1e hata analizinde.
 - PROJECT "Şu an" güncellendi; ARCHITECTURE değişmedi (repoda yeni dosya/yapı yok; koşucu ve analiz betiği repo dışında). PR açılıyor; birleştirme Eren'de.
+
+## 2026-11-04 · Planlama → Uygulama (P1e kartı: test koşusu, sonuç tablosu, hata analizi)
+- P1d birleşti (PR #32, main `3ebb2e2`; PR ve main CI yeşil, 574 geçti + 3 atlandı). Planlama kontrol etti: 36 tur main'de, planlamanın yeniden puanladığı `scores.json`'larla 36/36 bayt aynı.
+- **Dal `task/p1-test`** (Eren); planlama main `3ebb2e2`'den açtı. Kararlar: DECISIONS 2026-11-04 (dört satır) ve 2026-11-03 "P1e'de qwen3.5-9b bilgi satırı", hepsi Eren onaylı. Yeni adlar uygulama önerir, Eren onaylar, sonra GLOSSARY.
+- **Bütün kart için kural:** test vakalarının girdileri, snapshot'ları ve cevap içerikleri okunmaz (uyg4 ve planlama).
+  - Testte görülenler: kimlik ve sayım (sorulan, boş, bütçe aşımı, şema dışı ve nedenleri, cevapsız, döngü, denemeler, token); tablo kodu dondurulduktan sonra toplam hücreler.
+  - Vaka bazında test sonucu yazılmaz, basılmaz.
+- Yapılacak:
+  1. **Test koşusu (bir kez; ayarlar P1d a1'deki gibi):**
+     - Turlar: kural, BARO; 4B, gpt-oss, Gemini × ham / özet / daraltma; 9B bilgi × 3 seviye. Gerçek ad, `--sets test`. Toplam 14. 2B, takma ad ve ikinci tur yok.
+     - Sabit: istem `6d05378e…`; model ayarları, yerel imaj ve gguf digest'leri P1d'deki gibi; `src` `461d037b…`, `incidents` `ce7a75d0…`. Tablo kodu `src`'yi değiştirecekse koşu ayrı temiz bir kopyadan yapılır (uyg4 önerir).
+     - Kurallar P1d'den aynen: cevapsız kapsamı ve durma (DECISIONS 2026-11-01), tekrar döngüsü, `json_validate_failed` şema dışı. Duran tur başka gün yeniden koşulur; duran turun sonuçlarına bakılmaz, kaydı `llm_cache/`'e.
+     - **Puanlama ertelenir:** test turlarında `evaluate score` koşulmaz, koşucu doğruluk yazmaz ve göstermez. Puanlama 2. adımın kodu dondurulduktan sonra tek adımda yapılır.
+     - Takvim: tek gün yeter (Groq ~125K < 200K; 4B ~1,2 sa, 9B ~2 sa; Gemini 54 istek). Kapak kilidi (`handle-lid-switch:sleep:idle`), şarj sınırı 80.
+     - Koşucu: P1d koşucusuna test aşaması eklenir (repo dışı); planlama farkı ve selftest'i görür.
+  2. **Sonuç tablosu komutu (repoda; DECISIONS "P1e sonuç tablosu repoda"):**
+     - Girdi: resmî koşuları satırlara bağlayan açık bir liste (repoda; `eval_responses/`'ta P1d'nin b/a2 turları ve pilot koşuları da var) ve `incidents/` etiketleri. Çıktı: repoda tablo dosyası (md + json).
+     - Satırlar: kural, BARO, daraltma referansı (modelsiz); 4B, gpt-oss, Gemini × 3 seviye; 9B "bilgi". Gruplar (demo / kendi hatalarımız) ayrı.
+     - Sütunlar: top-1, top-3, kanıt geçerliliği, Brier, seçici doğruluk, kapsama, şema dışı, boş girdi, bütçe aşımı, cevapsız, süre (ort., en çok), token. Dev ve test yan yana. Top-3 için dev–test okuması (DECISIONS "P1e dev–test okuması").
+     - 9B satırının okuması DECISIONS 2026-11-03 kuralıyla (yalnız-9B ve yalnız-4B sayıları; bir yönde ≥ 6 ve öteki 0 → "fark").
+     - Daraltma referansı snapshot gerektirdiği için CI'da hesaplanamaz; bir koşu kaydı olarak `eval_responses/`'a girer (dev ve test). Nasıl yapılacağını uyg4 önerir.
+     - Puanlama snapshot istiyorsa (ör. kanıt geçerliliği) CI tabloyu `scores.json`'dan üretir; puanlamanın CI'da yeniden yapılmadığı sınırlamaya yazılır. uyg4 bakar.
+     - Kontroller: dev hücreleri `p1d_analysis.json` (`ee3e6a0f…`) ile ortak sütunlarda eşit; CI testi tabloyu yeniden üretip bayt aynı bulur; kasıtlı kırmızı scratch kopyada.
+     - Kod commit'lenip sha'sı HANDOFF'a yazılınca donar; test puanlaması ve test sütunları ondan sonra.
+  3. **Hata analizi (yalnız dev; DECISIONS "P1e hata analizi kapsamı", "P1e hata sınıflaması"):**
+     - Kapsam: a1 (gerçek ad) 4B, gpt-oss, Gemini × 3 seviye; geçerli cevap verip (girdi var, şema içi, cevapsız değil) top-1'i ıskalayan satırlar (tahmini ~29). Kural, BARO ve 9B kapsam dışı. Boş girdi, bütçe aşımı, şema dışı, cevapsız ve döngü otomatik türler olarak sayılır, etiketlenmez.
+     - Her satırda bakılanlar: modelin o seviyedeki girdisi; cevabı (aday, güven, `evidence_path`, `rationale`); etiket (kök, hata türü, yayılım yolu).
+     - Sorular (planlama taslağı). uyg4 etiketlemeden önce gerekçeli değişiklik önerebilir; Eren onaylar, sonra sorular donar. Cevaplar evet / hayır / belirlenemez, çok etiketli:
+       - T1 yorumda uydurma: 1. adayın `rationale`'ı ya da `evidence_path`'i girdide olmayan ya da girdiyle çelişen bir veri iddiası içeriyor mu?
+       - T2 eksik inceleme: kök girdide en az bir anormal sinyalle görünüyor ve üç adayın hiçbiri kökü anmıyor mu? Kök girdide görünmüyorsa "belirlenemez" yazılır ve ayrıca "kök girdide yok" sayılır.
+       - T3 belirtiyi neden sanma (kodla): 1. aday, etiketteki yayılım yolunda kökten başka bir servis mi?
+       - T4 tek kaynak: girdide kök için birden çok telemetri türünde (log, metrik, iz) sinyal varken 1. adayın gerekçesi yalnız birine mi dayanıyor? Girdi tek türse "belirlenemez".
+       - T5 zaman hatası: 1. adayın gerekçesi alarm öncesine ait bir değeri alarm sonrası belirti gibi kullanıyor ya da önce/sonra değerlerini karıştırıyor mu?
+       - T6 çapraz kontrol yok: 1. adayın gerekçesi tek bir sinyale dayanıyor ve girdide bu adayla çelişen bir sinyal (adayın kendi metrikleri normal, çağıranlarda belirti yok vb.) var mı?
+     - Etiketler repoda bir dosyada (vaka, model, seviye, T1–T6, tek satır gerekçe). Özet (tuzak × model × seviye) 2. adımın komutuyla üretilir.
+     - **Eren doğrulaması:**
+       - Liste donduktan sonra kodla rastgele 10 satır seçilir (tohum 20261104).
+       - uyg4 her satır için girdi özeti, cevap, etiket ve T1–T6 cevaplarını gerekçesiyle hazırlar; Eren her satırda "katılıyorum / katılmıyorum" der. Örnekte Eren'in cevabı geçer.
+       - 10 satırın 3 ya da daha fazlasında anlaşmazlık varsa sorular netleştirilir, bütün satırlar yeniden etiketlenir ve bu açıkça kayda yazılır.
+     - Bilgi: b gpt-oss ham turundaki unmatched `checkout`'un kaynağına (takma adlı girdide gerçek ad kalmış mı) dev'de bakılır.
+  4. **Sınırlamalar** (rapor metni, tabloyla aynı yerde; yer ve adı uyg4 önerir):
+     - BARO'nun üç sınırlaması (HANDOFF 2026-10-31); daraltma v1 mekanizması.
+     - `quote-svc` sızıntısı (yalnız pilot `inc-91bf76d4`); `duration_s` son denemenin süresi.
+     - Qwen üretici ayarından sapma; API bütçesinin Qwen tokenizer'ıyla sayılması (sağlayıcı / Qwen oranı 0,84–1,20).
+     - a1 gpt-oss özet turunun yeniden koşulması; b'de `--no-day-guard`, kapak gecikmesi ve 3. günün bölünmüş sırası.
+     - Takma ad: gpt-oss ham hücresi belirsiz; ölçüm yalnız dev'de.
+     - 9B bilgi satırı dev sonuçları görüldükten sonra eklendi.
+     - Dev–test farkı aşırı uyumla dağılım farkını ayıramaz; çoklu karşılaştırma düzeltmesi yok.
+     - Hata analizi yalnız dev'de; etiketleyen bir LLM ve doğrulamada çapa etkisi var.
+     - Puanlama CI'da yeniden yapılmıyorsa bu; API modelleri zamanla değişebilir.
+- Sıra:
+  - 1. ve 2. adım paralel yürür (koşu ve tablo kodu). 3. adım dev'de bağımsız yürür, sonunda Eren'in 10 örneği var.
+  - Test puanlaması 2. adımın kodu donunca yapılır. Sonra tablo, okumalar, sınırlamalar ve kapanış.
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - 14 test koşusu done, her turda kimlik temiz (istem, ağaçlar, `repo_clean`). Planlama bağımsız doğrular: sayım, yeniden puanlama, toplam hücreler.
+  - Tablo komutu repoda; dev hücreleri P1d ile eşit; CI tabloyu yeniden üretip bayt aynı bulur (kasıtlı kırmızıyla); test sütunları kod donduktan sonra hesaplanmış.
+  - Dev–test ve 9B okumaları kurala göre tabloda.
+  - Dev hata analizi: sorular onaylı ve donmuş, etiketler repoda, Eren 10 örneği doğrulamış, özet komutla üretilmiş.
+  - Sınırlamalar yazılı; pytest ve PR CI yeşil.
+  - PROJECT'te işaretlenenler: "Sonuç tablosu", "Ölçütler", "dev ve test yan yana". Notla işaretlenenler: "Tekrarlanabilirlik" (seviye 1, P1 için) ve "Hata analizi" (kısmen: dev; test P2'den sonra).
+- Eren'in adımları: yeni adları ve soruları onaylamak, 10 örneği doğrulamak (~30 dk), PR'ı birleştirmek.
