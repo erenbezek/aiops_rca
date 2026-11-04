@@ -4240,3 +4240,7 @@ Data:
   - Etki: ilgili ham hücrelerde top-3 en çok +1 olurdu.
   - Puanlama (P1a) değişmez. Testteki sayısı yalnız toplam olarak raporlanabilir: eşlenmemiş adaylarda kökün `…Service` yazımı, kod sayar, vaka basılmaz.
 - Sıradaki: Eren'in 10 satır doğrulaması (inceleme sayfası uyg4'ten), sonra özet.
+
+## 2026-11-04 · Planlama → Uygulama (Eren doğrulaması ertelendi)
+- Eren kararı: 10 satırlık doğrulama bu akşamki test koşusundan sonraya kaldı. Eren'in sohbette verdiği ilk iki cevap kayda girmez (Eren isteği); doğrulama sonra baştan yapılır.
+- Bu arada sürebilecekler: test koşusu (bu akşam, Eren'in "başlat"ıyla) ve özet modülünün kodu. Özet dosyaları Eren'in cevabından sonra üretilir.
