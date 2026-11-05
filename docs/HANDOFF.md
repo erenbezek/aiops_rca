@@ -4260,3 +4260,15 @@ Data:
 - **Geçme ölçütüne ek:** `results.py` sha256 hâlâ `b626765f…`; 14 kopyanın sha'sı klonla aynı; src farkı yalnız yukarıdaki dört dosyada. Diğerleri uyg4'ün önerdiği gibi: 15 koşu satır denetiminden geçer, pytest yeşil, `results --check` bayt aynı.
 - **Uygulama → Planlama kaydına:** sohbette verilen koşu raporu (sayımlar), kopya sha kontrolünün sonucu, daraltma koşusunun klasörü, `repo_commit`'i ve src ağacı, commit.
 - **Planlamanın sonraki kontrolü:** scratch klonda tabloyu yeniden üretip sha karşılaştırma, 15 koşuyu yeniden puanlama, birkaç hücreyi kendi kodumla hesaplama. Yalnız toplamlar; vaka bazında test çıktısı açılmaz.
+
+## 2026-11-05 · Uygulama → Planlama (P1e test puanlandı, tablo üretildi; doğrulama isteği)
+- **Koşu raporu** (yalnız sayımlar; `~/cerebrum2/analysis/p1d_test.json`, log `p1d_test.log`): 2026-11-04T19:18Z–23:12Z, 14/14 `done`, durma yok. Bağlantı, uzunluk, döngü, cevapsız, bütçe aşımı 0; şema dışı 4B ham 1, 4B daraltma 1, gpt-oss ham 1 / özet 2 / daraltma 1; ham turlarda 10 soruldu, 8 boş.
+- **Uyku olayı:** 2026-11-04T21:23:14Z'de sistem 38 sn uyudu (GNOME `sleep-inactive-ac-timeout` 7200; systemd `sleep` kilidini dikkate almıyor). O sırada 9B özet turu koşuyordu (yerel model): 18/18 soruldu, bağlantı/cevapsız/şema dışı/uzunluk/döngü 0; tek etkisi süreye ~38 sn. Yeniden koşulmadı. Sonrası için `gnome-session-inhibit --inhibit suspend --inhibit idle` eklendi; başka uyku yok. Sınırlamalara: 9B özet süresine ~38 sn uyku dahil.
+- **Kopya:** 14 klasör `cp -a` ile klondan; her dosyanın sha256'sı klondakiyle aynı (puanlamadan sonra `run.json`/`responses.jsonl` yeniden karşılaştırıldı, aynı). Klondaki asıllar duruyor.
+- **src farkı** `7809498..1a1bbc6`: yalnız `error_analysis.py`, `evaluate.py` (yöntem kaydı + docstring), `methods/narrowing.py` (yalnız ekleme), `results.py`.
+- **Daraltma referansı test koşusu:** `eval_responses/20261105T064023Z-narrowing`, `repo_commit` `1a1bbc6a5c65ef9f155aeeb9cb1c5ac2644dc8e1`, `repo_clean` true, src ağacı `e4d07f9a702522152cd39e619cba3b6c6ba272a0`, 18 vaka, tekrar yok.
+- **Puanlama:** 15 koşu `1a1bbc6`'da `evaluate score --final-test` (çıkış 0; çıktı açılmadı). `p1_runs.json` test girişleri `run.json`'daki yöntem/model/seviyeden eşlendi (15/15, alias yok).
+- **Tablo:** `results` → `p1_table.md` `3e214ae8fb503ebb2c1d110be7a6920aec882fe2035c1cc178942ca75ca2bb69`, `p1_table.json` `ab78e9d554ef329ad535f4328ee541042be2866e92bdd8348473989a368c3cca`; `--check` aynı; `results.py` sha `b626765f…` değişmedi; pytest 601/601; tabloda test kimliği yok. Okunan yalnız tablo hücreleri: dev–test satırlarının hepsi "ayırt edilemedi" (en küçük p 0,1774, daraltma referansı); 9B bilgi satırı 2 / 0 / 14, ayırt edilemedi.
+- **Commit:** `86bbba1` (15 klasör + `p1_runs.json` + tablo).
+- **Not:** Bölüm başlıklarında "## 3." ve "## 4." üçer kez tekrar ediyor (donmuş kod; değiştirilmedi).
+- **Beklenen:** planlamanın kontrolü (scratch klonda yeniden üretim, 15 koşuyu yeniden puanlama, hücre hesabı). Sonra: Eren'in 10 satırlık doğrulaması, özet modülü, sınırlamalar, kapanış.
