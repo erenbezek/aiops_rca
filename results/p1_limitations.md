@@ -42,7 +42,7 @@ P1 sonuçlarının ([`p1_table.md`](p1_table.md), [`p1_error_summary.md`](p1_err
 - **Takma ad ölçümü** (P1d, yalnız dev; test takma adla koşulmadı):
   - gpt-oss ham hücresi belirsiz (top-3 a1 / a2 / b: 7 / 5 / 6, gürültü 2); diğer 14 hücrede "görülmedi", "üst sınır" hiçbir hücrede yok.
   - Takma ad yalnız adları gizler: span adlarındaki gRPC yöntemleri (`ListRecommendations`, `GetProduct`, `PlaceOrder`, `GetAds`, `Charge`), `get-quote` HTTP yolu ve ayırt edici log ifadeleri kalır. Takma ad farkı ezber etkisinin alt sınırı okunur; ad tutarsızlığı takma adlı cevaplarda eşlenmemiş adlara da yol açabilir, fark iki yönde bozulabilir.
-  - Takma adlı koşuların eşlenmemiş ad sayısı (b): 2B ham 5, 4B ham 2, 9B ham 3, gpt-oss ham 3 (biri gerçek ad `checkout`), Gemini ham 2; özet ve daraltmada 0. gpt-oss ham'daki `checkout`'un kaynağına (takma adlı girdide gerçek ad kalmış mı) bakılmadı.
+  - Takma adlı koşuların eşlenmemiş ad sayısı (b): 2B ham 5, 4B ham 2, 9B ham 3, gpt-oss ham 3 (biri gerçek ad `checkout`), Gemini ham 2; özet ve daraltmada 0. gpt-oss ham'daki `checkout` girdiden sızmamış: dev `inc-86d286ea`'nın takma adlı ham girdisi yeniden üretildi (sha256 kayıtla aynı); girdide yalnız kökün (`ad` → `promotions`) 125 satırı var, ne `checkout` ne takma adı `order-processor` geçiyor. `checkout` modelin kendi 3. adayı (kök 1. sırada, satır top-3 isabet); ezber mi genel bir ad tahmini mi, ayırt edilemez.
   - `quote-svc` sızıntısı: takma adlı girdide gerçek adı taşıyan tek tanımlayıcı, yalnız pilot `inc-91bf76d4`'te; dev ve testte yok, ölçümü etkilemez.
 
   Kaynak: HANDOFF 2026-10-31 (P1c 4. adım planı kontrolü), 2026-11-01 (P1c 5c duman kontrolü), 2026-11-02 (P1d b kontrolü), 2026-11-04 (P1d resmî analiz ve kapanışı).

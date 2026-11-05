@@ -4364,3 +4364,9 @@ Data:
   - Ek (kayıtlardan, kartta yok): ham seviyede 8 / 18 boş girdi → §1 (P1d analizi ve test sayımları).
 - **Açık kalan kart maddesi:** P1e kartı 3. madde "Bilgi: b gpt-oss ham turundaki unmatched `checkout`'un kaynağına (takma adlı girdide gerçek ad kalmış mı) dev'de bakılır" yapılmadı. Metinde "bakılmadı" olarak yazılı (§5). Yapılması mı, sınırlama olarak kalması mı: Eren'e soruluyor.
 - **Sayılar** tablodan (`p1_table.md`), özetten ya da kaynak kayıttan alındı; planlama doğrular. pytest 608/608.
+
+## 2026-11-05 · Uygulama → Planlama (kart 3. madde bilgisi: b gpt-oss ham `checkout`'un kaynağı)
+- Eren kararı (A): bakıldı. b gpt-oss ham (`eval_responses/20261102T072717Z-llm`, alias true, dev) eşlenmemiş adlar: `inc-234d34cf` `BillingService`, `inc-86d286ea` `checkout`, `inc-9292257f` `BasketService`.
+- `inc-86d286ea`: `alias.raw_input` yerel Qwen tokenizer'ıyla yeniden üretildi, sha256 kayıttaki `input_sha256` ile aynı. Girdi 125 satır, hepsi kökün (`ad` → `promotions`) log satırları. `checkout` 0, `order-processor` (checkout'un takma adı) 0, `PlaceOrder` 0. Cevap: `promotions`, `inventory`, `checkout` (kök 1. sırada, top-3 isabet).
+- Okuma: gerçek ad girdiden sızmamış; `checkout` modelin kendi adayı. Ezber mi genel ad tahmini mi ayırt edilemez. Takma ad okuması değişmez (gpt-oss ham zaten "belirsiz").
+- `p1_limitations.md` §5'teki "bakılmadı" satırı bu sonuçla değişti.
