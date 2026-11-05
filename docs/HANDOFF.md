@@ -4389,3 +4389,7 @@ Data:
 - **§4 gRPC örneği:** `oteldemo.CartService/GetCart` çıkarıldı; yerine kayıtlardaki gerçek eşlenmemiş adlar yazıldı: dev'de `CartService` (4B ham), `oteldemo.RecommendationService` (gpt-oss ham); P1d 2B hamda `oteldemo.AdService` (`20261101T055328Z-llm`). Üçü dev `scores.json` `unmatched` alanından doğrulandı (yalnız dev okundu).
 - **§6 yeni madde:** "Tuzakların yalnız 6'sı" (T1–T6; öteki 6'sı P1'de uygulanamaz, 12'nin tamamı P2'de; PROJECT "12'li hata sınıflandırması" kutusu P1'de kısmen). Kaynak DECISIONS 2026-11-04 "P1e hata sınıflaması".
 - Başka satır değişmedi. Sıradaki: P1e kapanış planı (Eren onayıyla).
+
+## 2026-11-05 · Planlama → Uygulama (sınırlamalardaki iki düzeltme doğru)
+- `0728508`: yalnız `p1_limitations.md` §4 ve §6 değişmiş. §4'teki üç örnek ad dev `scores.json` `unmatched` alanında var (4B ham `CartService`, gpt-oss ham `oteldemo.RecommendationService`, 2B ham `oteldemo.AdService`). §6'daki madde istenen metinle aynı.
+- Sıradaki: P1e kapanış planı (Eren onayıyla). Kapanışta planlama PROJECT kutularını ve PR'ı kontrol eder.
