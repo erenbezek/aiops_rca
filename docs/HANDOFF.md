@@ -4244,3 +4244,19 @@ Data:
 ## 2026-11-04 · Planlama → Uygulama (Eren doğrulaması ertelendi)
 - Eren kararı: 10 satırlık doğrulama bu akşamki test koşusundan sonraya kaldı. Eren'in sohbette verdiği ilk iki cevap kayda girmez (Eren isteği); doğrulama sonra baştan yapılır.
 - Bu arada sürebilecekler: test koşusu (bu akşam, Eren'in "başlat"ıyla) ve özet modülünün kodu. Özet dosyaları Eren'in cevabından sonra üretilir.
+
+## 2026-11-05 · Planlama → Uygulama (P1e test koşusu doğrulandı; puanlama planı iki düzeltmeyle onaylı)
+- **Doğrulananlar** (yalnız kimlik ve sayım; cevap içeriği ve doğruluk açılmadı):
+  - `p1d_test.json`: 14/14 `done`, `trial: false`, koşucu sha256 `9efc5b90…` (onaylı), paket klondan (`aiops_rca_p1e/src`).
+  - Her turda `repo_commit` `7809498`, `repo_clean` true, ağaçlar src `461d037b…` / incidents `ce7a75d0…`. LLM turlarında istem sha `6d05378e…`, dev a1 ile aynı.
+  - 14 klasörde `run.json` doğru (yöntem, model, seviye, `sets: [test]`, `n_cases` 18); `responses.jsonl` 18 satır, tekrar yok; kimlikler 14/14 geçerli test kimlikleriyle aynı. Klasörlerde `scores.json` yok.
+  - Sayımlar uyg4 raporuyla aynı: bağlantı, uzunluk, döngü, cevapsız ve bütçe aşımı 0; şema dışı 4B ham 1, 4B daraltma 1, gpt-oss 1 / 2 / 1. Ham turlarda 10 soruldu, 8 boş girdi (dev a1'de de 10 / 8).
+  - Groq turları 2026-11-04T22:21:40Z'de başladı; son Groq günü (a2, 2026-11-03T10:56:24Z) üzerinden 24 saat geçmiş.
+  - Hiçbir test turu yeniden koşulmaz. Şema dışı cevaplar P1d kuralıyla sayılır.
+- **Puanlama planı karta uygun, iki düzeltmeyle:**
+  1. **src ağacı kontrolü:** ana kopyanın src ağacı (`e4d07f9a…`, `bbbdba6`) klonla aynı olamaz, çünkü daraltma yöntemi klondan sonra eklendi. Kontrol şu: `git diff --stat 7809498 HEAD -- src` yalnız dört dosya gösterir: `error_analysis.py`, `results.py`, `methods/narrowing.py`, `evaluate.py` (yalnız yöntem kaydı ve docstring). `narrowing.py` (`candidate_narrowing`), `inputs.py`, `scoring.py` ve diğerleri aynı kalır. Planlama `bbbdba6`'da baktı, öyle. Daraltma koşusunun `repo_commit`'i ve src ağacı kayda girer.
+  2. **Taşıma değil kopya:** 14 klasör klondan ana repoya kopyalanır (`cp -a`). Klondaki asıllar planlamanın kontrolü bitene kadar kalır; klonun silinmesi sonra Eren'e önerilir. Kopyadan sonra her klasörde `run.json` ve `responses.jsonl` sha256'sı klondakiyle aynı olmalı.
+  - Sıra: kopya → sha kontrolü → daraltma koşusu → 15 klasör ana kopyada aynı HEAD ile `evaluate score --final-test` → `p1_runs.json` test girişleri → tablo. Klonda puanlama yapılmaz.
+- **Geçme ölçütüne ek:** `results.py` sha256 hâlâ `b626765f…`; 14 kopyanın sha'sı klonla aynı; src farkı yalnız yukarıdaki dört dosyada. Diğerleri uyg4'ün önerdiği gibi: 15 koşu satır denetiminden geçer, pytest yeşil, `results --check` bayt aynı.
+- **Uygulama → Planlama kaydına:** sohbette verilen koşu raporu (sayımlar), kopya sha kontrolünün sonucu, daraltma koşusunun klasörü, `repo_commit`'i ve src ağacı, commit.
+- **Planlamanın sonraki kontrolü:** scratch klonda tabloyu yeniden üretip sha karşılaştırma, 15 koşuyu yeniden puanlama, birkaç hücreyi kendi kodumla hesaplama. Yalnız toplamlar; vaka bazında test çıktısı açılmaz.
