@@ -32,7 +32,7 @@ P1 sonuçlarının ([`p1_table.md`](p1_table.md), [`p1_error_summary.md`](p1_err
 
 ## 4. Puanlama
 
-- **gRPC adı eşlenmiyor (P1a puanlaması).** Kök ilk 3'te gRPC adıyla (ör. `oteldemo.CartService/GetCart`) geçtiği hâlde eşlenmediği için ıskalama sayılan satırlar: dev 2 (4B ham 1, gpt-oss ham 1; P1d'deki 2B ham ile 3), test 7 (4B ham 1, gpt-oss ham 3, Gemini ham 2, 9B ham 1); hepsi hamda, testte 3'ü 1. sırada. İlgili ham hücrelerde top-3 en çok bu kadar artardı; hiçbir satırın okuması değişmez (en uç durum gpt-oss ham: dev 8 / test 7). Puanlama değişmez; sayım `error_analysis summary` (özet bölüm 4). Kaynak: HANDOFF 2026-11-04 (3. adım kontrolü), 2026-11-05 (planlama).
+- **gRPC adı eşlenmiyor (P1a puanlaması).** Kök ilk 3'te gRPC adıyla (dev'de `CartService`, `oteldemo.RecommendationService`; P1d 2B hamda `oteldemo.AdService`) geçtiği hâlde eşlenmediği için ıskalama sayılan satırlar: dev 2 (4B ham 1, gpt-oss ham 1; P1d'deki 2B ham ile 3), test 7 (4B ham 1, gpt-oss ham 3, Gemini ham 2, 9B ham 1); hepsi hamda, testte 3'ü 1. sırada. İlgili ham hücrelerde top-3 en çok bu kadar artardı; hiçbir satırın okuması değişmez (en uç durum gpt-oss ham: dev 8 / test 7). Puanlama değişmez; sayım `error_analysis summary` (özet bölüm 4). Kaynak: HANDOFF 2026-11-04 (3. adım kontrolü), 2026-11-05 (planlama).
 
 ## 5. Okumalar
 
@@ -50,6 +50,7 @@ P1 sonuçlarının ([`p1_table.md`](p1_table.md), [`p1_error_summary.md`](p1_err
 ## 6. Hata analizi
 
 - **Yalnız dev** (test P2'den sonra); kapsam a1, 4B / gpt-oss / Gemini × ham / özet / daraltma, şema içi ve top-1'i ıskalayan 29 satır. Kural, BARO, daraltma referansı ve 9B kapsam dışı. Kaynak: DECISIONS 2026-11-04 "P1e hata analizi kapsamı".
+- **Tuzakların yalnız 6'sı.** Sınıflama 12 tuzağın 6'sını (T1–T6) kullanıyor. Tuzaklar ajanlar için yazıldı; öteki 6'sı P1'in tek çağrılık kurulumunda uygulanamaz. 12'nin tamamı P2'de. PROJECT'teki "12'li hata sınıflandırması" kutusu bu yüzden P1'de kısmen karşılanır. Kaynak: DECISIONS 2026-11-04 "P1e hata sınıflaması".
 - **Etiketleyen bir LLM.** 29 satırı uygulama oturumu (Claude) etiketledi. Eren 10 satırı (tohum 20261104) doğruladı; kartta öngörülen çapa etkisine (etiketi görerek onaylama) karşı kör yapıldı: önce cevapladı, sonra etiketi gördü; 9 katılıyor, 1 katılmıyor (4B daraltma, T5) → yeniden etiketleme yok. Sorular Eren'e planlamanın sade ifadesiyle soruldu; 1. ve 2. satırda ilk T6 cevabı bu ifadenin belirsizliği yüzünden "evet"ti, 5. satırda T5'in ilk cevabı "anlamadım"; netleştirmeden sonraki cevaplar sayıldı (`eren_check.note`). Kaynak: HANDOFF 2026-11-05 (planlama, Eren doğrulaması).
 - **İnsan kontrolünden geçmeyenler:** T2 ve T3 kodla belirlendiği için sorulmadı. T4 ve `root_visibility`'nin indirect / absent yargısı Eren'e sorulmadı. Kaynak: HANDOFF 2026-11-05.
 - **T2 yorumu:** kök hem absent hem ilk 3'teyse T2 = hayır (2 satır). Donmuş metin bu durumda iki kuralı birden veriyordu; yorum etiketleme sırasında seçildi. Kaynak: HANDOFF 2026-11-04 (3. adım ve kontrolü).

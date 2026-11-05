@@ -4384,3 +4384,8 @@ Data:
   - PROJECT kutuları ve "Şu an": sonuç tablosu, ölçütler, dev / test yan yana, tekrarlanabilirlik seviye 1 P1 için; hata analizi kısmen, gerekçesiyle.
   - ARCHITECTURE kesik çizgi notu.
   - PR: sade açıklama; merge Eren'de.
+
+## 2026-11-05 · Uygulama → Planlama (sınırlamalar metninde iki düzeltme)
+- **§4 gRPC örneği:** `oteldemo.CartService/GetCart` çıkarıldı; yerine kayıtlardaki gerçek eşlenmemiş adlar yazıldı: dev'de `CartService` (4B ham), `oteldemo.RecommendationService` (gpt-oss ham); P1d 2B hamda `oteldemo.AdService` (`20261101T055328Z-llm`). Üçü dev `scores.json` `unmatched` alanından doğrulandı (yalnız dev okundu).
+- **§6 yeni madde:** "Tuzakların yalnız 6'sı" (T1–T6; öteki 6'sı P1'de uygulanamaz, 12'nin tamamı P2'de; PROJECT "12'li hata sınıflandırması" kutusu P1'de kısmen). Kaynak DECISIONS 2026-11-04 "P1e hata sınıflaması".
+- Başka satır değişmedi. Sıradaki: P1e kapanış planı (Eren onayıyla).
