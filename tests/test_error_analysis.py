@@ -130,3 +130,73 @@ def test_labels_file_matches_code():
         if x["root_visibility"] != "direct":
             assert x["T4"] == "undetermined"
         assert x["reason"]
+
+
+# --- özet (HANDOFF 2026-11-05): ad anahtarı, ad eşlenmemesi sayımı, toplamlar, Eren doğrulaması okuması ---
+
+def test_name_key():
+    assert ea.name_key("oteldemo.CartService/GetCart") == "cart" == ea.name_key("cart")
+    assert ea.name_key("hipstershop.ProductCatalogService/GetProduct") == ea.name_key("product-catalog")
+    assert ea.name_key("checkout-service") == "checkout" and ea.name_key("valkey-cart") == "valkeycart"
+    assert ea.name_key("oteldemo.PaymentService") == "payment" != ea.name_key("checkout")
+
+
+def test_name_miss_rank():
+    case = lambda matched, unmatched, top3=False, valid=True: {"schema_valid": valid, "top3": top3,
+                                                                "matched": matched, "unmatched": unmatched}
+    assert ea.name_miss_rank(case([None, "ad", None], ["x.FooService/A", "oteldemo.CartService/GetCart"]), "cart") == 3
+    assert ea.name_miss_rank(case([None, "ad"], ["oteldemo.CartService/GetCart"]), "cart") == 1
+    assert ea.name_miss_rank(case([None], ["oteldemo.CartService/GetCart"], top3=True), "cart") is None   # isabet
+    assert ea.name_miss_rank(case([], [], valid=False), "cart") is None                                    # şema dışı
+    assert ea.name_miss_rank(case(["ad", "cart2", "x", None], ["CartService"]), "cart") is None            # 4. sıra
+
+
+def test_name_misses_match_planning():
+    # Planlama 2026-11-05 (sınırlama 2): dev 2, test 7; testte 1. sırada gpt-oss ham 1, Gemini ham 2.
+    m = ea.name_misses()
+    nonzero = {k: v for k, v in m.items() if any(c["count"] for c in v.values())}
+    assert nonzero == {
+        "qwen3.5-4b raw": {"dev": {"count": 1, "first": 0}, "test": {"count": 1, "first": 0}},
+        "gpt-oss-120b raw": {"dev": {"count": 1, "first": 0}, "test": {"count": 3, "first": 1}},
+        "gemini-3.5-flash-lite raw": {"dev": {"count": 0, "first": 0}, "test": {"count": 2, "first": 2}},
+        "qwen3.5-9b raw": {"dev": {"count": 0, "first": 0}, "test": {"count": 1, "first": 0}}}
+    assert len(m) == 12
+
+
+def test_summary_totals_match_labels():
+    res = ea.summary()
+    a = res["traps"]["all"]
+    assert a["n"] == res["rows"] == 29 and sum(res["traps"][c]["n"] for c in res["traps"] if c != "all") == 29
+    assert (a["T1"]["yes"], a["T2"]["yes"], a["T2"]["undetermined"], a["T3"]["yes"], a["T5"]["yes"], a["T6"]["yes"]) \
+        == (7, 8, 2, 25, 1, 12)
+    assert (a["T4"]["no"], a["T4"]["undetermined"]) == (22, 7)
+    assert {v: c["n"] for v, c in res["visibility"].items()} == {"direct": 22, "indirect": 3, "absent": 4}
+    md, js = ea.summary_render()
+    assert "inc-" not in md and "inc-" not in js                     # vaka kimliği çıktıya girmez
+
+
+def checked_repo(tmp_path, marks):
+    """Gerçek kayıtlara bağlı küçük repo; etiket dosyasına `marks` (anahtar → agree) `eren_check` olarak yazılır."""
+    tmp_path.mkdir()
+    for name in ("incidents", "eval_responses"):
+        (tmp_path / name).symlink_to(ea.REPO / name)
+    (tmp_path / "results").mkdir()
+    (tmp_path / "results" / "p1_runs.json").symlink_to(ea.REPO / "results" / "p1_runs.json")
+    doc = json.loads((ea.REPO / ea.LABELS_FILE).read_text(encoding="utf-8"))
+    for x in doc["rows"]:
+        if x["key"] in marks:
+            x["eren_check"] = {"agree": marks[x["key"]]}
+    (tmp_path / ea.LABELS_FILE).write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+    return tmp_path
+
+
+def test_eren_check_reading(tmp_path):
+    import pytest
+    keys = ea.sample(ea.select()[0])
+    reading = lambda d, marks: ea.summary(checked_repo(tmp_path / d, marks))["eren_check"]
+    assert reading("a", {k: False for k in keys[:3]}) == {"n": 10, "checked": 3, "disagree": 3, "reading": "pending"}
+    assert reading("b", {k: i >= 3 for i, k in enumerate(keys)})["reading"] == "relabel"     # 3 katılmıyorum
+    assert reading("c", {k: i >= 2 for i, k in enumerate(keys)})["reading"] == "ok"          # 2 katılmıyorum
+    other = next(r["key"] for r in ea.select()[0] if r["key"] not in keys)
+    with pytest.raises(ValueError):
+        reading("d", {other: True})                                                          # örneklem dışı
