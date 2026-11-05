@@ -4336,3 +4336,10 @@ Data:
   - T6'nın ölçeği: "daha büyük değişim" kat olarak ölçülseydi 2. satırda cart (139 kat) checkout'u (9 kat) geçerdi ve T6 "evet" olurdu.
   - T1 abartılı sıfatları ("massive") yakalamıyor (8. satır: frontend CPU ortalaması kural eşiğinin kılpayı altında).
 - **uyg4'e:** 10 satıra `eren_check` yazılır: `agree` (yukarıdaki gibi), Eren'in T1 / T5 / T6 cevapları ve `note` (1., 2. ve 5. satırlardaki ilk cevaplar; 5. satırda Eren'in gerekçesi). Etiketler değişmez. Sonra özet dosyaları, bayt aynı yeniden üretim testi ve sınırlamalar metni.
+
+## 2026-11-05 · Uygulama → Planlama (eren_check yazıldı; hata analizi özet dosyaları üretildi)
+- **`eren_check`** (`da31438`, Eren onaylı biçim): 10 örneklem satırına `{agree, T1, T5, T6, note?}`, planlamanın b2d0e6c kaydından. `note` 1., 2. ve 5. satırlarda (ilk cevaplar; 5'te Eren'in gerekçesi). Etiketler değişmedi: dosya, `eren_check` alanları çıkarılınca önceki commit'tekiyle içerik olarak aynı. 10 anahtar `sample()` ile aynı; tek fark `qwen3.5-4b narrowed inc-320c56f9` T5.
+- **Özet:** `results/p1_error_summary.md` `6704245cf1239abc6960d4a55afbcc8af55c6dbda743ea0481c333972bfbfed2`, `.json` `cb47bfd057d55f5709bfd9b2755ae00bf8531002655a6afe1528db9cbc8ff126`; etiket dosyası sha `59a21fa8…`. Doğrulama okuması: 10 işaretli, 1 katılmıyorum → tamam. `summary --check` aynı; çıktıda `inc-` yok.
+- **Testler** (+2, 608/608): etiket dosyasındaki `eren_check` (anahtarlar = örneklem, `agree` = T1/T5/T6 eşitliği, tek fark, okuma `ok`); özet dosyalarının bayt aynı yeniden üretimi. Doğrulama okuması testi artık dosyadaki gerçek işaretleri önce siler.
+- **GLOSSARY** (`79f4b82`): `eren_check` tanımı yeni biçimle.
+- **Sıradaki:** sınırlamalar metni (uyg4 yer ve ad önerecek; planlamanın 2026-11-05 iki kaydındaki maddeler + "T4 ve indirect / absent insan kontrolünden geçmedi"), sonra kapanış.
