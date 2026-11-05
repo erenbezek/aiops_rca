@@ -4343,3 +4343,12 @@ Data:
 - **Testler** (+2, 608/608): etiket dosyasındaki `eren_check` (anahtarlar = örneklem, `agree` = T1/T5/T6 eşitliği, tek fark, okuma `ok`); özet dosyalarının bayt aynı yeniden üretimi. Doğrulama okuması testi artık dosyadaki gerçek işaretleri önce siler.
 - **GLOSSARY** (`79f4b82`): `eren_check` tanımı yeni biçimle.
 - **Sıradaki:** sınırlamalar metni (uyg4 yer ve ad önerecek; planlamanın 2026-11-05 iki kaydındaki maddeler + "T4 ve indirect / absent insan kontrolünden geçmedi"), sonra kapanış.
+
+## 2026-11-05 · Planlama → Uygulama (eren_check ve hata özeti doğrulandı)
+- **Doğrulananlar** (scratch klon `93cfa2c`):
+  - `eren_check`: 10 anahtar örneklemle aynı. T1 / T5 / T6 ve `agree` 10/10 planlamanın sohbet kaydıyla aynı; `agree` etiketle eşitlikten hesaplanınca da aynı. Notlar 1., 2. ve 5. satırda, içerik doğru.
+  - Etiketler: `eren_check` çıkarılınca dosya `b2d0e6c`'dekiyle aynı (sorular ve sha dahil). `results.py` `b626765f…` değişmedi.
+  - Özet: `summary --check` aynı. Silinip yeniden üretildi: md `6704245c…`, json `cb47bfd0…` aynı. pytest 608/608.
+  - Kendi kodumla: tuzak tablosu (9 satır ve toplam: T1 7/22/0, T2 8/19/2, T3 25/4/0, T4 0/22/7, T5 1/28/0, T6 12/17/0) ve görünürlüğe göre T3 (direct 20/2, indirect 3/0, absent 2/2) aynı. Otomatik türler P1 tablosunun dev hücreleriyle tutarlı (etiketlenen = 18 − boş − şema dışı − top-1 isabet, toplam 29). Ad eşlenmemesi planlamanın sayımıyla aynı (dev 2, test 7, test 1. sırada 3).
+- Test yalnız sayım olarak (vaka yok) giriyor; kararlaştırılan buydu.
+- **Sıradaki:** sınırlamalar metni. Yer ve ad önerisi (yeni ad → Eren onayı) ve madde listesi; maddeler planlamanın 2026-11-05 kayıtlarından ve önceki kartlardan. Sonra kapanış (PROJECT kutuları, ARCHITECTURE notu, PR).
