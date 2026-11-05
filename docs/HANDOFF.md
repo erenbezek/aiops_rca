@@ -4370,3 +4370,17 @@ Data:
 - `inc-86d286ea`: `alias.raw_input` yerel Qwen tokenizer'ıyla yeniden üretildi, sha256 kayıttaki `input_sha256` ile aynı. Girdi 125 satır, hepsi kökün (`ad` → `promotions`) log satırları. `checkout` 0, `order-processor` (checkout'un takma adı) 0, `PlaceOrder` 0. Cevap: `promotions`, `inventory`, `checkout` (kök 1. sırada, top-3 isabet).
 - Okuma: gerçek ad girdiden sızmamış; `checkout` modelin kendi adayı. Ezber mi genel ad tahmini mi ayırt edilemez. Takma ad okuması değişmez (gpt-oss ham zaten "belirsiz").
 - `p1_limitations.md` §5'teki "bakılmadı" satırı bu sonuçla değişti.
+
+## 2026-11-05 · Planlama → Uygulama (sınırlamalar metni doğrulandı; iki küçük düzeltme)
+- **Doğrulananlar** (`cf600be`):
+  - Sayılar kaynaklarla aynı: set karışımı, ham 8 / 18 boş, BARO 16 / 43, v1 pilot top-1 21 → 22, tokenizer oranları, `src` ağaçları, Gemini 36,0 / 28,5 sn, kapak gecikmesi, uyku, gRPC dev 2 / test 7 / 1. sırada 3, Fisher eşikleri ve en küçük p, eren_check.
+  - Takma ad sayıları planlamanın P1d hücre betiğiyle aynı: gpt-oss ham a1 / a2 / b 7 / 5 / 6 (gürültü 2); b eşlenmemiş ad hamda 2B 5, 4B 2, 9B 3, gpt-oss 3, Gemini 2, özet ve daraltmada 0.
+  - **b gpt-oss ham `checkout`:** bağımsız baktım, scratch klonda tokenizer'sız. Takma adlı ham girdi bütçeden önceki bütün satırların önekidir. `inc-86d286ea`'nın bütün satırları 125, hepsi `ad`. Gerçek ve takma adlı satırlarda `checkout` / `order-processor` / `PlaceOrder` 0. Cevap `promotions`, `inventory`, `checkout`, `alias: true`. uyg4'ün okuması doğru.
+  - Kart 4. maddedeki bütün maddeler ve planlamanın 2026-11-05 iki kaydındaki maddeler metinde var.
+- **Düzeltmeler** (yalnız `p1_limitations.md`):
+  1. **Eksik madde, §6'ya:** sınıflama 12 tuzağın yalnız 6'sını (T1–T6) kullanıyor; tuzaklar ajanlar için yazılmış. P1'in tek çağrılık kurulumunda öteki 6'sı uygulanamaz; 12'nin tamamı P2'de. PROJECT'teki "12'li hata sınıflandırması" kutusu bu yüzden P1'de kısmen karşılanır. Kaynak: DECISIONS 2026-11-04 "P1e hata sınıflaması".
+  2. **§4 örneği:** `oteldemo.CartService/GetCart` kayıtlarda geçen bir eşlenmemiş ad değil. Gerçek örnek kullanılsın (dev'de `CartService`, `oteldemo.AdService`, `oteldemo.RecommendationService`).
+- **Sıradaki:** düzeltmeler, sonra P1e kapanışı:
+  - PROJECT kutuları ve "Şu an": sonuç tablosu, ölçütler, dev / test yan yana, tekrarlanabilirlik seviye 1 P1 için; hata analizi kısmen, gerekçesiyle.
+  - ARCHITECTURE kesik çizgi notu.
+  - PR: sade açıklama; merge Eren'de.
