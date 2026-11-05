@@ -19,8 +19,10 @@ kök neden analizinde ne kadar iş görür?
 - [ ] Otomatik vaka üretimi: enjekte et → kaydet → temizle (gece boyu çalışabilir)
 - [x] En az 30 vakalık snapshot seti; bir kısmı geliştirmede hiç görülmemiş test seti
   - V3 (2026-10-30): 36 geçerli vaka, dev 18 / test 18. Testte 5 birim geliştirmede hiç görülmedi (ayrılan). Düşen 4 giriş ve boşluklar DECISIONS 2026-10-30'da.
-- [ ] Sonuç tablosu: baseline'lar, `small_local_model` / `large_api_model` × ham log / daraltma
-- [ ] Ölçütler: top-1/top-3, kanıt geçerliliği, kalibrasyon, süre, token
+- [x] Sonuç tablosu: baseline'lar, `small_local_model` / `large_api_model` × ham log / daraltma
+  - P1e (2026-11-05): `results/p1_table.md` / `.json`, `python -m aiops_rca.results`; kural, BARO, daraltma referansı, 4B / gpt-oss / Gemini × ham / özet / daraltma, 9B bilgi satırı.
+- [x] Ölçütler: top-1/top-3, kanıt geçerliliği, kalibrasyon, süre, token
+  - P1e: tablonun ayrıntı bölümlerinde top-1/3, kanıt, örtüşme, Brier, seçici doğruluk ve kapsama, süre, token.
 - [ ] Canlı demo: hata enjekte et → kanıtlı olay raporu (+ bir sonraki adım önerisi)
 - [x] CI yeşil: birim testler + sabit snapshot'larda baseline regresyonu + servis imajı (GHCR)
   - Servis imajı (GHCR) tamam (2026-10-29): iki imaj CI'da derlenip main'de gönderiliyor (`images.yml`), koşular digest'le sabit.
@@ -29,10 +31,13 @@ kök neden analizinde ne kadar iş görür?
 - [x] Vaka çeşitliliği: set en az zincirleme hata, sessiz hata (log yok, sadece metrik) ve yanıltıcı gürültü içeriyor
   - V3 test: cascading 17, silent 8, partial 3, noisy 1. Dev: cascading 17, silent 10, partial 3, noisy 2.
 - [ ] Tekrarlanabilirlik:
+  - Not (P1e): seviye 1 P1 için tamam; CI tabloyu kayıtlardan yeniden üretip bayt aynı buluyor (`tests/test_results.py`). Seviye 2 proje sonunda.
   - Seviye 1 (her makinede ve CI'da): Sonuç tablosu, repodaki resmî koşu cevapları + etiketler + baseline çıktılarından tek komutla yeniden üretilir
   - Seviye 2 (deneyi baştan koşmak): Tam snapshot seti proje sonunda GitHub Releases'te sıkıştırılmış olarak yayınlandı
-- [ ] Sonuç tablosu geliştirme ve test setini yan yana gösteriyor
+- [x] Sonuç tablosu geliştirme ve test setini yan yana gösteriyor
+  - P1e: tablo 1. bölüm dev–test yan yana (Fisher, iki yönlü); 3. ve 4. bölüm dev ve test ayrıntısı, demo / kendi hatalarımız ayrımıyla.
 - [ ] Hata analizi: başarısız vakalar 12'li hata sınıflandırmasıyla etiketlendi (arXiv 2602.09937)
+  - Not (P1e): kısmen. Yalnız dev (29 satır) ve 12 tuzağın P1'e uyan 6'sı (T1–T6); Eren 10 satırı doğruladı (`results/p1_error_summary.md`). Test analizi ve 12'nin tamamı P2'de (DECISIONS 2026-11-04).
 - [ ] DevOps kontrol listesi dolduruldu (aşağıda)
 - [ ] Proje 2 (ajan): Proje 1 bittikten sonra
   - Ajan aynı vakalarda hem dosyadan hem canlı izleme sisteminden (Prometheus, Jaeger, OpenSearch) koşuldu, iki satır tabloda yan yana
@@ -94,4 +99,5 @@ P1a birleşti (PR #29).
 P1b bitti (`task/p1-baro`, PR #30, 2026-10-31): BARO, RCAEval 1.9.0'ın saf Python portu (5 dev vakasında bit düzeyinde eşit); pilot + dev'de top-1 11/43, top-3 27/43 (`eval_responses/`); CI'da 4 örnekte beklenen çıktı testi. Üç sınırlama notu P1e'de tabloyla (HANDOFF 2026-10-31).
 P1c bitti (`task/p1-llm`, 2026-11-01): LLM katmanı (`llm_client.py`, beş model), girdi seviyeleri ham / özet / daraltma (`inputs.py`; 43 vakada veri ≤ 5000, tam mesaj ≤ 6000, en çok 5.384), daraltma (`narrowing.py`; dev'de kök ilk 5'te 18/18), takma ad üç seviyede (`alias.py`; gerçek ad 0, sızıntı 0; `quote-svc` tek pilot vakada kaldı, P1e notu), LLM yöntemi (`methods/llm.py`, `evaluate run --method llm`; boş ve bütçeyi aşan girdi sorulmaz). Üç onay alındı (kesme kuralı, öne alma, istem). Duman 30 çağrı, şemaya uygun 29/30 (`llm_cache/`). Dev'de model koşulmadı.
 P1c birleşti (PR #31).
-P1d bitti (`task/p1-dev-runs`, 2026-11-04): dev'de 36 resmî LLM turu (a1 gerçek ad 15, b takma ad 15, a2 API ikinci tur 6; `eval_responses/`), yerel tekrar 18/18 aynı. Resmî analiz (repo dışı betik, planlama bağımsız doğruladı; HANDOFF 2026-11-04): yerel model **qwen3.5-4b** (9 zor vakada top-3: 2B 6, 4B 9, 9B 9); takma ad etkisi görülmedi (gpt-oss ham belirsiz, gürültü 2). Daraltma top-3: Gemini 18, gpt-oss 17, 4B ve 9B 16 / 18. Groq `json_validate_failed` şema dışı sayılıyor (`eafc491`). Sıradaki: PR birleşince P1e (test koşusu; 9B bilgi satırı, DECISIONS 2026-11-03).
+P1d bitti (`task/p1-dev-runs`, 2026-11-04): dev'de 36 resmî LLM turu (a1 gerçek ad 15, b takma ad 15, a2 API ikinci tur 6; `eval_responses/`), yerel tekrar 18/18 aynı. Resmî analiz (repo dışı betik, planlama bağımsız doğruladı; HANDOFF 2026-11-04): yerel model **qwen3.5-4b** (9 zor vakada top-3: 2B 6, 4B 9, 9B 9); takma ad etkisi görülmedi (gpt-oss ham belirsiz, gürültü 2). Daraltma top-3: Gemini 18, gpt-oss 17, 4B ve 9B 16 / 18. Groq `json_validate_failed` şema dışı sayılıyor (`eafc491`).
+P1e bitti (`task/p1-test`, 2026-11-05): test setinde 15 koşu (kural, BARO, daraltma referansı, 4B / gpt-oss / Gemini / 9B × üç seviye; temiz klonda), sonuç tablosu `results/p1_table.md` (`python -m aiops_rca.results`, CI bayt aynı). Dev–test bütün satırlarda "ayırt edilemedi" (en küçük p 0,1774); 9B bilgi satırı 2 / 0 / 14, ayırt edilemedi. Dev hata analizi: 29 satır, 6 tuzak, Eren doğrulaması 9 / 1 (`results/p1_error_summary.md`). Sınırlamalar `results/p1_limitations.md`. Sıradaki: PR birleşince P1'in kalan işleri planlamada.

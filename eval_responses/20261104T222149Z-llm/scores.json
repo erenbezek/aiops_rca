@@ -1,0 +1,523 @@
+{
+ "run": {
+  "method": "llm",
+  "model_id": "openai/gpt-oss-120b",
+  "provider": "groq",
+  "temperature": 0,
+  "settings": {
+   "model": "gpt-oss-120b",
+   "level": "raw",
+   "alias": false,
+   "max_tokens": 1600,
+   "extra": {
+    "reasoning_effort": "low"
+   },
+   "prompt_sha256": "6d05378eba8c386d3e5e32638997a1302dd0de625abd60a160f90396b7f1e3ce",
+   "data_budget": 5000,
+   "total_budget": 6000,
+   "image": "ghcr.io/ggml-org/llama.cpp@sha256:8f3c2cd0808a394d1e7ce02f025f453caacbf163389fe6b6443ec3a1efff96a0",
+   "gguf": "Qwen3.5-4B-Q4_K_M.gguf",
+   "gguf_sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+   "tokenizer": "qwen3.5-4b"
+  },
+  "sets": [
+   "test"
+  ],
+  "started_at": "2026-11-04T22:21:49Z",
+  "repo_commit": "780949806e444a4307c5216e588ccfb2394a6a77",
+  "repo_clean": true,
+  "n_cases": 18
+ },
+ "table": {
+  "test": {
+   "n": 18,
+   "schema_invalid": 1,
+   "input_empty": 8,
+   "input_over_budget": 0,
+   "no_answer": 0,
+   "top1": 3,
+   "top1_rate": 0.167,
+   "top3": 4,
+   "top3_rate": 0.222,
+   "evidence_valid": 2,
+   "evidence_invalid": 1,
+   "evidence_null": 7,
+   "label_path_overlap_mean": 0.056,
+   "label_path_overlap_n": 9,
+   "brier": 0.489,
+   "brier_n": 9,
+   "selective_accuracy": 0.333,
+   "coverage": 0.5,
+   "duration_s_total": 16.406,
+   "tokens_input": 34673,
+   "tokens_output": 3616
+  },
+  "all": {
+   "n": 18,
+   "schema_invalid": 1,
+   "input_empty": 8,
+   "input_over_budget": 0,
+   "no_answer": 0,
+   "top1": 3,
+   "top1_rate": 0.167,
+   "top3": 4,
+   "top3_rate": 0.222,
+   "evidence_valid": 2,
+   "evidence_invalid": 1,
+   "evidence_null": 7,
+   "label_path_overlap_mean": 0.056,
+   "label_path_overlap_n": 9,
+   "brier": 0.489,
+   "brier_n": 9,
+   "selective_accuracy": 0.333,
+   "coverage": 0.5,
+   "duration_s_total": 16.406,
+   "tokens_input": 34673,
+   "tokens_output": 3616
+  }
+ },
+ "cases": [
+  {
+   "incident_id": "inc-01e8bcf7",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": false,
+   "matched": [
+    "quote-gateway",
+    "shipping",
+    "frontend"
+   ],
+   "unmatched": [],
+   "evidence_valid": true,
+   "evidence_edges": [
+    {
+     "from": "quote-gateway",
+     "to": "shipping",
+     "seen": "reverse"
+    },
+    {
+     "from": "shipping",
+     "to": "frontend",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 0.5,
+   "confidence": 0.9,
+   "unsure": false,
+   "duration_s": 1.933,
+   "tokens": {
+    "input": 4383,
+    "output": 410,
+    "reasoning": 213
+   }
+  },
+  {
+   "incident_id": "inc-0383450c",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": false,
+   "matched": [
+    null,
+    null,
+    "frontend-proxy"
+   ],
+   "unmatched": [
+    "oteldemo.PaymentService",
+    "oteldemo.CheckoutService"
+   ],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 0.85,
+   "unsure": false,
+   "duration_s": 1.457,
+   "tokens": {
+    "input": 4479,
+    "output": 334,
+    "reasoning": 103
+   }
+  },
+  {
+   "incident_id": "inc-240a614f",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": false,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": null,
+   "duration_s": 1.562,
+   "tokens": {
+    "input": 1734,
+    "output": 482,
+    "reasoning": 273
+   }
+  },
+  {
+   "incident_id": "inc-27e7ae46",
+   "set": "test",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-402b4b2d",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": true,
+   "matched": [
+    null,
+    "quote-gateway",
+    "shipping"
+   ],
+   "unmatched": [
+    "quote-svc"
+   ],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 0.9,
+   "unsure": false,
+   "duration_s": 1.763,
+   "tokens": {
+    "input": 4544,
+    "output": 386,
+    "reasoning": 160
+   }
+  },
+  {
+   "incident_id": "inc-4508a3f4",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": false,
+   "matched": [
+    "frontend",
+    "frontend-proxy",
+    null
+   ],
+   "unmatched": [
+    "oteldemo.RecommendationService"
+   ],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 0.78,
+   "unsure": false,
+   "duration_s": 1.773,
+   "tokens": {
+    "input": 4486,
+    "output": 388,
+    "reasoning": 167
+   }
+  },
+  {
+   "incident_id": "inc-6a0eb829",
+   "set": "test",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-7d5db017",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "payment",
+    "checkout",
+    "frontend"
+   ],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 0.78,
+   "unsure": false,
+   "duration_s": 2.073,
+   "tokens": {
+    "input": 2840,
+    "output": 315,
+    "reasoning": 116
+   }
+  },
+  {
+   "incident_id": "inc-810ca9d1",
+   "set": "test",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-901ecfb4",
+   "set": "test",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-986ae88a",
+   "set": "test",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-a519be4f",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": false,
+   "matched": [
+    "checkout",
+    "frontend-proxy",
+    "frontend"
+   ],
+   "unmatched": [],
+   "evidence_valid": true,
+   "evidence_edges": [
+    {
+     "from": "checkout",
+     "to": "frontend",
+     "seen": "reverse"
+    },
+    {
+     "from": "frontend",
+     "to": "frontend-proxy",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 0.0,
+   "confidence": 0.85,
+   "unsure": false,
+   "duration_s": 1.462,
+   "tokens": {
+    "input": 2532,
+    "output": 329,
+    "reasoning": 115
+   }
+  },
+  {
+   "incident_id": "inc-b4ceb83b",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": false,
+   "top3": false,
+   "matched": [
+    null,
+    "frontend",
+    "checkout"
+   ],
+   "unmatched": [
+    "oteldemo.CurrencyService"
+   ],
+   "evidence_valid": false,
+   "evidence_edges": [
+    {
+     "from": "oteldemo.CurrencyService",
+     "to": "checkout",
+     "seen": null
+    },
+    {
+     "from": "checkout",
+     "to": "frontend",
+     "seen": "reverse"
+    }
+   ],
+   "label_path_overlap": 0.0,
+   "confidence": 0.78,
+   "unsure": false,
+   "duration_s": 1.662,
+   "tokens": {
+    "input": 4378,
+    "output": 337,
+    "reasoning": 135
+   }
+  },
+  {
+   "incident_id": "inc-c6ae4086",
+   "set": "test",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-d3869549",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "product-catalog",
+    "frontend",
+    "frontend-proxy"
+   ],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 0.85,
+   "unsure": false,
+   "duration_s": 1.376,
+   "tokens": {
+    "input": 4416,
+    "output": 332,
+    "reasoning": 107
+   }
+  },
+  {
+   "incident_id": "inc-d70ec1a9",
+   "set": "test",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-e4d29c6d",
+   "set": "test",
+   "input_status": "empty",
+   "no_answer": false,
+   "schema_valid": null,
+   "top1": false,
+   "top3": false,
+   "matched": [],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": null,
+   "confidence": null,
+   "unsure": true,
+   "duration_s": null,
+   "tokens": null
+  },
+  {
+   "incident_id": "inc-e763eeaf",
+   "set": "test",
+   "input_status": "ok",
+   "no_answer": false,
+   "schema_valid": true,
+   "top1": true,
+   "top3": true,
+   "matched": [
+    "cart",
+    "checkout",
+    "frontend-proxy"
+   ],
+   "unmatched": [],
+   "evidence_valid": null,
+   "evidence_edges": [],
+   "label_path_overlap": 0.0,
+   "confidence": 0.78,
+   "unsure": false,
+   "duration_s": 1.345,
+   "tokens": {
+    "input": 881,
+    "output": 303,
+    "reasoning": 103
+   }
+  }
+ ]
+}

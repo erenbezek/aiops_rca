@@ -1,0 +1,155 @@
+{
+ "note": "P1 sonuç tablosunun resmî koşuları (HANDOFF 2026-11-04 P1e kartı 2. madde). dev: kural ve BARO P1a/P1b'nin ilk koşuları (pilot + dev; yalnız dev satırları), LLM satırları P1d a1 (gerçek ad), daraltma referansı P1e. test: P1e test koşusu (puanlama tablo kodu donduktan sonra).",
+ "rows": [
+  {
+   "method": "rule",
+   "model": null,
+   "level": null,
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261030T104544Z-rule",
+    "test": "eval_responses/20261104T191843Z-rule"
+   }
+  },
+  {
+   "method": "baro",
+   "model": null,
+   "level": null,
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261031T060600Z-baro",
+    "test": "eval_responses/20261104T191911Z-baro"
+   }
+  },
+  {
+   "method": "narrowing",
+   "model": null,
+   "level": null,
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261104T085716Z-narrowing",
+    "test": "eval_responses/20261105T064023Z-narrowing"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "qwen3.5-4b",
+   "level": "raw",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261101T063855Z-llm",
+    "test": "eval_responses/20261104T191940Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261101T065655Z-llm",
+    "test": "eval_responses/20261104T193944Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "qwen3.5-4b",
+   "level": "narrowed",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261101T071807Z-llm",
+    "test": "eval_responses/20261104T200033Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "gpt-oss-120b",
+   "level": "raw",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261101T092850Z-llm",
+    "test": "eval_responses/20261104T222149Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "gpt-oss-120b",
+   "level": "summary",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261103T080725Z-llm",
+    "test": "eval_responses/20261104T223304Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "gpt-oss-120b",
+   "level": "narrowed",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261101T112856Z-llm",
+    "test": "eval_responses/20261104T225308Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "gemini-3.5-flash-lite",
+   "level": "raw",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261101T114830Z-llm",
+    "test": "eval_responses/20261104T202442Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "gemini-3.5-flash-lite",
+   "level": "summary",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261101T114947Z-llm",
+    "test": "eval_responses/20261104T202536Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "gemini-3.5-flash-lite",
+   "level": "narrowed",
+   "info": false,
+   "runs": {
+    "dev": "eval_responses/20261101T115120Z-llm",
+    "test": "eval_responses/20261104T202649Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "qwen3.5-9b",
+   "level": "raw",
+   "info": true,
+   "runs": {
+    "dev": "eval_responses/20261101T074230Z-llm",
+    "test": "eval_responses/20261104T203043Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "qwen3.5-9b",
+   "level": "summary",
+   "info": true,
+   "runs": {
+    "dev": "eval_responses/20261101T081250Z-llm",
+    "test": "eval_responses/20261104T210418Z-llm"
+   }
+  },
+  {
+   "method": "llm",
+   "model": "qwen3.5-9b",
+   "level": "narrowed",
+   "info": true,
+   "runs": {
+    "dev": "eval_responses/20261101T084916Z-llm",
+    "test": "eval_responses/20261104T214129Z-llm"
+   }
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+{
+ "method": "baro",
+ "model_id": null,
+ "provider": null,
+ "temperature": null,
+ "settings": {},
+ "sets": [
+  "test"
+ ],
+ "started_at": "2026-11-04T19:19:11Z",
+ "repo_commit": "780949806e444a4307c5216e588ccfb2394a6a77",
+ "repo_clean": true,
+ "n_cases": 18
+}

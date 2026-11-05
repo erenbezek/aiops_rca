@@ -1,0 +1,14 @@
+{
+ "method": "narrowing",
+ "model_id": null,
+ "provider": null,
+ "temperature": null,
+ "settings": {},
+ "sets": [
+  "test"
+ ],
+ "started_at": "2026-11-05T06:40:23Z",
+ "repo_commit": "1a1bbc6a5c65ef9f155aeeb9cb1c5ac2644dc8e1",
+ "repo_clean": true,
+ "n_cases": 18
+}

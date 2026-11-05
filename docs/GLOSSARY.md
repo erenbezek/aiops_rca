@@ -277,3 +277,16 @@ Sadece Eren'in onayladığı isimler.
 | `span_fields()` | Bir işlem satırının istek, hata oranı, p95 alanları (özetteki yazımla), önce/sonra |
 | `TOP_CANDIDATE_LOGS` | Daraltma girdisinde aday başına en sık WARN+ mesaj sayısı (3) |
 | `tests/fixtures/narrowed_expected.json` | CI örneklerinde daraltma girdisinin beklenen metni (regresyon) |
+| `narrowing` (yöntem), `narrowing_baseline()` | Daraltma referansı (`evaluate run --method narrowing`, `methods/narrowing.py`): daraltma sırasının ilk 3'ü kural biçiminde; sonuç tablosunda modelsiz referans satırı (P1e) |
+| `aiops_rca.results` | Sonuç tablosu modülü ve komutu (`python -m aiops_rca.results [--check]`): koşu listesindeki `scores.json`'lardan tablo, dev–test ve 9B okumaları (P1e) |
+| `results/` | Sonuç tablosu ve koşu listesinin klasörü (repoda; sınırlamalar metni de burada) |
+| `p1_runs.json` | `results/`: sonuç tablosunun resmî koşu listesi (satır → dev / test koşu klasörü) |
+| `p1_table.md`, `p1_table.json` | `results/`: komutla üretilen P1 sonuç tablosu (CI bayt aynı yeniden üretir) |
+| `aiops_rca.error_analysis` | Dev hata analizi modülü ve komutu (`python -m aiops_rca.error_analysis select\|dossier\|sample\|summary`): kapsamdaki satırlar, otomatik türler, T3 ve kök görünürlüğü (direct) kodla, çalışma dosyaları, doğrulama örneklemi, özet (`summary`) (P1e) |
+| `p1_error_labels.json` | `results/`: dev hata analizinin donmuş soruları (metin + sha256) ve 29 satırın etiketleri |
+| `p1_error_summary.md`, `p1_error_summary.json` | `results/`: hata analizi özeti (tuzak × model × seviye), komutla üretilir |
+| `p1e_dossier/` | `~/cerebrum2/analysis/` altında (repo dışı): satır başına çalışma dosyası (yeniden üretilmiş girdi, sha kayıtla aynı; etiket, cevap) |
+| `root_visibility` | Hata analizi etiketi: kök girdide `direct` (kendi satırında kuralın sinyali, kodla) / `indirect` (yalnız çağıranların hata satırlarında ya da işlem adlarında hedef) / `absent` |
+| `note` | Hata analizi etiket satırında isteğe bağlı tek satır gözlem (sayılmaz) |
+| `name_key` | Ad karşılaştırma anahtarı (hata analizi özeti): küçük harf, son nokta parçası, `/` öncesi, sondaki `service` atılır, yalnız harfler; gRPC adıyla geçen kökü saymak için, puanlamayı değiştirmez |
+| `eren_check` | Etiket dosyasında örneklem satırına Eren doğrulaması: `{"agree": true/false, "T1", "T5", "T6": yes/no, "note": isteğe bağlı}` (`agree` = Eren'in T1 / T5 / T6'sı etiketle aynı); 10 satırın ≥ 3'ünde katılmıyorum → yeniden etiketleme |

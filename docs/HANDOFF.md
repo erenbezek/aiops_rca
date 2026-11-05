@@ -4012,3 +4012,393 @@ Data:
   - b'nin Groq turları `--no-day-guard` ile (Eren kararı, `day_guard: skipped`); b'nin yerel turlarında kapak uykusu ~1 saat gecikme yarattı, sonucu etkilemedi. 3. günde sıra kota için bölündü (HANDOFF 2026-11-03).
   - b gpt-oss ham unmatched `checkout` (gerçek ad), `BasketService`, `BillingService`: kaynağı P1e hata analizinde.
 - PROJECT "Şu an" güncellendi; ARCHITECTURE değişmedi (repoda yeni dosya/yapı yok; koşucu ve analiz betiği repo dışında). PR açılıyor; birleştirme Eren'de.
+
+## 2026-11-04 · Planlama → Uygulama (P1e kartı: test koşusu, sonuç tablosu, hata analizi)
+- P1d birleşti (PR #32, main `3ebb2e2`; PR ve main CI yeşil, 574 geçti + 3 atlandı). Planlama kontrol etti: 36 tur main'de, planlamanın yeniden puanladığı `scores.json`'larla 36/36 bayt aynı.
+- **Dal `task/p1-test`** (Eren); planlama main `3ebb2e2`'den açtı. Kararlar: DECISIONS 2026-11-04 (dört satır) ve 2026-11-03 "P1e'de qwen3.5-9b bilgi satırı", hepsi Eren onaylı. Yeni adlar uygulama önerir, Eren onaylar, sonra GLOSSARY.
+- **Bütün kart için kural:** test vakalarının girdileri, snapshot'ları ve cevap içerikleri okunmaz (uyg4 ve planlama).
+  - Testte görülenler: kimlik ve sayım (sorulan, boş, bütçe aşımı, şema dışı ve nedenleri, cevapsız, döngü, denemeler, token); tablo kodu dondurulduktan sonra toplam hücreler.
+  - Vaka bazında test sonucu yazılmaz, basılmaz.
+- Yapılacak:
+  1. **Test koşusu (bir kez; ayarlar P1d a1'deki gibi):**
+     - Turlar: kural, BARO; 4B, gpt-oss, Gemini × ham / özet / daraltma; 9B bilgi × 3 seviye. Gerçek ad, `--sets test`. Toplam 14. 2B, takma ad ve ikinci tur yok.
+     - Sabit: istem `6d05378e…`; model ayarları, yerel imaj ve gguf digest'leri P1d'deki gibi; `src` `461d037b…`, `incidents` `ce7a75d0…`. Tablo kodu `src`'yi değiştirecekse koşu ayrı temiz bir kopyadan yapılır (uyg4 önerir).
+     - Kurallar P1d'den aynen: cevapsız kapsamı ve durma (DECISIONS 2026-11-01), tekrar döngüsü, `json_validate_failed` şema dışı. Duran tur başka gün yeniden koşulur; duran turun sonuçlarına bakılmaz, kaydı `llm_cache/`'e.
+     - **Puanlama ertelenir:** test turlarında `evaluate score` koşulmaz, koşucu doğruluk yazmaz ve göstermez. Puanlama 2. adımın kodu dondurulduktan sonra tek adımda yapılır.
+     - Takvim: tek gün yeter (Groq ~125K < 200K; 4B ~1,2 sa, 9B ~2 sa; Gemini 54 istek). Kapak kilidi (`handle-lid-switch:sleep:idle`), şarj sınırı 80.
+     - Koşucu: P1d koşucusuna test aşaması eklenir (repo dışı); planlama farkı ve selftest'i görür.
+  2. **Sonuç tablosu komutu (repoda; DECISIONS "P1e sonuç tablosu repoda"):**
+     - Girdi: resmî koşuları satırlara bağlayan açık bir liste (repoda; `eval_responses/`'ta P1d'nin b/a2 turları ve pilot koşuları da var) ve `incidents/` etiketleri. Çıktı: repoda tablo dosyası (md + json).
+     - Satırlar: kural, BARO, daraltma referansı (modelsiz); 4B, gpt-oss, Gemini × 3 seviye; 9B "bilgi". Gruplar (demo / kendi hatalarımız) ayrı.
+     - Sütunlar: top-1, top-3, kanıt geçerliliği, Brier, seçici doğruluk, kapsama, şema dışı, boş girdi, bütçe aşımı, cevapsız, süre (ort., en çok), token. Dev ve test yan yana. Top-3 için dev–test okuması (DECISIONS "P1e dev–test okuması").
+     - 9B satırının okuması DECISIONS 2026-11-03 kuralıyla (yalnız-9B ve yalnız-4B sayıları; bir yönde ≥ 6 ve öteki 0 → "fark").
+     - Daraltma referansı snapshot gerektirdiği için CI'da hesaplanamaz; bir koşu kaydı olarak `eval_responses/`'a girer (dev ve test). Nasıl yapılacağını uyg4 önerir.
+     - Puanlama snapshot istiyorsa (ör. kanıt geçerliliği) CI tabloyu `scores.json`'dan üretir; puanlamanın CI'da yeniden yapılmadığı sınırlamaya yazılır. uyg4 bakar.
+     - Kontroller: dev hücreleri `p1d_analysis.json` (`ee3e6a0f…`) ile ortak sütunlarda eşit; CI testi tabloyu yeniden üretip bayt aynı bulur; kasıtlı kırmızı scratch kopyada.
+     - Kod commit'lenip sha'sı HANDOFF'a yazılınca donar; test puanlaması ve test sütunları ondan sonra.
+  3. **Hata analizi (yalnız dev; DECISIONS "P1e hata analizi kapsamı", "P1e hata sınıflaması"):**
+     - Kapsam: a1 (gerçek ad) 4B, gpt-oss, Gemini × 3 seviye; geçerli cevap verip (girdi var, şema içi, cevapsız değil) top-1'i ıskalayan satırlar (tahmini ~29). Kural, BARO ve 9B kapsam dışı. Boş girdi, bütçe aşımı, şema dışı, cevapsız ve döngü otomatik türler olarak sayılır, etiketlenmez.
+     - Her satırda bakılanlar: modelin o seviyedeki girdisi; cevabı (aday, güven, `evidence_path`, `rationale`); etiket (kök, hata türü, yayılım yolu).
+     - Sorular (planlama taslağı). uyg4 etiketlemeden önce gerekçeli değişiklik önerebilir; Eren onaylar, sonra sorular donar. Cevaplar evet / hayır / belirlenemez, çok etiketli:
+       - T1 yorumda uydurma: 1. adayın `rationale`'ı ya da `evidence_path`'i girdide olmayan ya da girdiyle çelişen bir veri iddiası içeriyor mu?
+       - T2 eksik inceleme: kök girdide en az bir anormal sinyalle görünüyor ve üç adayın hiçbiri kökü anmıyor mu? Kök girdide görünmüyorsa "belirlenemez" yazılır ve ayrıca "kök girdide yok" sayılır.
+       - T3 belirtiyi neden sanma (kodla): 1. aday, etiketteki yayılım yolunda kökten başka bir servis mi?
+       - T4 tek kaynak: girdide kök için birden çok telemetri türünde (log, metrik, iz) sinyal varken 1. adayın gerekçesi yalnız birine mi dayanıyor? Girdi tek türse "belirlenemez".
+       - T5 zaman hatası: 1. adayın gerekçesi alarm öncesine ait bir değeri alarm sonrası belirti gibi kullanıyor ya da önce/sonra değerlerini karıştırıyor mu?
+       - T6 çapraz kontrol yok: 1. adayın gerekçesi tek bir sinyale dayanıyor ve girdide bu adayla çelişen bir sinyal (adayın kendi metrikleri normal, çağıranlarda belirti yok vb.) var mı?
+     - Etiketler repoda bir dosyada (vaka, model, seviye, T1–T6, tek satır gerekçe). Özet (tuzak × model × seviye) 2. adımın komutuyla üretilir.
+     - **Eren doğrulaması:**
+       - Liste donduktan sonra kodla rastgele 10 satır seçilir (tohum 20261104).
+       - uyg4 her satır için girdi özeti, cevap, etiket ve T1–T6 cevaplarını gerekçesiyle hazırlar; Eren her satırda "katılıyorum / katılmıyorum" der. Örnekte Eren'in cevabı geçer.
+       - 10 satırın 3 ya da daha fazlasında anlaşmazlık varsa sorular netleştirilir, bütün satırlar yeniden etiketlenir ve bu açıkça kayda yazılır.
+     - Bilgi: b gpt-oss ham turundaki unmatched `checkout`'un kaynağına (takma adlı girdide gerçek ad kalmış mı) dev'de bakılır.
+  4. **Sınırlamalar** (rapor metni, tabloyla aynı yerde; yer ve adı uyg4 önerir):
+     - BARO'nun üç sınırlaması (HANDOFF 2026-10-31); daraltma v1 mekanizması.
+     - `quote-svc` sızıntısı (yalnız pilot `inc-91bf76d4`); `duration_s` son denemenin süresi.
+     - Qwen üretici ayarından sapma; API bütçesinin Qwen tokenizer'ıyla sayılması (sağlayıcı / Qwen oranı 0,84–1,20).
+     - a1 gpt-oss özet turunun yeniden koşulması; b'de `--no-day-guard`, kapak gecikmesi ve 3. günün bölünmüş sırası.
+     - Takma ad: gpt-oss ham hücresi belirsiz; ölçüm yalnız dev'de.
+     - 9B bilgi satırı dev sonuçları görüldükten sonra eklendi.
+     - Dev–test farkı aşırı uyumla dağılım farkını ayıramaz; çoklu karşılaştırma düzeltmesi yok.
+     - Hata analizi yalnız dev'de; etiketleyen bir LLM ve doğrulamada çapa etkisi var.
+     - Puanlama CI'da yeniden yapılmıyorsa bu; API modelleri zamanla değişebilir.
+- Sıra:
+  - 1. ve 2. adım paralel yürür (koşu ve tablo kodu). 3. adım dev'de bağımsız yürür, sonunda Eren'in 10 örneği var.
+  - Test puanlaması 2. adımın kodu donunca yapılır. Sonra tablo, okumalar, sınırlamalar ve kapanış.
+- Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):
+  - 14 test koşusu done, her turda kimlik temiz (istem, ağaçlar, `repo_clean`). Planlama bağımsız doğrular: sayım, yeniden puanlama, toplam hücreler.
+  - Tablo komutu repoda; dev hücreleri P1d ile eşit; CI tabloyu yeniden üretip bayt aynı bulur (kasıtlı kırmızıyla); test sütunları kod donduktan sonra hesaplanmış.
+  - Dev–test ve 9B okumaları kurala göre tabloda.
+  - Dev hata analizi: sorular onaylı ve donmuş, etiketler repoda, Eren 10 örneği doğrulamış, özet komutla üretilmiş.
+  - Sınırlamalar yazılı; pytest ve PR CI yeşil.
+  - PROJECT'te işaretlenenler: "Sonuç tablosu", "Ölçütler", "dev ve test yan yana". Notla işaretlenenler: "Tekrarlanabilirlik" (seviye 1, P1 için) ve "Hata analizi" (kısmen: dev; test P2'den sonra).
+- Eren'in adımları: yeni adları ve soruları onaylamak, 10 örneği doğrulamak (~30 dk), PR'ı birleştirmek.
+
+## 2026-11-04 · Uygulama → Planlama (P1e 1. adım: test koşusu hazırlığı; koşu planlama kontrolünü bekliyor)
+- **Temiz kopya** (Eren onaylı): `~/cerebrum2/aiops_rca_p1e`, ana kopyanın klonu, `7809498`'de (ayrık HEAD). Ağaçlar `src` `461d037b…`, `incidents` `ce7a75d0…` (P1d ile aynı). Neden: 2. adımın tablo kodu `src`'ye girince ortak kopyada ağaç değişir ve koşucu durur; planlama commit'leri de koşuyu durdurmaz. Test koşu klasörleri tablo kodu donduktan sonra ana repoya taşınır.
+  - Paket ortak kopyaya editable kurulu (`.pth` → `~/cerebrum2/aiops_rca/src`). Bu yüzden turlar `PYTHONPATH=<kopya>/src` ile koşar; `cases.REPO` (ve `run.json` commit/temizlik) kopyadan gelir.
+- **Koşucu** `~/cerebrum2/analysis/p1d_runner.py` sha256 **`9efc5b9042a8deabbac6c425d3c2ec014ae50ef458f6db042c237e5f0b2fc3ec`**. P1d sürümü salt okunur kopya: `p1d_runner.fec1e031.py` (fark `diff -u p1d_runner.fec1e031.py p1d_runner.py`, 78 satır). Değişiklikler:
+  - `test` aşaması: kural, BARO, sonra 4B → Gemini → 9B → gpt-oss × ham → özet → daraltma (14 tur), gerçek ad, `--sets test --final-test --root eval_responses`. Groq en sonda; 24 saat koruması a2 Groq başlangıcına (2026-11-03 10:56Z) bakar.
+  - Test turlarında `evaluate score` koşulmaz; kayda `table` girmez, yalnız sayımlar (sorulan, boş, bütçe aşımı, şema dışı, cevapsız, döngü, süre, token). Ekrana da yalnız bunlar basılır.
+  - İstem sha kontrolü yalnız LLM turlarında (kural ve BARO turlarında istem yok).
+  - `--repo <kopya>`: git kontrolleri (temizlik, ağaçlar) ve `cwd` kopyada; alt süreçlere `PYTHONPATH=<kopya>/src`. **Başta** paketin `<kopya>/src`'den yüklendiği denetlenir, değilse hiç tur koşmaz; her turdan sonra `run.json` `repo_commit` kopyanın HEAD'iyle aynı olmalı. Varsayılan `REPO` ana kopya kaldı (`p1d_analysis.py` içe aktarıyor; analiz selftest geçti).
+  - Durum dosyası `p1d_state.json` (taban ağaçlar P1d'ninki; test aynı ağaçta koşmalı). Çıktı `p1d_test.json`.
+  - `test --trial`: pilot `inc-01a609bb`, `llm_cache/`, kural + BARO + 4B / Gemini / gpt-oss daraltma, puanlama yok; durum `p1d_trial_test_state.json`.
+- **selftest** geçti (test aşaması: 14 tur, tekrar yok, kural/BARO başta, Groq son 3, takma ad yok, 2B yok).
+- **Kasıtlı kırmızı** (koşucunun scratch kopyasında `PYTHONPATH` kaldırıldı): `STOP package aiops_rca loads from '…/aiops_rca/src/…', not …/aiops_rca_p1e/src`, çıkış 1, tur koşmadı. Not: şu an iki kopya da `7809498`'de olduğu için `repo_commit` kontrolü tek başına bunu yakalayamazdı; ön kontrol bu yüzden eklendi.
+- **Deneme** (pilot, kopyadan, koşucu `9efc5b90…`; `p1d_trial_test.json`): 5 tur done — kural `llm_cache/20261104T082553Z-rule`, BARO `…082555Z-baro`, 4B `…082601Z-llm`, Gemini `…082727Z-llm`, gpt-oss `…082811Z-llm` (kopyanın `llm_cache/`'inde). Hepsinde `repo_commit` `78094980`, `repo_clean: true`, ağaçlar `461d037b…`/`ce7a75d0…`; LLM turlarında istem `6d05378e…`, denemeler 200. `scores.json` yok, kayıtta `table` yok; paket `~/cerebrum2/aiops_rca_p1e/src/aiops_rca/__init__.py`. (İlk deneme ön kontrol eklenmeden önceki sürümle koşulmuştu: `p1d_trial_test.424d30ea.json`, aynı sonuç.)
+- **Groq kotası (bilgi):** 1 token'lık istekte başlıklar: istek 1000/gün (kalan 999, `reset-requests 1m26.4s` = 86 400 s / 1000 → sürekli dolan sayaç), token 8000/dakika. Günlük token sınırı başlıkta yok (konsolda). Token tarafı da böyleyse kayan 24 saat varsayımı temkinliydi; doğrulanamadı, Groq yine en sonda.
+- **Koşu komutu** (planlama kontrolünden ve Eren'in "başlat"ından sonra): `cd ~/cerebrum2/aiops_rca && setsid nohup systemd-inhibit --what=handle-lid-switch:sleep:idle --mode=block .venv/bin/python ~/cerebrum2/analysis/p1d_runner.py test --repo ~/cerebrum2/aiops_rca_p1e`. ~4,5 saat (4B ~1,2 sa, 9B ~2 sa). Şarj 80.
+
+## 2026-11-04 · Planlama → Uygulama (P1e 1. adım kontrolü: test koşusu başlatılabilir)
+- **Koşucu `9efc5b90…` doğru:**
+  - P1d sürümü `p1d_runner.fec1e031.py` sha'sı `fec1e031…` (salt okunur). Fark (78 satır) kartla uyumlu: test aşaması 14 tur (kural, BARO, 4B, Gemini, 9B, gpt-oss × 3 seviye; gerçek ad, 2B yok), `--final-test`, test turlarında puanlama ve `table` yok, istem kontrolü yalnız LLM turlarında.
+  - `--repo` her yerde geçiyor: `git()` küresel `REPO`'yu çağrı anında okuyor; temizlik, ağaç ve commit kontrolleri kopyada. Alt süreçlere `PYTHONPATH=<kopya>/src`; ön kontrol aynı ortamla paket yolunu denetliyor.
+  - Model ayarları, durma kuralları, şarj kontrolü ve 24 saat koruması değişmemiş. selftest planlamanın scratch kopyasında da geçti.
+- **Temiz kopya doğru:** `~/cerebrum2/aiops_rca_p1e` `7809498`'de, `git status` boş, ağaçlar `461d037b…` / `ce7a75d0…`. Snapshot yolu mutlak (`~/cerebrum2/snapshots`, `cases.SNAPSHOTS`), kopya ayrı snapshot istemiyor. `p1d_state.json` taban ağaçlar `461d037b`/`ce7a75d0`, Groq başlangıçları a1/b/a2.
+- **Deneme doğru:** 5 tur (`llm_cache/20261104T0825…0828`) `repo_commit` `78094980`, `repo_clean: true`; LLM turlarında istem `6d05378e…`, denemeler 200; `scores.json` yok; `p1d_trial_test.json`'da `package` kopyanın `src`'si, `table` yok.
+- **24 saat koruması:** Groq turları 2026-11-04 10:56Z'den (yerel 13:56) önce gelirse koşucu Groq çağrısı yapmadan durur. O durumda aynı komut yeniden başlatılır, biten turlar atlanır. Başlangıç ~08:45Z'den sonraysa yerel turlar (~3,2 sa) bu saati zaten geçirir.
+- **Not (sınırlamalara):** Gemini bugün yavaş. Denemede iki çağrı 36,0 ve 28,5 sn sürdü; dev a2'de çağrı başına ~1,8 sn idi. Model adı, ayar (`reasoning_effort: minimal`, akıl yürütme token'ı 0) ve çıktı uzunluğu aynı; sağlayıcı yükü gibi görünüyor. Zaman aşımı 900 sn, koşuyu etkilemez. Ama API satırlarında süre sütunu sağlayıcı yüküne bağlı: dev–test süre farkı yöntem farkı sayılmaz, sınırlamalara yazılır.
+- Koşu Eren'in "başlat"ıyla, HANDOFF'taki komutla. Şarj sınırı şu an 80.
+
+## 2026-11-04 · Uygulama → Planlama (P1e 2. adım: sonuç tablosu komutu; donma önerisi, planlama kontrolünü bekliyor)
+- Eren onayı (plan ve adlar): `narrowing` (yöntem), `aiops_rca.results` (modül ve komut), `results/`, `p1_runs.json`, `p1_table.md` / `.json`. GLOSSARY'ye ayrı commit'te.
+- **Daraltma referansı** (`69596f2`): `src/aiops_rca/methods/narrowing.py`, `evaluate run --method narrowing`. Cevap daraltma sırasının ilk 3'ü, kural biçiminde (güven null, `evidence_path` [servis], `unsure` false); ham çıktı sıranın ilk 5'i. Test: `test_evaluate.py::test_narrowing_run_is_narrowing_order` (kasıtlı kırmızı: `ranking[1:4]` → kırmızı).
+  - Dev koşusu commit'lenmiş kodla: `eval_responses/20261104T085716Z-narrowing` (`repo_commit` `69596f21`, `repo_clean: true`, 18 dev vakası), puanlandı. Dev'de top-1 15/18, top-3 17/18 (model yok). Test koşusu kod donduktan sonra, ana kopyada.
+- **Tablo komutu** (`d2da4db`; `src` ağacı `ed1bfa28…`): `python -m aiops_rca.results [--check]`.
+  - `src/aiops_rca/results.py` sha256 `b626765f1a2c1c0ac559cf0944e9a5e3f6264c9b190be3cabb1a587f2f328238`.
+  - `results/p1_runs.json` `c5fa81dc…`: 15 satır — kural (`20261030T104544Z-rule`), BARO (`20261031T060600Z-baro`; ikisi de P1a/P1b'nin 1. koşusu, pilot + dev, yalnız dev satırları), daraltma referansı, 4B / gpt-oss / Gemini × 3 seviye ve 9B × 3 ("bilgi") a1 turlarından (gpt-oss özet `20261103T080725Z-llm`). Test girişleri null.
+  - `results/p1_table.md` `8d14b91a…`, `.json` `6e596e18…`. Bölümler: 1 dev–test top-1/top-3 + Fisher p + okuma; 2 9B okuması; 3 dev ayrıntı (tümü / demo / kendi); 4 test ayrıntı. Test yokken "—" / "Test koşusu yok". Zaman damgası yok.
+  - Denetim (tutmazsa tablo yazılmaz): `run.json` yöntemi, LLM'de model ve seviye satırla aynı, takma ad yok, set koşuda var; `scores.json`'da o setin geçerli vakaları tam bir kez. JSON'a her koşunun `scores.json` sha256'sı girer. Test etiketleri yalnız listede test koşusu varsa okunur.
+  - Ölçüler `scoring._metrics` + süre ortalaması ve en çoğu (cevap gelen satırlarda), P1d analiziyle aynı tanımlar. Sütunlar: top-1, top-3, kanıt g/ge/k, örtüşme, Brier, seçici doğruluk, kapsama, şema dışı, boş, bütçe aşımı, cevapsız, süre ort/en çok, token giriş/çıkış. (Kartın listesine ek olarak örtüşme; P1d tablosunda vardı.)
+  - Fisher iki yönlü, tam sayılarla (olasılığı gözlenenden büyük olmayan tablolar); p < 0,05 kesir karşılaştırmasıyla. 9B: testte daraltma top-3, yalnız 9B / yalnız 4B / ikisi; vaka kimlikleri çıktıya girmez.
+- **Kontroller:**
+  - Dev hücreleri `p1d_analysis.json` (`ee3e6a0f…`) ile: 12 LLM satırı × 3 grup × 23 ortak alan = **828 hücre, fark 0**. P1d'de olup tabloda olmayan: `answered`, `input_tokens_local`, `symptomatic_only`, `tokens_missing`. Kural ve BARO dev satırları P1a/P1b HANDOFF tablolarıyla aynı (9/18, 15/18; 5/18, 10/18).
+  - `tests/test_results.py` (10 test): Fisher bilinen değerler (çay deneyi 34/70; 1/10 – 11/14 → 0,002759), karardaki eşikler (18 → ≤ 13, 17 → ≤ 11, 16 → ≤ 9, 15 → ≤ 8 ve yön), 9B kuralı, `check_run` (yöntem, model, seviye, takma ad, set, eksik / çift vaka), dev grupları 11 / 7, satır listesi, **repodaki tablo dosyalarının kayıtlardan bayt aynı yeniden üretilmesi** (CI'da `pytest` içinde).
+  - Kasıtlı kırmızı (scratch kopyada, `PYTHONPATH` kopyanın `src`'si): 11 bozmanın 11'i kırmızı, bozmasız yeşil — `scores.json`'da bir top3, tablo md elle, Fisher `<=`→`<`, yön ters, 9B eşiği `>`, takma ad denetimi yok, quoteGateway grubu, listede 4B ham↔özet, eksik vaka denetimi yok, alpha 0,10.
+  - pytest 588/588.
+- **Donma önerisi:** tablo kodu `d2da4db` (`results.py` `b626765f…`). Planlama kontrolünden sonra test puanlaması ve test sütunları bu kodla. Sonra yalnız `p1_runs.json`'a test girişleri (veri) ve yeniden üretilen tablo dosyaları değişir.
+- **Planlamaya soru (3. adım):** hata analizi özeti (tuzak × model × seviye) karta göre bu komutla üretilecek. Önerim: etiketler donunca `results.py`'ye ayrı bir bölüm olarak eklensin; yalnız dev etiket dosyasını okur, test sütunlarına ve okumalara dokunmaz. Bu, donmuş kodun değişmesi demek; değişikliğin yalnız ekleme olduğu (test bölümlerinin çıktısı bayt aynı kalır) CI'daki tablo testiyle ve farkla gösterilir. Uygun mu, yoksa özet ayrı bir modül mü olsun?
+- **Sınırlamalar notu:** CI puanlamayı yeniden yapmaz (snapshot repoda yok), tabloyu commit'lenmiş `scores.json`'lardan üretir.
+- **Not (kapsam dışı, yalnız kayıt):** ARCHITECTURE diyagramında `base`, `nar`, `llm`, `cache`, `evr`, `ev` hâlâ kesik çizgili ("yok") sınıfta; P1a–P1c'de yapıldılar. Yalnız `tab`'ı çıkardım, diğerleri ayrı bir düzeltme.
+
+## 2026-11-04 · Planlama → Uygulama (P1e 2. adım kontrolü: kod doğru; donmadan önce test yolu testi)
+- **Bağımsız doğrulananlar** (`6601994` scratch klonu; `aiops_rca` scratch'ten):
+  - `python -m aiops_rca.results` tabloyu yeniden üretti: `p1_table.md` `8d14b91a…`, `.json` `6e596e18…`, repodakilerle bayt aynı. pytest 588/588.
+  - Daraltma referansının dev koşusu HEAD koduyla yeniden koşuldu ve puanlandı: 18 cevap ve vaka puanları süre hariç aynı (fark yalnız `duration_s_total`).
+  - `src` farkı `461d037b` → `ed1bfa28`: yalnız `evaluate.py` (yöntem kaydı) ve iki yeni dosya; `scoring.py` değişmedi.
+  - `p1_runs.json` 15 satır. LLM dev girişleri P1d koşucu kaydındaki a1 done turlarıyla aynı; 9B'nin üç satırı "bilgi"; test girişleri boş.
+  - Kendi sayımım (yalnız dev vakaları): kural 9 / 15, BARO 5 / 10, daraltma referansı 15 / 17 (top-1 / top-3).
+  - `fisher` planlamanın kendi fonksiyonuyla 0–18 × 0–18 (361 tablo) karşılaştırıldı: p < 0,05 kararı hepsinde aynı.
+  - Kod okundu, kartla ve kararlarla uyumlu: iki yönlü Fisher (tam sayı), yön, 9B kuralı, gruplar, `check_run`; test etiketleri yalnız test girişi varken okunuyor; test vaka kimlikleri çıktıya girmiyor.
+- **Açık (donmadan önce kapanmalı): test yolu hiç sınanmıyor.**
+  - Test girişi olmadığı için `build()`'in test dalı (dev–test okumasının bağlantısı, 9B sayıları, test grupları) bugünkü testlerde çalışmıyor.
+  - Planlama scratch'te iki bozma denedi, ikisi de yeşil kaldı (10/10 geçti):
+    - okumanın top-1 ile beslenmesi (`dev["all"]["top1"]`, `test["all"]["top1"]`);
+    - 9B sayılarının ters çevrilmesi (`only_9b` ↔ `only_4b`).
+  - Kod bu hâliyle donarsa test yolundaki bir hata ancak test sonuçları görüldükten sonra bulunur ve donmuş kod değiştirilmek zorunda kalır.
+  - İstenen: `tests/test_results.py`'ye test biçimli sahte verilerle uçtan uca bir test (`tmp_path`'te küçük bir repo: `set: test` etiketleri, `scores.json` vakalarında `set: test`, `p1_runs.json`'da test girişleri). Test şunları doğrulamalı:
+    - dev–test okumasının top-3 ile beslendiğini, bilinen bir tabloda p'yi ve yönü;
+    - 9B'de `only_9b` / `only_4b` / `both` sayılarının yönünü ve okumayı;
+    - test grup bölümlerinin üretildiğini;
+    - test vaka kimliklerinin md ve json çıktısına girmediğini.
+  - Kasıtlı kırmızı (scratch): yukarıdaki iki bozma ve test gruplarının dev etiketleriyle hesaplanması.
+  - `results.py` değişmezse donma noktası aynı kalır (`b626765f…`); değişirse yeni sha ile.
+- **Donma:** test yolu testi geçip planlama baktıktan sonra. Test puanlaması ve test sütunları ondan sonra; test koşusu Eren'in kararıyla bu akşam evde.
+- **Soruya cevap (3. adım, hata analizi özeti):** ayrı bir modül. Böylece `results.py` hiç değişmez ve donma sha ile kanıtlanır; ekleme olduğunu fark ve CI'yla göstermeye gerek kalmaz. Modül ve çıktı adlarını uyg4 önerir, Eren onaylar. Özet yalnız dev etiket dosyasını okur.
+- **Bilgi (yorum P1e'de, testle birlikte):** dev'de modelsiz daraltma referansı top-1 15/18, top-3 17/18. Bu, 4B daraltmadan (13 / 16) yüksek; gpt-oss (15 / 17) ile aynı, Gemini'ye (17 / 18) yakın. Modele verilen daraltma girdisinde adaylar ada göre sıralı (sıra ipucu yok). Daraltmanın öne alma kuralı geliştirilirken pilot ve dev görülmüştü; daraltma referansının test satırı bu yüzden önemli. Sınırlamalara yazılır.
+- Hatırlatma: GLOSSARY commit'i (onaylı adlar) bekliyor. ARCHITECTURE'daki kesik çizgi notu kapanışta.
+
+## 2026-11-04 · Uygulama → Planlama (P1e 2. adım: test yolu testi eklendi; donma)
+- **Test yolu testi** (`2c294ca`, yalnız `tests/test_results.py`; `results.py` değişmedi, sha256 hâlâ **`b626765f…`**): `tmp_path`'te sahte, test biçimli küçük repo (dev 18: 7 kendi / 11 demo; test 18: 5 kendi / 13 demo; `set: test` etiketleri ve `scores.json` vakaları; `p1_runs.json`'da test girişleri). Satırlar: kural (yalnız dev), 4B daraltma (dev top-3 18, top-1 9; test top-3 13, top-1 9), 9B daraltma (bilgi).
+  - `test_test_path_end_to_end` (3 parametre): dev–test okuması top-3 ile (18 / 13; top-1 9 / 9 değil), p = `fisher(18, 18, 13, 18)` ve yön "düşüş"; kuralda test yok → okuma yok; 9B sayıları yönüyle — (yalnız 9B, yalnız 4B, ikisi) = (4, 3, 10) "none", (5, 0, 13) "none", (0, 6, 7) "4b"; test grupları test etiketlerinden (18 / 5 / 13, top-3 13 / 5 / 8), dev kendi 7; md'de test grup başlığı ve "fark (düşüş)"; `inc-test` md'de ve json'da yok.
+  - `test_test_path_9b_difference_for_9b`: 4B testte 12, 9B 18 → (6, 0, 12) "9b", md'de "fark (9B lehine)".
+- **Kasıtlı kırmızı** (scratch kopya): okuma top-1 ile → 3 kırmızı; 9B sayıları ters → 4 kırmızı; test grupları dev etiketleriyle (aynı sıradaki dev vakasının grubu) → 3 kırmızı; test kimlikleri çıktıda kalıyor (`pop` yok) → 3 kırmızı. Bozmasız 14/14. (Gruplar bozmasının ilk biçimi sözdizimi hatası verdi, sayılmadı; temiz biçimiyle yeniden denendi.)
+- pytest 592/592.
+- **Donma noktası:** `results.py` `b626765f1a2c1c0ac559cf0944e9a5e3f6264c9b190be3cabb1a587f2f328238` (`d2da4db`'den beri aynı). Bundan sonra test puanlaması ve test sütunları; `p1_runs.json`'a test girişleri ve tablo dosyaları dışında `results.py` değişmez.
+- **3. adım:** hata analizi özeti planlamanın cevabıyla ayrı modül; adını 3. adımın planında öneririm.
+- GLOSSARY: onaylı adlar eklendi (`narrowing`, `aiops_rca.results`, `results/`, `p1_runs.json`, `p1_table.md` / `.json`).
+
+## 2026-11-04 · Planlama → Uygulama (P1e 2. adım: test yolu testi doğru; donma onaylı)
+- **Doğrulananlar** (`5897710` scratch klonu):
+  - `results.py` sha256 `b626765f…` aynı; `6601994`'ten beri `src/` ve `results/` değişmemiş, yalnız `tests/test_results.py`, GLOSSARY ve HANDOFF.
+  - pytest 592/592. Yeni test yalnız `tmp_path`'teki sahte repoyu okuyor (gerçek test etiketi okunmuyor).
+  - Planlamanın bozmaları artık kırmızı: okuma top-1 ile 3, 9B sayıları ters 4, 9B eşiği 6 → 5 2, alfa 0,05 → 0,10 3 kırmızı.
+- **Donma onaylı:** `results.py` `b626765f1a2c1c0ac559cf0944e9a5e3f6264c9b190be3cabb1a587f2f328238`. Bundan sonra bu dosya değişmez. Değişmesi gerekirse önce planlamaya yazılır ve nedeni kayda geçer.
+- **Test puanlaması tek adımda:** 14 test turu ve daraltma referansının test koşusu bittikten sonra.
+  - Puanlama: `evaluate score --final-test`, ana kopyada, aynı kodla.
+  - Sonra `p1_runs.json`'a test girişleri eklenir ve tablo yeniden üretilir.
+  - Daraltma referansının test koşusu ana kopyada (temiz kopyada yöntem yok). `src` ağacı kayda girer.
+  - Test sonuçlarından yalnız tablo hücreleri okunur.
+- Sıradaki: 3. adımın planı (hata analizi; soru taslağı kartta, özet ayrı modülde, adlar Eren onayıyla). Test koşusu bu akşam evde, Eren'in "başlat"ıyla.
+
+## 2026-11-04 · Uygulama → Planlama (P1e 3. adım: seçim ve çalışma dosyaları; soru değişikliği önerisi, Eren onayı bekliyor)
+- Eren onayı (plan, adlar, yerel tokenizer sunucusu): `aiops_rca.error_analysis`, `results/p1_error_labels.json`, `results/p1_error_summary.md` / `.json`, `~/cerebrum2/analysis/p1e_dossier/` (repo dışı). GLOSSARY'ye ayrı commit'te.
+- **Seçim** (`97acbc4`, `src/aiops_rca/error_analysis.py`, `tests/test_error_analysis.py`): `select` 29 satır (4B 16: ham 2, özet 9, daraltma 5; gpt-oss 6: 1 / 3 / 2; Gemini 7: 1 / 5 / 1). Otomatik türler her (model, seviye) için 18'e tamamlanıyor (boş 8 her ham satırda; şema dışı tabloyla aynı; bütçe aşımı, cevapsız, döngü 0). T3 kodla. Testler 4 (T3 kuralı, tür ayrımı, 29 satır ve sayılar, tohum); kasıtlı kırmızı 5/5 (T3'te kök de evet, top-3 vuranlar kapsam dışı, 9B kapsamda, şema dışı kapsamda, tohum yok sayılıyor). pytest 596/596.
+- **Çalışma dosyaları** (`python -m aiops_rca.error_analysis dossier --out ~/cerebrum2/analysis/p1e_dossier`): 29 dosya + `index.json`. Girdi `inputs.<seviye>_input` ile yeniden üretildi (yerel 4B tokenizer sunucusu yalnız sayım için açıldı, üretim yok, iş bitince kapandı); **29/29 sha256 kayıttaki `input_sha256` ile aynı**. Dosyada etiket (kök, senaryo, hata türü, kategoriler, yayılım yolu), T3, cevap, girdi.
+- **Örneklem bilerek koşulmadı:** `sample` (tohum 20261104) etiketler donduktan sonra koşulacak; hangi 10 satırın doğrulanacağını etiketlerken bilmemek için.
+- **Soru değişikliği önerisi** (3 dosya okunarak, etiketleme yapılmadan: Gemini ham `inc-230c9d46`, 4B özet `inc-ae15665a`, gpt-oss daraltma `inc-73ac64e9`). Hepsi yalnız 1. aday ve onun `rationale` / `evidence_path`'i üzerine (taslaktaki gibi):
+  - **Ortak: kök görünürlüğü** (yeni alan, önerilen ad `root_visibility`; değerler `direct` / `indirect` / `absent`). Gerekçe: kapanan ya da yavaşlayan servisin kendi satırı olmayabiliyor; ham `inc-230c9d46`'da kök `recommendation`'ın tek izi frontend'in hata span adları (`RecommendationService/ListRecommendations`).
+    - `direct`: girdide kökün kendi satırı / logu / hata span'i var ve en az biri alarm sonrası değişmiş: hata oranı arttı (sonra ≥ 0,01 ve öncekinden büyük), p95 ≥ 2 katı, istek ≤ yarısı, CPU ya da bellek ortalaması ≥ 2 katı, ya da kendi WARN+ / hata satırı.
+    - `indirect`: kökün kendi değişen satırı yok, ama çağıranların hata satırlarında / işlem adlarında hedef olarak geçiyor (daraltmada çağıranlar listesi dahil).
+    - `absent`: ikisi de yok.
+  - **T1 yorumda uydurma:** aynı; netleştirme: girdide hiç geçmeyen servis adı (gerekçede ya da yolda) ya da girdideki değerin yönünü / büyüklüğünü ters söyleme (ör. düşen p95'e "arttı") evet. Yoldaki kenarların izlerde görülüp görülmediği T1'e girmez (tabloda kanıt geçerliliği ölçüyor).
+  - **T2 eksik inceleme:** `root_visibility` ≠ `absent` ve kök üç adayda yok (eşlenmiş adlarla) → evet; kök ilk 3'teyse hayır; `absent` → belirlenemez ve "kök girdide yok" sayılır. Yargı yalnız görünürlükte; ikinci kısım kodla.
+  - **T3:** değişmez (kodla).
+  - **T4 tek kaynak (yeniden yazım):** taslak "kökün sinyali" ile "1. adayın gerekçesi"ni karıştırıyor. Öneri: kökün değişen sinyali girdide bir telemetri türünde var (iz türevi: istek / hata oranı / p95 / hata span'i; metrik: CPU / bellek; log) ve 1. adayın gerekçesi yalnız başka bir türe dayanıyor → evet. Gerekçe birden çok türe dayanıyorsa ya da kökün sinyali gerekçenin türündeyse hayır; `absent` ya da `indirect` ise belirlenemez.
+  - **T5 zaman hatası:** aynı; netleştirme: girdide önce / sonra ayrımı yoksa (ham: yalnız alarm sonrası satırlar) ve gerekçe zaman karşılaştırması yapmıyorsa hayır. Aynı iddia T1 ve T5'e birlikte girebilir (çok etiketli).
+  - **T6 çapraz kontrol yok:** aynı; "çelişen sinyal" iki türle sınırlanır: (a) girdideki çağrı kenarlarına göre 1. aday, kendisi de değişmiş bir servisi çağırıyor (belirti daha derinden gelebilir; kenar yalnız daraltmada ve hamdaki işlem adlarında var); (b) gerekçenin dayandığı tek ölçü dışında adayın diğer ölçüleri değişmemiş ve başka bir servisin değişimi daha büyük. Gerekçe birden çok sinyale dayanıyorsa hayır.
+  - Etiket satırında ayrıca isteğe bağlı tek satırlık `note` (sayılmaz): ör. daraltma `inc-73ac64e9`'da gpt-oss çağıranı (checkout) çağrılanın (cart) önüne koymuş, yolu ters yazmış — altı tuzağın dışında kalan gözlemler için.
+- Onaylanınca sorular `results/p1_error_labels.json`'ın başına metin ve sha256'sıyla yazılır, donar; sonra 29 satır etiketlenir.
+
+## 2026-11-04 · Planlama → Uygulama (P1e 3. adım kontrolü; sorular Eren onaylı, iki düzeltmeyle)
+- **Doğrulananlar** (`03f985e` scratch klonu ve repo dışı çalışma dosyaları):
+  - Kendi sayımım a1 `scores.json`'larından (girdi var, cevapsız değil, şema içi, top-1 ıskalama): 4B 2 / 9 / 5, gpt-oss 1 / 3 / 2, Gemini 1 / 5 / 1 = 29. Seçimle aynı. Gemini özette 2 satır çekimser (`unsure: true`) ve kapsamda.
+  - T3: kendi hesabım (1. aday, yayılım yolunda kökten başka servis) 29/29 dosyadakiyle aynı; 25 evet.
+  - Çalışma dosyaları: `index.json` sha'ları kayıttaki `input_sha256` ile 29/29 aynı. Dosyalardaki girdi metninin sha'sı da 29/29 aynı.
+  - pytest 596/596; `results.py` `b626765f…` değişmemiş; `error_analysis.py` yalnız dev etiketlerini ve dev vakalarını okuyor.
+  - Örneklemin etiketlemeden sonraya bırakılması doğru.
+- **Sorular (Eren onaylı, 2026-11-04): uyg4 önerisi ve iki düzeltme.**
+  1. **"Değişmiş / anormal" tek tanımla:** kuralın sinyal tanımı (`signals.signals`, güç ≥ 1; DECISIONS'ta kural ve daraltma için zaten kullanılan). uyg4'ün yeni eşikleri (hata oranı +0,01, p95 2 kat, CPU ve bellek 2 kat, herhangi bir WARN+) kullanılmaz; başarısız satırlar okunduktan sonra seçilmişlerdi.
+     - Eşikler: hata oranı sonra ≥ önce + 0,05; p95 / p99 ≥ max(1,5 × önce, önce + 20 ms); istek düşüşü (önce ≥ 20 ve sonra ≤ önce / 2); CPU ≥ max(1,5 × önce, önce + 5); bellek ≥ 1,2 × önce; yeni WARN+ mesajı alarmdan sonra ≥ 5 kez, önce 0.
+     - Girdide bulunan alanlara uygulanır, girdide olmayan alan sayılmaz. Ham seviyede log sinyali satırların zamanına göre (alarm öncesi / sonrası).
+     - `root_visibility: direct` = kökün girdideki kendi satırında / satırlarında bu tanımla en az bir sinyal. Mümkünse kodla hesaplanır (T3 gibi); uygulama tek satırla kayda yazılır. `indirect` ve `absent` uyg4'ün tanımıyla.
+     - Aynı tanım T4'te ("kökün değişen sinyali") ve T6'da ("değişmemiş", "daha büyük değişim" = en büyük güç) kullanılır.
+  2. **T6 yalnız (b):** gerekçe tek bir ölçüye dayanıyor, adayın girdideki diğer ölçüleri değişmemiş ve başka bir servisin değişimi daha büyük → evet. Gerekçe birden çok sinyale dayanıyorsa hayır.
+     - (a) "aday, kendisi de değişmiş bir servisi çağırıyor" çıkar: bu belirtiyi neden sanma (T3). T6'da kalırsa T6'yı şişirir.
+     - Onun yerine özet, T3'ü `root_visibility`'ye göre ayrı gösterir. T3 evet ve kök `direct` / `indirect` ise model kanıtı görmüş ama belirtiyi seçmiş demektir.
+  - Diğerleri uyg4 önerisiyle: T1 netleştirmesi (kanıt kenarları T1'e girmez), T2 (`root_visibility` ≠ `absent` ve kök üç adayda değil; ikinci kısım kodla), T3 kodla, T4 yeniden yazım, T5 netleştirmesi, isteğe bağlı `note`.
+- Sıra: sorular metin ve sha256'sıyla `results/p1_error_labels.json`'ın başına yazılır ve donar. Sonra 29 satır etiketlenir, etiketler donar. Sonra örneklem (tohum 20261104) ve Eren'in 10 satırı.
+- Yeni ad: `root_visibility` (değerler `direct` / `indirect` / `absent`) bu onayla kabul; GLOSSARY'ye uyg4 yazar.
+
+## 2026-11-04 · Uygulama → Planlama (P1e 3. adım: görünürlük kodla, sorular donmuş, 29 satır etiketlendi; Eren doğrulaması bekliyor)
+- **`root_visibility: direct` kodla** (`df340dc`; `error_analysis.direct_signals`): `signals.signals` (güç ≥ 1) kökün girdideki kendi değerlerine. Özet / daraltma: kökün satırı (istek, hata oranı, p95, CPU ve bellek ortalaması; veritabanında yalnız CPU / bellek) ve girdideki logları (`count_before` 0 olan mesajın `count_after`'ı); ham: yalnız kökün `log` satırları, `normalize` ile, satır saatine göre önce / sonra (gece yarısı iki yönde). Testler 4 yeni (eşikler, veritabanı, log, daraltmada aday olma, ham sayım); kasıtlı kırmızı 8/8 (güç `>` 1, `count_before` yok sayılıyor, hamda hata span'i, gece yarısı iki yön ayrı ayrı, veritabanı ayrımı yok, normalize yok; ilk denemede iki bozma yakalanmadı / sözdizimi verdi, test genişletilip yeniden denendi). Çalışma dosyaları yeniden üretildi (29/29 sha kayıtla aynı): **direct 22**, kalan 7 etiketlemede.
+- **Sorular donduruldu** (`41f503e`): `results/p1_error_labels.json` başında metin, sha256 **`dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7`** (uyg4 önerisi + planlamanın iki düzeltmesi, Eren onayı).
+- **Etiketler** (`ae4593e`; dosya sha256 **`026de0cefcd96217d3f2a866c60240ff0a594344ffa59fc30415cdc78116628b`**): 29 satır; her satırda `root_visibility`, `direct_signals` (kod), `top3`, T1–T6, `reason`, `note`. T2 ve T3 kodla; T4 kök direct değilse kodla belirlenemez. Tutarlılık testi (`test_labels_file_matches_code`): soru sha'sı, satırlar seçimle aynı sırada, T2 / T3 / T4 / görünürlük kodla tutarlı. pytest 601/601.
+  - Dağılım: görünürlük direct 22 / indirect 3 / absent 4. T1 7 evet; T2 8 evet, 2 belirlenemez; T3 25 evet; T4 22 hayır, 7 belirlenemez; T5 1 evet; T6 12 evet.
+  - **Yorum kararı (soruların sırasına):** kök hem `absent` hem ilk 3'teyse T2 = hayır (model kökü anmış; "kök girdide yok" ayrıca `root_visibility`'den sayılır). İki satır: Gemini özet `inc-ac155a23`, Gemini özet `inc-d9ea423d`.
+  - Kodla gelen T2'de ad eşleşmesi belirleyici: üç satırda 3. aday kökün işlem adındaki adı (`CartService`, `oteldemo.RecommendationService`) ama eşleşmediği için T2 evet; `note`'ta yazılı.
+  - T6'da "en büyük güç" harfiyen uygulandı: iki satırda fark çok küçük (quote-gateway 1,48 / shipping 1,475), bir satırda en büyük güç bir log sinyali (ölçekler farklı); `note`'ta yazılı.
+- **Örneklem etiketler donduktan sonra** (`sample`, tohum 20261104): Gemini özet `inc-9292257f`; gpt-oss daraltma `inc-73ac64e9`; gpt-oss özet `inc-9292257f`; 4B daraltma `inc-230c9d46`, `inc-320c56f9`, `inc-ae15665a`; 4B ham `inc-4a62b9bb`; 4B özet `inc-ae15665a`, `inc-b4d12a5e`, `inc-fa775703`.
+- **Eren doğrulaması:** 10 satır özel bir inceleme sayfasında (Claude artifact, yalnız Eren): girdi değerleri, cevap, etiket, T1–T6 ve gerekçe; her satırda katılıyorum / katılmıyorum. Eren'in cevabı geldiğinde etiket dosyasına `eren_check` olarak yazılır (etiketler değişmez; anlaşmazlık ≥ 3 → sorular netleşir, 29 satır yeniden etiketlenir, kayda açıkça).
+- GLOSSARY: 3. adımın onaylı adları eklendi.
+- Sıradaki: Eren'in cevabı, sonra özet (`results/p1_error_summary.md` / `.json`, komutla, CI'da yeniden üretim).
+
+## 2026-11-04 · Planlama → Uygulama (P1e 3. adım kontrolü: sorular, etiketlerin kod kısmı ve örneklem doğru)
+- **Doğrulananlar** (`e453285` scratch klonu):
+  - Sıra: `df340dc` (görünürlük kodu) → `41f503e` (sorular) → `ae4593e` (etiketler, 4 dk sonra) → örneklem. `results.py` `b626765f…` değişmemiş.
+  - Dondurulan soru metni onaylanan hâliyle aynı: kuralın sinyal tanımı, `root_visibility`, T1–T6, T6 yalnız (b).
+  - Etiket dosyası `026de0ce…`, 29 satır. Kendi kodumla:
+    - T3, T2 ve `top3` 29/29 aynı;
+    - "kök direct değilse T4 belirlenemez" 29/29 tutuyor;
+    - `direct`: özet ve daraltmanın 25 satırında kökün girdideki satırına `signals.signals` uygulandı (planlamanın kendi alan eşlemesiyle), 25/25 aynı.
+  - Dağılım uyg4 kaydıyla aynı: direct 22 / indirect 3 / absent 4; T1 7, T2 8 (+2 belirlenemez), T3 25, T5 1, T6 12 evet; T4 22 hayır, 7 belirlenemez.
+  - `error_analysis sample` (tohum 20261104) aynı 10 satırı verdi. pytest 601/601.
+- **Kabul (açıkça kayda):** "kök absent ve ilk 3'te" durumunda T2 = hayır yorumu (2 satır). Donmuş metin bu durumda iki kuralı birden veriyor; seçilen yorum etiketleme sırasında yapıldı, sınırlamalara yazılır.
+- **Düzeltme:** ad eşleşmesi notu iki satırda (4B ham `inc-9292257f` `CartService`, gpt-oss ham `inc-230c9d46` `oteldemo.RecommendationService`), HANDOFF'taki "üç satır" değil.
+- **Sınırlamalara (puanlama):** a1 dev'in bütün turlarında kökün gRPC adının eşlenmemiş aday olduğu ve satırın bu yüzden top-3 ıskalama sayıldığı 3 satır var, hepsi hamda: 4B ham, gpt-oss ham, 2B ham (`inc-0c4902c3` `oteldemo.AdService`).
+  - Etki: ilgili ham hücrelerde top-3 en çok +1 olurdu.
+  - Puanlama (P1a) değişmez. Testteki sayısı yalnız toplam olarak raporlanabilir: eşlenmemiş adaylarda kökün `…Service` yazımı, kod sayar, vaka basılmaz.
+- Sıradaki: Eren'in 10 satır doğrulaması (inceleme sayfası uyg4'ten), sonra özet.
+
+## 2026-11-04 · Planlama → Uygulama (Eren doğrulaması ertelendi)
+- Eren kararı: 10 satırlık doğrulama bu akşamki test koşusundan sonraya kaldı. Eren'in sohbette verdiği ilk iki cevap kayda girmez (Eren isteği); doğrulama sonra baştan yapılır.
+- Bu arada sürebilecekler: test koşusu (bu akşam, Eren'in "başlat"ıyla) ve özet modülünün kodu. Özet dosyaları Eren'in cevabından sonra üretilir.
+
+## 2026-11-05 · Planlama → Uygulama (P1e test koşusu doğrulandı; puanlama planı iki düzeltmeyle onaylı)
+- **Doğrulananlar** (yalnız kimlik ve sayım; cevap içeriği ve doğruluk açılmadı):
+  - `p1d_test.json`: 14/14 `done`, `trial: false`, koşucu sha256 `9efc5b90…` (onaylı), paket klondan (`aiops_rca_p1e/src`).
+  - Her turda `repo_commit` `7809498`, `repo_clean` true, ağaçlar src `461d037b…` / incidents `ce7a75d0…`. LLM turlarında istem sha `6d05378e…`, dev a1 ile aynı.
+  - 14 klasörde `run.json` doğru (yöntem, model, seviye, `sets: [test]`, `n_cases` 18); `responses.jsonl` 18 satır, tekrar yok; kimlikler 14/14 geçerli test kimlikleriyle aynı. Klasörlerde `scores.json` yok.
+  - Sayımlar uyg4 raporuyla aynı: bağlantı, uzunluk, döngü, cevapsız ve bütçe aşımı 0; şema dışı 4B ham 1, 4B daraltma 1, gpt-oss 1 / 2 / 1. Ham turlarda 10 soruldu, 8 boş girdi (dev a1'de de 10 / 8).
+  - Groq turları 2026-11-04T22:21:40Z'de başladı; son Groq günü (a2, 2026-11-03T10:56:24Z) üzerinden 24 saat geçmiş.
+  - Hiçbir test turu yeniden koşulmaz. Şema dışı cevaplar P1d kuralıyla sayılır.
+- **Puanlama planı karta uygun, iki düzeltmeyle:**
+  1. **src ağacı kontrolü:** ana kopyanın src ağacı (`e4d07f9a…`, `bbbdba6`) klonla aynı olamaz, çünkü daraltma yöntemi klondan sonra eklendi. Kontrol şu: `git diff --stat 7809498 HEAD -- src` yalnız dört dosya gösterir: `error_analysis.py`, `results.py`, `methods/narrowing.py`, `evaluate.py` (yalnız yöntem kaydı ve docstring). `narrowing.py` (`candidate_narrowing`), `inputs.py`, `scoring.py` ve diğerleri aynı kalır. Planlama `bbbdba6`'da baktı, öyle. Daraltma koşusunun `repo_commit`'i ve src ağacı kayda girer.
+  2. **Taşıma değil kopya:** 14 klasör klondan ana repoya kopyalanır (`cp -a`). Klondaki asıllar planlamanın kontrolü bitene kadar kalır; klonun silinmesi sonra Eren'e önerilir. Kopyadan sonra her klasörde `run.json` ve `responses.jsonl` sha256'sı klondakiyle aynı olmalı.
+  - Sıra: kopya → sha kontrolü → daraltma koşusu → 15 klasör ana kopyada aynı HEAD ile `evaluate score --final-test` → `p1_runs.json` test girişleri → tablo. Klonda puanlama yapılmaz.
+- **Geçme ölçütüne ek:** `results.py` sha256 hâlâ `b626765f…`; 14 kopyanın sha'sı klonla aynı; src farkı yalnız yukarıdaki dört dosyada. Diğerleri uyg4'ün önerdiği gibi: 15 koşu satır denetiminden geçer, pytest yeşil, `results --check` bayt aynı.
+- **Uygulama → Planlama kaydına:** sohbette verilen koşu raporu (sayımlar), kopya sha kontrolünün sonucu, daraltma koşusunun klasörü, `repo_commit`'i ve src ağacı, commit.
+- **Planlamanın sonraki kontrolü:** scratch klonda tabloyu yeniden üretip sha karşılaştırma, 15 koşuyu yeniden puanlama, birkaç hücreyi kendi kodumla hesaplama. Yalnız toplamlar; vaka bazında test çıktısı açılmaz.
+
+## 2026-11-05 · Uygulama → Planlama (P1e test puanlandı, tablo üretildi; doğrulama isteği)
+- **Koşu raporu** (yalnız sayımlar; `~/cerebrum2/analysis/p1d_test.json`, log `p1d_test.log`): 2026-11-04T19:18Z–23:12Z, 14/14 `done`, durma yok. Bağlantı, uzunluk, döngü, cevapsız, bütçe aşımı 0; şema dışı 4B ham 1, 4B daraltma 1, gpt-oss ham 1 / özet 2 / daraltma 1; ham turlarda 10 soruldu, 8 boş.
+- **Uyku olayı:** 2026-11-04T21:23:14Z'de sistem 38 sn uyudu (GNOME `sleep-inactive-ac-timeout` 7200; systemd `sleep` kilidini dikkate almıyor). O sırada 9B özet turu koşuyordu (yerel model): 18/18 soruldu, bağlantı/cevapsız/şema dışı/uzunluk/döngü 0; tek etkisi süreye ~38 sn. Yeniden koşulmadı. Sonrası için `gnome-session-inhibit --inhibit suspend --inhibit idle` eklendi; başka uyku yok. Sınırlamalara: 9B özet süresine ~38 sn uyku dahil.
+- **Kopya:** 14 klasör `cp -a` ile klondan; her dosyanın sha256'sı klondakiyle aynı (puanlamadan sonra `run.json`/`responses.jsonl` yeniden karşılaştırıldı, aynı). Klondaki asıllar duruyor.
+- **src farkı** `7809498..1a1bbc6`: yalnız `error_analysis.py`, `evaluate.py` (yöntem kaydı + docstring), `methods/narrowing.py` (yalnız ekleme), `results.py`.
+- **Daraltma referansı test koşusu:** `eval_responses/20261105T064023Z-narrowing`, `repo_commit` `1a1bbc6a5c65ef9f155aeeb9cb1c5ac2644dc8e1`, `repo_clean` true, src ağacı `e4d07f9a702522152cd39e619cba3b6c6ba272a0`, 18 vaka, tekrar yok.
+- **Puanlama:** 15 koşu `1a1bbc6`'da `evaluate score --final-test` (çıkış 0; çıktı açılmadı). `p1_runs.json` test girişleri `run.json`'daki yöntem/model/seviyeden eşlendi (15/15, alias yok).
+- **Tablo:** `results` → `p1_table.md` `3e214ae8fb503ebb2c1d110be7a6920aec882fe2035c1cc178942ca75ca2bb69`, `p1_table.json` `ab78e9d554ef329ad535f4328ee541042be2866e92bdd8348473989a368c3cca`; `--check` aynı; `results.py` sha `b626765f…` değişmedi; pytest 601/601; tabloda test kimliği yok. Okunan yalnız tablo hücreleri: dev–test satırlarının hepsi "ayırt edilemedi" (en küçük p 0,1774, daraltma referansı); 9B bilgi satırı 2 / 0 / 14, ayırt edilemedi.
+- **Commit:** `86bbba1` (15 klasör + `p1_runs.json` + tablo).
+- **Not:** Bölüm başlıklarında "## 3." ve "## 4." üçer kez tekrar ediyor (donmuş kod; değiştirilmedi).
+- **Beklenen:** planlamanın kontrolü (scratch klonda yeniden üretim, 15 koşuyu yeniden puanlama, hücre hesabı). Sonra: Eren'in 10 satırlık doğrulaması, özet modülü, sınırlamalar, kapanış.
+
+## 2026-11-05 · Planlama → Uygulama (P1e test puanlaması ve tablo doğrulandı)
+- **Doğrulananlar** (scratch klon `f086990`; yalnız toplamlar basıldı, vaka bazında test çıktısı açılmadı):
+  - `86bbba1`: 45 yeni dosya (15 klasör × `run.json` / `responses.jsonl` / `scores.json`); değişen yalnız `p1_runs.json`, `p1_table.md`, `p1_table.json`. Dev klasörleri ve `src/` aynı, `results.py` `b626765f…`.
+  - Kopya: 14 klasörün 28 dosyası klondaki asıllarla sha256 aynı. Klonda asıllar duruyor, `scores.json` yok.
+  - Daraltma koşusu: `repo_commit` `1a1bbc6`, temiz, src `e4d07f9a…`. Scratch'te yeniden koşuldu, 18/18 cevap aynı.
+  - Yeniden puanlama: 15 test koşusu scratch koduyla; `scores.json` 15/15 bayt aynı.
+  - Tablo: `--check` aynı. Silinip yeniden üretildi: md `3e214ae8…`, json `ab78e9d5…` aynı. pytest 601/601.
+  - Satır eşlemesi: her satırın dev ve test `run.json`'ı yöntem, model ve seviyeyle uyuyor; takma ad yok.
+  - Kendi kodumla:
+    - 15 satır × dev / test × 3 grup: n, top-1, top-3 ve şema dışı `scores.json` vaka satırlarından aynı.
+    - Skorer kullanmadan, kesin ad eşleşmesiyle top-1 / top-3 30/30 aynı.
+    - Fisher p'leri (tam kesirle) 15/15 aynı; okuma hepsinde "ayırt edilemedi", en küçük p 0,1774 (daraltma referansı). Eşikler 18→13, 17→11, 16→9, 15→8.
+    - 9B: yalnız 9B 2, yalnız 4B 0, ikisi 14 → ayırt edilemedi.
+  - Uyku: günlükte 2026-11-04T21:23:16Z–21:23:54Z (38 sn), 9B özet turunun içinde. Koşu bittikten sonra 2026-11-05T01:12Z'de bir uyku daha var (koşu dışında).
+- **Planlamanın hatası:** koşu komutunu ben yazdım ve içinde yalnız `systemd-inhibit` vardı. GNOME'un boşta uyku zamanlayıcısı (prizde 7200 sn) bu kilide uymadı.
+  - Etkisi: 9B özette bir vakanın süresine ~38 sn. Yerel model ve sıcaklık 0; bağlantı ve şema hatası 0, cevaplar etkilenmez. 9B bilgi satırı; yeniden koşulmaz.
+  - Sonraki uzun koşularda `gnome-session-inhibit --inhibit suspend --inhibit idle` de kullanılır.
+- **Sınırlamalara (sayılarıyla):**
+  1. **Set karışımı farklı:** dev 11 demo / 7 kendi, test 6 demo / 12 kendi. Toplamdaki dev–test okuması bu farkı ayırmaz; grup tabloları yan yana okunur.
+  2. **gRPC adı eşlenmiyor (P1a puanlaması):** kökün gRPC adı ilk 3'te olduğu hâlde eşlenmediği için ıskalama sayılan satırlar:
+     - dev 2: 4B ham 1, gpt-oss ham 1;
+     - test 7: 4B ham 1, gpt-oss ham 3, Gemini ham 2, 9B ham 1. Hepsi hamda; testte 3'ü 1. sırada (gpt-oss ham 1, Gemini ham 2).
+     - Etki: ilgili ham hücrelerde top-3 en çok bu kadar artardı. Hiçbir satırın okuması değişmez; en uç durum gpt-oss ham, dev 8 / test 7 olurdu. Puanlama değişmez.
+     - Özet modülü bu sayıları kodla yeniden sayar ve planlamanınkiyle karşılaştırır; vaka basılmaz. Planlamanın tanımı: kökün adı ile ilk 3'teki eşlenmemiş ad aynı kabul edilir: küçük harf, son nokta parçası, `/` öncesi, sondaki `service` atılmış, yalnız harfler.
+  3. **Uyku:** 9B özet süresine 38 sn dahil.
+  4. **Daraltma referansı ile modeller:** bunlar için önceden yazılmış bir karşılaştırma kuralı yok. Test hücreleri yalnız betimsel yazılır; sonradan anlamlılık testi eklenmez.
+  5. **"Ayırt edilemedi", "aynı" demek değil:** 18 vakada yalnız büyük düşüşler görülebilir (ör. 18 → ≤13).
+- Kabul: md'deki "## 3." / "## 4." tekrarları grup bölümleri; donmuş kod, değişmez.
+- Klon (`~/cerebrum2/aiops_rca_p1e`): planlamanın kontrolü bitti. Silinmesi P1e kapanışında Eren'e önerilir, şimdilik dokunulmaz.
+- Sıradaki: özet modülünün kodu (dosyalar Eren'in 10 satır doğrulamasından sonra üretilir), sınırlamalar metni, kapanış.
+
+## 2026-11-05 · Uygulama → Planlama (P1e özet kodu; dosyalar Eren doğrulamasından sonra)
+- **Yapılan** (`3f3427e`, Eren onaylı plan): `error_analysis summary [--check]` → `results/p1_error_summary.md` / `.json` (henüz üretilmedi). İçerik: otomatik türler (9 hücre), T1–T6 evet / hayır / belirlenemez (model × seviye + toplam), görünürlüğe göre T3, ad eşlenmemesi (12 LLM satırı × dev / test, sayı ve "1. sırada"), Eren doğrulaması (`eren_check.agree`; işaretlenen < 10 → bekliyor, katılmıyorum ≥ 3 → yeniden etiketleme). Örneklem dışı `eren_check` → hata.
+- **Ad anahtarı** (`name_key`, planlamanın tanımı, bu sırayla): küçük harf → son nokta parçası → `/` öncesi → sondaki `service` atılır → yalnız harfler. Sayılan: şema içi, top-3 ıskalama, ilk 3'teki eşlenmemiş adlardan birinin anahtarı kökünkiyle aynı.
+- **Ölçüt sonuçları:** ad eşlenmemesi planlamanınkiyle aynı (dev 2: 4B ham 1, gpt-oss ham 1; test 7: 4B ham 1, gpt-oss ham 3, Gemini ham 2, 9B ham 1; 1. sırada gpt-oss ham 1, Gemini ham 2). 29 satır toplamları etiket dağılımıyla aynı (direct 22 / indirect 3 / absent 4; T1 7, T2 8 + 2 belirlenemez, T3 25, T4 22 hayır + 7 belirlenemez, T5 1, T6 12). Görünürlüğe göre T3 evet: direct 20/22, indirect 3/3, absent 2/4. Çıktıda `inc-` yok. pytest 606/606.
+- **Testler** (+5): `name_key` örnekleri, `name_miss_rank` (sıra, isabet, şema dışı, 4. sıra), planlamanın sayıları (CI'da test `scores.json`'dan yalnız sayım), toplamlar, doğrulama okuması (3 işaretli → bekliyor; 10'da 3 katılmıyorum → yeniden; 2 → tamam; örneklem dışı → hata). Kasıtlı kırmızı scratch klonda: `service` atılmıyor, eşik 4, ilk 3 sınırı yok, isabetler de sayılıyor → 4/4 yakalandı.
+- **Sıradaki:** Eren'in 10 satır doğrulaması → `eren_check` → dosyalar ve bayt aynı yeniden üretim testi ayrı commit'te; sonra sınırlamalar metni (yer ve ad önerisi), kapanış.
+
+## 2026-11-05 · Planlama → Uygulama (Eren'in 10 satır doğrulaması: 9 katılıyor, 1 katılmıyor; yeniden etiketleme yok)
+- **Yöntem:** sohbette, planlamayla, satır satır ve kör: Eren önce cevapladı, sonra uyg4'ün etiketi açıldı. Her satırda girdi değerleri, 1. adayın gerekçesi ve donmuş T1 / T5 / T6 metninin sade hâli verildi. 2026-11-04'teki iki sohbet cevabı kayıt dışı (Eren isteği).
+  - T2 ve T3 kodla belirlendiği için sorulmadı. T4 ve `root_visibility`'nin indirect / absent yargısı Eren'e sorulmadı → sınırlamalara: "insan kontrolünden geçmedi".
+- **Sonuç** (örneklem sırası; Eren T1 / T5 / T6; uyg4 etiketi):
+  1. Gemini özet `inc-9292257f`: no / no / no — katılıyor.
+  2. gpt-oss daraltma `inc-73ac64e9`: no / no / no — katılıyor.
+  3. gpt-oss özet `inc-9292257f`: no / no / no — katılıyor.
+  4. 4B daraltma `inc-230c9d46`: yes / no / no — katılıyor.
+  5. 4B daraltma `inc-320c56f9`: yes / **no** / yes — **katılmıyor** (uyg4 T5 yes).
+  6. 4B daraltma `inc-ae15665a`: no / no / no — katılıyor.
+  7. 4B ham `inc-4a62b9bb`: yes / no / no — katılıyor.
+  8. 4B özet `inc-ae15665a`: no / no / no — katılıyor.
+  9. 4B özet `inc-b4d12a5e`: yes / no / yes — katılıyor.
+  10. 4B özet `inc-fa775703`: no / no / yes — katılıyor.
+- **Katılmama (5. satır, T5):** model "cart CPU'su alarmdan sonra fırladı" diyor, girdide 0,60 → 0,31. Eren: sütunlar ters okunmuş olsa bile 0,3 → 0,6 "ciddi artış" değil; uydurma gibi, zaman karışıklığı değil → yalnız T1. Planlama iki okumayı (ters okuma / uydurma) tarafsız sundu, seçim Eren'in.
+- **Okuma:** katılmıyorum 1 < 3 → etiketler kalır, sorular değişmez, yeniden etiketleme yok.
+- **Açıkça kayda:**
+  - 1. ve 2. satırda Eren'in ilk T6 cevabı "evet"ti. Sebep planlamanın belirsiz sade ifadesi: 1'de "tek ölçü" "tek servis" diye anlaşıldı, 2'de üç koşuldan yalnız ilkine bakıldı. Netleştirmeden sonra ikisinde de "kurala göre hayır" (Eren'in kurala itirazı yok). Sayımda son cevap geçerli; ilk cevaplar `note`'a.
+  - 5. satırda T5'in ilk cevabı "anlamadım"dı; açıklamadan sonra "hayır".
+  - Planlamanın hatası: 2. satırda "kural kaç ms arttığına bakıyor" dedim. Doğrusu artış / max(önce / 2, 20 ms). 2. satırın sonucu değişmez (checkout 15,6 > cart 7,6); 9. satırda düzeltildi.
+- **Sınırlamalara:**
+  - T6 dar: yalnız başka bir servis daha çok değiştiğinde "evet". Eren'in "çapraz kontrol yok" sezgisi daha geniş ("model tek bir servise bakıp karar vermiş"); bunun bir kısmını T2 / T3 yakalıyor.
+  - T6'nın ölçeği: "daha büyük değişim" kat olarak ölçülseydi 2. satırda cart (139 kat) checkout'u (9 kat) geçerdi ve T6 "evet" olurdu.
+  - T1 abartılı sıfatları ("massive") yakalamıyor (8. satır: frontend CPU ortalaması kural eşiğinin kılpayı altında).
+- **uyg4'e:** 10 satıra `eren_check` yazılır: `agree` (yukarıdaki gibi), Eren'in T1 / T5 / T6 cevapları ve `note` (1., 2. ve 5. satırlardaki ilk cevaplar; 5. satırda Eren'in gerekçesi). Etiketler değişmez. Sonra özet dosyaları, bayt aynı yeniden üretim testi ve sınırlamalar metni.
+
+## 2026-11-05 · Uygulama → Planlama (eren_check yazıldı; hata analizi özet dosyaları üretildi)
+- **`eren_check`** (`da31438`, Eren onaylı biçim): 10 örneklem satırına `{agree, T1, T5, T6, note?}`, planlamanın b2d0e6c kaydından. `note` 1., 2. ve 5. satırlarda (ilk cevaplar; 5'te Eren'in gerekçesi). Etiketler değişmedi: dosya, `eren_check` alanları çıkarılınca önceki commit'tekiyle içerik olarak aynı. 10 anahtar `sample()` ile aynı; tek fark `qwen3.5-4b narrowed inc-320c56f9` T5.
+- **Özet:** `results/p1_error_summary.md` `6704245cf1239abc6960d4a55afbcc8af55c6dbda743ea0481c333972bfbfed2`, `.json` `cb47bfd057d55f5709bfd9b2755ae00bf8531002655a6afe1528db9cbc8ff126`; etiket dosyası sha `59a21fa8…`. Doğrulama okuması: 10 işaretli, 1 katılmıyorum → tamam. `summary --check` aynı; çıktıda `inc-` yok.
+- **Testler** (+2, 608/608): etiket dosyasındaki `eren_check` (anahtarlar = örneklem, `agree` = T1/T5/T6 eşitliği, tek fark, okuma `ok`); özet dosyalarının bayt aynı yeniden üretimi. Doğrulama okuması testi artık dosyadaki gerçek işaretleri önce siler.
+- **GLOSSARY** (`79f4b82`): `eren_check` tanımı yeni biçimle.
+- **Sıradaki:** sınırlamalar metni (uyg4 yer ve ad önerecek; planlamanın 2026-11-05 iki kaydındaki maddeler + "T4 ve indirect / absent insan kontrolünden geçmedi"), sonra kapanış.
+
+## 2026-11-05 · Planlama → Uygulama (eren_check ve hata özeti doğrulandı)
+- **Doğrulananlar** (scratch klon `93cfa2c`):
+  - `eren_check`: 10 anahtar örneklemle aynı. T1 / T5 / T6 ve `agree` 10/10 planlamanın sohbet kaydıyla aynı; `agree` etiketle eşitlikten hesaplanınca da aynı. Notlar 1., 2. ve 5. satırda, içerik doğru.
+  - Etiketler: `eren_check` çıkarılınca dosya `b2d0e6c`'dekiyle aynı (sorular ve sha dahil). `results.py` `b626765f…` değişmedi.
+  - Özet: `summary --check` aynı. Silinip yeniden üretildi: md `6704245c…`, json `cb47bfd0…` aynı. pytest 608/608.
+  - Kendi kodumla: tuzak tablosu (9 satır ve toplam: T1 7/22/0, T2 8/19/2, T3 25/4/0, T4 0/22/7, T5 1/28/0, T6 12/17/0) ve görünürlüğe göre T3 (direct 20/2, indirect 3/0, absent 2/2) aynı. Otomatik türler P1 tablosunun dev hücreleriyle tutarlı (etiketlenen = 18 − boş − şema dışı − top-1 isabet, toplam 29). Ad eşlenmemesi planlamanın sayımıyla aynı (dev 2, test 7, test 1. sırada 3).
+- Test yalnız sayım olarak (vaka yok) giriyor; kararlaştırılan buydu.
+- **Sıradaki:** sınırlamalar metni. Yer ve ad önerisi (yeni ad → Eren onayı) ve madde listesi; maddeler planlamanın 2026-11-05 kayıtlarından ve önceki kartlardan. Sonra kapanış (PROJECT kutuları, ARCHITECTURE notu, PR).
+
+## 2026-11-05 · Uygulama → Planlama (P1e sınırlamalar metni; doğrulama isteği)
+- **Yapılan** (`results/p1_limitations.md`, Eren onaylı yer ve ad): 7 bölüm (veri ve setler, yöntemler ve referanslar, koşu süreci, puanlama, okumalar, hata analizi, tekrarlanabilirlik). Elle yazıldı; yeni yorum yok, her maddede sayı, okumaya etkisi, kaynak tarihi. ARCHITECTURE dosya tablosuna satır.
+- **Madde → kaynak eşlemesi:**
+  - P1e kartı 4. madde: BARO üç sınırlaması → §2 (HANDOFF 2026-10-31); daraltma v1 → §2 (DECISIONS 2026-10-31); `quote-svc` → §5 takma ad; `duration_s` → §3; Qwen üretici ayarı, tokenizer oranı → §2; a1 gpt-oss özet yeniden, b `--no-day-guard` / kapak / 3. gün → §3; takma ad gpt-oss ham belirsiz, yalnız dev → §5; 9B sonradan → §2; aşırı uyum / dağılım, çoklu karşılaştırma → §5; LLM etiketleyici, çapa → §6; CI puanlama, API modelleri → §7.
+  - Takma ad notları (HANDOFF 2026-10-23, 2026-10-31, 2026-11-01): ezber, `Invalid token` → §1; gRPC yöntemleri, `get-quote`, iki yönlü bozulma, b unmatched sayıları → §5.
+  - P1e notları: Gemini yavaş (2026-11-04) → §3; CI (2026-11-04) → §7; daraltma referansı güçlü (2026-11-04) → §2; T2 yorumu, T2 ad eşleşmesi, T6 "en büyük güç" (2026-11-04) → §6.
+  - Planlama 2026-11-05 (test kontrolü): set karışımı → §1; gRPC → §4; uyku → §3; betimsel karşılaştırma, "ayırt edilemedi ≠ aynı" → §5.
+  - Planlama 2026-11-05 (Eren doğrulaması): T4 ve indirect / absent insan kontrolü yok, sade ifade ve ilk cevaplar → §6; T6 dar, T6 ölçeği, T1 sıfatlar → §6.
+  - Ek (kayıtlardan, kartta yok): ham seviyede 8 / 18 boş girdi → §1 (P1d analizi ve test sayımları).
+- **Açık kalan kart maddesi:** P1e kartı 3. madde "Bilgi: b gpt-oss ham turundaki unmatched `checkout`'un kaynağına (takma adlı girdide gerçek ad kalmış mı) dev'de bakılır" yapılmadı. Metinde "bakılmadı" olarak yazılı (§5). Yapılması mı, sınırlama olarak kalması mı: Eren'e soruluyor.
+- **Sayılar** tablodan (`p1_table.md`), özetten ya da kaynak kayıttan alındı; planlama doğrular. pytest 608/608.
+
+## 2026-11-05 · Uygulama → Planlama (kart 3. madde bilgisi: b gpt-oss ham `checkout`'un kaynağı)
+- Eren kararı (A): bakıldı. b gpt-oss ham (`eval_responses/20261102T072717Z-llm`, alias true, dev) eşlenmemiş adlar: `inc-234d34cf` `BillingService`, `inc-86d286ea` `checkout`, `inc-9292257f` `BasketService`.
+- `inc-86d286ea`: `alias.raw_input` yerel Qwen tokenizer'ıyla yeniden üretildi, sha256 kayıttaki `input_sha256` ile aynı. Girdi 125 satır, hepsi kökün (`ad` → `promotions`) log satırları. `checkout` 0, `order-processor` (checkout'un takma adı) 0, `PlaceOrder` 0. Cevap: `promotions`, `inventory`, `checkout` (kök 1. sırada, top-3 isabet).
+- Okuma: gerçek ad girdiden sızmamış; `checkout` modelin kendi adayı. Ezber mi genel ad tahmini mi ayırt edilemez. Takma ad okuması değişmez (gpt-oss ham zaten "belirsiz").
+- `p1_limitations.md` §5'teki "bakılmadı" satırı bu sonuçla değişti.
+
+## 2026-11-05 · Planlama → Uygulama (sınırlamalar metni doğrulandı; iki küçük düzeltme)
+- **Doğrulananlar** (`cf600be`):
+  - Sayılar kaynaklarla aynı: set karışımı, ham 8 / 18 boş, BARO 16 / 43, v1 pilot top-1 21 → 22, tokenizer oranları, `src` ağaçları, Gemini 36,0 / 28,5 sn, kapak gecikmesi, uyku, gRPC dev 2 / test 7 / 1. sırada 3, Fisher eşikleri ve en küçük p, eren_check.
+  - Takma ad sayıları planlamanın P1d hücre betiğiyle aynı: gpt-oss ham a1 / a2 / b 7 / 5 / 6 (gürültü 2); b eşlenmemiş ad hamda 2B 5, 4B 2, 9B 3, gpt-oss 3, Gemini 2, özet ve daraltmada 0.
+  - **b gpt-oss ham `checkout`:** bağımsız baktım, scratch klonda tokenizer'sız. Takma adlı ham girdi bütçeden önceki bütün satırların önekidir. `inc-86d286ea`'nın bütün satırları 125, hepsi `ad`. Gerçek ve takma adlı satırlarda `checkout` / `order-processor` / `PlaceOrder` 0. Cevap `promotions`, `inventory`, `checkout`, `alias: true`. uyg4'ün okuması doğru.
+  - Kart 4. maddedeki bütün maddeler ve planlamanın 2026-11-05 iki kaydındaki maddeler metinde var.
+- **Düzeltmeler** (yalnız `p1_limitations.md`):
+  1. **Eksik madde, §6'ya:** sınıflama 12 tuzağın yalnız 6'sını (T1–T6) kullanıyor; tuzaklar ajanlar için yazılmış. P1'in tek çağrılık kurulumunda öteki 6'sı uygulanamaz; 12'nin tamamı P2'de. PROJECT'teki "12'li hata sınıflandırması" kutusu bu yüzden P1'de kısmen karşılanır. Kaynak: DECISIONS 2026-11-04 "P1e hata sınıflaması".
+  2. **§4 örneği:** `oteldemo.CartService/GetCart` kayıtlarda geçen bir eşlenmemiş ad değil. Gerçek örnek kullanılsın (dev'de `CartService`, `oteldemo.AdService`, `oteldemo.RecommendationService`).
+- **Sıradaki:** düzeltmeler, sonra P1e kapanışı:
+  - PROJECT kutuları ve "Şu an": sonuç tablosu, ölçütler, dev / test yan yana, tekrarlanabilirlik seviye 1 P1 için; hata analizi kısmen, gerekçesiyle.
+  - ARCHITECTURE kesik çizgi notu.
+  - PR: sade açıklama; merge Eren'de.
+
+## 2026-11-05 · Uygulama → Planlama (sınırlamalar metninde iki düzeltme)
+- **§4 gRPC örneği:** `oteldemo.CartService/GetCart` çıkarıldı; yerine kayıtlardaki gerçek eşlenmemiş adlar yazıldı: dev'de `CartService` (4B ham), `oteldemo.RecommendationService` (gpt-oss ham); P1d 2B hamda `oteldemo.AdService` (`20261101T055328Z-llm`). Üçü dev `scores.json` `unmatched` alanından doğrulandı (yalnız dev okundu).
+- **§6 yeni madde:** "Tuzakların yalnız 6'sı" (T1–T6; öteki 6'sı P1'de uygulanamaz, 12'nin tamamı P2'de; PROJECT "12'li hata sınıflandırması" kutusu P1'de kısmen). Kaynak DECISIONS 2026-11-04 "P1e hata sınıflaması".
+- Başka satır değişmedi. Sıradaki: P1e kapanış planı (Eren onayıyla).
+
+## 2026-11-05 · Planlama → Uygulama (sınırlamalardaki iki düzeltme doğru)
+- `0728508`: yalnız `p1_limitations.md` §4 ve §6 değişmiş. §4'teki üç örnek ad dev `scores.json` `unmatched` alanında var (4B ham `CartService`, gpt-oss ham `oteldemo.RecommendationService`, 2B ham `oteldemo.AdService`). §6'daki madde istenen metinle aynı.
+- Sıradaki: P1e kapanış planı (Eren onayıyla). Kapanışta planlama PROJECT kutularını ve PR'ı kontrol eder.
+
+## 2026-11-05 · Uygulama → Planlama (P1e kapanışı)
+- **PROJECT kutuları** (Eren onayı: iki kutu açık + not):
+  - `[x]` "Sonuç tablosu", "Ölçütler", "dev ve test yan yana"; her birinin altında tek satır kaynak.
+  - Açık + not: "Tekrarlanabilirlik" (seviye 1 P1 için tamam, CI bayt aynı; seviye 2 proje sonunda), "Hata analizi" (kısmen: dev, 6/12 tuzak; test ve 12'nin tamamı P2'de). Kart "notla işaretle" diyordu; kutunun tamamı bitmediği için `[x]` konmadı.
+- **PROJECT "Şu an":** P1d satırındaki "Sıradaki: … P1e" çıktı, P1e satırı eklendi.
+- **ARCHITECTURE:** "yok" sınıfında yalnız `agent` kaldı. `base`, `nar`, `llm`, `cache`, `evr`, `ev` (P1a–P1c) ve Eren onayıyla `own`, `inj`, `fix` çıktı.
+- **Kontrol:** pytest 608 geçti; `python -m aiops_rca.results --check` ve `error_analysis summary --check` "same".
+- **Sıradaki:** PR `task/p1-test` → main (sade açıklama), CI yeşil; merge Eren'de. Sonra klon `~/cerebrum2/aiops_rca_p1e` için silme önerisi.

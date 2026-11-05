@@ -28,7 +28,7 @@ flowchart LR
     img["İmajlar (GitHub Actions)<br/>.github/workflows/images.yml"]
     ghcr[("GHCR<br/>aiops-quote-gateway, aiops-netem<br/>— digest'le sabit")]
 
-    base["baseline<br/>(kural: methods/rule.py;<br/>BARO: methods/baro.py)"]
+    base["baseline<br/>(kural: methods/rule.py;<br/>BARO: methods/baro.py;<br/>daraltma referansı: methods/narrowing.py)"]
     nar["candidate_narrowing<br/>(narrowing.py, ilk 5)"]
     inp["Girdi seviyeleri (inputs.py)<br/>ham / özet / daraltma, ≤ 5000 token;<br/>takma ad: alias.py"]
     llm["LLM (methods/llm.py, llm_client.py)<br/>small_local_model / large_api_model;<br/>onaylı istem, tam mesaj ≤ 6000"]
@@ -36,7 +36,7 @@ flowchart LR
     cache[("llm_cache/ — git dışı")]
     evr[("eval_responses/")]
     ev["Değerlendirme (evaluate score, scoring.py)<br/>top-1/3, kanıt, kalibrasyon"]
-    tab["Sonuç tablosu"]
+    tab["Sonuç tablosu<br/>(results.py → results/p1_table.md, .json;<br/>koşu listesi results/p1_runs.json)"]
 
     inj --> ortam
     otel --> col
@@ -83,7 +83,7 @@ flowchart LR
     rmon -->|canlı araçlar| agent
 
     classDef yok stroke-dasharray: 5 5
-    class own,inj,fix,base,nar,llm,agent,cache,evr,ev,tab yok
+    class agent yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
@@ -118,10 +118,18 @@ flowchart LR
 | `src/aiops_rca/methods/llm.py` | LLM yöntemi (P1c): onaylı istem, girdi seviyesi (gerçek ya da takma ad), boş ve bütçeyi aşan girdiyi sormama, tam mesajın yerel sayımı, `llm_client.chat` ile sorma (içerik gelmezse `no_answer`); GGUF SHA256 kontrolü, `run.json` ayarları |
 | `src/aiops_rca/llm_client.py` | LLM çağrı katmanı (P1c): beş model (`MODELS`), cevap şemasının strict biçimi, istek, taşıma hatasında tek yeniden deneme, şema kontrolü (şema dışı ve sınıra takılan yeniden sorulmaz), token ve süre; Groq aralığı (`Pacer`), yerel llama.cpp sunucusu (`LocalServer`) |
 | `src/aiops_rca/inputs.py` | Girdi seviyeleri (P1c): özet (`summary_input`; `trial_summary.build`'in taşınmış hali `summary_table`) ham (`raw_input`: pencerenin WARN+ log ve hata span'i satırları, ≤ 5000 token, baştan kesme + işaret; boş girdi işareti) ve daraltma (`narrowed_input`: ilk 5 aday ada göre, özet satırı + işlemler + çağıranlar + en sık 3 log, adaylar arası kenarlar). Token sayımı dışarıdan verilir |
+| `src/aiops_rca/methods/narrowing.py` | Daraltma referansı (`narrowing_baseline`, CLI `--method narrowing`, P1e): daraltma sırasının ilk 3'ü kural biçiminde (güven yok, kenarsız yol); modelsiz referans satırı |
+| `src/aiops_rca/results.py` | P1 sonuç tablosu (P1e; CLI `python -m aiops_rca.results [--check]`): koşu listesindeki `scores.json` vaka satırlarından gruplu ölçüler (tümü / demo / kendi), dev–test okuması (Fisher), 9B okuması; satır–kayıt denetimi; `results/p1_table.md` ve `.json` |
+| `src/aiops_rca/error_analysis.py` | Dev hata analizi (P1e; CLI `python -m aiops_rca.error_analysis select\|dossier\|sample\|summary`): kapsamdaki satırlar (a1 4B / gpt-oss / Gemini, geçerli cevap, top-1 ıskalama) ve otomatik türler, T3 (kodla), çalışma dosyaları (girdi yeniden üretilir, sha kayıtla aynı olmalı; repo dışına), doğrulama örneklemi (tohum 20261104), özet (`summary`: tuzak sayımları, görünürlüğe göre T3, ad eşlenmemesi sayımı dev/test, Eren doğrulamasının okuması → `results/p1_error_summary.md` / `.json`) |
 | `src/aiops_rca/narrowing.py` | Aday daraltma (`candidate_narrowing`, P1c): kural puanı, derin servislerin öne alınması (DECISIONS 2026-10-31), ilk K = 5 aday ve aralarındaki çağrı kenarları |
 | `src/aiops_rca/alias.py` | Takma ad (P1c): eşleme (`ALIASES`) ve mesaj kuralları (`tools/trial_alias.py`'den taşındı, betik içe aktarır); üç seviyenin takma adlı girdisi gerçek girdinin üzerine (yalnız ad ve metindeki tanımlayıcılar değişir, sıra gerçek adların sırası; hamda aynı satırlar, aşarsa sondan eksiltme) ve kontrolü (tutmazsa girdi üretilmez) |
 | `eval_responses/` | Resmî koşuların kayıtları (repoda) |
-| `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi |
+| `results/p1_runs.json`, `results/p1_table.md`, `results/p1_table.json` | Sonuç tablosunun resmî koşu listesi (satır → dev / test koşu klasörü) / komutla üretilen tablo (CI bayt aynı yeniden üretir) |
+| `results/p1_error_labels.json`, `results/p1_error_summary.md`, `results/p1_error_summary.json` | Dev hata analizinin donmuş soruları ve 29 satırın etiketleri (örneklemde `eren_check`) / `error_analysis summary` ile üretilen özet (CI bayt aynı yeniden üretir) |
+| `results/p1_limitations.md` | P1 sonuçlarının sınırlamaları (elle yazılır; maddeler kayıtlardan, her birinde sayı, okumaya etkisi ve kaynak) |
+| `tests/test_error_analysis.py` | Hata analizi seçimi: T3 kuralı, satır türleri, dev'de 29 satır ve otomatik türler, örneklem tohumu, `direct` hesabı, etiket dosyası tutarlılığı, özet (ad anahtarı, ad eşlenmemesi planlamanın sayılarıyla, toplamlar, doğrulama okuması, etiket dosyasındaki `eren_check`, özet dosyalarının bayt aynı yeniden üretimi) |
+| `tests/test_results.py` | Sonuç tablosu: Fisher (bilinen değerler, karardaki eşikler), 9B okuması, satır denetimi, dev grupları 11/7, repodaki tablonun kayıtlardan bayt aynı yeniden üretilmesi |
+| `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi, BARO ve daraltma referansı koşuları |
 | `tests/test_baro.py` | BARO tablosu (ve portu) birim testleri, sentetik verilerle |
 | `tests/test_llm_client.py` | LLM katmanı birim testleri, sahte sunucuyla (`127.0.0.1`, ağ ve anahtar yok): model ayarları, şema dönüşümü, şema dışı kaydı, yeniden deneme, token ve süre, Groq aralığı, anahtar okuma; imaj digest'i ve GGUF SHA256'larının LOCAL_MODEL_BENCH.md ile aynılığı |
 | `tests/test_llm_method.py` | LLM yöntemi uçtan uca, sahte llama-server ile: onaylı istemin sha'sı, mesaj yapısı, kayıt ve ayar alanları, boş ve bütçeyi aşan girdi sorulmaz, `length` şema dışı, takma adlı girdi ve puanlamada çeviri, API'de yerel sayım ve Groq aralığı, GGUF uyuşmazlığı, CLI seçenekleri, `--cases` |

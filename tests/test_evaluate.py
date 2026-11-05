@@ -118,3 +118,23 @@ def test_baro_run_schema_and_answers(world):
         assert cands[0]["rationale"].startswith("top column ")
     ranked = {r["incident_id"]: [c for c, _ in json.loads(r["raw_output"])] for r in rows}
     assert "payment_errors" not in ranked["inc-a"] and "cart_errors" not in ranked["inc-b"]
+
+
+def test_narrowing_run_is_narrowing_order(world):
+    # Daraltma referansı (P1e): cevap daraltmanın kendi sırasının ilk 3'ü, kural biçiminde (güven yok, kenarsız yol).
+    from aiops_rca.cases import load_cases
+    from aiops_rca.narrowing import candidate_narrowing
+    inc, snaps, root = world
+    run_dir = evaluate.cmd_run("narrowing", ("pilot", "dev"), False, root, incidents=inc, snapshots=snaps)
+    meta, rows = read_run(run_dir)
+    assert meta["method"] == "narrowing" and len(rows) == 2 and all(r["schema_valid"] for r in rows)
+    cases = {c.incident_id: c for c in load_cases(("pilot", "dev"), incidents=inc, snapshots=snaps)}
+    for r in rows:
+        cands = r["answer"]["candidates"]
+        assert [c["service"] for c in cands] == candidate_narrowing(cases[r["incident_id"]])["candidates"][:3]
+        assert all(c["confidence"] is None and c["evidence_path"] == [c["service"]] for c in cands)
+        assert r["answer"]["unsure"] is False and len(json.loads(r["raw_output"])) <= 5
+    first = {r["incident_id"]: r["answer"]["candidates"][0]["service"] for r in rows}
+    assert first == {"inc-a": "payment", "inc-b": "cart"}
+    table = evaluate.cmd_score(run_dir, False, incidents=inc, snapshots=snaps)["table"]["all"]
+    assert (table["top1"], table["brier"], table["evidence_null"]) == (2, None, 2)

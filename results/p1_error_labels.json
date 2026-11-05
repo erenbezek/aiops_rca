@@ -1,0 +1,619 @@
+{
+ "questions": [
+  "P1e dev hata analizi soruları (DECISIONS 2026-11-04 \"P1e hata sınıflaması\"; uyg4 önerisi HANDOFF 2026-11-04, Eren onayı planlamanın iki düzeltmesiyle, HANDOFF 2026-11-04 planlama kaydı).",
+  "Kapsam: a1 4B / gpt-oss / Gemini × ham / özet / daraltma; girdi sorulmuş, cevap gelmiş, şema içi, top-1 ıskalama (29 satır, `error_analysis.select`). Sorular yalnız 1. adaya ve onun `rationale` / `evidence_path`'ine bakar (T2 hariç: üç aday). Cevaplar: yes / no / undetermined; çok etiketli.",
+  "Değişmiş / anormal sinyal: kuralın sinyal tanımı (`signals.signals`, güç ≥ 1): hata oranı sonra ≥ önce + 0,05; p95 / p99 ≥ max(1,5 × önce, önce + 20 ms); istek düşüşü (önce ≥ 20 ve sonra ≤ önce / 2); CPU ≥ max(1,5 × önce, önce + 5); bellek ≥ 1,2 × önce; yeni WARN+ mesajı alarmdan sonra ≥ 5 kez, önce 0. Veritabanlarında (astronomy-db, valkey-cart) yalnız CPU / bellek. Girdide bulunan alanlara uygulanır; girdide olmayan alan sayılmaz; ham seviyede yalnız log satırları, satır saatine göre alarm öncesi / sonrası. \"Daha büyük değişim\" = en büyük güç.",
+  "root_visibility: `direct` = kökün girdideki kendi satırında / satırlarında bu tanımla en az bir sinyal (kodla, `error_analysis.direct_signals`). `indirect` = direct değil, ama kök çağıranların hata satırlarında / işlem adlarında / daraltmanın çağıranlar listesinde hedef olarak geçiyor. `absent` = ikisi de yok.",
+  "T1 yorumda uydurma: 1. adayın `rationale`'ı ya da `evidence_path`'i girdide olmayan ya da girdiyle çelişen bir veri iddiası içeriyor mu? Girdide hiç geçmeyen servis adı (gerekçede ya da yolda) ya da girdideki değerin yönünü / büyüklüğünü ters söyleme (ör. düşen p95'e \"arttı\") yes. Yoldaki kenarların izlerde görülüp görülmediği T1'e girmez (tabloda kanıt geçerliliği).",
+  "T2 eksik inceleme: `root_visibility` ≠ absent ve kök üç adayın hiçbirinde değil (eşlenmiş adlarla) → yes; kök ilk 3'teyse no; absent → undetermined ve \"kök girdide yok\" sayılır. Yargı yalnız görünürlükte; ikinci kısım kodla.",
+  "T3 belirtiyi neden sanma (kodla, `error_analysis.t3`): 1. aday etiketin yayılım yolunda kökten başka bir servis mi? Yolda değilse no; ad eşleşmediyse undetermined.",
+  "T4 tek kaynak: kökün değişen sinyali girdide bir telemetri türünde var (iz türevi: istek / hata oranı / p95 / hata span'i; metrik: CPU / bellek; log) ve 1. adayın gerekçesi yalnız başka bir türe mi dayanıyor? Gerekçe birden çok türe dayanıyorsa ya da kökün sinyali gerekçenin türündeyse no; root_visibility indirect ya da absent ise undetermined.",
+  "T5 zaman hatası: 1. adayın gerekçesi alarm öncesine ait bir değeri alarm sonrası belirti gibi kullanıyor ya da önce / sonra değerlerini karıştırıyor mu? Girdide önce / sonra ayrımı yoksa ve gerekçe zaman karşılaştırması yapmıyorsa no. Aynı iddia T1 ve T5'e birlikte girebilir.",
+  "T6 çapraz kontrol yok: 1. adayın gerekçesi tek bir ölçüye dayanıyor, adayın girdideki diğer ölçüleri değişmemiş ve başka bir servisin değişimi daha büyük mü (en büyük güç)? Gerekçe birden çok sinyale dayanıyorsa no.",
+  "note: isteğe bağlı tek satır, sayılmaz (altı tuzağın dışındaki gözlemler)."
+ ],
+ "questions_sha256": "dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7",
+ "rows": [
+  {
+   "key": "qwen3.5-4b raw inc-4a62b9bb",
+   "model": "qwen3.5-4b",
+   "level": "raw",
+   "incident_id": "inc-4a62b9bb",
+   "root_visibility": "absent",
+   "direct_signals": [],
+   "top3": false,
+   "T1": "yes",
+   "T2": "undetermined",
+   "T3": "no",
+   "T4": "undetermined",
+   "T5": "no",
+   "T6": "no",
+   "reason": "1. aday hataların 'yalnız frontend-proxy'den' geldiğini söylüyor; girdide 13 frontend-web hata satırı var (T1). Kök girdide hiç geçmiyor.",
+   "note": "3. aday 'unknown-backend' girdide yok.",
+   "eren_check": {
+    "agree": true,
+    "T1": "yes",
+    "T5": "no",
+    "T6": "no"
+   }
+  },
+  {
+   "key": "qwen3.5-4b raw inc-9292257f",
+   "model": "qwen3.5-4b",
+   "level": "raw",
+   "incident_id": "inc-9292257f",
+   "root_visibility": "indirect",
+   "direct_signals": [],
+   "top3": false,
+   "T1": "no",
+   "T2": "yes",
+   "T3": "yes",
+   "T4": "undetermined",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Kök yalnız checkout'un hata span'lerinde (oteldemo.CartService/GetCart) hedef olarak geçiyor; adaylarda eşlenmiş adla yok (T2).",
+   "note": "3. aday 'CartService' kökün işlem adındaki adı; ad eşleşmediği için kök ilk 3'te sayılmadı."
+  },
+  {
+   "key": "qwen3.5-4b summary inc-230c9d46",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-230c9d46",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "request_drop"
+   ],
+   "top3": false,
+   "T1": "yes",
+   "T2": "yes",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe 'diğer bütün servisler sağlıklı' diyor; recommendation istekleri 506→7, frontend-proxy hata oranı 0→0,074 (T1).",
+   "note": ""
+  },
+  {
+   "key": "qwen3.5-4b summary inc-4a62b9bb",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-4a62b9bb",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms",
+    "request_drop"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe frontend p95'ine dayanıyor; frontend'in istek düşüşü de sinyal, T6 değil.",
+   "note": "Kökün p95'i (24 836 ms) frontend'inkinden (12 228 ms) büyük; 3. adayda kök için 'ilk belirtiyi göstermedi' denmiş."
+  },
+  {
+   "key": "qwen3.5-4b summary inc-5cb2c977",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-5cb2c977",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "yes",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Gerekçe 'diğer servisler stabil' diyor, shipping p95 10→1045 (T1); tek ölçü p95, checkout'un diğer ölçüleri düz, shipping gücü 51,8 > 46,9 (T6).",
+   "note": ""
+  },
+  {
+   "key": "qwen3.5-4b summary inc-9292257f",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-9292257f",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "request_drop"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe checkout'un hata oranı ve p95'ine dayanıyor (iki sinyal); veriler doğru.",
+   "note": ""
+  },
+  {
+   "key": "qwen3.5-4b summary inc-ae15665a",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-ae15665a",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": false,
+   "T1": "no",
+   "T2": "yes",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe frontend'in istek ve CPU artışına dayanıyor (iki ölçü, iki tür); veriler doğru.",
+   "note": "frontend'de kural sinyali yok; yük artışı (gürültü katmanı) neden sanılmış.",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T5": "no",
+    "T6": "no"
+   }
+  },
+  {
+   "key": "qwen3.5-4b summary inc-b4d12a5e",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-b4d12a5e",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "yes",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Gerekçe 'diğer servisler stabil' diyor, quote-gateway p95 7→37,6 (T1); tek ölçü p95, quote-gateway gücü 1,53 > 1,23 (T6).",
+   "note": "",
+   "eren_check": {
+    "agree": true,
+    "T1": "yes",
+    "T5": "no",
+    "T6": "yes"
+   }
+  },
+  {
+   "key": "qwen3.5-4b summary inc-d6d5f1b2",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-d6d5f1b2",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "error_rate"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe frontend'in hata oranı ve loglarına dayanıyor (iki sinyal); veriler doğru.",
+   "note": ""
+  },
+  {
+   "key": "qwen3.5-4b summary inc-d9ea423d",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-d9ea423d",
+   "root_visibility": "absent",
+   "direct_signals": [],
+   "top3": false,
+   "T1": "no",
+   "T2": "undetermined",
+   "T3": "yes",
+   "T4": "undetermined",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe checkout p95'ine dayanıyor; başka değişen servis yok (T6 hayır). Kökün satırı var ama sinyali yok.",
+   "note": "Kök shipping p95 9,6→12,6 (eşik altı); intlShippingSlowdown kısmi hata."
+  },
+  {
+   "key": "qwen3.5-4b summary inc-fa775703",
+   "model": "qwen3.5-4b",
+   "level": "summary",
+   "incident_id": "inc-fa775703",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Tek ölçü p95; checkout'un diğer ölçüleri düz; product-catalog gücü 39,4 > 27,0 (T6).",
+   "note": "",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T5": "no",
+    "T6": "yes"
+   }
+  },
+  {
+   "key": "qwen3.5-4b narrowed inc-230c9d46",
+   "model": "qwen3.5-4b",
+   "level": "narrowed",
+   "incident_id": "inc-230c9d46",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "request_drop"
+   ],
+   "top3": true,
+   "T1": "yes",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe frontend isteklerinin '9107'den 7'ye' düştüğünü söylüyor; 7 recommendation'ın değeri, frontend 9107→9064 (T1).",
+   "note": "frontend→recommendation çağrısındaki hatayı görmüş ama yönü ters yorumlamış.",
+   "eren_check": {
+    "agree": true,
+    "T1": "yes",
+    "T5": "no",
+    "T6": "no"
+   }
+  },
+  {
+   "key": "qwen3.5-4b narrowed inc-320c56f9",
+   "model": "qwen3.5-4b",
+   "level": "narrowed",
+   "incident_id": "inc-320c56f9",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "cpu_pct"
+   ],
+   "top3": false,
+   "T1": "yes",
+   "T2": "yes",
+   "T3": "no",
+   "T4": "no",
+   "T5": "yes",
+   "T6": "yes",
+   "reason": "Gerekçe cart CPU'sunun alarmdan sonra arttığını söylüyor; girdide 0,6→0,31 düşüş (T1, T5); tek ölçü, cart'ın diğer ölçüleri düz, ad CPU gücü 79 (T6).",
+   "note": "",
+   "eren_check": {
+    "agree": false,
+    "T1": "yes",
+    "T5": "no",
+    "T6": "yes",
+    "note": "T5'in ilk cevabı \"anlamadım\"dı; açıklamadan sonra \"hayır\". Gerekçe: model cart CPU'sunun alarmdan sonra fırladığını söylüyor, girdide 0,60 → 0,31; sütunlar ters okunsa bile 0,3 → 0,6 ciddi artış değil, uydurma gibi, zaman karışıklığı değil → yalnız T1."
+   }
+  },
+  {
+   "key": "qwen3.5-4b narrowed inc-5cb2c977",
+   "model": "qwen3.5-4b",
+   "level": "narrowed",
+   "incident_id": "inc-5cb2c977",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Tek ölçü gecikme; checkout'un diğer ölçüleri düz; shipping gücü 51,8 > 46,9 (T6).",
+   "note": "2. adayda shipping'i checkout'un çağırdığını yazmış, yine de checkout'u seçmiş."
+  },
+  {
+   "key": "qwen3.5-4b narrowed inc-73ac64e9",
+   "model": "qwen3.5-4b",
+   "level": "narrowed",
+   "incident_id": "inc-73ac64e9",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe frontend p95'i ve istek hacmine dayanıyor (iki ölçü); veriler doğru.",
+   "note": "Yolda cart→checkout yönü ters (girdide checkout cart'ı çağırıyor)."
+  },
+  {
+   "key": "qwen3.5-4b narrowed inc-ae15665a",
+   "model": "qwen3.5-4b",
+   "level": "narrowed",
+   "incident_id": "inc-ae15665a",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": false,
+   "T1": "no",
+   "T2": "yes",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe frontend'in trafik ve CPU artışına dayanıyor (iki ölçü, iki tür); veriler doğru.",
+   "note": "Yük artışı (gürültü katmanı) neden sanılmış.",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T5": "no",
+    "T6": "no"
+   }
+  },
+  {
+   "key": "gpt-oss-120b raw inc-230c9d46",
+   "model": "gpt-oss-120b",
+   "level": "raw",
+   "incident_id": "inc-230c9d46",
+   "root_visibility": "indirect",
+   "direct_signals": [],
+   "top3": false,
+   "T1": "no",
+   "T2": "yes",
+   "T3": "yes",
+   "T4": "undetermined",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Kök yalnız frontend'in hata span adlarında (RecommendationService/ListRecommendations) geçiyor; adaylarda eşlenmiş adla yok (T2).",
+   "note": "3. aday 'oteldemo.RecommendationService' kökün işlem adındaki adı; ad eşleşmedi."
+  },
+  {
+   "key": "gpt-oss-120b summary inc-230c9d46",
+   "model": "gpt-oss-120b",
+   "level": "summary",
+   "incident_id": "inc-230c9d46",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "request_drop"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "no",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Tek ölçü product-catalog'un istek düşüşü (%79, doğru); diğer ölçüleri sinyal değil; recommendation istek düşüşü gücü 1,97 > 1,57 (T6).",
+   "note": ""
+  },
+  {
+   "key": "gpt-oss-120b summary inc-9292257f",
+   "model": "gpt-oss-120b",
+   "level": "summary",
+   "incident_id": "inc-9292257f",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "request_drop"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe checkout'un gecikme ve hata oranına dayanıyor (iki sinyal); veriler doğru.",
+   "note": "",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T5": "no",
+    "T6": "no"
+   }
+  },
+  {
+   "key": "gpt-oss-120b summary inc-d6d5f1b2",
+   "model": "gpt-oss-120b",
+   "level": "summary",
+   "incident_id": "inc-d6d5f1b2",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "error_rate"
+   ],
+   "top3": true,
+   "T1": "yes",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Gerekçe 'diğer servisler sağlıklı' diyor; product-catalog hata 0,079, frontend 0,059 (T1); tek ölçü, en büyük güç frontend'in yeni log sinyali 53 > 2,72 (T6).",
+   "note": "T6'daki en büyük güç bir log sinyali; ölçekler farklı."
+  },
+  {
+   "key": "gpt-oss-120b narrowed inc-73ac64e9",
+   "model": "gpt-oss-120b",
+   "level": "narrowed",
+   "incident_id": "inc-73ac64e9",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Tek ölçü gecikme ama checkout'un gücü (15,6) cart'ınkinden (7,6) büyük; T6 hayır.",
+   "note": "checkout'un cart'ı çağırdığını yazmış ama çağıranı seçmiş; yol ters.",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T5": "no",
+    "T6": "no",
+    "note": "İlk T6 cevabı \"evet\"ti: üç koşuldan yalnız ilkine bakıldı (planlamanın belirsiz ifadesi); netleştirmeden sonra kurala göre \"hayır\"."
+   }
+  },
+  {
+   "key": "gpt-oss-120b narrowed inc-ae15665a",
+   "model": "gpt-oss-120b",
+   "level": "narrowed",
+   "incident_id": "inc-ae15665a",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Tek ölçü gecikme; shipping'in diğer ölçüleri düz; quote-gateway gücü 1,48 > 1,475 (T6).",
+   "note": "T6 farkı çok küçük."
+  },
+  {
+   "key": "gemini-3.5-flash-lite raw inc-230c9d46",
+   "model": "gemini-3.5-flash-lite",
+   "level": "raw",
+   "incident_id": "inc-230c9d46",
+   "root_visibility": "indirect",
+   "direct_signals": [],
+   "top3": false,
+   "T1": "no",
+   "T2": "yes",
+   "T3": "yes",
+   "T4": "undetermined",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Kök yalnız frontend'in hata span adlarında geçiyor; adaylarda yok (T2). 1. adayın gerekçesi doğru.",
+   "note": "3. aday frontend-web için 'loglar' diyor; satırlar hata span'i."
+  },
+  {
+   "key": "gemini-3.5-flash-lite summary inc-9292257f",
+   "model": "gemini-3.5-flash-lite",
+   "level": "summary",
+   "incident_id": "inc-9292257f",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "request_drop"
+   ],
+   "top3": false,
+   "T1": "no",
+   "T2": "yes",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe checkout'un hata oranı ve gecikmesine dayanıyor (iki sinyal); veriler doğru.",
+   "note": "",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T5": "no",
+    "T6": "no",
+    "note": "İlk T6 cevabı \"evet\"ti: sade ifadedeki \"tek ölçü\" \"tek servis\" diye anlaşıldı (planlamanın belirsiz ifadesi); netleştirmeden sonra kurala göre \"hayır\"."
+   }
+  },
+  {
+   "key": "gemini-3.5-flash-lite summary inc-ac155a23",
+   "model": "gemini-3.5-flash-lite",
+   "level": "summary",
+   "incident_id": "inc-ac155a23",
+   "root_visibility": "absent",
+   "direct_signals": [],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "no",
+   "T4": "undetermined",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Gerekçe cart'ın 'redis'e bağlanamadı' loguna dayanıyor (doğru); valkey-cart'ın kendi ölçüleri düz, checkout'un değişimi büyük (T6).",
+   "note": "Kökün kendi logu 4 kez (eşik 5), hata oranı 0,006: sinyal yok."
+  },
+  {
+   "key": "gemini-3.5-flash-lite summary inc-ae15665a",
+   "model": "gemini-3.5-flash-lite",
+   "level": "summary",
+   "incident_id": "inc-ae15665a",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Tek ölçü p95 (doğru); shipping'in diğer ölçüleri düz; quote-gateway gücü 1,48 > 1,475 (T6).",
+   "note": "Çekimser (unsure); T6 farkı çok küçük."
+  },
+  {
+   "key": "gemini-3.5-flash-lite summary inc-b4d12a5e",
+   "model": "gemini-3.5-flash-lite",
+   "level": "summary",
+   "incident_id": "inc-b4d12a5e",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Tek ölçü p95 (doğru); shipping'in diğer ölçüleri düz; quote-gateway gücü 1,53 > 1,505 (T6).",
+   "note": "Çekimser (unsure)."
+  },
+  {
+   "key": "gemini-3.5-flash-lite summary inc-d9ea423d",
+   "model": "gemini-3.5-flash-lite",
+   "level": "summary",
+   "incident_id": "inc-d9ea423d",
+   "root_visibility": "absent",
+   "direct_signals": [],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "undetermined",
+   "T5": "no",
+   "T6": "no",
+   "reason": "Gerekçe checkout p95'ine dayanıyor (doğru); başka değişen servis yok (T6 hayır).",
+   "note": "Kök shipping p95 9,6→12,6 (eşik altı); intlShippingSlowdown kısmi hata."
+  },
+  {
+   "key": "gemini-3.5-flash-lite narrowed inc-ae15665a",
+   "model": "gemini-3.5-flash-lite",
+   "level": "narrowed",
+   "incident_id": "inc-ae15665a",
+   "root_visibility": "direct",
+   "direct_signals": [
+    "p95_ms"
+   ],
+   "top3": true,
+   "T1": "no",
+   "T2": "no",
+   "T3": "yes",
+   "T4": "no",
+   "T5": "no",
+   "T6": "yes",
+   "reason": "Tek ölçü gecikme; shipping'in diğer ölçüleri düz; quote-gateway gücü 1,48 > 1,475 (T6).",
+   "note": "Gecikmenin shipping'den çağrılan quote-gateway'e yayıldığını söylüyor (yön ters)."
+  }
+ ]
+}
