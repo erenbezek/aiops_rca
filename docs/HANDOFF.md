@@ -4352,3 +4352,15 @@ Data:
   - Kendi kodumla: tuzak tablosu (9 satır ve toplam: T1 7/22/0, T2 8/19/2, T3 25/4/0, T4 0/22/7, T5 1/28/0, T6 12/17/0) ve görünürlüğe göre T3 (direct 20/2, indirect 3/0, absent 2/2) aynı. Otomatik türler P1 tablosunun dev hücreleriyle tutarlı (etiketlenen = 18 − boş − şema dışı − top-1 isabet, toplam 29). Ad eşlenmemesi planlamanın sayımıyla aynı (dev 2, test 7, test 1. sırada 3).
 - Test yalnız sayım olarak (vaka yok) giriyor; kararlaştırılan buydu.
 - **Sıradaki:** sınırlamalar metni. Yer ve ad önerisi (yeni ad → Eren onayı) ve madde listesi; maddeler planlamanın 2026-11-05 kayıtlarından ve önceki kartlardan. Sonra kapanış (PROJECT kutuları, ARCHITECTURE notu, PR).
+
+## 2026-11-05 · Uygulama → Planlama (P1e sınırlamalar metni; doğrulama isteği)
+- **Yapılan** (`results/p1_limitations.md`, Eren onaylı yer ve ad): 7 bölüm (veri ve setler, yöntemler ve referanslar, koşu süreci, puanlama, okumalar, hata analizi, tekrarlanabilirlik). Elle yazıldı; yeni yorum yok, her maddede sayı, okumaya etkisi, kaynak tarihi. ARCHITECTURE dosya tablosuna satır.
+- **Madde → kaynak eşlemesi:**
+  - P1e kartı 4. madde: BARO üç sınırlaması → §2 (HANDOFF 2026-10-31); daraltma v1 → §2 (DECISIONS 2026-10-31); `quote-svc` → §5 takma ad; `duration_s` → §3; Qwen üretici ayarı, tokenizer oranı → §2; a1 gpt-oss özet yeniden, b `--no-day-guard` / kapak / 3. gün → §3; takma ad gpt-oss ham belirsiz, yalnız dev → §5; 9B sonradan → §2; aşırı uyum / dağılım, çoklu karşılaştırma → §5; LLM etiketleyici, çapa → §6; CI puanlama, API modelleri → §7.
+  - Takma ad notları (HANDOFF 2026-10-23, 2026-10-31, 2026-11-01): ezber, `Invalid token` → §1; gRPC yöntemleri, `get-quote`, iki yönlü bozulma, b unmatched sayıları → §5.
+  - P1e notları: Gemini yavaş (2026-11-04) → §3; CI (2026-11-04) → §7; daraltma referansı güçlü (2026-11-04) → §2; T2 yorumu, T2 ad eşleşmesi, T6 "en büyük güç" (2026-11-04) → §6.
+  - Planlama 2026-11-05 (test kontrolü): set karışımı → §1; gRPC → §4; uyku → §3; betimsel karşılaştırma, "ayırt edilemedi ≠ aynı" → §5.
+  - Planlama 2026-11-05 (Eren doğrulaması): T4 ve indirect / absent insan kontrolü yok, sade ifade ve ilk cevaplar → §6; T6 dar, T6 ölçeği, T1 sıfatlar → §6.
+  - Ek (kayıtlardan, kartta yok): ham seviyede 8 / 18 boş girdi → §1 (P1d analizi ve test sayımları).
+- **Açık kalan kart maddesi:** P1e kartı 3. madde "Bilgi: b gpt-oss ham turundaki unmatched `checkout`'un kaynağına (takma adlı girdide gerçek ad kalmış mı) dev'de bakılır" yapılmadı. Metinde "bakılmadı" olarak yazılı (§5). Yapılması mı, sınırlama olarak kalması mı: Eren'e soruluyor.
+- **Sayılar** tablodan (`p1_table.md`), özetten ya da kaynak kayıttan alındı; planlama doğrular. pytest 608/608.
