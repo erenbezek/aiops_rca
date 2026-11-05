@@ -4272,3 +4272,34 @@ Data:
 - **Commit:** `86bbba1` (15 klasör + `p1_runs.json` + tablo).
 - **Not:** Bölüm başlıklarında "## 3." ve "## 4." üçer kez tekrar ediyor (donmuş kod; değiştirilmedi).
 - **Beklenen:** planlamanın kontrolü (scratch klonda yeniden üretim, 15 koşuyu yeniden puanlama, hücre hesabı). Sonra: Eren'in 10 satırlık doğrulaması, özet modülü, sınırlamalar, kapanış.
+
+## 2026-11-05 · Planlama → Uygulama (P1e test puanlaması ve tablo doğrulandı)
+- **Doğrulananlar** (scratch klon `f086990`; yalnız toplamlar basıldı, vaka bazında test çıktısı açılmadı):
+  - `86bbba1`: 45 yeni dosya (15 klasör × `run.json` / `responses.jsonl` / `scores.json`); değişen yalnız `p1_runs.json`, `p1_table.md`, `p1_table.json`. Dev klasörleri ve `src/` aynı, `results.py` `b626765f…`.
+  - Kopya: 14 klasörün 28 dosyası klondaki asıllarla sha256 aynı. Klonda asıllar duruyor, `scores.json` yok.
+  - Daraltma koşusu: `repo_commit` `1a1bbc6`, temiz, src `e4d07f9a…`. Scratch'te yeniden koşuldu, 18/18 cevap aynı.
+  - Yeniden puanlama: 15 test koşusu scratch koduyla; `scores.json` 15/15 bayt aynı.
+  - Tablo: `--check` aynı. Silinip yeniden üretildi: md `3e214ae8…`, json `ab78e9d5…` aynı. pytest 601/601.
+  - Satır eşlemesi: her satırın dev ve test `run.json`'ı yöntem, model ve seviyeyle uyuyor; takma ad yok.
+  - Kendi kodumla:
+    - 15 satır × dev / test × 3 grup: n, top-1, top-3 ve şema dışı `scores.json` vaka satırlarından aynı.
+    - Skorer kullanmadan, kesin ad eşleşmesiyle top-1 / top-3 30/30 aynı.
+    - Fisher p'leri (tam kesirle) 15/15 aynı; okuma hepsinde "ayırt edilemedi", en küçük p 0,1774 (daraltma referansı). Eşikler 18→13, 17→11, 16→9, 15→8.
+    - 9B: yalnız 9B 2, yalnız 4B 0, ikisi 14 → ayırt edilemedi.
+  - Uyku: günlükte 2026-11-04T21:23:16Z–21:23:54Z (38 sn), 9B özet turunun içinde. Koşu bittikten sonra 2026-11-05T01:12Z'de bir uyku daha var (koşu dışında).
+- **Planlamanın hatası:** koşu komutunu ben yazdım ve içinde yalnız `systemd-inhibit` vardı. GNOME'un boşta uyku zamanlayıcısı (prizde 7200 sn) bu kilide uymadı.
+  - Etkisi: 9B özette bir vakanın süresine ~38 sn. Yerel model ve sıcaklık 0; bağlantı ve şema hatası 0, cevaplar etkilenmez. 9B bilgi satırı; yeniden koşulmaz.
+  - Sonraki uzun koşularda `gnome-session-inhibit --inhibit suspend --inhibit idle` de kullanılır.
+- **Sınırlamalara (sayılarıyla):**
+  1. **Set karışımı farklı:** dev 11 demo / 7 kendi, test 6 demo / 12 kendi. Toplamdaki dev–test okuması bu farkı ayırmaz; grup tabloları yan yana okunur.
+  2. **gRPC adı eşlenmiyor (P1a puanlaması):** kökün gRPC adı ilk 3'te olduğu hâlde eşlenmediği için ıskalama sayılan satırlar:
+     - dev 2: 4B ham 1, gpt-oss ham 1;
+     - test 7: 4B ham 1, gpt-oss ham 3, Gemini ham 2, 9B ham 1. Hepsi hamda; testte 3'ü 1. sırada (gpt-oss ham 1, Gemini ham 2).
+     - Etki: ilgili ham hücrelerde top-3 en çok bu kadar artardı. Hiçbir satırın okuması değişmez; en uç durum gpt-oss ham, dev 8 / test 7 olurdu. Puanlama değişmez.
+     - Özet modülü bu sayıları kodla yeniden sayar ve planlamanınkiyle karşılaştırır; vaka basılmaz. Planlamanın tanımı: kökün adı ile ilk 3'teki eşlenmemiş ad aynı kabul edilir: küçük harf, son nokta parçası, `/` öncesi, sondaki `service` atılmış, yalnız harfler.
+  3. **Uyku:** 9B özet süresine 38 sn dahil.
+  4. **Daraltma referansı ile modeller:** bunlar için önceden yazılmış bir karşılaştırma kuralı yok. Test hücreleri yalnız betimsel yazılır; sonradan anlamlılık testi eklenmez.
+  5. **"Ayırt edilemedi", "aynı" demek değil:** 18 vakada yalnız büyük düşüşler görülebilir (ör. 18 → ≤13).
+- Kabul: md'deki "## 3." / "## 4." tekrarları grup bölümleri; donmuş kod, değişmez.
+- Klon (`~/cerebrum2/aiops_rca_p1e`): planlamanın kontrolü bitti. Silinmesi P1e kapanışında Eren'e önerilir, şimdilik dokunulmaz.
+- Sıradaki: özet modülünün kodu (dosyalar Eren'in 10 satır doğrulamasından sonra üretilir), sınırlamalar metni, kapanış.
