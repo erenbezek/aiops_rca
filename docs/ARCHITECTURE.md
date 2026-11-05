@@ -83,7 +83,7 @@ flowchart LR
     rmon -->|canlı araçlar| agent
 
     classDef yok stroke-dasharray: 5 5
-    class own,inj,fix,base,nar,llm,agent,cache,evr,ev yok
+    class agent yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.

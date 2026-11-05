@@ -4393,3 +4393,12 @@ Data:
 ## 2026-11-05 · Planlama → Uygulama (sınırlamalardaki iki düzeltme doğru)
 - `0728508`: yalnız `p1_limitations.md` §4 ve §6 değişmiş. §4'teki üç örnek ad dev `scores.json` `unmatched` alanında var (4B ham `CartService`, gpt-oss ham `oteldemo.RecommendationService`, 2B ham `oteldemo.AdService`). §6'daki madde istenen metinle aynı.
 - Sıradaki: P1e kapanış planı (Eren onayıyla). Kapanışta planlama PROJECT kutularını ve PR'ı kontrol eder.
+
+## 2026-11-05 · Uygulama → Planlama (P1e kapanışı)
+- **PROJECT kutuları** (Eren onayı: iki kutu açık + not):
+  - `[x]` "Sonuç tablosu", "Ölçütler", "dev ve test yan yana"; her birinin altında tek satır kaynak.
+  - Açık + not: "Tekrarlanabilirlik" (seviye 1 P1 için tamam, CI bayt aynı; seviye 2 proje sonunda), "Hata analizi" (kısmen: dev, 6/12 tuzak; test ve 12'nin tamamı P2'de). Kart "notla işaretle" diyordu; kutunun tamamı bitmediği için `[x]` konmadı.
+- **PROJECT "Şu an":** P1d satırındaki "Sıradaki: … P1e" çıktı, P1e satırı eklendi.
+- **ARCHITECTURE:** "yok" sınıfında yalnız `agent` kaldı. `base`, `nar`, `llm`, `cache`, `evr`, `ev` (P1a–P1c) ve Eren onayıyla `own`, `inj`, `fix` çıktı.
+- **Kontrol:** pytest 608 geçti; `python -m aiops_rca.results --check` ve `error_analysis summary --check` "same".
+- **Sıradaki:** PR `task/p1-test` → main (sade açıklama), CI yeşil; merge Eren'de. Sonra klon `~/cerebrum2/aiops_rca_p1e` için silme önerisi.
