@@ -184,6 +184,7 @@ def checked_repo(tmp_path, marks):
     (tmp_path / "results" / "p1_runs.json").symlink_to(ea.REPO / "results" / "p1_runs.json")
     doc = json.loads((ea.REPO / ea.LABELS_FILE).read_text(encoding="utf-8"))
     for x in doc["rows"]:
+        x.pop("eren_check", None)                                    # gerçek işaretler bu testte yok sayılır
         if x["key"] in marks:
             x["eren_check"] = {"agree": marks[x["key"]]}
     (tmp_path / ea.LABELS_FILE).write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
@@ -200,3 +201,25 @@ def test_eren_check_reading(tmp_path):
     other = next(r["key"] for r in ea.select()[0] if r["key"] not in keys)
     with pytest.raises(ValueError):
         reading("d", {other: True})                                                          # örneklem dışı
+
+
+def test_eren_check_in_labels_file():
+    # Planlama 2026-11-05 (b2d0e6c): 10 satır, 9 katılıyor, 1 katılmıyor (4B daraltma, T5) → yeniden etiketleme yok.
+    doc = json.loads((ea.REPO / ea.LABELS_FILE).read_text(encoding="utf-8"))
+    checked = {x["key"]: x for x in doc["rows"] if "eren_check" in x}
+    assert sorted(checked) == ea.sample(ea.select()[0])
+    for x in checked.values():
+        e = x["eren_check"]
+        assert set(e) <= {"agree", "T1", "T5", "T6", "note"} and all(e[t] in ("yes", "no") for t in ("T1", "T5", "T6"))
+        assert e["agree"] == all(e[t] == x[t] for t in ("T1", "T5", "T6"))
+    off = [(k, t) for k, x in checked.items() for t in ("T1", "T5", "T6") if x["eren_check"][t] != x[t]]
+    assert off == [("qwen3.5-4b narrowed inc-320c56f9", "T5")]
+    assert ea.summary()["eren_check"] == {"n": 10, "checked": 10, "disagree": 1, "reading": "ok"}
+
+
+def test_summary_files_match_records():
+    # CI: özet repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
+    md, js = ea.summary_render()
+    assert (ea.REPO / ea.SUMMARY_MD).read_text(encoding="utf-8") == md
+    assert (ea.REPO / ea.SUMMARY_JSON).read_text(encoding="utf-8") == js
+    assert ea.main(["summary", "--check"]) == 0

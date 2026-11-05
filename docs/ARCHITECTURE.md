@@ -125,7 +125,8 @@ flowchart LR
 | `src/aiops_rca/alias.py` | Takma ad (P1c): eşleme (`ALIASES`) ve mesaj kuralları (`tools/trial_alias.py`'den taşındı, betik içe aktarır); üç seviyenin takma adlı girdisi gerçek girdinin üzerine (yalnız ad ve metindeki tanımlayıcılar değişir, sıra gerçek adların sırası; hamda aynı satırlar, aşarsa sondan eksiltme) ve kontrolü (tutmazsa girdi üretilmez) |
 | `eval_responses/` | Resmî koşuların kayıtları (repoda) |
 | `results/p1_runs.json`, `results/p1_table.md`, `results/p1_table.json` | Sonuç tablosunun resmî koşu listesi (satır → dev / test koşu klasörü) / komutla üretilen tablo (CI bayt aynı yeniden üretir) |
-| `tests/test_error_analysis.py` | Hata analizi seçimi: T3 kuralı, satır türleri, dev'de 29 satır ve otomatik türler, örneklem tohumu, `direct` hesabı, etiket dosyası tutarlılığı, özet (ad anahtarı, ad eşlenmemesi planlamanın sayılarıyla, toplamlar, doğrulama okuması) |
+| `results/p1_error_labels.json`, `results/p1_error_summary.md`, `results/p1_error_summary.json` | Dev hata analizinin donmuş soruları ve 29 satırın etiketleri (örneklemde `eren_check`) / `error_analysis summary` ile üretilen özet (CI bayt aynı yeniden üretir) |
+| `tests/test_error_analysis.py` | Hata analizi seçimi: T3 kuralı, satır türleri, dev'de 29 satır ve otomatik türler, örneklem tohumu, `direct` hesabı, etiket dosyası tutarlılığı, özet (ad anahtarı, ad eşlenmemesi planlamanın sayılarıyla, toplamlar, doğrulama okuması, etiket dosyasındaki `eren_check`, özet dosyalarının bayt aynı yeniden üretimi) |
 | `tests/test_results.py` | Sonuç tablosu: Fisher (bilinen değerler, karardaki eşikler), 9B okuması, satır denetimi, dev grupları 11/7, repodaki tablonun kayıtlardan bayt aynı yeniden üretilmesi |
 | `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi, BARO ve daraltma referansı koşuları |
 | `tests/test_baro.py` | BARO tablosu (ve portu) birim testleri, sentetik verilerle |

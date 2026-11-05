@@ -1,0 +1,574 @@
+{
+ "labels_sha256": "59a21fa8ab28278b60c104ff43861643b41220c5ba1cdcde8d9a4227b2f58b4a",
+ "questions_sha256": "dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7",
+ "rows": 29,
+ "auto": {
+  "qwen3.5-4b raw": {
+   "empty": 8,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 2,
+   "repetition_loop": 0,
+   "top1_hit": 6,
+   "in_scope": 2
+  },
+  "qwen3.5-4b summary": {
+   "empty": 0,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 0,
+   "repetition_loop": 0,
+   "top1_hit": 9,
+   "in_scope": 9
+  },
+  "qwen3.5-4b narrowed": {
+   "empty": 0,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 0,
+   "repetition_loop": 0,
+   "top1_hit": 13,
+   "in_scope": 5
+  },
+  "gpt-oss-120b raw": {
+   "empty": 8,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 2,
+   "repetition_loop": 0,
+   "top1_hit": 7,
+   "in_scope": 1
+  },
+  "gpt-oss-120b summary": {
+   "empty": 0,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 3,
+   "repetition_loop": 0,
+   "top1_hit": 12,
+   "in_scope": 3
+  },
+  "gpt-oss-120b narrowed": {
+   "empty": 0,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 1,
+   "repetition_loop": 0,
+   "top1_hit": 15,
+   "in_scope": 2
+  },
+  "gemini-3.5-flash-lite raw": {
+   "empty": 8,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 2,
+   "repetition_loop": 0,
+   "top1_hit": 7,
+   "in_scope": 1
+  },
+  "gemini-3.5-flash-lite summary": {
+   "empty": 0,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 1,
+   "repetition_loop": 0,
+   "top1_hit": 12,
+   "in_scope": 5
+  },
+  "gemini-3.5-flash-lite narrowed": {
+   "empty": 0,
+   "over_budget": 0,
+   "no_answer": 0,
+   "schema_invalid": 0,
+   "repetition_loop": 0,
+   "top1_hit": 17,
+   "in_scope": 1
+  }
+ },
+ "traps": {
+  "qwen3.5-4b raw": {
+   "n": 2,
+   "T1": {
+    "yes": 1,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 1,
+    "no": 0,
+    "undetermined": 1
+   },
+   "T3": {
+    "yes": 1,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 0,
+    "undetermined": 2
+   },
+   "T5": {
+    "yes": 0,
+    "no": 2,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 0,
+    "no": 2,
+    "undetermined": 0
+   }
+  },
+  "qwen3.5-4b summary": {
+   "n": 9,
+   "T1": {
+    "yes": 3,
+    "no": 6,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 2,
+    "no": 6,
+    "undetermined": 1
+   },
+   "T3": {
+    "yes": 9,
+    "no": 0,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 8,
+    "undetermined": 1
+   },
+   "T5": {
+    "yes": 0,
+    "no": 9,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 3,
+    "no": 6,
+    "undetermined": 0
+   }
+  },
+  "qwen3.5-4b narrowed": {
+   "n": 5,
+   "T1": {
+    "yes": 2,
+    "no": 3,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 2,
+    "no": 3,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 4,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 5,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 1,
+    "no": 4,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 2,
+    "no": 3,
+    "undetermined": 0
+   }
+  },
+  "gpt-oss-120b raw": {
+   "n": 1,
+   "T1": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 1,
+    "no": 0,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 1,
+    "no": 0,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 0,
+    "undetermined": 1
+   },
+   "T5": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   }
+  },
+  "gpt-oss-120b summary": {
+   "n": 3,
+   "T1": {
+    "yes": 1,
+    "no": 2,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 0,
+    "no": 3,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 2,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 3,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 0,
+    "no": 3,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 2,
+    "no": 1,
+    "undetermined": 0
+   }
+  },
+  "gpt-oss-120b narrowed": {
+   "n": 2,
+   "T1": {
+    "yes": 0,
+    "no": 2,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 0,
+    "no": 2,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 2,
+    "no": 0,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 2,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 0,
+    "no": 2,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 1,
+    "no": 1,
+    "undetermined": 0
+   }
+  },
+  "gemini-3.5-flash-lite raw": {
+   "n": 1,
+   "T1": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 1,
+    "no": 0,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 1,
+    "no": 0,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 0,
+    "undetermined": 1
+   },
+   "T5": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   }
+  },
+  "gemini-3.5-flash-lite summary": {
+   "n": 5,
+   "T1": {
+    "yes": 0,
+    "no": 5,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 1,
+    "no": 4,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 4,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 3,
+    "undetermined": 2
+   },
+   "T5": {
+    "yes": 0,
+    "no": 5,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 3,
+    "no": 2,
+    "undetermined": 0
+   }
+  },
+  "gemini-3.5-flash-lite narrowed": {
+   "n": 1,
+   "T1": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 1,
+    "no": 0,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 0,
+    "no": 1,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 1,
+    "no": 0,
+    "undetermined": 0
+   }
+  },
+  "all": {
+   "n": 29,
+   "T1": {
+    "yes": 7,
+    "no": 22,
+    "undetermined": 0
+   },
+   "T2": {
+    "yes": 8,
+    "no": 19,
+    "undetermined": 2
+   },
+   "T3": {
+    "yes": 25,
+    "no": 4,
+    "undetermined": 0
+   },
+   "T4": {
+    "yes": 0,
+    "no": 22,
+    "undetermined": 7
+   },
+   "T5": {
+    "yes": 1,
+    "no": 28,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 12,
+    "no": 17,
+    "undetermined": 0
+   }
+  }
+ },
+ "visibility": {
+  "direct": {
+   "n": 22,
+   "T3": {
+    "yes": 20,
+    "no": 2,
+    "undetermined": 0
+   }
+  },
+  "indirect": {
+   "n": 3,
+   "T3": {
+    "yes": 3,
+    "no": 0,
+    "undetermined": 0
+   }
+  },
+  "absent": {
+   "n": 4,
+   "T3": {
+    "yes": 2,
+    "no": 2,
+    "undetermined": 0
+   }
+  }
+ },
+ "name_misses": {
+  "qwen3.5-4b raw": {
+   "dev": {
+    "count": 1,
+    "first": 0
+   },
+   "test": {
+    "count": 1,
+    "first": 0
+   }
+  },
+  "qwen3.5-4b summary": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 0,
+    "first": 0
+   }
+  },
+  "qwen3.5-4b narrowed": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 0,
+    "first": 0
+   }
+  },
+  "gpt-oss-120b raw": {
+   "dev": {
+    "count": 1,
+    "first": 0
+   },
+   "test": {
+    "count": 3,
+    "first": 1
+   }
+  },
+  "gpt-oss-120b summary": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 0,
+    "first": 0
+   }
+  },
+  "gpt-oss-120b narrowed": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 0,
+    "first": 0
+   }
+  },
+  "gemini-3.5-flash-lite raw": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 2,
+    "first": 2
+   }
+  },
+  "gemini-3.5-flash-lite summary": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 0,
+    "first": 0
+   }
+  },
+  "gemini-3.5-flash-lite narrowed": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 0,
+    "first": 0
+   }
+  },
+  "qwen3.5-9b raw": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 1,
+    "first": 0
+   }
+  },
+  "qwen3.5-9b summary": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 0,
+    "first": 0
+   }
+  },
+  "qwen3.5-9b narrowed": {
+   "dev": {
+    "count": 0,
+    "first": 0
+   },
+   "test": {
+    "count": 0,
+    "first": 0
+   }
+  }
+ },
+ "eren_check": {
+  "n": 10,
+  "checked": 10,
+  "disagree": 1,
+  "reading": "ok"
+ }
+}
