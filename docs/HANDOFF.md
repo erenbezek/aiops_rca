@@ -4310,3 +4310,29 @@ Data:
 - **Ölçüt sonuçları:** ad eşlenmemesi planlamanınkiyle aynı (dev 2: 4B ham 1, gpt-oss ham 1; test 7: 4B ham 1, gpt-oss ham 3, Gemini ham 2, 9B ham 1; 1. sırada gpt-oss ham 1, Gemini ham 2). 29 satır toplamları etiket dağılımıyla aynı (direct 22 / indirect 3 / absent 4; T1 7, T2 8 + 2 belirlenemez, T3 25, T4 22 hayır + 7 belirlenemez, T5 1, T6 12). Görünürlüğe göre T3 evet: direct 20/22, indirect 3/3, absent 2/4. Çıktıda `inc-` yok. pytest 606/606.
 - **Testler** (+5): `name_key` örnekleri, `name_miss_rank` (sıra, isabet, şema dışı, 4. sıra), planlamanın sayıları (CI'da test `scores.json`'dan yalnız sayım), toplamlar, doğrulama okuması (3 işaretli → bekliyor; 10'da 3 katılmıyorum → yeniden; 2 → tamam; örneklem dışı → hata). Kasıtlı kırmızı scratch klonda: `service` atılmıyor, eşik 4, ilk 3 sınırı yok, isabetler de sayılıyor → 4/4 yakalandı.
 - **Sıradaki:** Eren'in 10 satır doğrulaması → `eren_check` → dosyalar ve bayt aynı yeniden üretim testi ayrı commit'te; sonra sınırlamalar metni (yer ve ad önerisi), kapanış.
+
+## 2026-11-05 · Planlama → Uygulama (Eren'in 10 satır doğrulaması: 9 katılıyor, 1 katılmıyor; yeniden etiketleme yok)
+- **Yöntem:** sohbette, planlamayla, satır satır ve kör: Eren önce cevapladı, sonra uyg4'ün etiketi açıldı. Her satırda girdi değerleri, 1. adayın gerekçesi ve donmuş T1 / T5 / T6 metninin sade hâli verildi. 2026-11-04'teki iki sohbet cevabı kayıt dışı (Eren isteği).
+  - T2 ve T3 kodla belirlendiği için sorulmadı. T4 ve `root_visibility`'nin indirect / absent yargısı Eren'e sorulmadı → sınırlamalara: "insan kontrolünden geçmedi".
+- **Sonuç** (örneklem sırası; Eren T1 / T5 / T6; uyg4 etiketi):
+  1. Gemini özet `inc-9292257f`: no / no / no — katılıyor.
+  2. gpt-oss daraltma `inc-73ac64e9`: no / no / no — katılıyor.
+  3. gpt-oss özet `inc-9292257f`: no / no / no — katılıyor.
+  4. 4B daraltma `inc-230c9d46`: yes / no / no — katılıyor.
+  5. 4B daraltma `inc-320c56f9`: yes / **no** / yes — **katılmıyor** (uyg4 T5 yes).
+  6. 4B daraltma `inc-ae15665a`: no / no / no — katılıyor.
+  7. 4B ham `inc-4a62b9bb`: yes / no / no — katılıyor.
+  8. 4B özet `inc-ae15665a`: no / no / no — katılıyor.
+  9. 4B özet `inc-b4d12a5e`: yes / no / yes — katılıyor.
+  10. 4B özet `inc-fa775703`: no / no / yes — katılıyor.
+- **Katılmama (5. satır, T5):** model "cart CPU'su alarmdan sonra fırladı" diyor, girdide 0,60 → 0,31. Eren: sütunlar ters okunmuş olsa bile 0,3 → 0,6 "ciddi artış" değil; uydurma gibi, zaman karışıklığı değil → yalnız T1. Planlama iki okumayı (ters okuma / uydurma) tarafsız sundu, seçim Eren'in.
+- **Okuma:** katılmıyorum 1 < 3 → etiketler kalır, sorular değişmez, yeniden etiketleme yok.
+- **Açıkça kayda:**
+  - 1. ve 2. satırda Eren'in ilk T6 cevabı "evet"ti. Sebep planlamanın belirsiz sade ifadesi: 1'de "tek ölçü" "tek servis" diye anlaşıldı, 2'de üç koşuldan yalnız ilkine bakıldı. Netleştirmeden sonra ikisinde de "kurala göre hayır" (Eren'in kurala itirazı yok). Sayımda son cevap geçerli; ilk cevaplar `note`'a.
+  - 5. satırda T5'in ilk cevabı "anlamadım"dı; açıklamadan sonra "hayır".
+  - Planlamanın hatası: 2. satırda "kural kaç ms arttığına bakıyor" dedim. Doğrusu artış / max(önce / 2, 20 ms). 2. satırın sonucu değişmez (checkout 15,6 > cart 7,6); 9. satırda düzeltildi.
+- **Sınırlamalara:**
+  - T6 dar: yalnız başka bir servis daha çok değiştiğinde "evet". Eren'in "çapraz kontrol yok" sezgisi daha geniş ("model tek bir servise bakıp karar vermiş"); bunun bir kısmını T2 / T3 yakalıyor.
+  - T6'nın ölçeği: "daha büyük değişim" kat olarak ölçülseydi 2. satırda cart (139 kat) checkout'u (9 kat) geçerdi ve T6 "evet" olurdu.
+  - T1 abartılı sıfatları ("massive") yakalamıyor (8. satır: frontend CPU ortalaması kural eşiğinin kılpayı altında).
+- **uyg4'e:** 10 satıra `eren_check` yazılır: `agree` (yukarıdaki gibi), Eren'in T1 / T5 / T6 cevapları ve `note` (1., 2. ve 5. satırlardaki ilk cevaplar; 5. satırda Eren'in gerekçesi). Etiketler değişmez. Sonra özet dosyaları, bayt aynı yeniden üretim testi ve sınırlamalar metni.
