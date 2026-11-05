@@ -289,4 +289,4 @@ Sadece Eren'in onayladığı isimler.
 | `root_visibility` | Hata analizi etiketi: kök girdide `direct` (kendi satırında kuralın sinyali, kodla) / `indirect` (yalnız çağıranların hata satırlarında ya da işlem adlarında hedef) / `absent` |
 | `note` | Hata analizi etiket satırında isteğe bağlı tek satır gözlem (sayılmaz) |
 | `name_key` | Ad karşılaştırma anahtarı (hata analizi özeti): küçük harf, son nokta parçası, `/` öncesi, sondaki `service` atılır, yalnız harfler; gRPC adıyla geçen kökü saymak için, puanlamayı değiştirmez |
-| `eren_check` | Etiket dosyasında örneklem satırına Eren doğrulaması: `{"agree": true/false}`; 10 satırın ≥ 3'ünde katılmıyorum → yeniden etiketleme |
+| `eren_check` | Etiket dosyasında örneklem satırına Eren doğrulaması: `{"agree": true/false, "T1", "T5", "T6": yes/no, "note": isteğe bağlı}` (`agree` = Eren'in T1 / T5 / T6'sı etiketle aynı); 10 satırın ≥ 3'ünde katılmıyorum → yeniden etiketleme |
