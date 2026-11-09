@@ -4450,3 +4450,35 @@ Data:
   - PROJECT kutuları planlamanın kontrolünden sonra Eren onayıyla.
 - **Planlamanın kontrolü:** scratch klonda pytest; taşınan kodun eşitliği; bir pilot vakayı kendim oynatıp birkaç çağrıyı kendi sorgumla iki tarafta hesaplama; raporun sayılarını kayıtlardan yeniden üretme.
 - Eren'in adımları: planı, adları, çağrı listesi ve eşitlik tanımını onaylamak; PR'ı birleştirmek.
+
+## 2026-11-10 · Uygulama → Planlama (P2a planı onaylı; 1. madde: sorgu fonksiyonları önerisi, kod yok)
+- **Plan** (Eren onaylı, 2026-11-09): (1) bu öneri; (2) dosya uygulaması + taşıma eşitlik testi; (3) canlı uygulama (sorgular `storage_check.py`'den pakete), yeniden oynatma snapshot klasörüyle, vaka başına boş volume; (4) çağrı listesi + eşitlik tanımı ölçmeden önce commit, karşılaştırma betiği, tek pilot vakada süre, sonra 25 pilot, farkların sınıflanması; (5) donma (sha HANDOFF'a), dev bir kez, rapor, sızıntı, ARCHITECTURE / GLOSSARY, PR. Her madde ayrı commit, Eren onayıyla.
+- **Dayanak** (yalnız `load_cases()` varsayılanı: pilot 25 + dev 18; test ve heldout açılmadı; betik repo dışı, scratchpad):
+  - Snapshot'larda 304 metrik adı. Kullanılacaklar: `container.cpu.usage.total` (sum, ns, birikimli), `container.memory.usage.total` (sum, By), `container.network.io.usage.{rx,tx}_bytes` (sum, By, birikimli, `interface` özniteliği). Resource'ta `container.name`.
+  - Prometheus adları canlı volume'den doğrulandı (`otel-demo_prometheus-data`, salt okunur bağlandı, konteyner içi kopyada `promtool tsdb dump`; Prometheus v3.13.1): `container_cpu_usage_nanoseconds_total` (adın içindeki `total` düşüyor), `container_memory_usage_total_bytes`, `container_network_io_usage_{rx,tx}_bytes_total`. Etiketler yalnız `container_name`, `host_name` (+ ağda `interface`); konteyner yeniden başlayınca seri aynı kalır, sayaç sıfırlanır.
+  - Loglar (1.866.275 kayıt): %53'ünde `severityNumber` 0 (995.589). İki pilot vakada bunların neredeyse hepsi `frontend-proxy` erişim logu (49.234 / 89.778); `email` önem metni `INFO` ama numarası 0. OpenSearch eşlemesinde (`storage_runs/20261025T0154Z-watch/opensearch_mapping.json`) `@timestamp` `date` türü → ms hassasiyeti; alanlar `body`, `severity.number`, `severity.text`, `resource.service.name`, `traceId`, `spanId`.
+- **Önerilen yapı (veri yapısı kararı; Eren onayı ve planlama kontrolü istenir):**
+  - Altı sorgu fonksiyonu bir modülde, depolamadan bağımsız. Her biri bir **kaynak** (store) nesnesi alır; kaynak yalnız ham kayıt verir: span'ler, loglar, metrik noktaları, tek iz. Hesap (süzme, kova, yüzdelik, sıralama, kesme) ortak kodda. Kaynağa yalnız sonucu değiştirmeyen eşitlik süzgeçleri iner (servis adı, zaman aralığı, metrik adı, konteyner adı); metin araması, önem, durum ve süre süzgeçleri ortak kodda.
+  - Yeni klasör yok; üç düz modül önerisi (adlar aşağıda).
+  - Zaman: fonksiyonlar mutlak ns aralık alır; aralık snapshot penceresine (`window.json`) kırpılır, çıktıda `clipped` işaretlenir. Logda zaman iki tarafta da ms'ye indirilir (OpenSearch ms tutuyor).
+  - Dışlama: `TOOLING_CONTAINERS` ve `ROUTINE_SERVICES` (`signals.py`) bütün fonksiyonlarda; bu adlar sorulursa hata.
+  - Ad eşleme tek tabloda (metrik anahtarı → OTel adı, tür, Prometheus adı); `storage_check.METRICS` de oradan beslenir.
+  - Adet sınırlı çıktıda `total` (eşleşen sayı) ve `truncated` alanları; sessiz kesme yok.
+- **Fonksiyonlar (adlar onay bekliyor):**
+  1. `list_services(store)` → servisler (izlerdeki `service.name` ∪ metriklerdeki `container.name`, dışlamalar hariç) ve her birinde hangi sinyal var (span / log / metrik). Tam pencere.
+  2. `metric_series(store, service, metric, start, end, step_s=60)` → `[(kova başı, değer)]`. `metric`: `cpu_pct`, `mem_mb`, `net_rx_bytes_per_s`, `net_tx_bytes_per_s` (konteyner metriklerinden; CPU ve ağ birikimli sayaçtan, `signals.summarize`'daki gibi sayaç geriye düşerse o aralık atlanır; ağ arayüzleri toplanır) ve `requests`, `errors`, `error_rate`, `p95_ms`, `p99_ms` (servisin gelen SERVER / CONSUMER span'lerinden, `signals` tanımlarıyla).
+  3. `search_spans(store, start, end, service=None, operation=None, status=None, min_duration_ms=None, limit=20)` → span özetleri: `trace_id`, `span_id`, `parent_span_id`, servis, işlem, tür, başlangıç, süre ms, durum, sabit bir öznitelik listesi (`http.response.status_code`, `rpc.grpc.status_code`, `server.address`, `exception.message`). `status`: `error` / `ok` / `unset`. Sıra: başlangıç artan, eşitlikte `trace_id`, `span_id`.
+  4. `get_trace(store, trace_id, limit=200)` → izin snapshot'taki bütün span'leri, aynı özet alanlarıyla, aynı sırayla.
+  5. `search_logs(store, start, end, service=None, min_severity=None, text=None, limit=20)` → `time_ms`, servis, önem numarası ve metni, mesaj (`signals.log_message`, 200 karakter), `trace_id`. `min_severity` numaraya göre; numarası 0 olan kayıt yalnız `min_severity` verilmezse gelir. `text`: mesajda büyük-küçük harf duyarsız alt dize. Sıra: zaman artan, eşitlikte servis, mesaj, `trace_id`.
+  6. `service_dependencies(store, start, end)` → `(çağıran, çağrılan, çağrı sayısı, hata sayısı)`; `call_graph.service_edges` tanımı (alt span'in başlangıcı aralıkta, üst span aynı kümede).
+- **Modül ve sınıf adları (onay bekliyor):**
+  - `src/aiops_rca/query.py` → altı fonksiyon, ortak hesap, ad eşleme tablosu `METRIC_NAMES`.
+  - `src/aiops_rca/store_file.py` → `FileStore(case)`: `model_view`'dan ham kayıt.
+  - `src/aiops_rca/store_live.py` → `LiveStore(case, ends)`: Jaeger v3, OpenSearch, Prometheus HTTP (taşınan `jaeger_slice`, `opensearch_logs`, `prometheus_samples` ve küçük bir HTTP yardımcısı; `tools/storage_check.py` buradan içe aktarır).
+  - Karşılaştırma ve vaka başına oynatma betiği 4. maddede: `tools/query_compare.py` (öneri; oynatma mekaniği `storage_check.py`'den içe aktarılır).
+- **Kartta olmayan, bilerek eklenmeyen:** log kalıpları (normalize + sayım) aracı; ajana gerekip gerekmediği P2b'de. Kural sinyalleri, daraltma ve P1 özeti araç değil (kart).
+- **Riskler (ölçüm 4. maddede):**
+  - Canlıda `search_spans(service=None)` ve `service_dependencies` bütün servislerin span'lerini Jaeger'den çeker (D3'teki 1 dk dilimler); süre tek pilot vakada ölçülür. 43 vakaya sığmazsa karar Eren ve planlamada.
+  - `frontend-proxy` erişim logları önemsiz (0); `min_severity` verilince görünmez. P1'deki WARN+ süzgeci de onları dışlıyordu.
+  - Jaeger'in arama derinliği (1000 iz) dilimlemeyle aşılır; 1 sn'lik dilimde de takılırsa çağrı hata verir (bugünkü davranış).
+- **Açık sorular:** (a) yapı (kaynak nesnesi + ortak hesap; süzgeçlerin hangilerinin kaynağa indiği); (b) altı fonksiyon, parametreleri ve varsayılanlar (`limit` 20 / 200, `step_s` 60); (c) modül, sınıf ve betik adları.
