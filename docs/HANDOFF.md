@@ -4402,3 +4402,30 @@ Data:
 - **ARCHITECTURE:** "yok" sınıfında yalnız `agent` kaldı. `base`, `nar`, `llm`, `cache`, `evr`, `ev` (P1a–P1c) ve Eren onayıyla `own`, `inj`, `fix` çıktı.
 - **Kontrol:** pytest 608 geçti; `python -m aiops_rca.results --check` ve `error_analysis summary --check` "same".
 - **Sıradaki:** PR `task/p1-test` → main (sade açıklama), CI yeşil; merge Eren'de. Sonra klon `~/cerebrum2/aiops_rca_p1e` için silme önerisi.
+
+## 2026-11-09 · Planlama → Uygulama (README kartı; ayrı küçük iş, `task/readme`)
+- Eren kararı (DECISIONS 2026-11-09 "README"). **Dal `task/readme`** (Eren); planlama main `b4878eb`'den açtı (scratch klonda; ortak kopya `task/p2a`'da kaldı). P2a'nın PR'ına karışmaz.
+- **Ne zaman:** P2a'nın arasında. Ortak kopyada dal değiştirmeden önce P2a işi commit'li ve `git status` temiz olmalı; README bitince `task/p2a`'ya dönülür.
+- Önce 3–5 maddelik planını yaz, Eren onaylasın. Yeni paket yok. Değişenler: `README.md`, ARCHITECTURE dosya tablosundaki README satırı ("şimdilik sadece başlık"), HANDOFF.
+- **İçerik:**
+  1. En üstte 3–4 cümlelik İngilizce özet; gövde Türkçe.
+  2. Amaç: tek paragraf (PROJECT "Ne" ve "Neden"den).
+  3. Durum: P1 bitti; P2 (ajan) ve canlı demo sürüyor. Snapshot setinin henüz yayınlanmadığı açıkça yazılır (proje sonunda GitHub Releases'te; tekrarlanabilirlik seviye 2). P2 bitince README ayrı küçük işte güncellenir.
+  4. Akış şeması: ARCHITECTURE'daki mermaid. Üç düğümdeki makineye özel yollar (`~/cerebrum2/telemetry/filtered/`, `~/cerebrum2/snapshots/`, `~/cerebrum2/c2_runs/`) genel adlarla değişir (ör. "repo dışı telemetri klasörü"); başka değişiklik yok. Altında not: tam ve güncel hali `docs/ARCHITECTURE.md`'de (iki kopya zamanla ayrışabilir).
+  5. Test sonuçlarının kısa tablosu `results/p1_table.md`'den; yalnız oradaki toplam hücreler (hangi satır ve sütunlar, uygulama önerir). Dil temkinli:
+     - "ayırt edilemedi" "aynı" demek değil; 18 vakada yalnız büyük farklar görülür;
+     - modeller arası karşılaştırma betimsel (önceden yazılmış bir karşılaştırma kuralı yok);
+     - türetilmiş sayı (yüzde, fark) ve tabloda olmayan yorum yok;
+     - `results/p1_limitations.md`'ye bağlantı.
+  6. Tekrar üretme: `python -m aiops_rca.results --check` ve `python -m aiops_rca.error_analysis summary --check`; CI ikisini bayt aynı yeniden üretir. Kurulum CI'daki gibi; komutlar repodaki kayıtlardan çalışır (snapshot, anahtar ve ağ gerekmez).
+  7. Repo haritası: üst düzey klasörler, her biri tek satır (ARCHITECTURE dosya tablosuyla tutarlı).
+  8. docs/ bağlantıları: PROJECT, ARCHITECTURE, DECISIONS, GLOSSARY, HANDOFF, INCIDENT_CATALOG, OTEL_DEMO, LOCAL_MODEL_BENCH.
+- **Girmeyecekler:** API anahtarları ve anahtar dosyasının yolu; makineye özel yollar ve kullanıcı adı; test vakalarının tek tek içeriği (vaka kimliği, vaka bazında sonuç).
+- **Birleştirme çakışması:** `task/readme` ve `task/p2a` ikisi de HANDOFF ve DECISIONS'ın sonuna ekliyor; ikinci birleşen PR'da bu iki dosyanın sonunda çakışma çıkar. Çözüm: iki blok da korunur, tarih ve yazılış sırasıyla; başka satır değişmez. İkinci dalın oturumu PR'ından önce main'i dalına birleştirirken yapar ve HANDOFF'a yazar.
+- **Bitti sayılır (yazmadan önce yazılı):**
+  - README yukarıdaki sekiz maddeyi içerir; `cerebrum2`, `keys.env` ve `inc-` + 8 hex kimlik README'de 0.
+  - README'deki her sayı `p1_table.md`'deki bir hücreyle aynı.
+  - Mermaid GitHub'da çiziliyor (PR önizlemesi); göreli bağlantıların hedefleri repoda var.
+  - ARCHITECTURE'daki README satırı güncel; pytest ve PR CI yeşil.
+- **Planlamanın kontrolü:** scratch klonda README'deki sayıları kendi betiğimle `p1_table.md` hücreleriyle karşılaştırma; yasak dizgileri tarama; bağlantıların varlığı; İngilizce özetin Türkçe metinle çelişmemesi; temkinli dil maddeleri.
+- Eren'in adımları: planı ve tablo seçimini onaylamak; PR'ı birleştirmek.
