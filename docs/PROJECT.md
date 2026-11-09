@@ -6,10 +6,10 @@ kök nedeni bulan yöntemleri aynı vakalar üzerinde ölçen bir altyapı ve ü
 
 - **Proje 1:** CPU'da çalışan küçük lokal model (`small_local_model`) + istatistiksel daraltma (hibrit),
   kanıt/yol doğrulaması ve "emin değilim" diyebilme (kalibrasyon).
-- **Proje 2:** Büyük API modeli (`large_api_model`) ile araçlı ajan (Proje 1 bittikten sonra).
+- **Proje 2:** Araçlı ajan (tek ajan, sabit sorgu araçları; model kod çalıştırmaz). Ana model Gemini 3.5 Flash Lite (`large_api_model`); yerel qwen3.5-4b (`small_local_model`) ikinci model adayı (DECISIONS 2026-11-09).
 
 Tüm yöntemler aynı vakalarda baseline'lara (kural, BARO) karşı ölçülür.
-`large_api_model` satırları iki modelle koşulur (Groq gpt-oss-120b, Gemini 3.5 Flash Lite), ayarlar birebir aynı.
+Proje 1'de `large_api_model` satırları iki modelle koşuldu (Groq gpt-oss-120b, Gemini 3.5 Flash Lite), ayarlar birebir aynı. Proje 2'de yalnız Gemini (Groq kotası ajana yetmiyor, para harcanmıyor; DECISIONS 2026-11-09).
 
 ## Neden
 Logların dışarı çıkamadığı bir ortamda küçük lokal model, doğru desteklenirse
@@ -100,4 +100,6 @@ P1b bitti (`task/p1-baro`, PR #30, 2026-10-31): BARO, RCAEval 1.9.0'ın saf Pyth
 P1c bitti (`task/p1-llm`, 2026-11-01): LLM katmanı (`llm_client.py`, beş model), girdi seviyeleri ham / özet / daraltma (`inputs.py`; 43 vakada veri ≤ 5000, tam mesaj ≤ 6000, en çok 5.384), daraltma (`narrowing.py`; dev'de kök ilk 5'te 18/18), takma ad üç seviyede (`alias.py`; gerçek ad 0, sızıntı 0; `quote-svc` tek pilot vakada kaldı, P1e notu), LLM yöntemi (`methods/llm.py`, `evaluate run --method llm`; boş ve bütçeyi aşan girdi sorulmaz). Üç onay alındı (kesme kuralı, öne alma, istem). Duman 30 çağrı, şemaya uygun 29/30 (`llm_cache/`). Dev'de model koşulmadı.
 P1c birleşti (PR #31).
 P1d bitti (`task/p1-dev-runs`, 2026-11-04): dev'de 36 resmî LLM turu (a1 gerçek ad 15, b takma ad 15, a2 API ikinci tur 6; `eval_responses/`), yerel tekrar 18/18 aynı. Resmî analiz (repo dışı betik, planlama bağımsız doğruladı; HANDOFF 2026-11-04): yerel model **qwen3.5-4b** (9 zor vakada top-3: 2B 6, 4B 9, 9B 9); takma ad etkisi görülmedi (gpt-oss ham belirsiz, gürültü 2). Daraltma top-3: Gemini 18, gpt-oss 17, 4B ve 9B 16 / 18. Groq `json_validate_failed` şema dışı sayılıyor (`eafc491`).
-P1e bitti (`task/p1-test`, 2026-11-05): test setinde 15 koşu (kural, BARO, daraltma referansı, 4B / gpt-oss / Gemini / 9B × üç seviye; temiz klonda), sonuç tablosu `results/p1_table.md` (`python -m aiops_rca.results`, CI bayt aynı). Dev–test bütün satırlarda "ayırt edilemedi" (en küçük p 0,1774); 9B bilgi satırı 2 / 0 / 14, ayırt edilemedi. Dev hata analizi: 29 satır, 6 tuzak, Eren doğrulaması 9 / 1 (`results/p1_error_summary.md`). Sınırlamalar `results/p1_limitations.md`. Sıradaki: PR birleşince P1'in kalan işleri planlamada.
+P1e bitti (`task/p1-test`, 2026-11-05): test setinde 15 koşu (kural, BARO, daraltma referansı, 4B / gpt-oss / Gemini / 9B × üç seviye; temiz klonda), sonuç tablosu `results/p1_table.md` (`python -m aiops_rca.results`, CI bayt aynı). Dev–test bütün satırlarda "ayırt edilemedi" (en küçük p 0,1774); 9B bilgi satırı 2 / 0 / 14, ayırt edilemedi. Dev hata analizi: 29 satır, 6 tuzak, Eren doğrulaması 9 / 1 (`results/p1_error_summary.md`). Sınırlamalar `results/p1_limitations.md`.
+P1e birleşti (PR #33, main `b4878eb`).
+Proje 2 çerçevesi (DECISIONS 2026-11-09): P2a sorgu araçları → P2b ajan döngüsü + pilot dumanı → P2c dev koşuları → P2d test koşusu ve analiz. Tek ajan + sabit sorgu araçları; model Gemini 3.5 Flash Lite (4B adayı P2b'de); canlı taraf vaka başına boş yeniden oynatma, dosyayla aynı tanım; çağrı bütçesi 6K. P2a kartı HANDOFF'ta, dal `task/p2a`. P2'den sonra canlı demo (product-catalog sınaması orada), sonra kapanış.

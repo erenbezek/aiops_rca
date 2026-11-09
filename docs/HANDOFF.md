@@ -4402,3 +4402,51 @@ Data:
 - **ARCHITECTURE:** "yok" sınıfında yalnız `agent` kaldı. `base`, `nar`, `llm`, `cache`, `evr`, `ev` (P1a–P1c) ve Eren onayıyla `own`, `inj`, `fix` çıktı.
 - **Kontrol:** pytest 608 geçti; `python -m aiops_rca.results --check` ve `error_analysis summary --check` "same".
 - **Sıradaki:** PR `task/p1-test` → main (sade açıklama), CI yeşil; merge Eren'de. Sonra klon `~/cerebrum2/aiops_rca_p1e` için silme önerisi.
+
+## 2026-11-09 · Planlama → Uygulama (PR #33 kapanış kontrolü)
+- PR #33 (`task/p1-test`) 2026-11-05T19:47Z'de birleşti: merge `b4878eb`, ikinci ebeveyn `d791c6c` (PR'ın son commit'i). `git diff d791c6c b4878eb` boş: main'e giren içerik planlamanın kontrol ettiği `d791c6c` ile aynı.
+- main CI (`b4878eb`): run 42097619844, success.
+- `task/p1-test` birleşmiş daldır, oraya commit yok. P1'in kalanları: P1 test hata analizi P2'nin test koşusundan sonra (P2d; DECISIONS 2026-11-04), tekrarlanabilirlik seviye 2 kapanışta.
+- Bekleyen: `~/cerebrum2/aiops_rca_p1e` klonunun silinmesi Eren'e sorulacak (içindeki 14 koşu repoda, sha'lar aynı); o zamana kadar dokunulmaz.
+
+## 2026-11-09 · Planlama → Uygulama (P2a kartı: sorgu araçları, dosya ve canlı uygulaması, karşılaştırma)
+- Proje 2'nin çerçevesi DECISIONS 2026-11-09'da (altı satır, hepsi Eren onaylı): bölüm P2a → P2d; ajan yapısı A (tek ajan + sabit sorgu araçları, kod yok); model Gemini 3.5 Flash Lite (4B adayı P2b'de); canlı taraf vaka başına boş hedef ve aynı tanım; product-catalog düzeltmesi; çağrı bütçesi 6K.
+- **Dal `task/p2a`** (Eren); planlama main `b4878eb`'den açtı. Önce 3–5 maddelik planını yaz, Eren onaylasın. Yeni ad (modül, fonksiyon, alan, komut, klasör) koymadan önce öner; Eren onaylayınca GLOSSARY. Yeni paket yok, upstream'e dokunulmaz, bu kartta LLM çağrısı yok.
+- **Amaç:** ajanın araçlarının üzerine kurulacağı, depolamadan bağımsız sorgu fonksiyonları; her birinin dosya (`model_view`) ve canlı (yeniden oynatma yığını) uygulaması; ikisinin LLM'siz karşılaştırması. PROJECT'teki "Aynı araç çağrılarının dosya ve canlı çıktıları karşılaştırıldı, farklar açıklandı" maddesinin araç düzeyi ve DevOps satırı "PromQL, Jaeger ve log sorguları" bu kartta.
+- **Kart kuralları:**
+  - Test ve `heldout` vakaları P2a'da hiç açılmaz (oynatma, sorgu, karşılaştırma yok). Kapsam pilot (25) + dev (18). Test karşılaştırması P2d'de, yalnız sayım.
+  - Araç seti ve parametreleri pilotta belirlenir; dev karşılaştırmasından önce kod commit'lenir ve sha'sı HANDOFF'a yazılır (donma). Dev'de bulunan fark yalnız uygulama hatasıysa düzeltilir (iki tarafın tanımı değişmez); düzeltme ve pilot + dev yeniden koşusu kayda yazılır.
+- Yapılacak:
+  1. **Fonksiyonlar (sorgu katmanı):**
+     - İmzada dosya yolu, URL ya da JSON yapısı yok (DECISIONS 2026-10-14). Girdi: vaka (erişim `cases.py` korumalarıyla), zaman aralığı ve sorgu alanları. Çıktı: yapılandırılmış veri. Modele giden metin biçimi, boyut sınırı ve araç açıklamaları P2b'de.
+     - Aday küme (kesin listeyi, adları ve imzaları uygulama önerir, Eren onaylar): servis listesi; metrik serisi (servis × metrik × aralık: konteyner CPU, bellek, ağ; span'lerden istek, hata, gecikme); span arama (servis, işlem, durum, süre eşiği, aralık, adet sınırı); iz getirme; log arama (servis, en düşük önem, metin, aralık, adet sınırı); servis bağımlılıkları (çağıran → çağrılan, sayılarla).
+     - Araçlar vaka bilgisi taşımaz: kural sinyalleri, daraltma sırası ve P1 özeti P2a'da araç değildir. Ajana verilip verilmeyecekleri P2b kararı.
+     - Adet sınırlı aramalarda sıralama kuralı belirli ve iki tarafta aynı; sınıra takılan çıktı bunu açıkça işaretler (sessiz kesme yok).
+     - Ad eşleme tek yerde ve iki tarafta aynı: dosyadaki OTel adları ↔ Prometheus adları (bugünkü örnekler `tools/storage_check.py` `METRICS`'te).
+     - Dışlamalar dosya tarafındakiyle aynı (`signals.py`: araç konteynerleri, rutin servisler). Canlı tarafta yeniden oynatma yığınının kendi telemetrisi (Jaeger'in ve collector'ın kendi metrikleri, oynatma zamanında) de dışlanır ya da fark olarak açıklanır.
+  2. **Dosya uygulaması:** `model_view`'dan; mevcut koddan yararlanır (`signals.py`, `call_graph.py`). Taşınan ya da yeniden kullanılan kodun eski çıktıyı aynen ürettiği test edilir (P1a'daki taşıma gibi). CI'da `tests/fixtures/snapshots/` örnekleriyle.
+  3. **Canlı uygulama ve yeniden oynatma:**
+     - Jaeger v3, OpenSearch ve Prometheus sorguları `tools/storage_check.py`'den pakete taşınır; `tools/` paketten içe aktarır.
+     - Aynı tanım (DECISIONS 2026-11-09): ham veri çekilir, hesap ortak kodla. PromQL / OpenSearch toplaması yalnız aynı sonucu verdiğinde.
+     - Jaeger arama derinliği (1000) gibi sınırlar dilimlemeyle aşılır (bugünkü `jaeger_slice` gibi) ya da çıktıda açıkça işaretlenir.
+     - Yeniden oynatma snapshot klasörünü kabul eder (bugün C2 koşu klasörü istiyor; snapshot'ta aynı üç dosya var: `traces/metrics/logs.jsonl`). Vaka başına boş volume'ler; vakanın işi bitince silinir. Oynatmanın geçme şartı D3'teki gibi: gönderilen = dosya, gönderim hatası 0, reddedilen 0, OOM 0, yeniden başlama 0.
+     - Canlı taraf Docker ister, CI'da koşmaz (atlanan testler `test_replay_config` gibi işaretli). CI'da canlı kod sahte HTTP sunucusuyla (`127.0.0.1`, ağ yok) test edilir.
+  4. **Karşılaştırma (LLM'siz):**
+     - Ölçmeden önce yazılır ve commit'lenir: çağrı listesi (her fonksiyon × her servis × sabit aralıklar; ör. alarm − 10 dk → alarm, alarm → alarm + 10 dk, tam pencere) ve eşitlik tanımı (sayım, küme ve sayısal değerlerde birebir; aynı tanım ve aynı ham veri aynı sonucu vermeli). Tolerans gerekirse gerekçesiyle önceden yazılır; sonuçtan sonra eklenmez.
+     - Önce pilot. Farklar sınıflanır (uygulama hatası / depolama ya da arama sınırı / kayıp / hassasiyet / ad eşleme / yığının kendi telemetrisi) ve her tür açıklanır; uygulama hatası düzeltilir. Sonra donma (kart kuralı), sonra dev'de bir kez.
+     - Rapor: vaka × fonksiyon eşit / farklı sayıları, fark türleri, her türün açıklaması ve örnek sayısı. Kayıtların yerini uygulama önerir (cevap içermez, dev verisi taşır).
+     - Sızıntı: canlı çıktılar `leakage` ile taranır, 0 bulgu (DECISIONS 2026-10-14: canlı ajan da süzülmüş veri görmeli).
+     - P2c'de ayrıca ajanın gerçek çağrıları öteki tarafa da yapılıp karşılaştırılır (bitti maddesinin ajan düzeyi); bu kartın işi değil.
+  5. **Uzun koşu** (43 vaka oynatma + karşılaştırma; süre pilotta ölçülüp kayda): şarj sınırı 80; kapak kilidi `systemd-inhibit --what=handle-lid-switch:sleep:idle --mode=block` ve `gnome-session-inhibit --inhibit suspend --inhibit idle` birlikte; makine boşta (DECISIONS 2026-10-30).
+- **Güç kontrolü (ölçmeden önce):** kod deterministik, tavan ya da taban yok.
+  - Hepsi eşit → P2c'de ajanın dosya ve canlı satırları arasındaki fark yalnız LLM rastgeleliğinden gelir.
+  - Fark çıkarsa → uygulama hatası düzeltilir; düzeltilemeyen (arama sınırı gibi) sınırlamaya ve P2c okumasına girer. Hiçbir sonuç P2'yi durdurmaz; sonuç "canlıda ajan aynı veriyi görür" varsayımının ne kadar tuttuğunu belirler.
+- **Bitti sayılır (ölçmeden önce yazılı, sonuca göre değişmez):**
+  - Fonksiyonların listesi ve adları Eren onaylı; iki uygulama repoda; taşınan kod eski çıktıyla aynı; pytest ve PR CI yeşil.
+  - Yeniden oynatma 43 vakada geçme şartlarıyla.
+  - Çağrı listesi ve eşitlik tanımı ölçmeden önce commit'li; karşılaştırma pilot ve dev'de koşuldu; bütün farklar sınıflanıp açıklandı; uygulama hatası kalmadı.
+  - Canlı çıktılarda sızıntı 0.
+  - ARCHITECTURE: diyagrama sorgu katmanı (dosya ve canlı uygulaması) eklenir, `agent` kesik kalır; dosya tablosu. GLOSSARY: onaylı adlar.
+  - PROJECT kutuları planlamanın kontrolünden sonra Eren onayıyla.
+- **Planlamanın kontrolü:** scratch klonda pytest; taşınan kodun eşitliği; bir pilot vakayı kendim oynatıp birkaç çağrıyı kendi sorgumla iki tarafta hesaplama; raporun sayılarını kayıtlardan yeniden üretme.
+- Eren'in adımları: planı, adları, çağrı listesi ve eşitlik tanımını onaylamak; PR'ı birleştirmek.
