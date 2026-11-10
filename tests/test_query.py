@@ -111,6 +111,12 @@ def test_metric_names_table_matches_storage_check():
     import storage_check  # noqa: E402
     for name, kind, prom in storage_check.METRICS:
         assert METRIC_NAMES[name] == (kind, prom)
+    # storage_check'in eski listesi (main b4878eb), aynı sıra
+    assert storage_check.METRICS == [
+        ("container.memory.percent", "gauge", "container_memory_percent_ratio"),
+        ("container.network.io.usage.rx_bytes", "sum", "container_network_io_usage_rx_bytes_total"),
+        ("traces.span.metrics.duration", "histogram", "traces_span_metrics_duration_milliseconds_count"),
+    ]
 
 
 # --- 2. Kurallar, sahte veriyle ------------------------------------------------------------------------------------

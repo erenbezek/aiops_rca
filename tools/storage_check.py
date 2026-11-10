@@ -50,10 +50,22 @@ Saatlik büyüme = (son boyut − ilk boyut) / pencere saati, ondalık GB.
       bloğa girene kadar (`promtool tsdb list`, en çok 15 dk) ve iki pencere yeniden sayılır. 30 sn'de bir bellek → `mem.tsv`. Sonda `down` (volume'ler kalır).
       Çıktı `~/cerebrum2/storage_runs/<UTC>-replay/replay.json`, `replay.log`, `collector_<koşu>.log`.
 
+  python tools/storage_check.py replay-case <snapshot klasörü> [--keep-up]
+      P2a 3. madde (HANDOFF 2026-11-10; DECISIONS 2026-11-09 "vaka başına boş hedef"): tek vakanın snapshot'ı
+      (`model_view`: traces/metrics/logs.jsonl + window.json) boş yeniden oynatma yığınına. Yalnız pilot ve dev
+      vakaları (`load_cases()` varsayılanı); test ve heldout reddedilir. Korumalar; canlı demo kapalı, `otel-replay_*`
+      volume'leri yok. Yığın açılır, Prometheus başı boş olmalı; collector `REPLAY_WINDOW` = snapshot klasörüyle.
+      Geçme şartları (D3): gönderilen = dosya, gönderim hatası 0, collector yeniden başlamadı, Prometheus'un örnek
+      reddetme sayaçları (`SAMPLE_REJECTS`) var ve 0 (exemplar reddi yalnız kayıt; DECISIONS 2026-11-10), Prometheus'ta dosyadaki en yeni metrikten 1 dk'dan yeni örnek yok, OOM ve yeniden başlama 0.
+      Yığının kendi telemetrisi: Jaeger servisleri, OpenSearch servisleri ve Prometheus konteynerleri dosyadakilerin
+      alt kümesi. Duman: `LiveStore`'un her işlevi kayıt döndürür (yalnız canlı sayımlar ve süreler; dosyayla
+      karşılaştırma yok, o P2a 4. maddede). Sonda `down -v` (yalnız `otel-replay_*` volume'leri silinir);
+      `--keep-up` ile yığın açık kalır. Çıktı `~/cerebrum2/storage_runs/<UTC>-replay-case-<vaka>/replay_case.json`.
+
 Çıkış kodu (watch): 0 ölçüm tamam, 1 koruma tutmadı / demo açılmadı / makine uyudu, 2 kullanım hatası.
 Çıkış kodu (compare): 0 üç sistemde de eşit (ve dosyada kayıt var), 1 fark var, boş ya da kapsama eksik,
 2 kullanım hatası.
-Çıkış kodu (replay): 0 bütün ölçütler geçti, 1 biri geçmedi ya da durdu, 2 kullanım hatası.
+Çıkış kodu (replay, replay-case): 0 bütün ölçütler geçti, 1 biri geçmedi ya da durdu, 2 kullanım hatası.
 """
 from __future__ import annotations
 
@@ -65,7 +77,6 @@ import subprocess
 import sys
 import threading
 import time
-import urllib.error
 import urllib.parse
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -76,6 +87,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import scenario_runner as sr  # noqa: E402
 from c2_measure import increase, read_otelcol, SENT, SEND_FAILED, ENQUEUE_FAILED  # noqa: E402
+from aiops_rca.query import METRIC_NAMES  # noqa: E402
+# Canlı sorguların ortak parçaları pakette (P2a 3. madde): HTTP yardımcısı, zaman biçimi, Jaeger dilimlemesi, uçlar.
+from aiops_rca.store_live import REPLAY_ENDS, SEARCH_DEPTH, SLICE_NS, http, jaeger_raw_slice  # noqa: E402
 
 OUT = Path.home() / "cerebrum2" / "storage_runs"
 OPENSEARCH = "http://127.0.0.1:9200"
@@ -346,14 +360,10 @@ def watch(minutes: int, keep_up: bool) -> int:
 JAEGER_V3 = "http://127.0.0.1:8080/jaeger/ui/api/v3"
 EDGE_NS = 120 * 10**9
 SETTLE_NS = 120 * 10**9
-SLICE_NS = 60 * 10**9
-SEARCH_DEPTH = 1000
-# (dosyadaki ad, OTLP türü, Prometheus'taki ad); histogramda karşılaştırılan veri noktasının sayısı (_count)
-METRICS = [
-    ("container.memory.percent", "gauge", "container_memory_percent_ratio"),
-    ("container.network.io.usage.rx_bytes", "sum", "container_network_io_usage_rx_bytes_total"),
-    ("traces.span.metrics.duration", "histogram", "traces_span_metrics_duration_milliseconds_count"),
-]
+# (dosyadaki ad, OTLP türü, Prometheus'taki ad); histogramda karşılaştırılan veri noktasının sayısı (_count).
+# Adlar tek tabloda: aiops_rca.query.METRIC_NAMES.
+METRICS = [(name, *METRIC_NAMES[name]) for name in
+           ("container.memory.percent", "container.network.io.usage.rx_bytes", "traces.span.metrics.duration")]
 NS_FIELDS = re.compile(rb'"(?:startTimeUnixNano|timeUnixNano|observedTimeUnixNano)":"(\d+)"')
 
 
@@ -367,8 +377,6 @@ def service_of(resource: dict) -> str:
 FILTERED = sr.TELEMETRY / "filtered"
 # Sorgulanan uçlar: canlı demo (8080 üzerinden Jaeger) ya da yeniden oynatma projesi (deploy/replay/compose.yaml)
 LIVE_ENDS = {"jaeger": JAEGER_V3, "opensearch": OPENSEARCH, "prometheus": sr.PROMETHEUS}
-REPLAY_ENDS = {"jaeger": "http://127.0.0.1:16686/jaeger/ui/api/v3", "opensearch": "http://127.0.0.1:19200",
-               "prometheus": "http://127.0.0.1:19090"}
 
 
 def file_docs(signal: str, a: int, b: int, oldest: dict, src: Path = FILTERED):
@@ -429,39 +437,15 @@ def file_metrics(a: int, b: int, oldest: dict, src: Path = FILTERED) -> dict[str
     return out
 
 
-def rfc3339(ns: int) -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(ns // 10**9)) + f".{ns % 10**9:09d}Z"
-
-
 def jaeger_slice(base: str, service: str, lo: int, hi: int) -> dict:
     """Bir servis ve zaman dilimindeki izlerin span'leri {(traceId, spanId): (servis, başlangıç)}; derinliğe
-    takılan dilim ikiye bölünür."""
-    q = urllib.parse.urlencode({"query.service_name": service, "query.start_time_min": rfc3339(lo),
-                                "query.start_time_max": rfc3339(hi), "query.search_depth": SEARCH_DEPTH,
-                                "query.raw_traces": "true"})
-    try:
-        d = sr.http("GET", f"{base}/traces?{q}", timeout=300)
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {}
-        raise
-    spans, traces = {}, set()
-    for rs in (d.get("result") or {}).get("resourceSpans", []):
-        svc = service_of(rs.get("resource", {}))
-        for ss in rs.get("scopeSpans", []):
-            for sp in ss.get("spans", []):
-                traces.add(sp["traceId"])
-                spans[(sp["traceId"], sp["spanId"])] = (svc, int(sp["startTimeUnixNano"]))
-    if len(traces) >= SEARCH_DEPTH:
-        if hi - lo <= 10**9:
-            raise SystemExit(f"error: jaeger search depth hit in a 1 s slice ({service} {rfc3339(lo)})")
-        mid = (lo + hi) // 2
-        return {**jaeger_slice(base, service, lo, mid), **jaeger_slice(base, service, mid, hi)}
-    return spans
+    takılan dilim ikiye bölünür (`store_live.jaeger_raw_slice`). Servis adı olmayan resource "-"."""
+    return {(sp["traceId"], sp["spanId"]): (svc if svc is not None else "-", int(sp["startTimeUnixNano"]))
+            for svc, sp in jaeger_raw_slice(base, service, lo, hi, SEARCH_DEPTH)}
 
 
 def jaeger_spans(a: int, b: int, base: str = JAEGER_V3) -> tuple[Counter, int]:
-    services = sr.http("GET", f"{base}/services", timeout=60).get("services", [])
+    services = http("GET", f"{base}/services", timeout=60).get("services", [])
     tasks = [(svc, lo, min(lo + SLICE_NS, b)) for svc in services for lo in range(a, b, SLICE_NS)]
     spans = {}
     with ThreadPoolExecutor(4) as pool:
@@ -472,11 +456,11 @@ def jaeger_spans(a: int, b: int, base: str = JAEGER_V3) -> tuple[Counter, int]:
 
 
 def opensearch_logs(a: int, b: int, base: str = OPENSEARCH) -> Counter:
-    sr.http("POST", base + "/_refresh", timeout=120)
+    http("POST", base + "/_refresh", timeout=120)
     body = {"size": 0, "track_total_hits": True,
             "query": {"range": {"@timestamp": {"gte": a // 10**6, "lt": b // 10**6, "format": "epoch_millis"}}},
             "aggs": {"svc": {"terms": {"field": "resource.service.name.keyword", "size": 200, "missing": "-"}}}}
-    d = sr.http("POST", base + "/otel-logs-*/_search", body, timeout=120)
+    d = http("POST", base + "/otel-logs-*/_search", body, timeout=120)
     c = Counter({x["key"]: x["doc_count"] for x in d["aggregations"]["svc"]["buckets"]})
     total = d["hits"]["total"]["value"]
     if total != sum(c.values()):
@@ -487,7 +471,7 @@ def opensearch_logs(a: int, b: int, base: str = OPENSEARCH) -> Counter:
 def prometheus_samples(name: str, a: int, b: int, base: str = sr.PROMETHEUS) -> Counter:
     a_ms, b_ms = a // 10**6, b // 10**6
     q = urllib.parse.urlencode({"query": f"{name}[{b_ms - a_ms}ms]", "time": f"{(b_ms - 1) / 1000:.3f}"})
-    d = sr.http("GET", f"{base}/api/v1/query?{q}", timeout=120)
+    d = http("GET", f"{base}/api/v1/query?{q}", timeout=120)
     c = Counter()
     for series in d["data"]["result"]:
         for ts, v in series["values"]:
@@ -666,6 +650,19 @@ def wait_replayed(totals: dict, log) -> dict:
                   "enqueue_failed": c.get(f"exporter_enqueue_failed_{n}|{e}", 0),
                   "equal": sent == totals[s] and failed == 0}
     return res
+
+
+# Örnek reddeden sayaçlar (DECISIONS 2026-11-10: "reddedilen 0" = reddedilen metrik örneği). `PROM_REJECT` deseni
+# bunların yanında OOO yazma günlüğü istatistiklerini ve exemplar reddini de yakalar; onlar şart değil.
+SAMPLE_REJECTS = ("prometheus_tsdb_out_of_bound_samples_total", "prometheus_tsdb_out_of_order_samples_total",
+                  "prometheus_tsdb_too_old_samples_total")
+EXEMPLAR_REJECTS = "prometheus_tsdb_exemplar_out_of_order_exemplars_total"
+
+
+def sample_rejects_ok(rejects: dict[str, float]) -> bool:
+    """Üç örnek reddetme sayacının her biri en az bir seride var ve bütün serileri 0."""
+    found = {name: [v for k, v in rejects.items() if k.split("{")[0] == name] for name in SAMPLE_REJECTS}
+    return all(vals and all(v == 0 for v in vals) for vals in found.values())
 
 
 def prometheus_head() -> dict:
@@ -894,6 +891,164 @@ def replay(runs: list[Path]) -> int:
     return 0 if rec["valid"] else 1
 
 
+def replay_case(view: Path, keep_up: bool) -> int:
+    from aiops_rca.cases import Case
+    from aiops_rca.query import CONTAINER_SERIES, read_window
+    from aiops_rca.store_file import FileStore
+    from aiops_rca.store_live import LiveStore
+
+    d = OUT / (time.strftime("%Y%m%dT%H%MZ", time.gmtime()) + f"-replay-case-{view.name}")
+    d.mkdir(parents=True)
+    log_file = (d / "replay_case.log").open("a")
+
+    def log(msg: str) -> None:
+        line = f"{sr.iso(sr.utc_ns())} {msg}"
+        print(line, flush=True)
+        log_file.write(line + "\n")
+        log_file.flush()
+
+    rec = {"case": view.name, "view": str(view), "keep_up": keep_up, "guards_before": sr.guards(), "problems": [],
+           "checks": {}, "smoke": {}, "valid": False}
+    save = lambda: (d / "replay_case.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n")  # noqa: E731
+
+    def stop(msg: str) -> int:
+        rec["problems"].append(msg)
+        save()
+        log(msg)
+        log_file.close()
+        return 1
+
+    if rec["guards_before"]["problems"]:
+        return stop("guards: " + "; ".join(rec["guards_before"]["problems"]))
+    live = subprocess.run(["docker", "ps", "-q", "--filter", "label=com.docker.compose.project=otel-demo"],
+                          capture_output=True, text=True, timeout=30).stdout.split()
+    if live:
+        return stop(f"live demo is running ({len(live)} containers); bring it down first")
+    sizes0 = volume_sizes()
+    if any(n.startswith(REPLAY_PROJECT + "_") for n in sizes0):
+        return stop("replay volumes already exist; the target must be empty")
+    rec["live_volumes_before"] = {n: sizes0.get(n) for n in sr.MONITORING_VOLUMES}
+    case = Case(view.name, view, 0)  # alarm anı oynatmada kullanılmaz
+    lo, hi = read_window(view)
+    totals = file_totals(view)
+    rec["file"] = totals
+    log(f"{view.name}: window [{sr.iso(lo)}, {sr.iso(hi)}] file {totals}")
+
+    peaks, stop_mem = {n: 0.0 for n in REPLAY_CONTAINERS}, threading.Event()
+
+    def sample_mem() -> None:
+        with (d / "mem.tsv").open("a") as fh:
+            while not stop_mem.wait(30):
+                m = mem_mib(REPLAY_CONTAINERS)
+                fh.write(sr.iso(sr.utc_ns()) + "\t" + "\t".join(f"{n}={v}" for n, v in m.items()) + "\n")
+                fh.flush()
+                for n, v in m.items():
+                    if v:
+                        peaks[n] = max(peaks[n], v)
+
+    mem_thread = threading.Thread(target=sample_mem, daemon=True)
+    t_start = time.monotonic()
+    try:
+        p = replay_compose(["up", "-d", "--wait", "--wait-timeout", "300", "jaeger", "prometheus", "opensearch"], view)
+        log(f"replay up (jaeger, prometheus, opensearch): exit {p.returncode}")
+        if p.returncode != 0:
+            log(p.stderr[-2000:])
+            return stop("replay up failed")
+        mem_thread.start()
+        if not (wait_http(REPLAY_ENDS["prometheus"] + "/-/ready", 300)
+                and wait_http(REPLAY_ENDS["jaeger"] + "/services", 300)):
+            return stop("replay backends not ready")
+        time.sleep(JAEGER_PUSH_WAIT_S)
+        rec["checks"]["head_before"] = prometheus_head()
+        log(f"prometheus head before replay: {rec['checks']['head_before']}")
+        if rec["checks"]["head_before"].get("numSeries") != 0:
+            return stop(f"prometheus not empty before replay (numSeries {rec['checks']['head_before'].get('numSeries')})")
+        t0 = time.monotonic()
+        p = replay_compose(["up", "-d", "--force-recreate", "otel-collector"], view)
+        log(f"collector up exit {p.returncode}")
+        if p.returncode != 0:
+            log(p.stderr[-2000:])
+            return stop("collector up failed")
+        rec["replayed"] = wait_replayed(totals, log)
+        rec["replay_s"] = round(time.monotonic() - t0)
+        rec["collector_state"] = container_states([f"{REPLAY_PROJECT}-otel-collector-1"])
+        p = subprocess.run(["docker", "logs", f"{REPLAY_PROJECT}-otel-collector-1"], capture_output=True, text=True,
+                           timeout=120)
+        (d / "collector.log").write_text(p.stdout + p.stderr)
+        rec["collector_error_lines"] = sum("\terror\t" in x for x in (p.stdout + p.stderr).splitlines())
+        replay_compose(["stop", "otel-collector"], view)
+        log(f"replayed {({s: rec['replayed'][s] for s in SIGNALS})}; timed out {rec['replayed']['timed_out']}; "
+            f"{rec['replay_s']} s; collector {rec['collector_state']}; error lines {rec['collector_error_lines']}")
+        head = prometheus_head()
+        rec["checks"]["head_after"] = head
+        newest = totals.get("metrics_newest_ms")
+        rec["checks"]["head_max_ok"] = newest is not None and head.get("maxTime", 0) <= newest + 60_000
+        rejects = prometheus_rejects()
+        rec["checks"]["prometheus_rejects"] = rejects
+        rec["checks"]["sample_rejects"] = {k: v for k, v in rejects.items() if k.split("{")[0] in SAMPLE_REJECTS}
+        rec["checks"]["exemplar_rejects"] = rejects.get(EXEMPLAR_REJECTS)
+        log(f"head maxTime {sr.iso(head.get('maxTime', 0) * 10**6)} ok {rec['checks']['head_max_ok']}; "
+            f"sample rejects {rec['checks']['sample_rejects']}; exemplar rejects {rec['checks']['exemplar_rejects']}")
+        ls = LiveStore(case)
+        live_names, file_names = ls.names(), FileStore(case).names()
+        extra = {k: sorted(live_names[k] - file_names[k]) for k in ("spans", "logs", "metrics")}
+        rec["checks"]["own_telemetry_extra"] = extra
+        log(f"live names beyond the file (replay stack's own telemetry): {extra}")
+        # Duman: yalnız canlı sayımlar ve süreler (dosyayla karşılaştırma P2a 4. maddede).
+        sm = rec["smoke"]
+        t1 = time.monotonic()
+        spans = ls.spans(lo, hi)
+        sm["spans"] = {"count": len(spans), "seconds": round(time.monotonic() - t1, 1)}
+        if spans:
+            t1 = time.monotonic()
+            sm["trace"] = {"count": len(ls.trace(spans[0].trace_id)), "seconds": round(time.monotonic() - t1, 1)}
+        t1 = time.monotonic()
+        sm["logs"] = {"count": len(ls.logs(lo, hi)), "seconds": round(time.monotonic() - t1, 1)}
+        for name in sorted({n for n, _, _ in CONTAINER_SERIES.values()}):
+            t1 = time.monotonic()
+            sm[name] = {"count": len(ls.metric_points(name, lo, hi)), "seconds": round(time.monotonic() - t1, 1)}
+        sm["queries"] = dict(ls.queries)
+        log(f"smoke {sm}")
+        save()
+    finally:
+        stop_mem.set()
+        rec["containers"] = container_states(REPLAY_CONTAINERS)
+        rec["mem_peak_mib"] = {n: round(v, 1) for n, v in peaks.items()}
+        if not keep_up:
+            p = replay_compose(["down", "-v"], view)
+            log(f"replay down -v: exit {p.returncode}")
+        sizes1 = volume_sizes()
+        rec["live_volumes_after"] = {n: sizes1.get(n) for n in sr.MONITORING_VOLUMES}
+        rec["replay_volumes_after"] = {n: v for n, v in sizes1.items() if n.startswith(REPLAY_PROJECT + "_")}
+        rec["total_s"] = round(time.monotonic() - t_start)
+        save()
+
+    sm = rec["smoke"]
+    crit = {
+        "prometheus_empty_before": rec["checks"]["head_before"].get("numSeries") == 0,
+        "replayed_equal_no_timeout": not rec["replayed"]["timed_out"] and all(rec["replayed"][s]["equal"]
+                                                                              for s in SIGNALS),
+        "collector_not_restarted": all(v and v["restarts"] == 0 and v["exit_code"] == 0
+                                       for v in rec["collector_state"].values()),
+        "prometheus_sample_rejects_zero": sample_rejects_ok(rec["checks"]["prometheus_rejects"]),
+        "head_max_ok": rec["checks"]["head_max_ok"],
+        "own_telemetry_none": not any(rec["checks"]["own_telemetry_extra"].values()),
+        "no_oom": all(v and not v["oom_killed"] and v["restarts"] == 0 for v in rec["containers"].values()),
+        "live_volumes_unchanged": rec["live_volumes_before"] == rec["live_volumes_after"],
+        "replay_volumes_removed": keep_up or not rec["replay_volumes_after"],
+        "smoke_nonempty": sm["spans"]["count"] > 0 and sm.get("trace", {}).get("count", 0) > 0
+                          and (sm["logs"]["count"] > 0 or totals["logs"] == 0)
+                          and all(sm[n]["count"] > 0 for n in {n for n, _, _ in CONTAINER_SERIES.values()}),
+    }
+    rec["criteria"] = crit
+    rec["valid"] = all(crit.values())
+    save()
+    log(f"criteria {crit}")
+    log(f"{'PASS' if rec['valid'] else 'FAIL'} -> {d}; {rec['total_s']} s; mem peak {rec['mem_peak_mib']}")
+    log_file.close()
+    return 0 if rec["valid"] else 1
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="storage_check.py", description="storage card measurements")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -905,6 +1060,9 @@ def main(argv: list[str]) -> int:
     c.add_argument("--tag", help="write compare_<tag>.json instead of compare.json")
     r = sub.add_parser("replay", help="replay C2 windows into an empty, separate monitoring stack (deploy/replay)")
     r.add_argument("runs", nargs="+", type=Path, help="C2 run folders (run.json, window/filtered/)")
+    rc = sub.add_parser("replay-case", help="replay one pilot/dev snapshot into an empty replay stack (P2a)")
+    rc.add_argument("snapshot", type=Path, help="snapshot folder (model_view)")
+    rc.add_argument("--keep-up", action="store_true", help="leave the replay stack running (no down -v)")
     args = ap.parse_args(argv)
     if args.cmd == "compare":
         if not (args.run / "watch.json").is_file():
@@ -917,6 +1075,16 @@ def main(argv: list[str]) -> int:
         if bad:
             print(f"error: run.json or window/filtered/*.jsonl missing in {bad}", file=sys.stderr)
             return 2
+    if args.cmd == "replay-case":
+        from aiops_rca.cases import load_cases
+        view = args.snapshot.resolve()
+        if not all((view / f).is_file() for f in ("traces.jsonl", "metrics.jsonl", "logs.jsonl", "window.json")):
+            print(f"error: {view} is not a snapshot folder", file=sys.stderr)
+            return 2
+        if view.name not in {c.incident_id for c in load_cases()}:
+            print(f"error: {view.name} is not a valid pilot/dev case (test and heldout are not opened in P2a)",
+                  file=sys.stderr)
+            return 2
     if os.environ.get("SCENARIO_RUNNER_INHIBITED") != "1":
         env = dict(os.environ, SCENARIO_RUNNER_INHIBITED="1")
         cmd = [*sr.GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
@@ -924,6 +1092,8 @@ def main(argv: list[str]) -> int:
         return subprocess.run(cmd, env=env).returncode
     if args.cmd == "replay":
         return replay([r.resolve() for r in args.runs])
+    if args.cmd == "replay-case":
+        return replay_case(args.snapshot.resolve(), args.keep_up)
     return watch(args.minutes, args.keep_up)
 
 
