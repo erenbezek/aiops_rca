@@ -4606,3 +4606,31 @@ Data:
 - **pytest:** 642 geçti.
 - **Notlar (4. maddeye):** 43 vaka × ~2–3 dk oynatma + karşılaştırma çağrıları; Jaeger belleği en büyük vakada sınırın ~%82'si (MiB / MB farkıyla). Exemplar reddi her vakada kayda girer.
 - **Onay bekleyen adlar:** `jaeger_raw_slice`, `parse_time_ns`, `LOG_SOURCE`, `PAGE_SIZE` (`store_live.py`; `SLICE_NS`, `SEARCH_DEPTH`, `REPLAY_ENDS`, `http`, `rfc3339` eski adlar, taşındı); `SAMPLE_REJECTS`, `EXEMPLAR_REJECTS`, `sample_rejects_ok` (`storage_check.py`); testte `FakeBackends`, `storage_check_dataset`, `STORAGE_CHECK_EXPECTED`; `replay_case.json` kayıt alanları (`sample_rejects`, `exemplar_rejects`, `own_telemetry_extra`, `smoke`).
+
+## 2026-11-10 · Planlama → Uygulama (P2a 3. madde kontrolü: canlı okuyucu, storage_check, replay-case)
+- **Sonuç: 3. madde geçti.** Kalan iki iş: adların onayı + GLOSSARY, bellek oranının düzeltmesi. 4. maddeden önce iki planlama notu var (aşağıda).
+- **Nasıl kontrol edildi:** scratch klon `0c75587` (`aiops_rca.__file__` klonu gösteriyor). İçerik yalnız duman vakasında (`inc-2dd806a2`, pilot) okundu; pilot + dev'de yalnız dosya boyutlarına bakıldı. Test ve heldout açılmadı. Kendi yeniden oynatmamı koşmadım: canlı tarafı kendi sorgumla hesaplamak 4. maddenin kontrolünde.
+- **Ölçüt değişikliği:**
+  - Eren'in kararı (seçenek A) `567f575` / `7cc9fd6`'da 23:07–23:08'de commit'li; geçen koşu (`20261110T2008Z`) ~23:09'da başlamış → yeniden koşudan önce. "Sonuç görüldükten sonra" açıkça yazılı.
+  - İlk koşunun (`2003Z`) kaydı nedenle tutuyor: örnek reddeden üç sayaç 0; ötekiler OOO yazma günlüğü istatistikleri, `NaN` süre dağılımları ve exemplar (5).
+  - Aynı karar DECISIONS'ta iki satır (211, 212; iki commit), içerik aynı. Sona ekleme kuralı yüzünden silinmez; ikisi tek karar sayılır.
+- **pytest:** 642 geçti.
+- **`storage_check` çıktısı:** eski kodu (`b4878eb`'deki `tools/` ayrı klasöre çıkarıldı) ve yeni kodu testin sahte arka uçlarında (`storage_check_dataset`) kendim koşturdum: eski = yeni = `STORAGE_CHECK_EXPECTED`. Tek davranış farkı hata yolunda: Jaeger 1 sn'lik dilimde de derinliğe takılırsa eskiden `SystemExit` (mesaj, çıkış 1), şimdi `RuntimeError` (traceback). Normal çıktıyı etkilemiyor. Ya kayıttaki "davranış aynı" ifadesi buna göre düzeltilsin ya da `storage_check` eski davranışı korusun (küçük; uygulamanın seçimi).
+- **`store_live.py` okuması:** sorun görmedim.
+  - Prometheus v3'ün sol-açık aralığı "sonu − 1 ms" ile `[başı, sonu)` ms'ye denk.
+  - Log ve metrik aralık uçları ms'ye yukarı yuvarlanıyor; dosyadaki ms'ye indirme kuralıyla aynı küme.
+  - Örtüşen Jaeger dilimlerinin tekrarları (iz, span) kimliğiyle ayıklanıyor; servis adı olmayan resource dosyadaki gibi düşüyor.
+  - OpenSearch'te tam sayım (`track_total_hits`), `PAGE_SIZE`'ı aşınca bölme ve dönen = toplam denetimi var.
+- **Duman kayıtları** (dört koşu kayıtla tutarlı: `2003Z` FAIL, `2008Z` PASS, `2011Z` `--keep-up` PASS, `2013Z` boş hedef koruması durdurdu):
+  - Canlı sayımlar dosyada pencere içindeki sayılarla birebir: span 160.780 (dosya 161.119; 339'u pencere dışında başlıyor), log 49.056 (49.127; 71'i dışarıda), dört metrikte 3.657'şer nokta. Gönderilen = dosya (161.119 / 133.404 / 49.127).
+  - Korumalar kayıtta: şarj sınırı 80, iki kilit. Test vakasının reddi: üyelik denetimi yalnız dosyaların var olup olmadığına bakıyor, içerik okunmuyor.
+- **Düzeltme (bellek):** compose `2000M`'yi 2000 MiB okuyor (`docker compose config`: 2.097.152.000 bayt). Jaeger tepesi `2003Z` 1.622 MiB (%81), `2008Z` 1.563,6 MiB (%78), `2011Z` 1.695,7 MiB (%85). Kayıttaki "~%82 (MiB / MB farkıyla)" yanlış paydayla bulunmuş; en yüksek değer (`2011Z`, 1.695,7 MiB) kayda girmemiş.
+- **4. madde için planlama notları (ölçmeden önce):**
+  1. **Bellek payı:**
+     - Duman vakası iz boyutunda en büyüğü değil: pilot + dev'de 8 vakanın `traces.jsonl`'i daha büyük (2 pilot, 6 dev); en büyüğü dev'de 191,5 MB (duman vakası 180,8 MB; +%6).
+     - Aynı vakada üç koşunun tepeleri 1.564–1.696 MiB arasında (~%8 oynama).
+     - Replay Jaeger'inde `GOMEMLIMIT` yok (canlı katmanda var); `restart: unless-stopped`, yani OOM "yeniden başlama 0" şartına takılır.
+     - Öneri: 4. maddenin "tek pilot vakada süre" ölçümü iz boyutu en büyük pilot vakada yapılsın (188,7 MB), tepe kayda girsin. OOM ya da yeniden başlama olursa ne yapılacağı ölçmeden önce yazılsın: ör. aynı vakayı bir kez yeniden oynatmak. Jaeger ayarını değiştirmek (`GOMEMLIMIT` ya da sınır) Eren kararı.
+  2. **Exemplar reddi** her vakada kayda giriyor; 4. maddenin raporunda vaka başına sayısı ve sınırlamalar satırı.
+- **Adlar:** uygulamanın listesi (`jaeger_raw_slice`, `parse_time_ns`, `LOG_SOURCE`, `PAGE_SIZE`, `SAMPLE_REJECTS`, `EXEMPLAR_REJECTS`, `sample_rejects_ok`, `FakeBackends`, `storage_check_dataset`, `STORAGE_CHECK_EXPECTED`, `replay_case.json` alanları) koddaki yeni genel adlarla aynı. Ek: `replay_case` / `replay-case` onaylı ama GLOSSARY'de yok; aynı commit'te girsin.
+- **Sonraki:** Eren adları onaylar → GLOSSARY; bellek düzeltmesi yeni kayıtta. Sonra 4. madde planı: çağrı listesi ve eşitlik tanımı ölçmeden önce, OOM kuralı dahil.
