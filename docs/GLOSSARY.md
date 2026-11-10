@@ -302,3 +302,13 @@ Sadece Eren'in onayladığı isimler.
 | `search_logs` | Sorgu: süzgeçli log arama (servis, en düşük önem numarası, tam mesajda metin, aralık, adet sınırı); zaman sırasıyla |
 | `service_dependencies` | Sorgu: aralıkta çağıran → çağrılan kenarları, çağrı ve hata sayısıyla |
 | `tools/query_compare.py` | P2a karşılaştırma betiği: vaka başına yeniden oynatma ve aynı çağrıların dosya ↔ canlı karşılaştırması (LLM'siz) |
+| `Store` | Okuyucu arayüzü (`query.py`): `window`, `names`, `spans`, `trace`, `logs`, `metric_points`; `FileStore` ve `LiveStore` uyar |
+| `Span`, `LogRecord`, `MetricPoint` | Depolamadan bağımsız ham kayıt türleri (`query.py`); log ve metrik zamanı ms'ye indirilmiş |
+| `otlp_value`, `span_from_otlp`, `log_from_otlp` | OTLP JSON → Python değeri / ham kayıt; dosya ve Jaeger ortak kullanır (enum'lar sayı ya da dizgi) |
+| `to_ms_ns`, `read_window` | Zamanı ms'ye indirir (yine ns) / `window.json`'dan snapshot penceresi `[start, end)` ns |
+| `span_summary` | Span'in sorgu çıktısındaki sözlüğü (`trace_id`, `span_id`, `parent_span_id`, `service`, `operation`, `kind`, `start_ns`, `duration_ms`, `status`, `status_code`, `peer`, `error_text`) |
+| `CONTAINER_SERIES`, `SPAN_SERIES`, `SERIES` | `metric_series`'in metrikleri: konteyner metriklerinden (OTel adı, hesap, ölçek) / gelen span'lerden / ikisi birlikte |
+| `EXCLUDED` | `TOOLING_CONTAINERS` ∪ `ROUTINE_SERVICES`; altı sorguda dışlanır, sorulursa hata |
+| `STATUS_CODE_KEYS`, `PEER_KEY`, `SPAN_STATUS` | Span özetinde durum kodu anahtarları (sırayla ilk bulunan) / karşı taraf (`server.address`) / durum adı → kod (`unset` 0, `ok` 1, `error` 2) |
+| `SupersetStore`, `CPU_REL_TOL` | Yalnız testte (`test_query.py`): süzgeç kullanmayan okuyucu / `cpu_pct` P1 eşitliğinde göreli tolerans 1e-4 |
+| `start_ns`, `end_ns`, `duration_ms`, `points`, `caller`, `callee`, `calls`, `errors`, `operation`, `kind` | Sorgu çıktı alanları: kırpılmış aralık / span süresi ms / `[kova başı, değer]` listesi / bağımlılık kenarı ve sayıları / span adı ve türü (OTLP sayısı) |
