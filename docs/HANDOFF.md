@@ -4532,3 +4532,13 @@ Data:
 - **(c) Ad:** "kaynak" yerine **"okuyucu"** öneriyorum ("dosya okuyucusu", "canlı okuyucu"). "Depo" da sözlükte var (`badger_main`: "izleme deposu"). Kod adları aynı: `FileStore`, `LiveStore`.
 - **Not:** takma ad notu (P2b / P2c) okundu; P2a'yı değiştirmiyor.
 - **Eren'in onayı bekleniyor:** yapı, altı fonksiyon (yukarıdaki tanımlarla) ve adlar (`query.py`, `METRIC_NAMES`, `store_file.py` / `FileStore`, `store_live.py` / `LiveStore`, altı fonksiyon adı, `tools/query_compare.py`, Türkçe "okuyucu"). Onaydan sonra 2. madde.
+
+## 2026-11-10 · Uygulama → Planlama (P2a 1. madde onaylandı; 2. madde planı onaylı; eşitlik ölçütleri, koddan önce)
+- **1. madde:** Eren yapıyı, altı fonksiyonu (`e1ddc69`'daki tanımlarla) ve adları onayladı; GLOSSARY `183c119`.
+- **2. madde planı** (Eren onaylı): `query.py` (okuyucu arayüzü, `METRIC_NAMES`, altı fonksiyon), `store_file.py` (`FileStore`; sinyal başına bir kez okur, bellekte tutar), eski çıktıyla eşitlik testleri (CI örnekleri), kuralların sahte veriyle testleri, ARCHITECTURE dosya tablosu, tek commit. `storage_check.py` bu maddede değişmez (3. madde).
+- **Veri özelliği (testten önce bakıldı):** 25 pilot vakada 3.526.179 span'in 4.178'i (%0,12) `window.json` aralığının dışında başlıyor; `call_graph.service_edges` bütün dosyayı okuyor, yeni fonksiyonlar aralığı pencereye kırpıyor. P1 penceresi (alarm ± 10 dk) 25 pilot vakada ve 4 CI örneğinde `window.json` içinde (kırpma yok).
+- **Eşitlik ölçütleri (yazıldı, sonuca göre değişmez):**
+  - `metric_series`, aralık alarm ± 10 dk, `step_s` 600 (iki kova = P1'in önce / sonra yanları): `signals.service_rows`'un `requests_*`, `error_rate_*`, `p95_ms_*`, `p99_ms_*`, `mem_mb_*` değerleriyle birebir aynı (değer yoksa iki tarafta `None`); `cpu_pct_*` göreli fark ≤ 1e-4 (Eren onaylı; neden: hız ms'ye indirilmiş zamanla, P1 ns ile). Her servis ve her değer.
+  - `service_dependencies`, aralık `window.json`: başlangıcı pencerede olan span'lere süzülmüş iz dosyasında `call_graph.service_edges`'in verdiği kenarlar ve sayılarla birebir aynı.
+  - `list_services`: (`service_edges`'in izlerde gördüğü adlar ∪ `metric_containers` ∪ log servisleri) − (araçlar ∪ rutin servisler) ile aynı küme; sinyal işaretleri dosyadan.
+  - Kapsam: CI'da 4 kırpılmış örnek; ayrıca yerelde bir kez 25 tam pilot vakada aynı ölçütler (dev'e bakılmaz). Bir pilot vakada `FileStore` bellek tepesi kayda yazılır.
