@@ -88,3 +88,13 @@ def test_first_diff():
     assert qc.first_diff([1, 2], [1, 2, 3]) == ": length 2 != 3"
     assert qc.first_diff({"a": 1}, {"b": 1}) == ".a: 1 != missing"
     assert qc.first_diff(1.0, 1) == ".: 1.0 != 1"
+
+
+def test_diff_paths_and_changed_fields():
+    a = {"spans": [{"d": 0.0, "x": 1}, {"d": 2.0, "x": 1}], "total": 2}
+    b = {"spans": [{"d": 1e-06, "x": 1}, {"d": 2.0, "x": 3}], "total": 2}
+    assert qc.diff_paths(a, b) == {".spans[].d": 1, ".spans[].x": 1}
+    assert qc.diff_paths([1], [1, 2]) == {" (length)": 1}
+    r = qc._multiset_diff([("t", "s", 10, 10), ("t", "u", 5, 6)], [("t", "s", 10, 11), ("t", "u", 5, 6)],
+                          key=lambda t: (t[0], t[1]), fields=("trace", "span", "start", "end"))
+    assert (r["only_file"], r["only_live"], r["changed_ids"], r["changed_fields"]) == (1, 1, 1, {"end +1": 1})

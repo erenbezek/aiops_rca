@@ -891,13 +891,14 @@ def replay(runs: list[Path]) -> int:
     return 0 if rec["valid"] else 1
 
 
-def replay_case(view: Path, keep_up: bool) -> int:
+def replay_case(view: Path, keep_up: bool, result: dict | None = None) -> int:
+    """`result` verilirse kayıt klasörü (`dir`) ve kayıt (`rec`) oraya yazılır (`tools/query_compare.py`)."""
     from aiops_rca.cases import Case
     from aiops_rca.query import CONTAINER_SERIES, read_window
     from aiops_rca.store_file import FileStore
     from aiops_rca.store_live import LiveStore
 
-    d = OUT / (time.strftime("%Y%m%dT%H%MZ", time.gmtime()) + f"-replay-case-{view.name}")
+    d = OUT / (time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + f"-replay-case-{view.name}")  # sn: aynı dakikada ikinci deneme
     d.mkdir(parents=True)
     log_file = (d / "replay_case.log").open("a")
 
@@ -910,6 +911,8 @@ def replay_case(view: Path, keep_up: bool) -> int:
     rec = {"case": view.name, "view": str(view), "keep_up": keep_up, "guards_before": sr.guards(), "problems": [],
            "checks": {}, "smoke": {}, "valid": False}
     save = lambda: (d / "replay_case.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n")  # noqa: E731
+    if result is not None:
+        result.update(dir=d, rec=rec)
 
     def stop(msg: str) -> int:
         rec["problems"].append(msg)
