@@ -290,3 +290,15 @@ Sadece Eren'in onayladığı isimler.
 | `note` | Hata analizi etiket satırında isteğe bağlı tek satır gözlem (sayılmaz) |
 | `name_key` | Ad karşılaştırma anahtarı (hata analizi özeti): küçük harf, son nokta parçası, `/` öncesi, sondaki `service` atılır, yalnız harfler; gRPC adıyla geçen kökü saymak için, puanlamayı değiştirmez |
 | `eren_check` | Etiket dosyasında örneklem satırına Eren doğrulaması: `{"agree": true/false, "T1", "T5", "T6": yes/no, "note": isteğe bağlı}` (`agree` = Eren'in T1 / T5 / T6'sı etiketle aynı); 10 satırın ≥ 3'ünde katılmıyorum → yeniden etiketleme |
+| `aiops_rca.query` (`query.py`) | P2a sorgu katmanı: altı sorgu fonksiyonu ve ortak hesap; depolamadan bağımsız, bir okuyucu alır (DECISIONS 2026-11-09 "aynı tanım") |
+| okuyucu (store) | Sorgu fonksiyonlarına ham kayıt (span, log, metrik noktası, iz) veren nesne; süzgeci üst küme dönebilir, ortak kod bütün süzgeçleri yeniden uygular |
+| `FileStore` (`store_file.py`) | Dosya okuyucusu: vakanın `model_view` snapshot'ından ham kayıt |
+| `LiveStore` (`store_live.py`) | Canlı okuyucu: yeniden oynatma yığınındaki Jaeger v3, OpenSearch ve Prometheus'tan ham kayıt |
+| `METRIC_NAMES` | Tek ad tablosu (`query.py`): OTel metrik adı → (OTLP türü, Prometheus adı); `storage_check.METRICS` bundan türetilir |
+| `list_services` | Sorgu: vakadaki servisler (izlerdeki `service.name` ∪ metriklerdeki `container.name`, araçlar ve rutin servisler hariç) ve her birinde hangi sinyal var |
+| `metric_series` | Sorgu: servis × metrik × aralık kovalı seri (`cpu_pct`, `mem_mb`, `net_rx_bytes_per_s`, `net_tx_bytes_per_s`, `requests`, `errors`, `error_rate`, `p95_ms`, `p99_ms`) |
+| `search_spans` | Sorgu: süzgeçli span arama (servis, işlem, durum, en kısa süre, aralık, adet sınırı); başlangıç sırasıyla, `total` ve `truncated` ile |
+| `get_trace` | Sorgu: bir izin snapshot'taki bütün span'leri, span özeti alanlarıyla |
+| `search_logs` | Sorgu: süzgeçli log arama (servis, en düşük önem numarası, tam mesajda metin, aralık, adet sınırı); zaman sırasıyla |
+| `service_dependencies` | Sorgu: aralıkta çağıran → çağrılan kenarları, çağrı ve hata sayısıyla |
+| `tools/query_compare.py` | P2a karşılaştırma betiği: vaka başına yeniden oynatma ve aynı çağrıların dosya ↔ canlı karşılaştırması (LLM'siz) |
