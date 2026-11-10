@@ -4542,3 +4542,16 @@ Data:
   - `service_dependencies`, aralık `window.json`: başlangıcı pencerede olan span'lere süzülmüş iz dosyasında `call_graph.service_edges`'in verdiği kenarlar ve sayılarla birebir aynı.
   - `list_services`: (`service_edges`'in izlerde gördüğü adlar ∪ `metric_containers` ∪ log servisleri) − (araçlar ∪ rutin servisler) ile aynı küme; sinyal işaretleri dosyadan.
   - Kapsam: CI'da 4 kırpılmış örnek; ayrıca yerelde bir kez 25 tam pilot vakada aynı ölçütler (dev'e bakılmaz). Bir pilot vakada `FileStore` bellek tepesi kayda yazılır.
+
+## 2026-11-10 · Uygulama → Planlama (P2a 2. madde: sorgu katmanı ve dosya okuyucusu; doğrulama isteği)
+- **Yapılan:** `src/aiops_rca/query.py` (okuyucu arayüzü `Store`, ham kayıtlar `Span` / `LogRecord` / `MetricPoint`, OTLP JSON → ham kayıt, `METRIC_NAMES` 6 satır, altı fonksiyon onaylı tanımlarla); `src/aiops_rca/store_file.py` (`FileStore`); `tests/test_query.py` (24 test); ARCHITECTURE dosya tablosu (3 satır). `storage_check.py` değişmedi; `METRIC_NAMES` ↔ `storage_check.METRICS` tutarlılığı testte.
+- **Eşitlik ölçütleri** (`8ea5c43`, koddan önce):
+  - CI'da 4 örnek: üç eşitlik testi geçti. `cpu_pct` 130 değerde en büyük göreli fark 4,2e-6 (sınır 1e-4); birebir eşit 0 (beklenen: ms'ye indirme).
+  - Yerelde 25 tam pilot vaka, bir kez (betik scratchpad'de, sha256 `2858cfe3aadcdb24…`): 4.824 değer, fark 0; `cpu_pct` en büyük göreli fark 1,5e-5; `service_dependencies` 452 kenar, 25/25 aynı; `list_services` 25/25 aynı. Kırpma 0. Süre 350 sn. Dev'e bakılmadı.
+  - Yalnız logda görülen servis 25 pilot vakada 0 → `list_services`'te log servislerinin birleşime girmesi (ölçütte yazılıydı, öneride yalnız işaret olarak) sonucu değiştirmiyor. Belge metni buna göre.
+- **Bellek** (`FileStore` üç sinyali yüklü + birkaç sorgu): en büyük pilot vaka `inc-2dd806a2` (snapshot 290,9 MB; 161.119 span, 49.127 log) tepe ~217 MB, yükleme 4,2 sn, sorgular 0,4 sn; ortanca boyutta `inc-2a87f603` (240,4 MB) ~179 MB.
+- **Ek test (öneride yoktu):** planlamanın ek kuralı için süzgeç kullanmayan okuyucu (`SupersetStore`): bütün fonksiyonlar aynı sonucu veriyor.
+- **Kasıtlı kırmızı** (scratch klon, `PYTHONPATH` klonu gösteriyor; betik sha256 `241a1fc0394bd218…`): 10 bozmanın 10'u kırmızı (hız ilk noktanın kovasına, ms'ye indirme yok, ortak kodda zaman süzgeci yok, durum kodu sırası ters, önem 0 süzgeçten geçer, boş kovada `error_rate` 0, aynı servis kenarı, bellek böleni, `list_services`'te metrik konteynerleri yok, rutin servisler dışlanmaz); geri alınınca 24/24.
+- **pytest:** 632 geçti (önceki 608 + 24).
+- **Notlar (3. maddeye):** OTLP enum'ları (span türü, durum kodu) sayı ya da `SPAN_KIND_*` / `STATUS_CODE_*` dizgisi olarak okunuyor (Jaeger'in JSON'u dizgi verebilir; testte). Hata metni ve olaylar Jaeger'den dönüyor mu, 4. maddede.
+- **Sıradaki:** Eren onayıyla 3. madde planı (canlı okuyucu, yeniden oynatma).

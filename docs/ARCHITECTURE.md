@@ -110,6 +110,8 @@ flowchart LR
 | `src/aiops_rca/cases.py` | Vaka erişimi: `load_cases()` (yönteme yalnız `incident_id`, `view`, `alarm_ns`), `load_labels()` (puanlama için); `test` yalnız `final_test`, `heldout` hiç |
 | `src/aiops_rca/answer.py` | Cevap şeması ve doğrulayıcı (tam 3 aday, güven, kanıt yolu, gerekçe, `unsure`) |
 | `src/aiops_rca/call_graph.py` | Snapshot izlerinden servisler arası çağrı kenarları |
+| `src/aiops_rca/query.py` | P2a sorgu katmanı: altı sorgu fonksiyonu (`list_services`, `metric_series`, `search_spans`, `get_trace`, `search_logs`, `service_dependencies`), ortak hesap, okuyucu arayüzü (`Store`), ad tablosu `METRIC_NAMES`; depolamadan bağımsız |
+| `src/aiops_rca/store_file.py` | Dosya okuyucusu `FileStore`: vakanın `model_view` snapshot'ından ham kayıt (sinyal başına bir kez okur, bellekte tutar) |
 | `src/aiops_rca/scoring.py` | Puanlama: ad eşleme (takma adlı koşuda önce gerçek ada çeviri), top-1/top-3, kanıt geçerliliği, etiket yoluyla örtüşme, Brier, seçici doğruluk, kapsama, sorulmayan girdi (boş, bütçe aşımı), cevapsız satır, set özeti |
 | `src/aiops_rca/methods/rule.py` | Kural baseline (`rule_baseline`): `signals.rule_check` ilk 3'ü şemadaki cevaba |
 | `src/aiops_rca/methods/baro.py` | BARO baseline: `baro_table` (10 sn ızgara, konteyner ve iz sütunları), `baro_rank` (RCAEval 1.9.0 `main.py` ön adımları + `baro`, saf Python), `baro_baseline` (CLI `--method baro`) |
@@ -135,6 +137,7 @@ flowchart LR
 | `tests/test_llm_method.py` | LLM yöntemi uçtan uca, sahte llama-server ile: onaylı istemin sha'sı, mesaj yapısı, kayıt ve ayar alanları, boş ve bütçeyi aşan girdi sorulmaz, `length` şema dışı, takma adlı girdi ve puanlamada çeviri, API'de yerel sayım ve Groq aralığı, GGUF uyuşmazlığı, CLI seçenekleri, `--cases` |
 | `tests/test_inputs.py`, `tests/fixtures/summary_expected.json`, `tests/fixtures/narrowed_expected.json` | Girdi seviyeleri birim testleri (sahte tokenizer): ham satır biçimi, pencere, seçim, sıra, kesme, boş girdi; daraltma biçimi / CI örneklerinde eski `trial_summary.build`'in özet metinleri (taşınan kod aynısını üretmeli) / CI örneklerinde daraltma girdisinin beklenen metni |
 | `tests/test_narrowing.py`, `tests/fixtures/narrowing_expected.json` | Daraltma birim testleri (puan, öne alma, gruplar, K, dışlamalar, puanı 0 olanlarda güç sırası) / CI örneklerinde beklenen daraltma çıktısı |
+| `tests/test_query.py` | Sorgu katmanı: CI örneklerinde P1 ölçüleriyle eşitlik (`signals.service_rows`, `call_graph.service_edges`, ad kümeleri), kurallar sahte veriyle, üst küme dönen okuyucuda aynı sonuç |
 | `tests/test_alias.py`, `tests/fixtures/alias_summary_expected.json` | Takma ad birim testleri: betiğin paket kurallarını kullanması, eşlemenin GLOSSARY ile aynılığı, CI örneklerinde üç seviye (yalnız adlar değişir, gerçek ad kalmaz), ham satır sırası ve kesmeden önce çevirme, sondan eksiltme, bozuk kopyaların yakalanması / CI örneklerinde eski `trial_alias`'ın (+ onaylı iki ad) takma adlı özet metinleri |
 | `tests/fixtures/snapshots/` | CI örnekleri: 4 pilot vakanın kırpılmış görünümü (≤ 5 MB; üretici repo dışı `p1a_fixtures.py`) |
 | `tests/fixtures/rule_expected.json`, `tests/test_rule_fixtures.py` | Örneklerde kural baseline'ın beklenen çıktısı ve sinyal güçleri; CI aynısını üretir |
