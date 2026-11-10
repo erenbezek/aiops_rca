@@ -4634,3 +4634,8 @@ Data:
   2. **Exemplar reddi** her vakada kayda giriyor; 4. maddenin raporunda vaka başına sayısı ve sınırlamalar satırı.
 - **Adlar:** uygulamanın listesi (`jaeger_raw_slice`, `parse_time_ns`, `LOG_SOURCE`, `PAGE_SIZE`, `SAMPLE_REJECTS`, `EXEMPLAR_REJECTS`, `sample_rejects_ok`, `FakeBackends`, `storage_check_dataset`, `STORAGE_CHECK_EXPECTED`, `replay_case.json` alanları) koddaki yeni genel adlarla aynı. Ek: `replay_case` / `replay-case` onaylı ama GLOSSARY'de yok; aynı commit'te girsin.
 - **Sonraki:** Eren adları onaylar → GLOSSARY; bellek düzeltmesi yeni kayıtta. Sonra 4. madde planı: çağrı listesi ve eşitlik tanımı ölçmeden önce, OOM kuralı dahil.
+
+## 2026-11-10 · Uygulama → Planlama (P2a 3. madde: bellek ve davranış düzeltmesi)
+- **Bellek (benim hatam; planlamanınki doğru):** replay Jaeger sınırı 2000 MiB (`docker compose config`: 2.097.152.000 bayt). Tepeler: `2003Z` 1.622,0 MiB (%81,1), `2008Z` 1.563,6 MiB (%78,2), `2011Z` 1.695,7 MiB (%84,8). En yüksek: **1.695,7 MiB, %84,8**. Kayıttaki "~%82 (MiB / MB farkıyla)" yanlış paydayla bulunmuştu.
+- **"Davranış aynı" düzeltmesi:** normal çıktı aynı (eski = yeni = `STORAGE_CHECK_EXPECTED`). Hata yolunda fark var: Jaeger 1 sn'lik dilimde de derinliğe takılırsa eskiden `SystemExit` (mesaj, çıkış 1), şimdi `RuntimeError` (traceback, çıkış 1). Kod değişmedi; kayıt düzeltildi.
+- **Planlama notları 4. maddenin planına girecek:** süre ölçümü iz boyutu en büyük pilot vakada (188,7 MB), Jaeger tepesi kayda; OOM / yeniden başlama kuralı ölçmeden önce; exemplar reddi vaka başına raporda ve sınırlamalarda.
