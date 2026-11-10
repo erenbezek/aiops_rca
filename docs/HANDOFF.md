@@ -4555,3 +4555,20 @@ Data:
 - **pytest:** 632 geçti (önceki 608 + 24).
 - **Notlar (3. maddeye):** OTLP enum'ları (span türü, durum kodu) sayı ya da `SPAN_KIND_*` / `STATUS_CODE_*` dizgisi olarak okunuyor (Jaeger'in JSON'u dizgi verebilir; testte). Hata metni ve olaylar Jaeger'den dönüyor mu, 4. maddede.
 - **Sıradaki:** Eren onayıyla 3. madde planı (canlı okuyucu, yeniden oynatma).
+
+## 2026-11-10 · Planlama → Uygulama (P2a 2. madde kontrolü: sorgu katmanı ve dosya okuyucusu)
+- **Sonuç: 2. madde geçti.** Kalan iki iş: yeni adların onayı ve kayıttaki iki sayının düzeltilmesi (aşağıda). Sonra 3. madde.
+- **Nasıl kontrol edildi:** scratch klon `d1879fd` (`aiops_rca.__file__` klonu gösteriyor). Sorgu karşılaştırması yalnız 25 pilot vakada. Dev vakaları yalnız 1. maddedeki pilot + dev sayılarını yeniden saymak için okundu, sorgu yapılmadı. Test ve heldout açılmadı. Betikler repo dışında.
+- **Sıra ve kapsam:** ölçütler (`8ea5c43`, 22:28) koddan (`d1879fd`, 22:40) önce. Paket, CI ve `storage_check.py` değişmemiş. pytest 632 geçti.
+- **Kod okuması:** `query.py` ve `store_file.py` `e1ddc69`'daki onaylı tanımlarla aynı. Hız ikinci noktanın kovasında; metrik ve log zamanı ms'ye indiriliyor; ortak kod süzgeçleri yeniden uyguluyor; dışlamalar altı fonksiyonda da var; `get_trace` pencereye kırpılmıyor (tanımdaki gibi).
+- **Bağımsız yeniden hesap:** altı fonksiyonu onaylı tanımlardan kendi kodumla yazdım; ham JSON'u kendim okudum, `query.py`'yi kullanmadım. 25 pilot vakada 11.995 çağrıda fark 0:
+  - `metric_series`: 11.529 çağrı (her servis × 9 seri × üç aralık: alarm ± 10 dk 60 sn ve 600 sn kova, pencerenin tamamı 60 sn kova), 180.945 değer, hepsi birebir (en büyük göreli fark 0).
+  - `search_spans`: sınırsız 100 çağrı (vaka başına dört süzgeç: pencerede hata; en yoğun servis + ≥ 50 ms; 1 dk dilim; durum ok) ve aynıları `limit=20` ile 100 çağrı (`total`, `truncated` doğru).
+  - `get_trace`: 66 çağrı, vaka başına hata span'i olan ilk en çok 5 iz. `search_logs`: 100 çağrı (önem ≥ 13; metin "ERROR"; `frontend-proxy` 1 dk; önem ≥ 9 + "fail"). `service_dependencies`: 75 çağrı (pencere, alarm ± 10 dk, alarmdan önceki 10 dk), çağrı ve hata sayılarıyla. `list_services`: 25.
+  - P1 eşitliği (uygulamanın ölçütü) yeniden üretildi: P1 satırında bulunan 4.424 değerde fark 0, `cpu_pct` en büyük göreli fark 1,52e-5. Kayıttaki 4.824 büyük olasılıkla iki tarafta da `None` olan çiftleri de sayıyor; sayım tabanı kayıtta yazılsın.
+- **Kayıttaki sayılar:**
+  - Tutanlar: pilot + dev 6.247.764 span, 17.874 hata span'i; başlangıçta ms altı 3.811.912, µs altı 1.709.318; dört metrikte 576.406 nokta, aynı anahtarda ikinci nokta 0; öznitelik yedeğine düşen log 0. Pilotta pencere dışında başlayan span 4.178; pencerede 452 kenar.
+  - Tutmayanlar: (1) pilot span toplamı 3.516.809, kayıttaki 3.526.179 değil. `service.name`'i olmayan span de yok, fark ondan gelmiyor. Oran %0,12 aynı kalıyor. (2) Hata metni olmayan hata span'i 13.773, kayıttaki 13.814 değil. Fark 41, `Error` olayının sayısına eşit: kayıttaki sayım büyük olasılıkla yalnız `exception` olaylarına bakmış. Kod onaylı tanımdaki gibi bütün olaylara bakıyor.
+- **Onay bekleyen adlar** (kodda var, onaylı listede ve GLOSSARY'de yok): `Store`, `Span`, `LogRecord`, `MetricPoint`, `CONTAINER_SERIES`, `SPAN_SERIES`, `SERIES`, `STATUS_CODE_KEYS`, `PEER_KEY`, `SPAN_STATUS`, `EXCLUDED`, `otlp_value`, `span_from_otlp`, `log_from_otlp`, `to_ms_ns`, `read_window`, `span_summary`; testte `SupersetStore`, `CPU_REL_TOL`. Çıktı alan adları da aynı listeye (ör. `operation`, `kind`, `start_ns`, `duration_ms`, `points`, `caller` / `callee` / `calls` / `errors`); modele giden biçim P2b'de. Eren onaylarsa GLOSSARY'ye; değişiklik isterse sonraki commit'te yeniden adlandırılır.
+- **Yeniden koşmadığım:** kasıtlı kırmızı (betik uygulamanın scratchpad'inde) ve `FileStore` bellek ölçümü (karar değiştirmiyor).
+- **Sonraki:** uygulama adları Eren'e önerir ve iki sayıyı düzeltir (yeni kayıtta). Ardından 3. madde planı (canlı okuyucu, yeniden oynatma).
