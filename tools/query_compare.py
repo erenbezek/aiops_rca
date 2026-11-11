@@ -370,9 +370,9 @@ def run(cases: list[Case], out: Path) -> int:
 # Jaeger'in okurken yaptığı dönüşümler (DECISIONS 2026-11-11): ad → açıklama.
 JAEGER_TRANSFORMS = {
     "zero_duration": "Jaeger süresi 0 olan span'i bitiş + 1 ns ile döndürüyor (depolama; duration_ms 0 ↔ 1e-06)",
-    "error_tag": "Jaeger error=\"true\" etiketini hata durumuna çeviriyor (depolama); Envoy yanıtsız isteklerde "
-                 "(http.status_code 0) yalnız bu etiketi koyuyor, P1 / P2 hata tanımı (OTLP durumu) bunları hata "
-                 "saymıyor (tanım)",
+    "error_tag": "Jaeger error=\"true\" etiketini hata durumuna çeviriyor (depolama); canlı okuyucu bunu geri alıyor "
+                 "(store_live.undo_jaeger_error_tag, DECISIONS 2026-11-12), bu tür artık beklenmiyor (tanı olarak "
+                 "sınanır)",
 }
 
 
@@ -517,7 +517,19 @@ def render_report(rep: dict) -> str:
         L += [f"- {k}: {v}" for k, v in t["raw_changes"].items()] or ["- yok"]
     L += ["", "## Fark türlerinin açıklaması", ""]
     L += [f"- `{k}`: {v}." for k, v in rep["transforms"].items()]
-    L += ["", "## Vakalar", "", "| Vaka | Set | Deneme | Eşit | Farklı | Türler | Exemplar | Jaeger MiB (oynatma / karş.) |",
+    L += ["", "## Sınırlamalar", "",
+          "- Jaeger süresi 0 olan span'i bitiş + 1 ns ile döndürüyor; geri çevrilmez (gerçekten 1 ns süren span "
+          "canlıda aynı görünür). Bu çağrılar farklı sayılır (DECISIONS 2026-11-11).",
+          "- Jaeger error=\"true\" etiketini hata durumuna çeviriyor; canlı okuyucu geri alıyor. Kural Jaeger'in "
+          "bugünkü davranışına (belirtilmemiş + etiket → hata, etiket kalır; hata + etiket → etiket silinir) bağlı "
+          "(DECISIONS 2026-11-12).",
+          "- Hata tanımı (OTLP durumu; P1 ile aynı) Envoy'un yanıtsız isteklerini (http.status_code 0, yalnız "
+          "error=\"true\" etiketi) hata saymıyor; dosyada da canlıda da (DECISIONS 2026-11-12).",
+          "- Exemplar reddi her vakada var ve koşudan koşuya değişiyor; sorgu katmanı exemplar okumuyor "
+          "(DECISIONS 2026-11-10).",
+          "- Çağrı listesi dosya tarafından türetiliyor (servisler, izler); canlıda fazladan olan bir şey yalnız "
+          "süzgeçsiz çağrılarda ve ham kayıt karşılaştırmasında görünür.",
+          "", "## Vakalar", "", "| Vaka | Set | Deneme | Eşit | Farklı | Türler | Exemplar | Jaeger MiB (oynatma / karş.) |",
           "|---|---|---|---|---|---|---|---|"]
     for cid, r in sorted(rep["cases"].items(), key=lambda x: (x[1]["set"] or "", x[0])):
         if not r["replayed"]:

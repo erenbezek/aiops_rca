@@ -101,6 +101,8 @@ def test_diff_paths_and_changed_fields():
 
 
 def test_classify_differences(tmp_path, backends):  # noqa: F811
+    """Canlı okuyucu `error_tag`'i geri aldığı için yalnız `zero_duration` ve kasıtlı eksik kalır; `error_tag` türünün
+    sınıflanması "canlı" yerine dönüştürülmüş dosya okuyucusuyla ayrıca sınanır."""
     from test_store_live import _span
     t = T0 + 60 * S
     traces, logs, metrics = dataset()
@@ -110,15 +112,23 @@ def test_classify_differences(tmp_path, backends):  # noqa: F811
         _span("tz", "z1", "GET", t + 3 * S, 0)]
     fs, ls, _ = stores(tmp_path, backends, (traces, logs, metrics), jaeger_quirks=True,
                        drop_prom="container_network_io_usage_rx_bytes_total")
-    rows = []
-    for c in qc.call_list(fs.case, fs):
-        a, b = qc.run_call(fs, c), qc.run_call(ls, c)
-        rows.append({"id": c["id"], "fn": c["fn"], "args": c["args"], "equal": a == b, "live_sha": qc.digest(b)})
-    kinds = qc.classify_differences(fs.case, rows)
-    by = {}
-    for r in rows:
-        if not r["equal"]:
-            by.setdefault(kinds[r["id"]], set()).add((r["fn"], r["args"].get("metric")))
-    assert set(by) == {"zero_duration", "error_tag", "error_tag+zero_duration", "unexplained"}
+    calls = qc.call_list(fs.case, fs)
+
+    def kinds_against(live):
+        rows = []
+        for c in calls:
+            a, b = qc.run_call(fs, c), qc.run_call(live, c)
+            rows.append({"id": c["id"], "fn": c["fn"], "args": c["args"], "equal": a == b, "live_sha": qc.digest(b)})
+        kinds = qc.classify_differences(fs.case, rows)
+        by = {}
+        for r in rows:
+            if not r["equal"]:
+                by.setdefault(kinds[r["id"]], set()).add((r["fn"], r["args"].get("metric")))
+        return by
+
+    by = kinds_against(ls)
+    assert set(by) == {"zero_duration", "unexplained"}
     assert by["unexplained"] == {("metric_series", "net_rx_bytes_per_s")}  # Prometheus'taki kasıtlı eksik
+    by = kinds_against(qc.jaeger_like_store(fs.case, frozenset({"error_tag", "zero_duration"})))
+    assert set(by) == {"zero_duration", "error_tag", "error_tag+zero_duration"}
     assert ("metric_series", "errors") in by["error_tag"]

@@ -219,8 +219,10 @@ class FakeBackends:
                 if sp["endTimeUnixNano"] == sp["startTimeUnixNano"]:
                     sp["endTimeUnixNano"] = str(int(sp["endTimeUnixNano"]) + 1)
                 tag = any(a["key"] == "error" and a["value"].get("stringValue") == "true" for a in sp["attributes"])
-                if tag and not sp["status"].get("code"):
+                if tag and not sp["status"].get("code"):  # belirtilmemiş + etiket → hata, etiket kalır
                     sp["status"] = {**sp["status"], "code": 2}
+                elif tag:  # hata + etiket → etiket silinir
+                    sp["attributes"] = [a for a in sp["attributes"] if a["key"] != "error"]
             if self.enum_strings:
                 sp["kind"] = self.KINDS[sp["kind"]]
                 if sp["status"].get("code"):
@@ -489,3 +491,24 @@ def test_sample_rejects_ok():
     assert not storage_check.sample_rejects_ok({**ok, 'prometheus_tsdb_too_old_samples_total{type="float"}': 2.0})
     missing = {k: v for k, v in ok.items() if "too_old" not in k}
     assert not storage_check.sample_rejects_ok(missing)  # sayaç yoksa geçmez
+
+
+def test_undo_jaeger_error_tag(tmp_path, backends):
+    """Gerçek Jaeger'in iki davranışı taklit edilir; canlı okuyucu dosyayla aynı durumu verir (DECISIONS 2026-11-12)."""
+    t = T0 + 60 * S
+    traces = {"frontend-proxy": [
+        _span("ta", "a1", "router frontend egress", t, 3, kind=3, attrs={"error": "true", "http.status_code": "0"}),
+        _span("tb", "b1", "GET", t + S, 4, status=2, attrs={"error": "true", "http.status_code": 503}),
+        _span("tc", "c1", "GET", t + 2 * S, 5, status=2, attrs={"http.status_code": 500}),
+        _span("td", "d1", "GET", t + 3 * S, 6, attrs={"error": "false"})]}
+    fs, ls, _ = stores(tmp_path, backends, (traces, {}, {}), jaeger_quirks=True)
+    lo, hi = fs.window()
+    assert by_key(ls.spans(lo, hi)) == by_key(fs.spans(lo, hi))
+    assert [s.status for s in sorted(ls.spans(lo, hi), key=lambda s: s.start_ns)] == [0, 2, 2, 0]
+    assert by_key(ls.trace("ta")) == by_key(fs.trace("ta")) and ls.trace("ta")[0].status == 0
+    assert by_key(ls.trace("tb")) == by_key(fs.trace("tb")) and ls.trace("tb")[0].status == 2
+    from aiops_rca.store_live import undo_jaeger_error_tag
+    sp = {"status": {"code": "STATUS_CODE_ERROR", "message": "m"},
+          "attributes": [{"key": "error", "value": {"stringValue": "true"}}]}
+    assert undo_jaeger_error_tag(sp)["status"] == {"message": "m"}
+    assert undo_jaeger_error_tag({"status": {}, "attributes": sp["attributes"]})["status"] == {}

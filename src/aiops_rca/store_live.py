@@ -9,6 +9,7 @@ sorgu yönteminden bağımsız aynı sonucu verir.
   ikiye bölünür, 1 sn'lik dilimde de takılırsa hata. Arama izin bütün span'lerini döndürür; dilimler örtüştüğü için
   (iz, span) kimliğiyle tekrarlar ayıklanır. Servis verilmezse `/services`'teki her servis aranır.
 - Tek iz: `traces/{id}`; 404 → boş.
+- İki yolda da Jaeger'in `error="true"` → hata çevirisi geri alınır (`undo_jaeger_error_tag`, DECISIONS 2026-11-12).
 - Log: OpenSearch `otel-logs-*`, `@timestamp` (ms) aralığı + isteğe bağlı servis terimi; `track_total_hits` ile
   toplam `PAGE_SIZE`'ı aşarsa aralık ikiye bölünür, 1 ms'lik dilimde de aşarsa hata. `_source`'tan OTLP biçimli
   kayıt kurulur, `query.log_from_otlp` ile ham kayda çevrilir (dosyayla aynı kod). Alanlar iç içe ya da noktalı ad
@@ -95,6 +96,22 @@ def _resource_service(resource: dict) -> str | None:
     return None
 
 
+def undo_jaeger_error_tag(sp: dict) -> dict:
+    """Jaeger'in `error="true"` → hata durumu çevirisini geri alır (DECISIONS 2026-11-12, seçenek C).
+
+    Gerçek Jaeger (planlamanın oynatması, HANDOFF 2026-11-12): OTLP durumu belirtilmemiş + `error="true"` etiketli
+    span'i durum hata ile döndürür, etiket kalır; durumu zaten hata + etiketli span'de etiketi siler. Bu yüzden
+    canlıda durum hata ve etiket hâlâ duruyorsa asıl durum belirtilmemiştir. Jaeger sürümüne bağlı kural.
+    """
+    status = sp.get("status") or {}
+    if status.get("code") not in (2, "2", "STATUS_CODE_ERROR"):
+        return sp
+    if not any(a.get("key") == "error" and (a.get("value") or {}).get("stringValue") == "true"
+               for a in sp.get("attributes", [])):
+        return sp
+    return {**sp, "status": {k: v for k, v in status.items() if k != "code"}}
+
+
 def jaeger_raw_slice(base: str, service: str, lo: int, hi: int,
                      depth: int = SEARCH_DEPTH) -> list[tuple[str | None, dict]]:
     """Bir servis ve zaman dilimindeki izlerin span'leri `[(servis ya da None, OTLP span)]`; derinliğe takılan dilim
@@ -169,7 +186,7 @@ class LiveStore:
                     key = (sp.get("traceId"), sp.get("spanId"))
                     if svc is not None and key not in seen:
                         seen.add(key)
-                        out.append(span_from_otlp(svc, sp))
+                        out.append(span_from_otlp(svc, undo_jaeger_error_tag(sp)))
         return out
 
     def trace(self, trace_id: str) -> list[Span]:
@@ -191,7 +208,7 @@ class LiveStore:
                     key = (sp.get("traceId"), sp.get("spanId"))
                     if key not in seen:
                         seen.add(key)
-                        out.append(span_from_otlp(svc, sp))
+                        out.append(span_from_otlp(svc, undo_jaeger_error_tag(sp)))
         return out
 
     def _refresh(self) -> None:

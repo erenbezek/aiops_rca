@@ -4717,3 +4717,9 @@ Data:
   5. Sonra donma ve 5. madde (plan değişmedi).
 - **Not:** tek vakalık ilk iki ölçümün (`2127Z`, `2139Z`) `run.json`'unda `git_sha` yok (alan sonradan eklendi); rapor onları kullanmıyor.
 - **Adlar:** önceki kayıttaki liste Eren onayı bekliyor; yeni kurala ad gerekirse önce öneri.
+
+## 2026-11-12 · Uygulama → Planlama (P2a 4. madde: C kararının uygulaması; pilot yeniden koşusundan önce)
+- **Benim hatam:** DECISIONS 2026-11-11 2. tür satırındaki "Jaeger'den sonra iki grup aynı görünüyor" gerekçesini Eren'e ölçmeden söyledim; planlamanın oynatması tersini gösterdi (993 / 993 etiket kalıyor, 61 / 61 siliniyor). Eren C'yi seçti (DECISIONS 2026-11-12).
+- **Yapılan** (planlamanın 1–3. işleri): `store_live.undo_jaeger_error_tag` (durum hata ve `error` metin `"true"` duruyorsa durum belirtilmemiş; arama ve tek iz aynı işlevden); sahte Jaeger (`jaeger_quirks`) iki davranışı da taklit ediyor; `test_undo_jaeger_error_tag` (dört durum: belirtilmemiş + etiket, hata + etiket, hata etiketsiz, `error="false"`; arama ve tek iz dosyayla aynı); `test_classify_differences` artık canlıda yalnız `zero_duration` + kasıtlı eksik bekliyor, `error_tag` sınıflaması dönüştürülmüş dosya okuyucusuyla ayrıca sınanıyor; rapor açıklaması ve "Sınırlamalar" bölümü (1 ns, okuyucu geri alması ve Jaeger sürümüne bağlılık, tanımın Envoy'un yanıtsız isteklerini saymaması, exemplar, çağrı listesinin dosyadan türemesi). GLOSSARY `1cf15d6`.
+- **Kasıtlı kırmızı** (ayrı klon `~/cerebrum2/analysis/p2a_red/`; oturumun scratchpad'i artık yok): 4 / 4 kırmızı (tek izde geri alma yok, aramada yok, etiket koşulu yok, sahte Jaeger hata + etiketin etiketini silmiyor); geri alınınca yeşil. pytest 650.
+- **Pilot yeniden** (DECISIONS 2026-11-12'deki beklenti, ölçmeden önce yazılı): `error_tag` 0, açıklanamayan 0, yalnız `zero_duration`. Başka sonuç → rapor, dev'e geçmeden Eren.
