@@ -318,3 +318,14 @@ Sadece Eren'in onayladığı isimler.
 | `SAMPLE_REJECTS`, `EXEMPLAR_REJECTS`, `sample_rejects_ok` | `storage_check.py`: Prometheus'un örnek reddetme sayaçları / exemplar reddi sayacı (yalnız kayıt) / şart: üç sayaç var ve 0 (DECISIONS 2026-11-10) |
 | `FakeBackends`, `storage_check_dataset`, `STORAGE_CHECK_EXPECTED` | Yalnız testte (`test_store_live.py`): `127.0.0.1`'de sahte Jaeger / OpenSearch / Prometheus / `storage_check` testinin verisi / değişiklik öncesi koddan kaydedilen çıktı |
 | `sample_rejects`, `exemplar_rejects`, `own_telemetry_extra`, `smoke` | `replay_case.json` alanları: örnek reddi sayaçları / exemplar reddi / canlıda olup dosyada olmayan adlar / canlı okuyucunun duman sayımları ve süreleri |
+| `call_list`, `run_call`, `ranges`, `FUNCS`, `RANGE_NAMES` | `query_compare.py`: vakanın onaylı çağrı listesi (A / B / C aralıkları) / çağrıyı bir okuyucuda koşup JSON çıktı (hata da çıktı) / aralıklar / ad → sorgu fonksiyonu |
+| `STEP_S`, `MIN_DURATION_MS`, `SEVERITIES`, `TEXTS`, `ERROR_TRACES_MAX`, `SAMPLE_TRACES` | Çağrı listesinin sabitleri: kova 60 sn, en kısa süre 100 ms, önem 9 / 13 / 17, metin "error" / "fail", hata izleri en çok 200, örnek iz 50 |
+| `first_diff`, `diff_paths`, `digest` | İki JSON çıktının ilk farkı / bütün fark yollarının sayımı (indeksler `[]`) / sha256 |
+| `raw_compare`, `only_file`, `only_live`, `changed_ids`, `changed_fields`, `ids_only_file`, `ids_only_live` | Ham kayıt karşılaştırması (C) ve alanları: çoklu küme farkı / aynı kimlikte farklı kayıt sayısı ve değişen alanlar / yalnız bir tarafta olan kimlikler |
+| `compare_once`, `compare_case`, `OUT_ROOT` | Tek deneme (oynatma + karşılaştırma + sızıntı + OOM denetimi) / vaka (onaylı yeniden deneme kuralıyla) / kayıt kökü `~/cerebrum2/p2a_compare/` |
+| `query_compare.py run`, `query_compare.py report` | Karşılaştırma koşusu (`--set pilot\|dev` ya da `--cases`) / koşu kayıtlarından `results/p2a_compare.md`, `.json` |
+| `case.json`, `calls.jsonl`, `run.json`, `git_sha`, `git_dirty` | Karşılaştırma kayıtları: vaka özeti / çağrı başına eşitlik, sha256, süre, fark / koşu özeti, kodun sha'sı ve `src`, `tools`'ta commit'siz değişiklik var mı |
+| `JAEGER_TRANSFORMS` (`zero_duration`, `error_tag`), `jaeger_like_store`, `classify_differences`, `unexplained` | Jaeger'in okurken yaptığı dönüşümler (sıfır süre → +1 ns; `error="true"` → hata durumu) / bu dönüşümleri uygulayan dosya okuyucusu / farklı çağrının türünü kodla bulan işlev / hiçbir dönüşümle eşitlenmeyen fark |
+| `build_report`, `render_report` | Rapor verisi (`.json`) / rapor metni (`.md`) |
+| `undo_jaeger_error_tag` | `store_live.py`: Jaeger'den gelen span'in durumu hata ve `error` özniteliği metin `"true"` duruyorsa durumu belirtilmemiş sayar (DECISIONS 2026-11-12, seçenek C) |
+| `jaeger_quirks` | Yalnız testte: sahte Jaeger'in gerçek Jaeger'in dönüşümlerini taklit etmesi |
