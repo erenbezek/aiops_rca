@@ -4667,3 +4667,14 @@ Data:
 - **Ölçümler:** vaka başına ~10,8 dk (oynatma ~2 dk; çağrılar 454 sn, canlı 411 sn; Jaeger 7.261 sorgu). Jaeger tepesi oynatmada 1.595,4 MiB (%79,8), karşılaştırmada 1.375,2 MiB. Exemplar reddi 19 ve 21: aynı vakada koşudan koşuya değişiyor. Tahmin: 25 pilot ≈ 4,5 sa, 18 dev ≈ 3,2 sa.
 - **Rapor eki** (tanımı değiştirmez): farklı çağrıda bütün fark yollarının sayımı (`diff_paths`), ham kayıtta aynı kimlikte farklı alanlar ve sayısal farkları (`changed_fields`); koşu kaydına `git_sha` / `git_dirty`.
 - **Sıradaki:** bu commit'le 25 pilot vaka (gece, makine boşta, prizde).
+
+## 2026-11-11 · Uygulama → Planlama (P2a 4. madde: 25 pilot vaka karşılaştırıldı; ikinci fark türü, Eren kararı bekliyor)
+- **Koşu:** `p2a_compare/20261110T2204Z-pilot`, kod `583fb0c` (`git_dirty` false), 22:04–02:01 UTC (yerel 01:04–05:01), 14.212 sn. Makine boşta, prizde; iki kilit koşu başında listede doğrulandı (systemd `sleep:idle:handle-lid-switch` block, GNOME `suspend, idle`). **Uyku yok:** CLOCK_BOOTTIME − CLOCK_MONOTONIC başta ve sonda 0,0 sn; günlükte uyku kaydı yok.
+- **Sonuç:** 25/25 vaka ilk denemede oynatıldı (10/10 şart); karşılaştırma sırasında OOM / yeniden başlama 0; canlı çıktılarda sızıntı 0. **16.993 çağrı: 15.995 eşit, 998 farklı** (`get_trace` 622, `search_spans` 344, `metric_series` 32; `search_logs` 1.731, `service_dependencies` 75, `list_services` 25 hepsi eşit). Ham kayıt: loglar ve dört metrik 25/25 eşit; span'lerde yalnız aynı kimlikte alan farkı (yalnız dosyada / yalnız canlıda kimlik 0).
+- **Fark türleri (iki tane, ikisi de depolama):**
+  1. **Sıfır süre → 1 ns:** `end_ns +1`, 171.342 span (Eren kararı A, önceki kayıt).
+  2. **`error="true"` etiketi → hata durumu:** `status +2`, **1.829** span; hepsi `frontend-proxy` (Envoy): `router frontend egress` (CLIENT) 1.031, `GET` (SERVER) 725, `POST` (SERVER) 73; `error` özniteliği metin `"true"`, OTLP durumu belirtilmemiş, `http.status_code` "0". Jaeger okurken etiketi duruma çeviriyor. Dosyada durumu belirtilmemiş ve `error="true"` olan span sayısı 25/25 vakada değişen sayıyla aynı. Etkisi: `frontend-proxy`'nin `errors` / `error_rate` serileri (32 `metric_series` çağrısı, ör. bir kovada hata 15 ↔ 42), `status="error"` aramaları, ilgili izler.
+- **Bütün farklar bu ikisiyle açıklanıyor:** dosya span'lerine iki dönüşüm uygulanıp her çağrı yeniden koşulunca **16.993 / 16.993** çağrının sha256'sı canlıyla aynı; açıklanamayan 0 (betik repo dışı `~/cerebrum2/analysis/p2a_explain.py`, sha256 `9dc04320…`).
+- **Ölçümler:** vaka başına karşılaştırma 283–464 sn (+ ~2 dk oynatma). Jaeger tepesi oynatmada en çok 1.636,4 MiB (%81,8), karşılaştırmada 1.245,2 MiB. Exemplar reddi vaka başına 5–26 (toplam 390).
+- **Açık soru (Eren):** 2. tür için tanım ne olacak (seçenekler sohbette; karar sonuç görüldükten sonra, kayda açıkça).
+- **Düzeltme:** koşu başlangıcını sohbette "21:04 UTC" yazdım; doğrusu 22:04 UTC.
