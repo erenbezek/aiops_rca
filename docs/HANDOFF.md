@@ -4700,3 +4700,20 @@ Data:
 - **Kod pilot koşusundan sonra değişti mi:** `query_compare.py`'ye yalnız `report` kısmı eklendi; `run`, çağrı listesi, karşılaştırma ve `src/` `583fb0c`'deki gibi (dev koşusu 5. maddede donmuş sha ile).
 - **Onay bekleyen adlar** (önceki kayıttakilere ek): `diff_paths`, `changed_fields`, `compare_once`, `compare_case`, `run`, `report` (komut), `JAEGER_TRANSFORMS` (`zero_duration`, `error_tag`), `jaeger_like_store`, `classify_differences`, `build_report`, `render_report`, `unexplained`, `OUT_ROOT`; kayıt dosyaları `case.json`, `calls.jsonl`, `run.json`, alanlar `git_sha`, `git_dirty`, `ids_only_file`, `ids_only_live`; testte `jaeger_quirks`.
 - **Sıradaki (5. madde, Eren onayıyla):** donma (bu commit'in sha'sı HANDOFF'a), dev'de bir kez (18 vaka, ~3,2 sa, makine boşta, iki kilit, uyku sayacı), rapor dev ile, ARCHITECTURE diyagramı, PROJECT kutuları planlama kontrolünden sonra, PR.
+
+## 2026-11-12 · Planlama → Uygulama (P2a 4. madde kontrolü: pilot raporu; Eren kararı C)
+- **Geçti:**
+  - pytest 649 (scratch klon, `a92a1ee`).
+  - Kod pilot koşusundan sonra değişmedi: `src/` ve çağrı listesi `583fb0c`'deki gibi, `query_compare.py`'ye yalnız `report` eklenmiş; çağrı listesi `d0da35a` ile `583fb0c` arasında aynı. Ölçütler yerel 00:24–00:25'te commit'li; ilk ölçüm 21:27Z (yerel 00:27), pilot 22:04Z (`583fb0c`, `git_dirty` false).
+  - Rapor scratch klonda yeniden üretildi: `.json` sha256 `4bef4431dc942aa5…` aynı, `.md` aynı. Toplamlar (çağrılar, exemplar 5–26 / 390, Jaeger 1.636,4 MiB, süreler, ham kayıt farkları) `case.json`'lardan kendi toplamamla aynı.
+  - Bağımsız sınıflama (dönüşümler ham OTLP span'inde, sorgu katmanından önce; bütün çağrılar): 16.993 çağrının hepsinde dosya sha'sı yeniden üretiliyor; iki dönüşümle 16.993 / 16.993 canlıya eşit; türler vaka vaka raporla aynı; C'de sıfır süreli span 171.342.
+  - Kendi oynatmam `inc-2a87f603` (`storage_runs/20261111T231434Z-replay-case-inc-2a87f603`; 10/10 şart, exemplar 23, Jaeger 1.378,3 MiB). Kendi sorgularım: Jaeger iz kimliğiyle 897 iz / 7.130 span, yalnız bir tarafta 0, farklar yalnız iki dönüşüm (993 durum, 99 süre); OpenSearch `_count` 12 servis, 39.446 = 39.446; Prometheus `count_over_time` / `sum_over_time` 88 seri eşit. Kayıttaki 681 çağrı `LiveStore` ile yeniden: 681 / 681 kayıttaki `live_sha`'yla aynı (oynatmadan oynatmaya aynı). Yığın `down -v`; yalnız `otel-replay_*` silindi. Önceki deneme (`20261111T231040Z-…`) pilde korumada durdu, hiçbir şey açılmadı; kayıt klasörü duruyor.
+- **Yanlış (DECISIONS 2026-11-11, 2. tür satırı):** "Jaeger'den sonra iki grup aynı görünüyor" doğru değil. Canlıda: dosyada durumu belirtilmemiş + `error="true"` → durum hata, etiket duruyor (993 / 993); dosyada durumu hata + `error="true"` → durum hata, etiket yok (61 / 61). Geri çevirme mümkün.
+- **Eren kararı: C** (DECISIONS 2026-11-12). İşler:
+  1. Canlı okuyucu: Jaeger'den gelen span'in durumu hata ve `error` özniteliği metin `"true"` duruyorsa durum belirtilmemiş. Tek yerde; arama ve tek iz aynı dönüşümden geçsin.
+  2. Test: sahte Jaeger (`jaeger_quirks`) gerçek davranışın ikisini de taklit etsin (belirtilmemiş + etiket → hata, etiket kalır; hata + etiket → etiket silinir); okuyucu ile dosya eşit çıksın.
+  3. Rapor: açıklama metni okuyucu düzeltmesini ve (b) tanım sınırlamasını yazsın; `error_tag` artık beklenen tür değil.
+  4. Pilot baştan, yeni commit'le (25 vaka; gece, prizde, iki kilit). Ölçmeden önce beklenen: `error_tag` 0, açıklanamayan 0, yalnız `zero_duration`. Başka sonuç → raporla, dev'e geçmeden Eren.
+  5. Sonra donma ve 5. madde (plan değişmedi).
+- **Not:** tek vakalık ilk iki ölçümün (`2127Z`, `2139Z`) `run.json`'unda `git_sha` yok (alan sonradan eklendi); rapor onları kullanmıyor.
+- **Adlar:** önceki kayıttaki liste Eren onayı bekliyor; yeni kurala ad gerekirse önce öneri.
