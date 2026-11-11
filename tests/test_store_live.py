@@ -134,9 +134,11 @@ class FakeBackends:
              4: "SPAN_KIND_PRODUCER", 5: "SPAN_KIND_CONSUMER"}
     STATUS = {0: "STATUS_CODE_UNSET", 1: "STATUS_CODE_OK", 2: "STATUS_CODE_ERROR"}
 
-    def __init__(self, traces, logs, metrics, *, enum_strings=False, drop_prom=None, nested_resource=False):
+    def __init__(self, traces, logs, metrics, *, enum_strings=False, drop_prom=None, nested_resource=False,
+                 jaeger_quirks=False):
         self.spans = [(svc, sp) for svc, sps in traces.items() for sp in sps]
         self.enum_strings = enum_strings
+        self.jaeger_quirks = jaeger_quirks  # gerçek Jaeger'deki iki dönüşüm (DECISIONS 2026-11-11)
         self.requests: list[str] = []
         self.docs = []
         for svc, recs in logs.items():
@@ -213,6 +215,12 @@ class FakeBackends:
         by_svc = {}
         for svc, sp in spans:
             sp = dict(sp)
+            if self.jaeger_quirks:
+                if sp["endTimeUnixNano"] == sp["startTimeUnixNano"]:
+                    sp["endTimeUnixNano"] = str(int(sp["endTimeUnixNano"]) + 1)
+                tag = any(a["key"] == "error" and a["value"].get("stringValue") == "true" for a in sp["attributes"])
+                if tag and not sp["status"].get("code"):
+                    sp["status"] = {**sp["status"], "code": 2}
             if self.enum_strings:
                 sp["kind"] = self.KINDS[sp["kind"]]
                 if sp["status"].get("code"):
@@ -351,7 +359,8 @@ def stores(tmp_path, make, data=None, **kw):
     traces, logs, metrics = data or dataset()
     view = write_view(tmp_path, traces, logs, metrics)
     case = Case("inc-live", view, T0 + 15 * 60 * S)
-    b = make(traces, logs, metrics, **{k: v for k, v in kw.items() if k in ("enum_strings", "nested_resource")})
+    b = make(traces, logs, metrics, **{k: v for k, v in kw.items()
+                                       if k in ("enum_strings", "nested_resource", "jaeger_quirks", "drop_prom")})
     live_kw = {k: v for k, v in kw.items() if k in ("search_depth", "page_size", "slice_ns")}
     return FileStore(case), LiveStore(case, b.ends, **live_kw), b
 

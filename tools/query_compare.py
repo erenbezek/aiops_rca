@@ -360,6 +360,178 @@ def run(cases: list[Case], out: Path) -> int:
     return 0 if all(r["replayed"] for r in rec["results"].values()) else 1
 
 
+# --- Rapor (P2a 4. madde) ---------------------------------------------------------------------------------------
+#
+#   python tools/query_compare.py report <koşu klasörü>... [--out results/p2a_compare]
+# Koşu kayıtlarından `<out>.json` ve `<out>.md`. Farklı her çağrının türü kodla: dosya okuyucusuna Jaeger'in bilinen
+# dönüşümleri (`JAEGER_TRANSFORMS`) tek tek ve birlikte uygulanıp çağrı yeniden koşulur; canlı sha256'yla eşitleyen en
+# küçük dönüşüm kümesi türdür, hiçbiri eşitlemezse "açıklanamadı". Snapshot'ları okur (yalnız pilot / dev; CI'da koşmaz).
+
+# Jaeger'in okurken yaptığı dönüşümler (DECISIONS 2026-11-11): ad → açıklama.
+JAEGER_TRANSFORMS = {
+    "zero_duration": "Jaeger süresi 0 olan span'i bitiş + 1 ns ile döndürüyor (depolama; duration_ms 0 ↔ 1e-06)",
+    "error_tag": "Jaeger error=\"true\" etiketini hata durumuna çeviriyor (depolama); Envoy yanıtsız isteklerde "
+                 "(http.status_code 0) yalnız bu etiketi koyuyor, P1 / P2 hata tanımı (OTLP durumu) bunları hata "
+                 "saymıyor (tanım)",
+}
+
+
+def jaeger_like_store(case: Case, transforms: frozenset[str]):
+    """Dosya okuyucusu + seçilen Jaeger dönüşümleri (span'lerde)."""
+    import dataclasses
+    from aiops_rca.query import span_from_otlp
+    from aiops_rca.signals import iter_lines, resource_attr
+    from aiops_rca.store_file import FileStore
+
+    class _Store(FileStore):
+        def _load_spans(self):
+            if self._spans is None:
+                out = []
+                for doc in iter_lines([self.view / "traces.jsonl"]):
+                    for rs in doc.get("resourceSpans", []):
+                        svc = resource_attr(rs.get("resource", {}), "service.name")
+                        if svc is None:
+                            continue
+                        for ss in rs.get("scopeSpans", []):
+                            for sp in ss.get("spans", []):
+                                s = span_from_otlp(svc, sp)
+                                if "error_tag" in transforms and s.status == 0 and any(
+                                        a.get("key") == "error" and a.get("value", {}).get("stringValue") == "true"
+                                        for a in sp.get("attributes", [])):
+                                    s = dataclasses.replace(s, status=2)
+                                if "zero_duration" in transforms and s.end_ns == s.start_ns:
+                                    s = dataclasses.replace(s, end_ns=s.end_ns + 1)
+                                out.append(s)
+                self._spans = out
+            return self._spans
+
+    return _Store(case)
+
+
+def classify_differences(case: Case, rows: list[dict]) -> dict[int, str]:
+    """Farklı çağrı kimliği → tür ("zero_duration", "error_tag", "zero_duration+error_tag", "unexplained")."""
+    import itertools
+    names = sorted(JAEGER_TRANSFORMS)
+    subsets = [frozenset(c) for n in range(1, len(names) + 1) for c in itertools.combinations(names, n)]
+    stores = {t: jaeger_like_store(case, t) for t in subsets}
+    out = {}
+    for r in rows:
+        if r["equal"]:
+            continue
+        call = {"fn": r["fn"], "args": r["args"]}
+        out[r["id"]] = next(("+".join(sorted(t)) for t in subsets if digest(run_call(stores[t], call)) == r["live_sha"]),
+                            "unexplained")
+    return out
+
+
+def build_report(runs: list[Path]) -> dict:
+    from aiops_rca.cases import load_cases
+    sets = {c.incident_id: s for s in ("pilot", "dev") for c in load_cases((s,))}
+    known = {c.incident_id: c for c in load_cases()}
+    rep = {"runs": [], "cases": {}, "totals": {}, "types": {}, "transforms": JAEGER_TRANSFORMS}
+    for run_dir in runs:
+        meta = json.loads((run_dir / "run.json").read_text())
+        rep["runs"].append({"dir": run_dir.name, "git_sha": meta.get("git_sha"), "git_dirty": meta.get("git_dirty"),
+                            "seconds": meta.get("seconds"), "cases": len(meta["cases"])})
+        for cid in meta["cases"]:
+            summary = json.loads((run_dir / cid / "case.json").read_text())
+            a = summary["attempt_records"][-1]
+            row = {"set": sets.get(cid), "run": run_dir.name, "attempts": summary["attempts"],
+                   "replayed": summary["replayed"]}
+            if summary["replayed"]:
+                rows = [json.loads(x) for x in (run_dir / cid / "calls.jsonl").open()]
+                kinds = classify_differences(known[cid], rows)
+                rp = json.loads((Path(a["replay_dir"]) / "replay_case.json").read_text())
+                row.update(calls={fn: dict(c) for fn, c in sorted(a["calls"].items())},
+                           types=dict(Counter(kinds.values())),
+                           raw={k: {"equal": v["equal"], "changed_ids": v["changed_ids"],
+                                    "ids_only_file": v["only_file"] - v["changed_ids"],
+                                    "ids_only_live": v["only_live"] - v["changed_ids"],
+                                    "changed_fields": v.get("changed_fields", {})} for k, v in a["raw"].items()},
+                           exemplar_rejects=a["exemplar_rejects"], leakage_findings=a["leakage"]["findings"],
+                           compare_s=a["compare_s"], replay_s=a["replay_s"],
+                           jaeger_peak_mib={"replay": rp["mem_peak_mib"].get("otel-replay-jaeger-1"),
+                                            "compare": a["mem_peak_mib"].get("otel-replay-jaeger-1")})
+            else:
+                row["problem"] = a.get("problem")
+            rep["cases"][cid] = row
+    for s in ("pilot", "dev"):
+        rows = [r for r in rep["cases"].values() if r["set"] == s]
+        if not rows:
+            continue
+        ok = [r for r in rows if r["replayed"]]
+        fn_tot, types, raw_fields = {}, Counter(), Counter()
+        for r in ok:
+            for fn, c in r["calls"].items():
+                for k, v in c.items():
+                    fn_tot.setdefault(fn, Counter())[k] += v
+            types.update(r["types"])
+            for k, v in r["raw"].items():
+                raw_fields.update({f"{k}: aynı kimlikte farklı ({f})": n for f, n in v["changed_fields"].items()})
+                raw_fields[f"{k}: yalnız dosyada kimlik"] += v["ids_only_file"]
+                raw_fields[f"{k}: yalnız canlıda kimlik"] += v["ids_only_live"]
+        rep["totals"][s] = {
+            "cases": len(rows), "replayed": len(ok), "retried": sum(r["attempts"] > 1 for r in rows),
+            "calls": {fn: dict(c) for fn, c in sorted(fn_tot.items())},
+            "equal": sum(c.get("equal", 0) for c in fn_tot.values()),
+            "different": sum(c.get("different", 0) for c in fn_tot.values()),
+            "leakage_findings": sum(r["leakage_findings"] for r in ok),
+            "exemplar_rejects": {"min": min(r["exemplar_rejects"] for r in ok), "max": max(r["exemplar_rejects"] for r in ok),
+                                 "sum": sum(r["exemplar_rejects"] for r in ok)} if ok else None,
+            "jaeger_peak_mib": max(max(v for v in r["jaeger_peak_mib"].values() if v) for r in ok) if ok else None,
+            "compare_s": {"min": min(r["compare_s"] for r in ok), "max": max(r["compare_s"] for r in ok)} if ok else None,
+            "raw_changes": {k: v for k, v in sorted(raw_fields.items()) if v},
+        }
+        rep["types"][s] = dict(sorted(types.items()))
+    return rep
+
+
+def render_report(rep: dict) -> str:
+    L = ["# P2a: dosya ↔ canlı karşılaştırması", "",
+         "Komutla üretilir: `python tools/query_compare.py report <koşu klasörü>...` (kayıtlar repo dışında, "
+         "`~/cerebrum2/p2a_compare/`). Çağrı listesi, eşitlik tanımı ve OOM kuralı ölçmeden önce yazıldı "
+         "(HANDOFF 2026-11-11); fark türlerinin kararı sonuç görüldükten sonra (DECISIONS 2026-11-11).", "",
+         "Eşitlik: çağrı çıktısı iki tarafta birebir aynı (tolerans yok). Fark türü kodla: dosya okuyucusuna "
+         "Jaeger'in bilinen dönüşümleri uygulanıp çağrı yeniden koşulur; canlıyla eşitleyen dönüşüm türdür.", "",
+         "## Koşular", "", "| Koşu | Kod | Vaka | Süre (sa) |", "|---|---|---|---|"]
+    for r in rep["runs"]:
+        L.append(f"| `{r['dir']}` | `{(r['git_sha'] or '')[:7]}`{' (dirty)' if r['git_dirty'] else ''} | "
+                 f"{r['cases']} | {r['seconds'] / 3600:.2f} |")
+    for s, t in rep["totals"].items():
+        L += ["", f"## {s}", "",
+              f"- Vaka: {t['cases']}; oynatılan {t['replayed']}; yeniden denenen {t['retried']}.",
+              f"- Çağrı: {t['equal'] + t['different']}; eşit {t['equal']}, farklı {t['different']}.",
+              f"- Sızıntı bulgusu (canlı çıktılar): {t['leakage_findings']}.",
+              f"- Exemplar reddi (vaka başına): {t['exemplar_rejects']['min']:.0f}–{t['exemplar_rejects']['max']:.0f}, "
+              f"toplam {t['exemplar_rejects']['sum']:.0f} (şart değil; DECISIONS 2026-11-10).",
+              f"- Jaeger bellek tepesi: {t['jaeger_peak_mib']:.1f} MiB (sınır 2000 MiB).",
+              f"- Karşılaştırma süresi (vaka başına, oynatma hariç): {t['compare_s']['min']}–{t['compare_s']['max']} sn.",
+              "", "| Fonksiyon | Eşit | Farklı |", "|---|---|---|"]
+        for fn, c in t["calls"].items():
+            L.append(f"| `{fn}` | {c.get('equal', 0)} | {c.get('different', 0)} |")
+        L += ["", "| Fark türü | Çağrı |", "|---|---|"]
+        for k, n in rep["types"][s].items():
+            L.append(f"| `{k}` | {n} |")
+        L += ["", f"Açıklanamayan farklı çağrı: {rep['types'][s].get('unexplained', 0)}."]
+        L += ["", "Ham kayıt (C aralığı; span, log, dört metrik) farkları; listede olmayan sinyal ve sayaç 0:", ""]
+        L += [f"- {k}: {v}" for k, v in t["raw_changes"].items()] or ["- yok"]
+    L += ["", "## Fark türlerinin açıklaması", ""]
+    L += [f"- `{k}`: {v}." for k, v in rep["transforms"].items()]
+    L += ["", "## Vakalar", "", "| Vaka | Set | Deneme | Eşit | Farklı | Türler | Exemplar | Jaeger MiB (oynatma / karş.) |",
+          "|---|---|---|---|---|---|---|---|"]
+    for cid, r in sorted(rep["cases"].items(), key=lambda x: (x[1]["set"] or "", x[0])):
+        if not r["replayed"]:
+            L.append(f"| `{cid}` | {r['set']} | {r['attempts']} | oynatılamadı: {r.get('problem')} | | | | |")
+            continue
+        eq = sum(c.get("equal", 0) for c in r["calls"].values())
+        df = sum(c.get("different", 0) for c in r["calls"].values())
+        ty = ", ".join(f"{k} {v}" for k, v in sorted(r["types"].items())) or "—"
+        jp = r["jaeger_peak_mib"]
+        L.append(f"| `{cid}` | {r['set']} | {r['attempts']} | {eq} | {df} | {ty} | {r['exemplar_rejects']:.0f} | "
+                 f"{jp['replay']:.0f} / {jp['compare']:.0f} |")
+    return "\n".join(L) + "\n"
+
+
 def main(argv: list[str]) -> int:
     from aiops_rca.cases import load_cases
     ap = argparse.ArgumentParser(prog="query_compare.py", description="P2a file vs live query comparison")
@@ -369,7 +541,16 @@ def main(argv: list[str]) -> int:
     g.add_argument("--set", choices=("pilot", "dev"))
     g.add_argument("--cases", help="comma-separated incident ids (pilot / dev only)")
     r.add_argument("--out", type=Path)
+    rp = sub.add_parser("report", help="build results/p2a_compare.json and .md from run folders")
+    rp.add_argument("runs", nargs="+", type=Path)
+    rp.add_argument("--out", type=Path, default=Path(__file__).resolve().parents[1] / "results" / "p2a_compare")
     args = ap.parse_args(argv)
+    if args.cmd == "report":
+        rep = build_report([r.resolve() for r in args.runs])
+        args.out.with_suffix(".json").write_text(json.dumps(rep, ensure_ascii=False, indent=1) + "\n")
+        args.out.with_suffix(".md").write_text(render_report(rep))
+        print(f"-> {args.out.with_suffix('.json')}, {args.out.with_suffix('.md')}; types {rep['types']}")
+        return 0
     known = {c.incident_id: c for c in load_cases()}
     if args.set:
         cases = [c for c in load_cases((args.set,))]

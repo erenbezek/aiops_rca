@@ -98,3 +98,27 @@ def test_diff_paths_and_changed_fields():
     r = qc._multiset_diff([("t", "s", 10, 10), ("t", "u", 5, 6)], [("t", "s", 10, 11), ("t", "u", 5, 6)],
                           key=lambda t: (t[0], t[1]), fields=("trace", "span", "start", "end"))
     assert (r["only_file"], r["only_live"], r["changed_ids"], r["changed_fields"]) == (1, 1, 1, {"end +1": 1})
+
+
+def test_classify_differences(tmp_path, backends):  # noqa: F811
+    from test_store_live import _span
+    t = T0 + 60 * S
+    traces, logs, metrics = dataset()
+    traces["frontend-proxy"] = [
+        _span("tp", "p1", "router frontend egress", t + 2 * S, 0, kind=3, attrs={"error": "true", "http.status_code": "0"}),
+        _span("tp", "p2", "GET", t + 2 * S, 3, attrs={"error": "true", "http.status_code": "0"}),
+        _span("tz", "z1", "GET", t + 3 * S, 0)]
+    fs, ls, _ = stores(tmp_path, backends, (traces, logs, metrics), jaeger_quirks=True,
+                       drop_prom="container_network_io_usage_rx_bytes_total")
+    rows = []
+    for c in qc.call_list(fs.case, fs):
+        a, b = qc.run_call(fs, c), qc.run_call(ls, c)
+        rows.append({"id": c["id"], "fn": c["fn"], "args": c["args"], "equal": a == b, "live_sha": qc.digest(b)})
+    kinds = qc.classify_differences(fs.case, rows)
+    by = {}
+    for r in rows:
+        if not r["equal"]:
+            by.setdefault(kinds[r["id"]], set()).add((r["fn"], r["args"].get("metric")))
+    assert set(by) == {"zero_duration", "error_tag", "error_tag+zero_duration", "unexplained"}
+    assert by["unexplained"] == {("metric_series", "net_rx_bytes_per_s")}  # Prometheus'taki kasıtlı eksik
+    assert ("metric_series", "errors") in by["error_tag"]
