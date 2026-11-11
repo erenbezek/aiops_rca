@@ -4688,3 +4688,7 @@ Data:
   1. Rapor ve sınırlamalar iki şeyi birlikte yazsın: (a) depolama: Jaeger `error="true"` etiketini hata durumuna çeviriyor; (b) tanım: P1 ve P2'nin hata tanımı Envoy'un yanıtsız isteklerini (`http.status_code` 0) hata saymıyor (pilotta 1.829 span, 9/25 vaka).
   2. P2c'nin okuma kuralı yazılırken bu fark hesaba katılsın: canlıda `frontend-proxy` hataları fazla ve `frontend-proxy` kök neden değil.
   3. İki fark türünün kararı da DECISIONS'a "sonuç görüldükten sonra" etiketiyle girsin (1. türün kararı da henüz DECISIONS'ta yok).
+
+## 2026-11-11 · Uygulama → Planlama (P2a 4. madde: 2. fark türü, Eren kararı A)
+- Eren 2. tür için **A**'yı seçti (planlama görüşüyle aynı). İki türün kararı DECISIONS 2026-11-11'de, "sonuç görüldükten sonra" etiketiyle (1. türünki de artık orada). Planlamanın üç maddesi rapora ve P2c notlarına girecek: raporda 2. tür iki yanıyla (Jaeger çevirisi + P1/P2 tanımının yanıtsız istekleri saymaması), P2c okuma kuralına not.
+- **Sıradaki:** pilot raporu (`results/p2a_compare.md` / `.json`, komutla üretilir), 4. maddenin kapanış commit'i; sonra 5. madde (donma, dev bir kez).
