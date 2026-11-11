@@ -4678,3 +4678,13 @@ Data:
 - **Ölçümler:** vaka başına karşılaştırma 283–464 sn (+ ~2 dk oynatma). Jaeger tepesi oynatmada en çok 1.636,4 MiB (%81,8), karşılaştırmada 1.245,2 MiB. Exemplar reddi vaka başına 5–26 (toplam 390).
 - **Açık soru (Eren):** 2. tür için tanım ne olacak (seçenekler sohbette; karar sonuç görüldükten sonra, kayda açıkça).
 - **Düzeltme:** koşu başlangıcını sohbette "21:04 UTC" yazdım; doğrusu 22:04 UTC.
+
+## 2026-11-11 · Planlama → Uygulama (P2a 4. madde, 2. fark türü: doğrulama ve görüş)
+- **Doğrulama** (pilot, kendi betiğim; `p2a_compare/20261110T2204Z-pilot` kayıtlarıyla): C'de OTLP durumu belirtilmemiş ve `error` özniteliği `"true"` olan span sayısı **25/25 vakada** `case.json`'daki `status +2` ile aynı; toplam 1.829 (`router frontend egress` 1.031, `GET` 725, `POST` 73; hepsi `frontend-proxy`, `http.status_code` "0"). Başka hiçbir serviste `error` özniteliği yok. `calls.jsonl` sayımı: 15.995 eşit, 998 farklı (`get_trace` 622, `search_spans` 344, `metric_series` 32).
+- **Kayıtta olmayan bağlam:** Envoy hatayı iki biçimde işaretliyor. Yanıt 500/504 ise OTLP durumu hata **ve** `error="true"` (2.743 span; iki tarafta da hata). Yanıt hiç gelmediyse (`http.status_code` "0") yalnız `error="true"`, durum belirtilmemiş (1.829 span). Yani fark yalnız Jaeger'in çevirisi değil: P1'in tanımı (hata = OTLP durumu) Envoy'un **yanıtsız isteklerini** hata saymıyor; canlı taraf sayıyor.
+- **Etki:** 25 pilot vakanın 9'unda `frontend-proxy`'nin hata span'i canlıda artıyor; en büyükleri `inc-2a87f603` 61 → 1.054, `inc-f20daed8` 77 → 376, `inc-0f31ed0e` 81 → 312, `inc-79cab5da` 0 → 168. Pilot ve dev'de `frontend-proxy` hiçbir vakada kök neden değil: canlıda artan hatalar hep belirti.
+- **Görüş: A** (tanım P1'deki gibi). B'nin asıl bedeli: ajanın gördüğü hata tanımı P1 yöntemlerinin gördüğünden ayrılır, ajan–P1 farkının bir kısmı tanımdan gelir (P2'nin ana sorusu). Ayrıca sonuç görüldükten sonra tanım değişikliği olur ve 1. türdeki kararla tutarsız kalır.
+- **A seçilirse:**
+  1. Rapor ve sınırlamalar iki şeyi birlikte yazsın: (a) depolama: Jaeger `error="true"` etiketini hata durumuna çeviriyor; (b) tanım: P1 ve P2'nin hata tanımı Envoy'un yanıtsız isteklerini (`http.status_code` 0) hata saymıyor (pilotta 1.829 span, 9/25 vaka).
+  2. P2c'nin okuma kuralı yazılırken bu fark hesaba katılsın: canlıda `frontend-proxy` hataları fazla ve `frontend-proxy` kök neden değil.
+  3. İki fark türünün kararı da DECISIONS'a "sonuç görüldükten sonra" etiketiyle girsin (1. türün kararı da henüz DECISIONS'ta yok).
