@@ -9,6 +9,7 @@ Eşitlik: çağrı çıktısı iki tarafta birebir aynı (tolerans yok). Fark t�
 | Koşu | Kod | Vaka | Süre (sa) |
 |---|---|---|---|
 | `20261111T2333Z-pilot` | `9e44917` | 25 | 3.94 |
+| `20261112T0730Z-dev` | `227e8e1` | 18 | 3.04 |
 
 ## pilot
 
@@ -38,6 +39,34 @@ Ham kayıt (C aralığı; span, log, dört metrik) farkları; listede olmayan si
 
 - spans: aynı kimlikte farklı (end_ns +1): 171342
 
+## dev
+
+- Vaka: 18; oynatılan 18; yeniden denenen 0.
+- Çağrı: 12737; eşit 12240, farklı 497.
+- Sızıntı bulgusu (canlı çıktılar): 0.
+- Exemplar reddi (vaka başına): 6–29, toplam 322 (şart değil; DECISIONS 2026-11-10).
+- Jaeger bellek tepesi: 1921.0 MiB (sınır 2000 MiB).
+- Karşılaştırma süresi (vaka başına, oynatma hariç): 343–476 sn.
+
+| Fonksiyon | Eşit | Farklı |
+|---|---|---|
+| `get_trace` | 1242 | 281 |
+| `list_services` | 18 | 0 |
+| `metric_series` | 8748 | 0 |
+| `search_logs` | 1296 | 0 |
+| `search_spans` | 882 | 216 |
+| `service_dependencies` | 54 | 0 |
+
+| Fark türü | Çağrı |
+|---|---|
+| `zero_duration` | 497 |
+
+Açıklanamayan farklı çağrı: 0.
+
+Ham kayıt (C aralığı; span, log, dört metrik) farkları; listede olmayan sinyal ve sayaç 0:
+
+- spans: aynı kimlikte farklı (end_ns +1): 132267
+
 ## Fark türlerinin açıklaması
 
 - `zero_duration`: Jaeger süresi 0 olan span'i bitiş + 1 ns ile döndürüyor (depolama; duration_ms 0 ↔ 1e-06).
@@ -55,6 +84,24 @@ Ham kayıt (C aralığı; span, log, dört metrik) farkları; listede olmayan si
 
 | Vaka | Set | Deneme | Eşit | Farklı | Türler | Exemplar | Jaeger MiB (oynatma / karş.) |
 |---|---|---|---|---|---|---|---|
+| `inc-0c4902c3` | dev | 1 | 659 | 30 | zero_duration 30 | 10 | 1563 / 1094 |
+| `inc-230c9d46` | dev | 1 | 849 | 23 | zero_duration 23 | 19 | 1772 / 1263 |
+| `inc-234d34cf` | dev | 1 | 660 | 30 | zero_duration 30 | 27 | 1921 / 1201 |
+| `inc-320c56f9` | dev | 1 | 645 | 28 | zero_duration 28 | 6 | 1535 / 1176 |
+| `inc-4a62b9bb` | dev | 1 | 728 | 25 | zero_duration 25 | 17 | 1365 / 1035 |
+| `inc-5cb2c977` | dev | 1 | 642 | 31 | zero_duration 31 | 8 | 1454 / 1181 |
+| `inc-73ac64e9` | dev | 1 | 648 | 25 | zero_duration 25 | 21 | 1491 / 1138 |
+| `inc-8069b709` | dev | 1 | 644 | 29 | zero_duration 29 | 7 | 1637 / 1189 |
+| `inc-86d286ea` | dev | 1 | 645 | 28 | zero_duration 28 | 23 | 1355 / 1062 |
+| `inc-9292257f` | dev | 1 | 698 | 24 | zero_duration 24 | 25 | 1360 / 1102 |
+| `inc-ac155a23` | dev | 1 | 656 | 32 | zero_duration 32 | 23 | 1452 / 1130 |
+| `inc-ac820869` | dev | 1 | 657 | 32 | zero_duration 32 | 19 | 1394 / 1157 |
+| `inc-ae15665a` | dev | 1 | 644 | 29 | zero_duration 29 | 16 | 1591 / 1107 |
+| `inc-b4d12a5e` | dev | 1 | 644 | 29 | zero_duration 29 | 22 | 1661 / 1283 |
+| `inc-bfbbd586` | dev | 1 | 678 | 27 | zero_duration 27 | 29 | 1465 / 1091 |
+| `inc-d6d5f1b2` | dev | 1 | 849 | 23 | zero_duration 23 | 17 | 1688 / 1236 |
+| `inc-d9ea423d` | dev | 1 | 646 | 27 | zero_duration 27 | 20 | 1420 / 1180 |
+| `inc-fa775703` | dev | 1 | 648 | 25 | zero_duration 25 | 13 | 1506 / 1141 |
 | `inc-01a609bb` | pilot | 1 | 812 | 27 | zero_duration 27 | 12 | 1455 / 1167 |
 | `inc-01dd32ce` | pilot | 1 | 616 | 24 | zero_duration 24 | 19 | 1686 / 1152 |
 | `inc-072897d4` | pilot | 1 | 611 | 29 | zero_duration 29 | 10 | 1287 / 1096 |

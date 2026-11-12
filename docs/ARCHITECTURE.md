@@ -59,7 +59,9 @@ flowchart LR
     view --> nar --> inp
     view -->|"WARN+ log, hata span'i, özet"| inp
     inp --> llm
-    view -->|dosya araçları| agent
+    view --> fstore["FileStore (store_file.py)<br/>dosya okuyucusu"]
+    fstore --> qry["Sorgu katmanı (query.py)<br/>list_services, metric_series, search_spans,<br/>get_trace, search_logs, service_dependencies;<br/>ortak hesap, METRIC_NAMES"]
+    qry -->|"araçlar (P2b)"| agent
     llm -->|"evaluate run --method llm<br/>(duman, denemeler)"| cache
     llm -->|"evaluate run --method llm"| evr
     agent --> evr
@@ -79,8 +81,13 @@ flowchart LR
     rtest["tools/test_collector_rules.sh<br/>+ tests/fixtures/collector_rules/"] -.->|"kural testi (geçici collector, Docker)"| col
     c2runs -->|"window/filtered/<br/>(REPLAY_WINDOW)"| replay["tools/storage_check.py replay<br/>+ deploy/replay/ (otel-replay;<br/>collector: yalnız dosya alıcısı)"]
     replay -->|"orijinal zaman damgası,<br/>zaman sırasıyla"| rmon[("Yeniden oynatma hedefi<br/>Jaeger, Prometheus, OpenSearch<br/>otel-replay_* volume'leri, boş başlar")]
-    snap -.->|"Proje 2: vaka snapshot'ları"| replay
-    rmon -->|canlı araçlar| agent
+    snap --> rcase["tools/storage_check.py replay-case<br/>(vaka başına boş yığın, D3 şartları,<br/>örnek reddi 0, sonda down -v)"]
+    rcase -->|"REPLAY_WINDOW = snapshot"| rmon
+    rmon --> lstore["LiveStore (store_live.py)<br/>canlı okuyucu; Jaeger dilimleme,<br/>undo_jaeger_error_tag"]
+    lstore --> qry
+    qcmp["tools/query_compare.py<br/>run / report (LLM'siz)"] -->|"aynı çağrılar iki okuyucuda"| qry
+    qcmp --> rcase
+    qcmp -->|"fark türü kodla"| p2arep[("results/p2a_compare.md / .json")]
 
     classDef yok stroke-dasharray: 5 5
     class agent yok
@@ -89,6 +96,7 @@ flowchart LR
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
 - OTel Demo çalışıyor (minimal mod, 2026-10-18). Collector süzüyor ve dosyaya yazıyor (C1, 2026-10-20); 15 gerçek senaryoyla doğrulandı (C2, 2026-10-24). İzleme sistemi kalıcı (depolama kartı, 2026-10-25): isimli volume'ler (`down` silmez), Jaeger diske (badger), saklama 7 gün (Prometheus ayrıca 2GB, OpenSearch ISM), volume toplamı ≤ 40 GB koşucu korumasında; canlı = dosya doğrulandı (D2).
 - Yeniden oynatma (depolama D3, 2026-10-25) iki C2 penceresinde sınandı: izler, loglar ve metrikler canlı demodan ayrı, boş bir izleme sistemine kayıpsız gitti; Prometheus eski zamanlı örnekleri kabul ediyor ve diske yazdıktan sonra da sorgulanabiliyor. Proje 2'de `mon` vakaları tutmaz (~7 gün); ajanın canlı araçları vakaların snapshot'larından bu yolla doldurulan sisteme bakar (DECISIONS 2026-10-25).
+- P2a (2026-11-10/12): ajanın araçlarının üzerine kurulacağı sorgu katmanı depolamadan bağımsız; okuyucu yalnız ham kayıt verir, hesap ortak kodda (DECISIONS 2026-11-09 "aynı tanım"). Canlı taraf vaka başına boş yığına oynatılır. Dosya ↔ canlı karşılaştırması (pilot 25, dev 18): çağrıların hepsi eşit, yalnız Jaeger'in sıfır süreli span'e 1 ns eklemesi kalıyor (DECISIONS 2026-11-11); Jaeger'in `error="true"` → hata çevirisi okuyucuda geri alınıyor (DECISIONS 2026-11-12). Rapor `results/p2a_compare.md`.
 - Vaka üretimi V1 (2026-10-25/26): `scenario_runner.py incidents` bir listedeki vakaları uçtan uca üretir (enjekte et → kaydet → temizle → snapshot + etiket → kontroller). Pilot gece 13/13 geçerli, sızıntı 0, ~27,4 dk/vaka. `inj` hâlâ kesik çizgili: flag dışı enjeksiyonlar V2'de.
 - Sızıntı testi gerçek veride sınandı (C2 `positive_control`: her senaryoda raw'da bulgu, filtered temiz). Senaryo koşucusu (`scenario_runner.py`) vaka üretiminin temeli; `inj` kesik çizgili, çünkü flag dışı enjeksiyonlar (tc netem, CPU/bellek, kill) yok.
 
