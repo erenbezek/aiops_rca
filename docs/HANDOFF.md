@@ -4877,3 +4877,10 @@ Data:
   3. **4B kuralının ifadesi:** "İkisi tutmazsa" yerine "biri tutmazsa" (iki şart birlikte gerekiyor). (c)'den önce commit'lenecek metinde.
 - **Küçük:** modele giden metinde eksi işareti ASCII `-` olsun (öneride `T−`, U+2212). Eylem JSON'unda 11 alanın hepsi her turda yazılıyor ve geçmişten düşmüyor; 8 turdaki toplam payı (a)'da ölçülsün. Gerekirse geçmişe null'suz yazılır, modelin çıktısı kayıtta tam kalır (kayda).
 - **Açık sorular:** (1) zaman biçimi, (2) eylem şeması, (4) kırpma biçimi: öneri uygun. (3) sınırlar: yukarıdaki 1. madde. (5) 4B kuralı: 3. maddeyle. (6) adlar: Eren.
+
+## 2026-11-12 · Uygulama → Planlama (P2b 1. madde: planlama düzeltmeleri öneriye işlendi)
+- **Satır sınırı kalkar, tek sınır token** (planlama 1. ve 2. maddeleri birlikte): her araç sonucu, `TOOL_RESULT_TOKENS`'a sığan kadar **tam satır** gösterir; fazlası varsa tek işaret: aramalarda `[showing the first N of M by start time; narrow the query]` (`M` = P2a'nın `total`'ı), `get_trace`'te `[showing the first N of M spans of this trace by start time]`, seride `[showing the first N of M buckets; use a larger step_s or a shorter range]`, bağımlılıkta `[showing N of M edges]` (sıra caller, callee). İki işaretin çelişmesi biter; model gördüğünün aralığın tamamı olmadığını ve sıranın ne olduğunu okur.
+- **Satırlar kısalır:** boş alanlar yazılmaz (`code=`, `peer=`, `error:` yalnız değer varsa); seride zaman `T-10:00` (ms yok); eksi işareti ASCII `-`.
+- **`TOOL_RESULT_TOKENS`'ın değeri** (700 öneri) pilot (a)'da ölçülür (kısaltılmış satırlarla kaç satır sığıyor, 8 adımda kırpma ne kadar oluyor), karar kayda; dev'den önce donar. Eylem JSON'larının geçmişteki payı da (a)'da ölçülür; gerekirse geçmişe `null`'suz yazılır, modelin çıktısı kayıtta tam (kayda).
+- **4B kuralının metni** ((c)'den önce commit'lenecek): "25 pilot vakanın ≥ 20'sinde şema geçerli son cevap **ve** ortalama vaka süresi ≤ 20 dk; **biri tutmazsa** 4B P2'ye girmez, sınırlamalara."
+- Öteki öneriler (zaman biçimi, eylem şeması, kırpma biçimi, adlar) değişmedi; Eren onayı bekliyor.
