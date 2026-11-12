@@ -4891,3 +4891,14 @@ Data:
 - **Kasıtlı kırmızı** (ayrı klon `~/cerebrum2/analysis/p2b_red/`, betik `analysis/p2b_red_tools.py`): 9 bozma; ilk turda tam metin doğrulaması yeşil kaldı (sahte sayaç toplamsaldı), test eklendi; ikinci turda 9 / 9 kırmızı, geri alınınca yeşil.
 - **Onay bekleyen adlar:** `FETCH_LIMIT` (500), `LEVELS`, `ARG_FIELDS`, `KIND_TEXT`, `STATUS_TEXT`, `UNITS`, `SERIES_DIGITS`, `ERROR_CHARS` (120), `rel_time`; `llm_client` parametreleri `response_format`, `validate`; testte `P1_BODY_SHA256`.
 - **Açık:** ARCHITECTURE dosya tablosu bu commit'te yok (sonraki adımda). Usage limit nedeniyle oturum burada durdu.
+
+## 2026-11-12 · Planlama → Uygulama (P2b 2. madde kontrolü: ajan araçları ve llm_client)
+- **Geçti:**
+  - pytest 673 (scratch klon, `aedd61a`).
+  - P1 değişmedi: eski (`64360ce`) ve yeni `llm_client` ile beş modelde, üç seviyenin istemiyle istek gövdesi 15 / 15 birebir; `parse_content` beş girdide aynı (kendi karşılaştırmam, eski modül ayrı yüklendi).
+  - Araçlar hesap eklemiyor: 5 pilot vakada (gece yarısını geçen ikisi dahil: `inc-2a87f603`, `inc-48be145f`; ayrıca `inc-0f31ed0e`, `inc-91bf76d4`, `inc-af671750`) 222 çağrıda `run_tool` metni, P2a fonksiyonlarının `limit=None` çıktısından kendi biçimleyicimle üretilen satırlarla aynı; toplamlar (`M`) P2a'nın `total`'ıyla aynı; 83'ü kesildi, hepsi gerçek Qwen sayımıyla ≤ 700 token; kesilme bayrağı gösterilen < toplam ile tutarlı. Altı araç; aralıklar −30 … +30 dk ve ondalıklı dakikalar; seride 10–120 sn kovalar. 30 geçersiz çağrının (bilinmeyen servis / metrik / araç, `from_min ≥ to_min`, tür hatası, olmayan iz) 30'u tek satırlık `error:`.
+- **Düzeltilecek:**
+  1. **Ad çakışması:** `LEVELS` GLOSSARY'de üç girdi seviyesinin adı (`inputs.py`, `error_analysis.py`, `evaluate.py`, `methods/llm.py`). Log önemi için başka ad önerilsin (ör. `LOG_LEVELS`).
+  2. **`_fit` yalnız azaltıyor:** satır başı sayımla tahmin edip tam metinle aşağı iniyor; 222 çağrının 7'sinde sığabilecek olandan 1 satır eksik (ör. `inc-0f31ed0e` `search_spans` 8 → 9, `search_logs` 39 → 40). "Sığan kadar tam satır" için tam metinle bir artırma adımı. Küçük; dosya ve canlı aynı davranıyor.
+- **3. madde için not:** `run_tool` yalnız `_Bad` ve `ValueError`'ı araç hatasına çeviriyor; okuyucunun altyapı hataları (`LiveStore`'da HTTP hatası, Jaeger'in 1 sn dilimde derinlik `RuntimeError`'ı) dışarı çıkıyor. Döngüde bunların nasıl ele alınacağı 3. maddede önerilsin. Modele gösterilirse dosya ↔ canlı farkı yaratır; ayrı bir bitiş nedeni gerekirse ad önerisi.
+- **Adlar:** öteki önerilenler GLOSSARY'deki adlarla çakışmıyor; onay Eren'de. ARCHITECTURE dosya tablosu sonraki adımda (uygulamanın notu).
