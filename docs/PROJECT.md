@@ -6,10 +6,10 @@ kök nedeni bulan yöntemleri aynı vakalar üzerinde ölçen bir altyapı ve ü
 
 - **Proje 1:** CPU'da çalışan küçük lokal model (`small_local_model`) + istatistiksel daraltma (hibrit),
   kanıt/yol doğrulaması ve "emin değilim" diyebilme (kalibrasyon).
-- **Proje 2:** Büyük API modeli (`large_api_model`) ile araçlı ajan (Proje 1 bittikten sonra).
+- **Proje 2:** Araçlı ajan (tek ajan, sabit sorgu araçları; model kod çalıştırmaz). Ana model Gemini 3.5 Flash Lite (`large_api_model`); yerel qwen3.5-4b (`small_local_model`) ikinci model adayı (DECISIONS 2026-11-09).
 
 Tüm yöntemler aynı vakalarda baseline'lara (kural, BARO) karşı ölçülür.
-`large_api_model` satırları iki modelle koşulur (Groq gpt-oss-120b, Gemini 3.5 Flash Lite), ayarlar birebir aynı.
+Proje 1'de `large_api_model` satırları iki modelle koşuldu (Groq gpt-oss-120b, Gemini 3.5 Flash Lite), ayarlar birebir aynı. Proje 2'de yalnız Gemini (Groq kotası ajana yetmiyor, para harcanmıyor; DECISIONS 2026-11-09).
 
 ## Neden
 Logların dışarı çıkamadığı bir ortamda küçük lokal model, doğru desteklenirse
@@ -42,6 +42,7 @@ kök neden analizinde ne kadar iş görür?
 - [ ] Proje 2 (ajan): Proje 1 bittikten sonra
   - Ajan aynı vakalarda hem dosyadan hem canlı izleme sisteminden (Prometheus, Jaeger, OpenSearch) koşuldu, iki satır tabloda yan yana
   - Aynı araç çağrılarının dosya ve canlı çıktıları karşılaştırıldı, farklar açıklandı
+    - Araç düzeyi tamam (P2a, 2026-11-12; `results/p2a_compare.md`): pilot 25 + dev 18 vakada çağrıların hepsi eşit; kalan tek fark Jaeger'in sıfır süreli span'e 1 ns eklemesi (DECISIONS 2026-11-11), `error="true"` çevirisi okuyucuda geri alınıyor (DECISIONS 2026-11-12). Ajan düzeyi P2c'de.
 
 ### DevOps kontrol listesi
 Proje sonunda her satır için: gerçekten yaptım mı?
@@ -53,7 +54,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 | Docker Compose, kaynak limitleri | OTel Demo yığını | [ ] |
 | Telemetri hattı (collector) | Sızıntı süzmesi, dosyaya ve izleme sistemine çift çıkış | [ ] |
 | Kalıcı depolama, saklama süresi | Jaeger diske, Prometheus/OpenSearch saklama | [ ] kısmen: isimli volume, Jaeger diske, 7 gün + boyut sınırları, canlı = dosya doğrulandı; saklamanın silmesi henüz gözlenmedi |
-| PromQL, Jaeger ve log sorguları | Snapshot kaydedici, ajan araçları | [ ] |
+| PromQL, Jaeger ve log sorguları | Snapshot kaydedici, ajan araçları | [ ] kısmen (P2a, 2026-11-12): Jaeger API v3 araması (zaman dilimleme, derinlik sınırında bölme) ve tek iz, OpenSearch sorguları (sayfalama, servis süzgeci), Prometheus ham aralık sorguları; canlı = dosya doğrulandı (`results/p2a_compare.md`). PromQL işlevleri (rate, histogram_quantile) canlı demonun Grafana panosunda (DECISIONS 2026-11-09) |
 | Linux ağ/kaynak hataları (tc netem, CPU/bellek, kill) | Hata enjeksiyonu | [x] tc netem (gecikme, kayıp; kendi yardımcı imajla), CPU sınırı, durdurma, dondurma; uygula, geri al, doğrula; bellek sınırı denendi, bu demoda belirti vermediği için çıktı (INCIDENT_CATALOG) |
 | Otomasyon betikleri | Gece boyu vaka üretim hattı | [x] koşucu (`scenario_runner.py incidents`: korumalar, enjeksiyon, geri alma ve doğrulama, snapshot, etiket) ve systemd birim şablonu (`deploy/systemd/aiops-incidents@.service`): tek komutla başlar; `systemctl stop`'ta yarıdaki vaka temizlenir (SIGTERM → hata geri alınır, flag kapanır, demo kapanır); kapanmada ya da oturumdan çıkışta temizlik kesilir (kullanıcı yöneticisi 5 sn verir), sonraki koşu kalıntı denetiminde başlamaz; zamanlayıcı yok |
 | Grafana dashboard | Canlı demo | [ ] |
@@ -100,4 +101,7 @@ P1b bitti (`task/p1-baro`, PR #30, 2026-10-31): BARO, RCAEval 1.9.0'ın saf Pyth
 P1c bitti (`task/p1-llm`, 2026-11-01): LLM katmanı (`llm_client.py`, beş model), girdi seviyeleri ham / özet / daraltma (`inputs.py`; 43 vakada veri ≤ 5000, tam mesaj ≤ 6000, en çok 5.384), daraltma (`narrowing.py`; dev'de kök ilk 5'te 18/18), takma ad üç seviyede (`alias.py`; gerçek ad 0, sızıntı 0; `quote-svc` tek pilot vakada kaldı, P1e notu), LLM yöntemi (`methods/llm.py`, `evaluate run --method llm`; boş ve bütçeyi aşan girdi sorulmaz). Üç onay alındı (kesme kuralı, öne alma, istem). Duman 30 çağrı, şemaya uygun 29/30 (`llm_cache/`). Dev'de model koşulmadı.
 P1c birleşti (PR #31).
 P1d bitti (`task/p1-dev-runs`, 2026-11-04): dev'de 36 resmî LLM turu (a1 gerçek ad 15, b takma ad 15, a2 API ikinci tur 6; `eval_responses/`), yerel tekrar 18/18 aynı. Resmî analiz (repo dışı betik, planlama bağımsız doğruladı; HANDOFF 2026-11-04): yerel model **qwen3.5-4b** (9 zor vakada top-3: 2B 6, 4B 9, 9B 9); takma ad etkisi görülmedi (gpt-oss ham belirsiz, gürültü 2). Daraltma top-3: Gemini 18, gpt-oss 17, 4B ve 9B 16 / 18. Groq `json_validate_failed` şema dışı sayılıyor (`eafc491`).
-P1e bitti (`task/p1-test`, 2026-11-05): test setinde 15 koşu (kural, BARO, daraltma referansı, 4B / gpt-oss / Gemini / 9B × üç seviye; temiz klonda), sonuç tablosu `results/p1_table.md` (`python -m aiops_rca.results`, CI bayt aynı). Dev–test bütün satırlarda "ayırt edilemedi" (en küçük p 0,1774); 9B bilgi satırı 2 / 0 / 14, ayırt edilemedi. Dev hata analizi: 29 satır, 6 tuzak, Eren doğrulaması 9 / 1 (`results/p1_error_summary.md`). Sınırlamalar `results/p1_limitations.md`. Sıradaki: PR birleşince P1'in kalan işleri planlamada.
+P1e bitti (`task/p1-test`, 2026-11-05): test setinde 15 koşu (kural, BARO, daraltma referansı, 4B / gpt-oss / Gemini / 9B × üç seviye; temiz klonda), sonuç tablosu `results/p1_table.md` (`python -m aiops_rca.results`, CI bayt aynı). Dev–test bütün satırlarda "ayırt edilemedi" (en küçük p 0,1774); 9B bilgi satırı 2 / 0 / 14, ayırt edilemedi. Dev hata analizi: 29 satır, 6 tuzak, Eren doğrulaması 9 / 1 (`results/p1_error_summary.md`). Sınırlamalar `results/p1_limitations.md`.
+P1e birleşti (PR #33, main `b4878eb`).
+Proje 2 çerçevesi (DECISIONS 2026-11-09): P2a sorgu araçları → P2b ajan döngüsü + pilot dumanı → P2c dev koşuları → P2d test koşusu ve analiz. Tek ajan + sabit sorgu araçları; model Gemini 3.5 Flash Lite (4B adayı P2b'de); canlı taraf vaka başına boş yeniden oynatma, dosyayla aynı tanım; çağrı bütçesi 6K. P2a kartı HANDOFF'ta, dal `task/p2a`. P2'den sonra canlı demo (product-catalog sınaması orada), sonra kapanış.
+P2a bitti (`task/p2a`, 2026-11-12): sorgu katmanı (`query.py`, altı fonksiyon, ortak hesap), dosya ve canlı okuyucu (`store_file.py`, `store_live.py`), vaka başına boş yeniden oynatma (`storage_check.py replay-case`), LLM'siz karşılaştırma (`tools/query_compare.py`). Pilot 25 + dev 18 vakada çağrıların hepsi eşit; kalan tek fark Jaeger'in sıfır süreli span'e 1 ns eklemesi (DECISIONS 2026-11-11); Jaeger'in `error="true"` → hata çevirisi okuyucuda geri alınıyor (DECISIONS 2026-11-12). Sızıntı 0, OOM 0; Jaeger tepesi sınırın %96'sı (P2c'den önce karar). Rapor `results/p2a_compare.md`. Sıradaki: PR birleşince P2b kartı (planlama).
