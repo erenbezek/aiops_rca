@@ -1,56 +1,52 @@
 {
  "runs": [
   {
-   "dir": "20261110T2204Z-pilot",
-   "git_sha": "583fb0c04fa6a902ff62ee7b1353be0f46f74d47",
+   "dir": "20261111T2333Z-pilot",
+   "git_sha": "9e4491778834a390930c4a9f039431bed7eeefc1",
    "git_dirty": false,
-   "seconds": 14212,
+   "seconds": 14197,
    "cases": 25
   }
  ],
  "cases": {
   "inc-01a609bb": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
     "get_trace": {
-     "equal": 227,
-     "different": 22
+     "equal": 234,
+     "different": 15
     },
     "list_services": {
      "equal": 1
     },
     "metric_series": {
-     "equal": 455,
-     "different": 4
+     "equal": 459
     },
     "search_logs": {
      "equal": 69
     },
     "search_spans": {
-     "different": 17,
-     "equal": 41
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "error_tag": 16,
-    "zero_duration": 25,
-    "error_tag+zero_duration": 2
+    "zero_duration": 27
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 6529,
+     "changed_ids": 6474,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 6474,
-      "status +2": 55
+      "end_ns +1": 6474
      }
     },
     "logs": {
@@ -91,16 +87,16 @@
    },
    "exemplar_rejects": 12.0,
    "leakage_findings": 0,
-   "compare_s": 392,
-   "replay_s": 51,
+   "compare_s": 394,
+   "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1365.0,
-    "compare": 1062.9
+    "replay": 1455.1,
+    "compare": 1167.4
    }
   },
   "inc-01dd32ce": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -179,13 +175,13 @@
    "compare_s": 439,
    "replay_s": 51,
    "jaeger_peak_mib": {
-    "replay": 1592.3,
-    "compare": 1143.8
+    "replay": 1685.5,
+    "compare": 1152.0
    }
   },
   "inc-072897d4": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -259,18 +255,18 @@
      "changed_fields": {}
     }
    },
-   "exemplar_rejects": 9.0,
+   "exemplar_rejects": 10.0,
    "leakage_findings": 0,
-   "compare_s": 395,
+   "compare_s": 390,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1269.8,
-    "compare": 1165.3
+    "replay": 1287.2,
+    "compare": 1095.7
    }
   },
   "inc-07533a0a": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -346,16 +342,16 @@
    },
    "exemplar_rejects": 11.0,
    "leakage_findings": 0,
-   "compare_s": 400,
+   "compare_s": 397,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1280.0,
-    "compare": 1070.1
+    "replay": 1269.8,
+    "compare": 1043.5
    }
   },
   "inc-09516b21": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -431,55 +427,51 @@
    },
    "exemplar_rejects": 14.0,
    "leakage_findings": 0,
-   "compare_s": 383,
+   "compare_s": 382,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1353.7,
-    "compare": 1134.6
+    "replay": 1366.0,
+    "compare": 1152.0
    }
   },
   "inc-0f31ed0e": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
     "get_trace": {
-     "different": 94,
-     "equal": 37
+     "equal": 119,
+     "different": 12
     },
     "list_services": {
      "equal": 1
     },
     "metric_series": {
-     "equal": 455,
-     "different": 4
+     "equal": 459
     },
     "search_logs": {
      "equal": 69
     },
     "search_spans": {
-     "different": 17,
-     "equal": 41
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "error_tag": 91,
-    "zero_duration": 22,
-    "error_tag+zero_duration": 2
+    "zero_duration": 24
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 5150,
+     "changed_ids": 4919,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 4919,
-      "status +2": 231
+      "end_ns +1": 4919
      }
     },
     "logs": {
@@ -520,16 +512,16 @@
    },
    "exemplar_rejects": 15.0,
    "leakage_findings": 0,
-   "compare_s": 283,
+   "compare_s": 286,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1090.6,
-    "compare": 926.7
+    "replay": 1053.7,
+    "compare": 989.7
    }
   },
   "inc-110f3aba": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -605,16 +597,16 @@
    },
    "exemplar_rejects": 22.0,
    "leakage_findings": 0,
-   "compare_s": 375,
+   "compare_s": 376,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1337.3,
-    "compare": 1066.0
+    "replay": 1306.6,
+    "compare": 1177.6
    }
   },
   "inc-12813456": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -690,55 +682,51 @@
    },
    "exemplar_rejects": 13.0,
    "leakage_findings": 0,
-   "compare_s": 381,
+   "compare_s": 384,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1381.4,
-    "compare": 1159.2
+    "replay": 1294.3,
+    "compare": 1194.0
    }
   },
   "inc-2a87f603": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
     "get_trace": {
-     "different": 53,
-     "equal": 38
+     "equal": 80,
+     "different": 11
     },
     "list_services": {
      "equal": 1
     },
     "metric_series": {
-     "equal": 455,
-     "different": 4
+     "equal": 459
     },
     "search_logs": {
      "equal": 69
     },
     "search_spans": {
-     "different": 17,
-     "equal": 41
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "error_tag": 51,
-    "zero_duration": 21,
-    "error_tag+zero_duration": 2
+    "zero_duration": 23
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 7570,
+     "changed_ids": 6577,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 6577,
-      "status +2": 993
+      "end_ns +1": 6577
      }
     },
     "logs": {
@@ -779,16 +767,16 @@
    },
    "exemplar_rejects": 23.0,
    "leakage_findings": 0,
-   "compare_s": 368,
+   "compare_s": 366,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1364.0,
-    "compare": 1102.8
+    "replay": 1355.8,
+    "compare": 1122.3
    }
   },
   "inc-2dd806a2": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -867,13 +855,13 @@
    "compare_s": 464,
    "replay_s": 51,
    "jaeger_peak_mib": {
-    "replay": 1432.6,
-    "compare": 1032.2
+    "replay": 1822.7,
+    "compare": 1228.8
    }
   },
   "inc-2e5706ab": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -949,16 +937,16 @@
    },
    "exemplar_rejects": 20.0,
    "leakage_findings": 0,
-   "compare_s": 395,
+   "compare_s": 398,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1466.4,
-    "compare": 1212.4
+    "replay": 1404.9,
+    "compare": 1161.2
    }
   },
   "inc-3967c278": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1034,16 +1022,16 @@
    },
    "exemplar_rejects": 5.0,
    "leakage_findings": 0,
-   "compare_s": 402,
+   "compare_s": 401,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1457.2,
-    "compare": 1213.4
+    "replay": 1476.6,
+    "compare": 1205.2
    }
   },
   "inc-48be145f": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1117,57 +1105,53 @@
      "changed_fields": {}
     }
    },
-   "exemplar_rejects": 14.0,
+   "exemplar_rejects": 15.0,
    "leakage_findings": 0,
-   "compare_s": 390,
+   "compare_s": 387,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1316.9,
-    "compare": 1043.5
+    "replay": 1289.2,
+    "compare": 1197.1
    }
   },
   "inc-78df5642": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
     "get_trace": {
-     "different": 35,
-     "equal": 43
+     "equal": 64,
+     "different": 14
     },
     "list_services": {
      "equal": 1
     },
     "metric_series": {
-     "equal": 455,
-     "different": 4
+     "equal": 459
     },
     "search_logs": {
      "equal": 69
     },
     "search_spans": {
-     "different": 17,
-     "equal": 41
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "error_tag": 30,
-    "zero_duration": 24,
-    "error_tag+zero_duration": 2
+    "zero_duration": 26
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 6649,
+     "changed_ids": 6594,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 6594,
-      "status +2": 55
+      "end_ns +1": 6594
      }
     },
     "logs": {
@@ -1206,18 +1190,18 @@
      "changed_fields": {}
     }
    },
-   "exemplar_rejects": 14.0,
+   "exemplar_rejects": 13.0,
    "leakage_findings": 0,
-   "compare_s": 384,
+   "compare_s": 385,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1239.0,
-    "compare": 999.8
+    "replay": 1321.0,
+    "compare": 1121.3
    }
   },
   "inc-79cab5da": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1229,34 +1213,30 @@
      "equal": 1
     },
     "metric_series": {
-     "equal": 455,
-     "different": 4
+     "equal": 459
     },
     "search_logs": {
      "equal": 69
     },
     "search_spans": {
-     "different": 17,
-     "equal": 41
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "error_tag": 9,
-    "zero_duration": 23,
-    "error_tag+zero_duration": 2
+    "zero_duration": 25
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 7831,
+     "changed_ids": 7663,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 7663,
-      "status +2": 168
+      "end_ns +1": 7663
      }
     },
     "logs": {
@@ -1295,18 +1275,18 @@
      "changed_fields": {}
     }
    },
-   "exemplar_rejects": 26.0,
+   "exemplar_rejects": 24.0,
    "leakage_findings": 0,
    "compare_s": 448,
    "replay_s": 51,
    "jaeger_peak_mib": {
-    "replay": 1636.4,
-    "compare": 1239.0
+    "replay": 1696.8,
+    "compare": 1195.0
    }
   },
   "inc-8ceb7ae5": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1380,18 +1360,18 @@
      "changed_fields": {}
     }
    },
-   "exemplar_rejects": 16.0,
+   "exemplar_rejects": 20.0,
    "leakage_findings": 0,
-   "compare_s": 389,
+   "compare_s": 391,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1293.3,
-    "compare": 1040.4
+    "replay": 1241.1,
+    "compare": 1109.0
    }
   },
   "inc-91bf76d4": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1465,18 +1445,18 @@
      "changed_fields": {}
     }
    },
-   "exemplar_rejects": 9.0,
+   "exemplar_rejects": 11.0,
    "leakage_findings": 0,
-   "compare_s": 442,
+   "compare_s": 439,
    "replay_s": 51,
    "jaeger_peak_mib": {
     "replay": 1506.3,
-    "compare": 1116.2
+    "compare": 1177.6
    }
   },
   "inc-91c1ad44": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1552,16 +1532,16 @@
    },
    "exemplar_rejects": 22.0,
    "leakage_findings": 0,
-   "compare_s": 435,
+   "compare_s": 433,
    "replay_s": 51,
    "jaeger_peak_mib": {
-    "replay": 1439.7,
-    "compare": 1017.0
+    "replay": 1608.7,
+    "compare": 1301.5
    }
   },
   "inc-93c4ca55": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1637,16 +1617,16 @@
    },
    "exemplar_rejects": 20.0,
    "leakage_findings": 0,
-   "compare_s": 386,
+   "compare_s": 384,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1266.7,
-    "compare": 1134.6
+    "replay": 1280.0,
+    "compare": 1225.7
    }
   },
   "inc-af671750": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1720,18 +1700,18 @@
      "changed_fields": {}
     }
    },
-   "exemplar_rejects": 20.0,
+   "exemplar_rejects": 21.0,
    "leakage_findings": 0,
-   "compare_s": 458,
+   "compare_s": 455,
    "replay_s": 51,
    "jaeger_peak_mib": {
-    "replay": 1634.3,
-    "compare": 1176.6
+    "replay": 1654.8,
+    "compare": 1105.9
    }
   },
   "inc-b03ccffb": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1743,34 +1723,30 @@
      "equal": 1
     },
     "metric_series": {
-     "equal": 455,
-     "different": 4
+     "equal": 459
     },
     "search_logs": {
      "equal": 69
     },
     "search_spans": {
-     "different": 16,
-     "equal": 42
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "error_tag": 8,
-    "zero_duration": 27,
-    "error_tag+zero_duration": 2
+    "zero_duration": 29
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 6540,
+     "changed_ids": 6536,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 6536,
-      "status +2": 4
+      "end_ns +1": 6536
      }
     },
     "logs": {
@@ -1811,55 +1787,51 @@
    },
    "exemplar_rejects": 20.0,
    "leakage_findings": 0,
-   "compare_s": 402,
+   "compare_s": 401,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1303.6,
-    "compare": 1090.6
+    "replay": 1357.8,
+    "compare": 1087.5
    }
   },
   "inc-c775923b": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
     "get_trace": {
-     "different": 17,
-     "equal": 34
+     "equal": 35,
+     "different": 16
     },
     "list_services": {
      "equal": 1
     },
     "metric_series": {
-     "equal": 455,
-     "different": 4
+     "equal": 459
     },
     "search_logs": {
      "equal": 69
     },
     "search_spans": {
-     "different": 17,
-     "equal": 41
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "error_tag": 10,
-    "zero_duration": 26,
-    "error_tag+zero_duration": 2
+    "zero_duration": 28
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 7908,
+     "changed_ids": 7900,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 7900,
-      "status +2": 8
+      "end_ns +1": 7900
      }
     },
     "logs": {
@@ -1900,16 +1872,16 @@
    },
    "exemplar_rejects": 20.0,
    "leakage_findings": 0,
-   "compare_s": 440,
+   "compare_s": 439,
    "replay_s": 51,
    "jaeger_peak_mib": {
-    "replay": 1396.7,
-    "compare": 968.9
+    "replay": 1678.3,
+    "compare": 1289.2
    }
   },
   "inc-d8f67a48": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
@@ -1985,22 +1957,22 @@
    },
    "exemplar_rejects": 6.0,
    "leakage_findings": 0,
-   "compare_s": 447,
+   "compare_s": 444,
    "replay_s": 51,
    "jaeger_peak_mib": {
-    "replay": 1571.8,
-    "compare": 1210.4
+    "replay": 1563.6,
+    "compare": 1261.6
    }
   },
   "inc-ef72f574": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
     "get_trace": {
-     "different": 41,
-     "equal": 25
+     "equal": 41,
+     "different": 25
     },
     "list_services": {
      "equal": 1
@@ -2012,27 +1984,24 @@
      "equal": 69
     },
     "search_spans": {
-     "different": 17,
-     "equal": 41
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "zero_duration": 35,
-    "error_tag+zero_duration": 2,
-    "error_tag": 21
+    "zero_duration": 37
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 6930,
+     "changed_ids": 6914,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 6914,
-      "status +2": 16
+      "end_ns +1": 6914
      }
     },
     "logs": {
@@ -2071,57 +2040,53 @@
      "changed_fields": {}
     }
    },
-   "exemplar_rejects": 25.0,
+   "exemplar_rejects": 27.0,
    "leakage_findings": 0,
-   "compare_s": 394,
+   "compare_s": 397,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1354.8,
-    "compare": 1026.0
+    "replay": 1369.1,
+    "compare": 1126.4
    }
   },
   "inc-f20daed8": {
    "set": "pilot",
-   "run": "20261110T2204Z-pilot",
+   "run": "20261111T2333Z-pilot",
    "attempts": 1,
    "replayed": true,
    "calls": {
     "get_trace": {
-     "different": 88,
-     "equal": 37
+     "equal": 114,
+     "different": 11
     },
     "list_services": {
      "equal": 1
     },
     "metric_series": {
-     "equal": 455,
-     "different": 4
+     "equal": 459
     },
     "search_logs": {
      "equal": 69
     },
     "search_spans": {
-     "different": 17,
-     "equal": 41
+     "different": 12,
+     "equal": 46
     },
     "service_dependencies": {
      "equal": 3
     }
    },
    "types": {
-    "error_tag": 86,
-    "zero_duration": 21,
-    "error_tag+zero_duration": 2
+    "zero_duration": 23
    },
    "raw": {
     "spans": {
      "equal": false,
-     "changed_ids": 5352,
+     "changed_ids": 5053,
      "ids_only_file": 0,
      "ids_only_live": 0,
      "changed_fields": {
-      "end_ns +1": 5053,
-      "status +2": 299
+      "end_ns +1": 5053
      }
     },
     "logs": {
@@ -2162,11 +2127,11 @@
    },
    "exemplar_rejects": 10.0,
    "leakage_findings": 0,
-   "compare_s": 333,
+   "compare_s": 334,
    "replay_s": 41,
    "jaeger_peak_mib": {
-    "replay": 1299.5,
-    "compare": 1245.2
+    "replay": 1285.1,
+    "compare": 1110.0
    }
   }
  },
@@ -2177,55 +2142,51 @@
    "retried": 0,
    "calls": {
     "get_trace": {
-     "equal": 1555,
-     "different": 622
+     "equal": 1801,
+     "different": 376
     },
     "list_services": {
      "equal": 25
     },
     "metric_series": {
-     "equal": 11497,
-     "different": 32
+     "equal": 11529
     },
     "search_logs": {
      "equal": 1731
     },
     "search_spans": {
-     "different": 344,
-     "equal": 1112
+     "different": 300,
+     "equal": 1156
     },
     "service_dependencies": {
      "equal": 75
     }
    },
-   "equal": 15995,
-   "different": 998,
+   "equal": 16317,
+   "different": 676,
    "leakage_findings": 0,
    "exemplar_rejects": {
     "min": 5.0,
-    "max": 26.0,
-    "sum": 390.0
+    "max": 27.0,
+    "sum": 398.0
    },
-   "jaeger_peak_mib": 1636.4,
+   "jaeger_peak_mib": 1822.7,
    "compare_s": {
-    "min": 283,
+    "min": 286,
     "max": 464
    },
    "raw_changes": {
-    "spans: aynı kimlikte farklı (end_ns +1)": 171342,
-    "spans: aynı kimlikte farklı (status +2)": 1829
+    "spans: aynı kimlikte farklı (end_ns +1)": 171342
    }
   }
  },
  "types": {
   "pilot": {
-   "error_tag": 322,
-   "error_tag+zero_duration": 18,
-   "zero_duration": 658
+   "zero_duration": 676
   }
  },
  "transforms": {
   "zero_duration": "Jaeger süresi 0 olan span'i bitiş + 1 ns ile döndürüyor (depolama; duration_ms 0 ↔ 1e-06)",
-  "error_tag": "Jaeger error=\"true\" etiketini hata durumuna çeviriyor (depolama); Envoy yanıtsız isteklerde (http.status_code 0) yalnız bu etiketi koyuyor, P1 / P2 hata tanımı (OTLP durumu) bunları hata saymıyor (tanım)"
+  "error_tag": "Jaeger error=\"true\" etiketini hata durumuna çeviriyor (depolama); canlı okuyucu bunu geri alıyor (store_live.undo_jaeger_error_tag, DECISIONS 2026-11-12), bu tür artık beklenmiyor (tanı olarak sınanır)"
  }
 }
