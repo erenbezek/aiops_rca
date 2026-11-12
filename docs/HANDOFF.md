@@ -4797,3 +4797,20 @@ Data:
   - Durum: P1 bitti; P2a bitti (rapora bağlantı, sayı yok: kart "her sayı `p1_table.md` hücresi" diyor); P2'nin kalanı ve canlı demo sırada; snapshot seti yayınlanmadı (seviye 2).
 - **Denetim (kartın ölçütleri):** `cerebrum2`, `keys.env`, `inc-` + 8 hex, kullanıcı adı, `/home/` → 0. Tablo 12 / 12 satır `p1_table.md` ile aynı. Tablo, diyagram ve kod blokları dışındaki sayılar yalnız ad olarak 1, 2, 3 ("top-1 / top-3", "Proje 1 / 2", "seviye 2"). Göreli bağlantılar 12 / 12 var. `results --check` ve `error_analysis summary --check` bu dalda "same". ARCHITECTURE README satırı güncel. pytest 650. Mermaid'in çizildiği PR önizlemesinde görülecek (yerelde mermaid aracı yok; yeni paket kurulmadı).
 - **Bekleyen kayıt (P2a sonrası, birleşmiş dala commit olmadığı için burada):** Eren izniyle silindi: `~/cerebrum2/aiops_rca_p1e` (14 test koşusunun `responses.jsonl` / `run.json`'u main'de bayt aynı, main'de ayrıca `scores.json`; tek özgün içerik `llm_cache/`'teki 10 deneme koşusu, P1e 1. adım, 2026-11-04 08:22–08:28Z, her biri 1 pilot vaka → silmeden önce main kopyasının `llm_cache/`'ine kopyalandı, 10 / 10 aynı) ve `~/cerebrum2/analysis/p2a_red/` (kasıtlı kırmızı klonu; kod dosyaları `9e44917` ile aynı; betik → `~/cerebrum2/analysis/p2a_red_c.py`). Boş disk 237,9 GB.
+
+## 2026-11-12 · Planlama → Uygulama (README kontrolü; PR #35 ve #38 birleşmiş hâliyle)
+- Kontrol main `64360ce` üzerinde: PR #35 11:22Z'de, Eren'in #38'i (İngilizce özetin ilk cümlesi) 11:28Z'de birleşti; kontrol birleşmeden sonra.
+- **Geçti (kartın ölçütleri):**
+  - Tablo 12 / 12 satır, 48 hücre `p1_table.md` 1. bölümüyle aynı (kendi betiğim); 9B satırları yalnız bağlantıyla.
+  - Yasak dizgi 0 (`cerebrum2`, `keys.env`, `inc-` + 8 hex, `/home/`, kullanıcı adı). Tablo, diyagram ve kod blokları dışındaki sayılar yalnız ad olarak 1, 2, 3.
+  - Göreli bağlantılar 12 / 12 var. Diyagram ARCHITECTURE'dakiyle aynı, yalnız üç yol farklı; GitHub bloğu mermaid olarak tanıyor (`data-type="mermaid"`).
+  - Tekrar üretme komutları scratch klonda (`64360ce`): `results --check` ve `error_analysis summary --check` "same", pytest 650. CI main'de üç birleştirmede de (`e34e6c7`, `6508826`, `64360ce`) yeşil.
+  - Temkinli dil maddelerinin üçü de var; İngilizce özet Türkçe metinle çelişmiyor.
+  - Birleştirme: `e34e6c7` → main arasında HANDOFF ve DECISIONS'ta silinen satır 0.
+- **Küçük notlar** (sonraki README güncellemesinde, P2 sonunda; 1. madde Eren'in):
+  1. #38'deki ilk cümle "This is a root cause analysis (RCA) for microservices." bir ad eksik (ör. "… (RCA) testbed for microservices"). "The documentation and the rest of this page are in Turkish." cümlesi de #38'le düştü.
+  2. "Dev–test okuması" `p1_table.md`'de top-3 içindir; README'de top-1 test sütununun yanında durduğu için başlık "Dev–test okuması (top-3)" daha açık. "(okuma kuralı tablonun altında)" `p1_table.md`'deki tabloyu kastediyor.
+  3. Diyagramda "repo dışı C2 koşu klasörü<br/>repo dışı, cevap içerir": "repo dışı" iki kez (kartın "yalnız üç yol" kuralı gereği kaldı).
+- Eren'in #36 ve #37 PR'ları #38'le aynı değişikliği yapıyor; açık duruyorlar.
+- Bekleyen silmeler (Eren izniyle) yapıldı: `aiops_rca_p1e`, `analysis/p2a_red/`.
+- **Dal:** bu kayıt `task/p2b`'de (main `64360ce`'den, scratch klonda açıldı). P2b kartı bu dala gelecek. Ortak kopya birleşmiş `task/readme`'de; o dala commit yok. Uygulama P2b'ye başlarken ortak kopyayı `task/p2b`'ye geçirir.
