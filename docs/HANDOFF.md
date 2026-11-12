@@ -4730,3 +4730,9 @@ Data:
 - **Rapor** `results/p2a_compare.md` / `.json` bu koşudan (`.json` sha256 `ff4e3d52e1208980…`); eski koşu (`20261110T2204Z-pilot`) rapora girmez, kayıt olarak durur.
 - **Gözlem (5. madde için):** Jaeger tepesi oynatmada en çok **1.822,7 MiB (%91,1)** (`inc-2dd806a2`); aynı vaka önceki koşuda 1.432,6 MiB (+390,1). 25 vakada yeni − eski ortalama +39,2 MiB. Tepe oynatmada, karşılaştırmada değil (karşılaştırmada en çok 1.301,5). Dev'in iz boyutu en büyük vakası `inc-ae15665a` 191,5 MB (pilotun en büyüğü 188,7). OOM kuralı yazılı (bir kez yeniden; ikinci kez "oynatılamadı"); Jaeger ayarı değişikliği Eren kararı.
 - **Exemplar reddi:** 5–27, toplam 398.
+
+## 2026-11-12 · Uygulama → Planlama (P2a 5. madde: donma; dev koşusundan önce)
+- **5. madde planı** Eren onaylı: donma → dev bir kez (18 vaka) → rapor pilot + dev → dev'de fark olursa yalnız uygulama hatası düzeltilir (tanım değişmez; düzeltme olursa pilot + dev yeniden, kayda) → ARCHITECTURE diyagramı, PROJECT kutuları planlama kontrolünden sonra Eren onayıyla, PR.
+- **Donma:** kod **`9e44917`** (`src/`, `tools/`, `tests/`, `deploy/`; sonraki `e3649f3` yalnız rapor ve HANDOFF). Dev koşusu bu kodla; `run.json`'daki `git_sha` / `git_dirty` denetlenir.
+- **Jaeger belleği:** Eren kararı A: replay ayarı değişmez (2000M, `GOMEMLIMIT` yok); OOM olursa önceden yazılı kural (bir kez yeniden, ikinci kez "oynatılamadı", rapora).
+- **Ölçüt (değişmedi):** çağrı çıktısı birebir eşit; farklı çağrı türü kodla (`zero_duration` beklenen; `error_tag` okuyucuda geri alınıyor; başka tür ya da açıklanamayan → dev'e bakarak ayar yok, Eren'e).
