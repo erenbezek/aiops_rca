@@ -24,7 +24,7 @@ from aiops_rca.cases import Case
 MS = 10**6
 MIN_NS = 60 * 10**9
 FETCH_LIMIT = 500  # sorgudan istenen en çok kayıt; token sınırına hep yeter (en kısa satır ~10 token)
-LEVELS = {"info": 9, "warn": 13, "error": 17}
+LOG_LEVELS = {"info": 9, "warn": 13, "error": 17}
 ARG_FIELDS = ("service", "metric", "operation", "status", "min_duration_ms", "min_level", "text", "trace_id",
               "from_min", "to_min", "step_s")
 KIND_TEXT = {0: "unspecified", 1: "internal", 2: "server", 3: "client", 4: "producer", 5: "consumer"}
@@ -143,7 +143,7 @@ def _fit(header: str, lines: list[str], total: int, marker: Callable[[int, int],
             body.append(marker(n, total))
         return "\n".join(body)
 
-    # Satır başına sayımla yaklaşık en çok n; sonra tam metinle doğrula, sığana kadar azalt.
+    # Satır başına sayımla yaklaşık n; sonra tam metinle: aşıyorsa azalt, bir satır daha sığıyorsa artır.
     budget = max_tokens - count_tokens(header) - count_tokens(marker(len(lines), total)) - 2
     n, used = 0, 0
     for line in lines:
@@ -154,6 +154,8 @@ def _fit(header: str, lines: list[str], total: int, marker: Callable[[int, int],
         n += 1
     while n > 0 and count_tokens(text(n)) > max_tokens:
         n -= 1
+    while n < len(lines) and count_tokens(text(n + 1)) <= max_tokens:  # tahmin eksik kaldıysa: sığan kadar
+        n += 1
     return text(n), n, n < total
 
 
@@ -265,13 +267,13 @@ def _dispatch(store, case: Case, name: str, p: dict):
         return (f"trace {p['trace_id']}: {res['total']} spans", lines, res["total"],
                 lambda n, m: f"[showing the first {n} of {m} spans of this trace by start time]")
     if name == "search_logs":
-        if p.get("min_level") is not None and p["min_level"] not in LEVELS:
+        if p.get("min_level") is not None and p["min_level"] not in LOG_LEVELS:
             raise _Bad("min_level must be info, warn or error")
         if p.get("service") is not None:
             _known_service(store, p["service"])
         lo, hi = _range(case, p)
         res = query.search_logs(store, lo, hi, service=p.get("service"),
-                                min_severity=LEVELS.get(p.get("min_level")), text=p.get("text"), limit=FETCH_LIMIT)
+                                min_severity=LOG_LEVELS.get(p.get("min_level")), text=p.get("text"), limit=FETCH_LIMIT)
         lines = []
         for r in res["logs"]:
             msg = " ".join(r["message"].split()) + ("..." if r["truncated_message"] else "")

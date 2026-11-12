@@ -222,3 +222,17 @@ def test_token_cap_with_non_additive_counter(tmp_path):
     for cap in (60, 90, 140):
         r = at.run_tool(st, case, "search_spans", {"from_min": -2, "to_min": 1}, newline_heavy, cap)
         assert newline_heavy(r.text) <= cap and r.truncated
+
+
+def test_token_cap_fills_when_estimate_is_pessimistic(tmp_path):
+    """Birleşik metin parçaların toplamından ucuz sayılırsa (çağrı başına sabit ek), satır satır tahmin eksik kalır;
+    artırma adımı sığan kadar tam satırı gösterir: bir satır daha sınırı aşar."""
+    st, case = _store(tmp_path)
+    overhead = lambda t: max(1, len(t) // 4) + 6  # noqa: E731
+    full = at.run_tool(st, case, "search_spans", {"from_min": -2, "to_min": 1}, overhead, BIG).text.splitlines()
+    for cap in (60, 90, 120):
+        r = at.run_tool(st, case, "search_spans", {"from_min": -2, "to_min": 1}, overhead, cap)
+        assert overhead(r.text) <= cap and r.truncated
+        more = "\n".join([full[0], *full[1:2 + r.lines_shown],
+                           f"[showing the first {r.lines_shown + 1} of 5 by start time; narrow the query]"])
+        assert overhead(more) > cap

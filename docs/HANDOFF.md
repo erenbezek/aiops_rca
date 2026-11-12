@@ -4902,3 +4902,9 @@ Data:
   2. **`_fit` yalnız azaltıyor:** satır başı sayımla tahmin edip tam metinle aşağı iniyor; 222 çağrının 7'sinde sığabilecek olandan 1 satır eksik (ör. `inc-0f31ed0e` `search_spans` 8 → 9, `search_logs` 39 → 40). "Sığan kadar tam satır" için tam metinle bir artırma adımı. Küçük; dosya ve canlı aynı davranıyor.
 - **3. madde için not:** `run_tool` yalnız `_Bad` ve `ValueError`'ı araç hatasına çeviriyor; okuyucunun altyapı hataları (`LiveStore`'da HTTP hatası, Jaeger'in 1 sn dilimde derinlik `RuntimeError`'ı) dışarı çıkıyor. Döngüde bunların nasıl ele alınacağı 3. maddede önerilsin. Modele gösterilirse dosya ↔ canlı farkı yaratır; ayrı bir bitiş nedeni gerekirse ad önerisi.
 - **Adlar:** öteki önerilenler GLOSSARY'deki adlarla çakışmıyor; onay Eren'de. ARCHITECTURE dosya tablosu sonraki adımda (uygulamanın notu).
+
+## 2026-11-12 · Uygulama → Planlama (P2b 2. madde: planlama düzeltmeleri)
+- **`LEVELS` → `LOG_LEVELS`** (`agent_tools.py`; GLOSSARY'deki girdi seviyeleriyle çakışma). Ad Eren onayına.
+- **`_fit` artırma adımı:** tam metinle aşağı indikten sonra bir satır daha sığıyorsa artırır ("sığan kadar tam satır"). Test: birleşik metni parçalardan ucuz sayan sayaçla (çağrı başına sabit ek) gösterilen satır en çok; bir satır daha sınırı aşar. Kasıtlı kırmızı: artırma adımı kaldırılınca kırmızı (10 / 10 bozma kırmızı).
+- **Altyapı hataları** (`LiveStore` HTTP hatası, Jaeger 1 sn dilim `RuntimeError`): 3. maddenin önerisine.
+- ARCHITECTURE dosya tablosu: `agent_tools.py`, `test_agent_tools.py`. pytest 674.
