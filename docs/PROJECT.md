@@ -42,6 +42,7 @@ kök neden analizinde ne kadar iş görür?
 - [ ] Proje 2 (ajan): Proje 1 bittikten sonra
   - Ajan aynı vakalarda hem dosyadan hem canlı izleme sisteminden (Prometheus, Jaeger, OpenSearch) koşuldu, iki satır tabloda yan yana
   - Aynı araç çağrılarının dosya ve canlı çıktıları karşılaştırıldı, farklar açıklandı
+    - Araç düzeyi tamam (P2a, 2026-11-12; `results/p2a_compare.md`): pilot 25 + dev 18 vakada çağrıların hepsi eşit; kalan tek fark Jaeger'in sıfır süreli span'e 1 ns eklemesi (DECISIONS 2026-11-11), `error="true"` çevirisi okuyucuda geri alınıyor (DECISIONS 2026-11-12). Ajan düzeyi P2c'de.
 
 ### DevOps kontrol listesi
 Proje sonunda her satır için: gerçekten yaptım mı?
@@ -53,7 +54,7 @@ Proje sonunda her satır için: gerçekten yaptım mı?
 | Docker Compose, kaynak limitleri | OTel Demo yığını | [ ] |
 | Telemetri hattı (collector) | Sızıntı süzmesi, dosyaya ve izleme sistemine çift çıkış | [ ] |
 | Kalıcı depolama, saklama süresi | Jaeger diske, Prometheus/OpenSearch saklama | [ ] kısmen: isimli volume, Jaeger diske, 7 gün + boyut sınırları, canlı = dosya doğrulandı; saklamanın silmesi henüz gözlenmedi |
-| PromQL, Jaeger ve log sorguları | Snapshot kaydedici, ajan araçları | [ ] |
+| PromQL, Jaeger ve log sorguları | Snapshot kaydedici, ajan araçları | [ ] kısmen (P2a, 2026-11-12): Jaeger API v3 araması (zaman dilimleme, derinlik sınırında bölme) ve tek iz, OpenSearch sorguları (sayfalama, servis süzgeci), Prometheus ham aralık sorguları; canlı = dosya doğrulandı (`results/p2a_compare.md`). PromQL işlevleri (rate, histogram_quantile) canlı demonun Grafana panosunda (DECISIONS 2026-11-09) |
 | Linux ağ/kaynak hataları (tc netem, CPU/bellek, kill) | Hata enjeksiyonu | [x] tc netem (gecikme, kayıp; kendi yardımcı imajla), CPU sınırı, durdurma, dondurma; uygula, geri al, doğrula; bellek sınırı denendi, bu demoda belirti vermediği için çıktı (INCIDENT_CATALOG) |
 | Otomasyon betikleri | Gece boyu vaka üretim hattı | [x] koşucu (`scenario_runner.py incidents`: korumalar, enjeksiyon, geri alma ve doğrulama, snapshot, etiket) ve systemd birim şablonu (`deploy/systemd/aiops-incidents@.service`): tek komutla başlar; `systemctl stop`'ta yarıdaki vaka temizlenir (SIGTERM → hata geri alınır, flag kapanır, demo kapanır); kapanmada ya da oturumdan çıkışta temizlik kesilir (kullanıcı yöneticisi 5 sn verir), sonraki koşu kalıntı denetiminde başlamaz; zamanlayıcı yok |
 | Grafana dashboard | Canlı demo | [ ] |
