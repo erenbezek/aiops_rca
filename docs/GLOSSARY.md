@@ -329,3 +329,9 @@ Sadece Eren'in onayladığı isimler.
 | `build_report`, `render_report` | Rapor verisi (`.json`) / rapor metni (`.md`) |
 | `undo_jaeger_error_tag` | `store_live.py`: Jaeger'den gelen span'in durumu hata ve `error` özniteliği metin `"true"` duruyorsa durumu belirtilmemiş sayar (DECISIONS 2026-11-12, seçenek C) |
 | `jaeger_quirks` | Yalnız testte: sahte Jaeger'in gerçek Jaeger'in dönüşümlerini taklit etmesi |
+| `agent_tools.py` (`TOOLS`, `run_tool`, `ToolResult`) | P2b ajan araçları: altı aracın modele görünen tanımları (ad → açıklama, parametreler) / aracı bir okuyucuda koşup metne dökme (hesap `query.py`'de; parametre çevirisi, doğrulama, metin biçimi, token sınırı) / araç sonucu (metin, satır sayısı, kesildi mi, hata mı) |
+| `methods/agent.py` (`agent_method`, `ACTION_SCHEMA`, `MAX_TOOL_CALLS`, `TOOL_RESULT_TOKENS`, `fit_history`, `END_REASONS`) | P2b ajan döngüsü: koşu bağlam yöneticisi (`llm_method` gibi) / her turun katı JSON eylem şeması / en çok araç çağrısı (8) / araç sonucu token sınırı / geçmişi 6K'ya kırpma / bitiş nedenleri |
+| `END_REASONS` değerleri | `answer`, `step_limit`, `budget`, `schema_action`, `schema_answer`, `no_answer` |
+| `evaluate run --method agent`, `tools/agent_live.py` | Ajanın dosya modunda koşusu / canlı modda vaka başına `replay_case` + ajan (`LiveStore`) + `down -v` |
+| `turns.jsonl`, `tool_outputs/`, `end_reason`, `n_tool_calls`, `n_requests` | Ajan koşu kaydı: vaka × tur kaydı / modele giden araç çıktılarının metni (sızıntı taraması, yeniden kurma) / satırda bitiş nedeni, araç çağrısı ve istek sayısı |
+| `reason`, `action`, `tool`, `args`, `from_min`, `to_min`, `min_level`, `step_s` | Modele görünen alanlar: eylemin kısa gerekçesi / `call_tool` ya da `answer` / araç adı / parametreler (düz, kullanılmayan `null`) / alarma göre dakika / en düşük önem (`info`, `warn`, `error`) / seri kovası (sn) |
