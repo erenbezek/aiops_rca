@@ -1,0 +1,3775 @@
+{
+ "runs": [
+  {
+   "dir": "20261111T2333Z-pilot",
+   "git_sha": "9e4491778834a390930c4a9f039431bed7eeefc1",
+   "git_dirty": false,
+   "seconds": 14197,
+   "cases": 25
+  },
+  {
+   "dir": "20261112T0730Z-dev",
+   "git_sha": "227e8e1b9e42c49c3dd08a1aad40cb88d8cdfd14",
+   "git_dirty": false,
+   "seconds": 10956,
+   "cases": 18
+  }
+ ],
+ "cases": {
+  "inc-01a609bb": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 234,
+     "different": 15
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 27
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6474,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6474
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 12.0,
+   "leakage_findings": 0,
+   "compare_s": 394,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1455.1,
+    "compare": 1167.4
+   }
+  },
+  "inc-01dd32ce": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 38,
+     "different": 12
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 24
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 8277,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 8277
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 19.0,
+   "leakage_findings": 0,
+   "compare_s": 439,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1685.5,
+    "compare": 1152.0
+   }
+  },
+  "inc-072897d4": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 33,
+     "different": 17
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 29
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6676,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6676
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 10.0,
+   "leakage_findings": 0,
+   "compare_s": 390,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1287.2,
+    "compare": 1095.7
+   }
+  },
+  "inc-07533a0a": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 62,
+     "different": 17
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 29
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6863,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6863
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 11.0,
+   "leakage_findings": 0,
+   "compare_s": 397,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1269.8,
+    "compare": 1043.5
+   }
+  },
+  "inc-09516b21": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "different": 20,
+     "equal": 30
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 32
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6639,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6639
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 14.0,
+   "leakage_findings": 0,
+   "compare_s": 382,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1366.0,
+    "compare": 1152.0
+   }
+  },
+  "inc-0f31ed0e": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 119,
+     "different": 12
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 24
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 4919,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 4919
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 15.0,
+   "leakage_findings": 0,
+   "compare_s": 286,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1053.7,
+    "compare": 989.7
+   }
+  },
+  "inc-110f3aba": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 41,
+     "different": 9
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 21
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6588,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6588
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 22.0,
+   "leakage_findings": 0,
+   "compare_s": 376,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1306.6,
+    "compare": 1177.6
+   }
+  },
+  "inc-12813456": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 55,
+     "different": 19
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 31
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6600,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6600
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 13.0,
+   "leakage_findings": 0,
+   "compare_s": 384,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1294.3,
+    "compare": 1194.0
+   }
+  },
+  "inc-2a87f603": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 80,
+     "different": 11
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 23
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6577,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6577
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 23.0,
+   "leakage_findings": 0,
+   "compare_s": 366,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1355.8,
+    "compare": 1122.3
+   }
+  },
+  "inc-2dd806a2": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "different": 20,
+     "equal": 30
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 32
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 8017,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 8017
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 5.0,
+   "leakage_findings": 0,
+   "compare_s": 464,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1822.7,
+    "compare": 1228.8
+   }
+  },
+  "inc-2e5706ab": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 34,
+     "different": 16
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 28
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6906,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6906
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 20.0,
+   "leakage_findings": 0,
+   "compare_s": 398,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1404.9,
+    "compare": 1161.2
+   }
+  },
+  "inc-3967c278": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 40,
+     "different": 10
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 22
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6642,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6642
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 5.0,
+   "leakage_findings": 0,
+   "compare_s": 401,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1476.6,
+    "compare": 1205.2
+   }
+  },
+  "inc-48be145f": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 36,
+     "different": 14
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 26
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6515,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6515
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 15.0,
+   "leakage_findings": 0,
+   "compare_s": 387,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1289.2,
+    "compare": 1197.1
+   }
+  },
+  "inc-78df5642": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 64,
+     "different": 14
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 26
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6594,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6594
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 13.0,
+   "leakage_findings": 0,
+   "compare_s": 385,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1321.0,
+    "compare": 1121.3
+   }
+  },
+  "inc-79cab5da": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 37,
+     "different": 13
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 25
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7663,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7663
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 24.0,
+   "leakage_findings": 0,
+   "compare_s": 448,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1696.8,
+    "compare": 1195.0
+   }
+  },
+  "inc-8ceb7ae5": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 52,
+     "different": 10
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 22
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6798,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6798
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 20.0,
+   "leakage_findings": 0,
+   "compare_s": 391,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1241.1,
+    "compare": 1109.0
+   }
+  },
+  "inc-91bf76d4": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 234,
+     "different": 11
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 23
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7299,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7299
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 11.0,
+   "leakage_findings": 0,
+   "compare_s": 439,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1506.3,
+    "compare": 1177.6
+   }
+  },
+  "inc-91c1ad44": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "different": 21,
+     "equal": 29
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 33
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7946,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7946
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 22.0,
+   "leakage_findings": 0,
+   "compare_s": 433,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1608.7,
+    "compare": 1301.5
+   }
+  },
+  "inc-93c4ca55": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 52,
+     "different": 15
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 27
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6445,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6445
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 20.0,
+   "leakage_findings": 0,
+   "compare_s": 384,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1280.0,
+    "compare": 1225.7
+   }
+  },
+  "inc-af671750": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 44,
+     "different": 17
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 29
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6597,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6597
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 21.0,
+   "leakage_findings": 0,
+   "compare_s": 455,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1654.8,
+    "compare": 1105.9
+   }
+  },
+  "inc-b03ccffb": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 231,
+     "different": 17
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 29
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6536,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6536
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 20.0,
+   "leakage_findings": 0,
+   "compare_s": 401,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1357.8,
+    "compare": 1087.5
+   }
+  },
+  "inc-c775923b": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 35,
+     "different": 16
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 28
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7900,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7900
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 20.0,
+   "leakage_findings": 0,
+   "compare_s": 439,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1678.3,
+    "compare": 1289.2
+   }
+  },
+  "inc-d8f67a48": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 36,
+     "different": 14
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 26
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7904,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7904
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 6.0,
+   "leakage_findings": 0,
+   "compare_s": 444,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1563.6,
+    "compare": 1261.6
+   }
+  },
+  "inc-ef72f574": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 41,
+     "different": 25
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 37
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6914,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6914
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 27.0,
+   "leakage_findings": 0,
+   "compare_s": 397,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1369.1,
+    "compare": 1126.4
+   }
+  },
+  "inc-f20daed8": {
+   "set": "pilot",
+   "run": "20261111T2333Z-pilot",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 114,
+     "different": 11
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 459
+    },
+    "search_logs": {
+     "equal": 69
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 46
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 23
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 5053,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 5053
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 10.0,
+   "leakage_findings": 0,
+   "compare_s": 334,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1285.1,
+    "compare": 1110.0
+   }
+  },
+  "inc-0c4902c3": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 48,
+     "different": 18
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 30
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7436,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7436
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 10.0,
+   "leakage_findings": 0,
+   "compare_s": 433,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1562.6,
+    "compare": 1093.6
+   }
+  },
+  "inc-230c9d46": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 238,
+     "different": 11
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 23
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7517,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7517
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 19.0,
+   "leakage_findings": 0,
+   "compare_s": 436,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1772.5,
+    "compare": 1262.6
+   }
+  },
+  "inc-234d34cf": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 49,
+     "different": 18
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 30
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 8529,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 8529
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 27.0,
+   "leakage_findings": 0,
+   "compare_s": 476,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1921.0,
+    "compare": 1201.2
+   }
+  },
+  "inc-320c56f9": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "different": 16,
+     "equal": 34
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 28
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7284,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7284
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 6.0,
+   "leakage_findings": 0,
+   "compare_s": 433,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1535.0,
+    "compare": 1175.6
+   }
+  },
+  "inc-4a62b9bb": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 117,
+     "different": 13
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 25
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 5847,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 5847
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 17.0,
+   "leakage_findings": 0,
+   "compare_s": 343,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1365.0,
+    "compare": 1035.3
+   }
+  },
+  "inc-5cb2c977": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "different": 19,
+     "equal": 31
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 31
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6876,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6876
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 8.0,
+   "leakage_findings": 0,
+   "compare_s": 430,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1454.1,
+    "compare": 1180.7
+   }
+  },
+  "inc-73ac64e9": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 37,
+     "different": 13
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 25
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7464,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7464
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 21.0,
+   "leakage_findings": 0,
+   "compare_s": 428,
+   "replay_s": 61,
+   "jaeger_peak_mib": {
+    "replay": 1490.9,
+    "compare": 1137.7
+   }
+  },
+  "inc-8069b709": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 33,
+     "different": 17
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 29
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 8197,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 8197
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 7.0,
+   "leakage_findings": 0,
+   "compare_s": 462,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1637.4,
+    "compare": 1188.9
+   }
+  },
+  "inc-86d286ea": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 34,
+     "different": 16
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 28
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 8059,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 8059
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 23.0,
+   "leakage_findings": 0,
+   "compare_s": 460,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1354.8,
+    "compare": 1061.9
+   }
+  },
+  "inc-9292257f": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 87,
+     "different": 12
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 24
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6224,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6224
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 25.0,
+   "leakage_findings": 0,
+   "compare_s": 355,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1359.9,
+    "compare": 1101.8
+   }
+  },
+  "inc-ac155a23": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 45,
+     "different": 20
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 32
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7290,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7290
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 23.0,
+   "leakage_findings": 0,
+   "compare_s": 419,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1452.0,
+    "compare": 1129.5
+   }
+  },
+  "inc-ac820869": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 46,
+     "different": 20
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 32
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7339,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7339
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 19.0,
+   "leakage_findings": 0,
+   "compare_s": 440,
+   "replay_s": 41,
+   "jaeger_peak_mib": {
+    "replay": 1393.7,
+    "compare": 1157.1
+   }
+  },
+  "inc-ae15665a": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 33,
+     "different": 17
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 29
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6895,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6895
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 16.0,
+   "leakage_findings": 0,
+   "compare_s": 453,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1591.3,
+    "compare": 1106.9
+   }
+  },
+  "inc-b4d12a5e": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "different": 17,
+     "equal": 33
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 29
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7940,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7940
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 22.0,
+   "leakage_findings": 0,
+   "compare_s": 445,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1660.9,
+    "compare": 1283.1
+   }
+  },
+  "inc-bfbbd586": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 67,
+     "different": 15
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 27
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7262,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7262
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 29.0,
+   "leakage_findings": 0,
+   "compare_s": 418,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1465.3,
+    "compare": 1090.6
+   }
+  },
+  "inc-d6d5f1b2": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 238,
+     "different": 11
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 23
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7856,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7856
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 17.0,
+   "leakage_findings": 0,
+   "compare_s": 464,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1687.6,
+    "compare": 1236.0
+   }
+  },
+  "inc-d9ea423d": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 35,
+     "different": 15
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 27
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 7362,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 7362
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 20.0,
+   "leakage_findings": 0,
+   "compare_s": 440,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1420.3,
+    "compare": 1179.6
+   }
+  },
+  "inc-fa775703": {
+   "set": "dev",
+   "run": "20261112T0730Z-dev",
+   "attempts": 1,
+   "replayed": true,
+   "calls": {
+    "get_trace": {
+     "equal": 37,
+     "different": 13
+    },
+    "list_services": {
+     "equal": 1
+    },
+    "metric_series": {
+     "equal": 486
+    },
+    "search_logs": {
+     "equal": 72
+    },
+    "search_spans": {
+     "different": 12,
+     "equal": 49
+    },
+    "service_dependencies": {
+     "equal": 3
+    }
+   },
+   "types": {
+    "zero_duration": 25
+   },
+   "raw": {
+    "spans": {
+     "equal": false,
+     "changed_ids": 6890,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {
+      "end_ns +1": 6890
+     }
+    },
+    "logs": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.cpu.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.memory.usage.total": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.rx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    },
+    "container.network.io.usage.tx_bytes": {
+     "equal": true,
+     "changed_ids": 0,
+     "ids_only_file": 0,
+     "ids_only_live": 0,
+     "changed_fields": {}
+    }
+   },
+   "exemplar_rejects": 13.0,
+   "leakage_findings": 0,
+   "compare_s": 423,
+   "replay_s": 51,
+   "jaeger_peak_mib": {
+    "replay": 1506.3,
+    "compare": 1140.7
+   }
+  }
+ },
+ "totals": {
+  "pilot": {
+   "cases": 25,
+   "replayed": 25,
+   "retried": 0,
+   "calls": {
+    "get_trace": {
+     "equal": 1801,
+     "different": 376
+    },
+    "list_services": {
+     "equal": 25
+    },
+    "metric_series": {
+     "equal": 11529
+    },
+    "search_logs": {
+     "equal": 1731
+    },
+    "search_spans": {
+     "different": 300,
+     "equal": 1156
+    },
+    "service_dependencies": {
+     "equal": 75
+    }
+   },
+   "equal": 16317,
+   "different": 676,
+   "leakage_findings": 0,
+   "exemplar_rejects": {
+    "min": 5.0,
+    "max": 27.0,
+    "sum": 398.0
+   },
+   "jaeger_peak_mib": 1822.7,
+   "compare_s": {
+    "min": 286,
+    "max": 464
+   },
+   "raw_changes": {
+    "spans: aynı kimlikte farklı (end_ns +1)": 171342
+   }
+  },
+  "dev": {
+   "cases": 18,
+   "replayed": 18,
+   "retried": 0,
+   "calls": {
+    "get_trace": {
+     "equal": 1242,
+     "different": 281
+    },
+    "list_services": {
+     "equal": 18
+    },
+    "metric_series": {
+     "equal": 8748
+    },
+    "search_logs": {
+     "equal": 1296
+    },
+    "search_spans": {
+     "different": 216,
+     "equal": 882
+    },
+    "service_dependencies": {
+     "equal": 54
+    }
+   },
+   "equal": 12240,
+   "different": 497,
+   "leakage_findings": 0,
+   "exemplar_rejects": {
+    "min": 6.0,
+    "max": 29.0,
+    "sum": 322.0
+   },
+   "jaeger_peak_mib": 1921.0,
+   "compare_s": {
+    "min": 343,
+    "max": 476
+   },
+   "raw_changes": {
+    "spans: aynı kimlikte farklı (end_ns +1)": 132267
+   }
+  }
+ },
+ "types": {
+  "pilot": {
+   "zero_duration": 676
+  },
+  "dev": {
+   "zero_duration": 497
+  }
+ },
+ "transforms": {
+  "zero_duration": "Jaeger süresi 0 olan span'i bitiş + 1 ns ile döndürüyor (depolama; duration_ms 0 ↔ 1e-06)",
+  "error_tag": "Jaeger error=\"true\" etiketini hata durumuna çeviriyor (depolama); canlı okuyucu bunu geri alıyor (store_live.undo_jaeger_error_tag, DECISIONS 2026-11-12), bu tür artık beklenmiyor (tanı olarak sınanır)"
+ }
+}

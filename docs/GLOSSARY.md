@@ -290,3 +290,42 @@ Sadece Eren'in onayladığı isimler.
 | `note` | Hata analizi etiket satırında isteğe bağlı tek satır gözlem (sayılmaz) |
 | `name_key` | Ad karşılaştırma anahtarı (hata analizi özeti): küçük harf, son nokta parçası, `/` öncesi, sondaki `service` atılır, yalnız harfler; gRPC adıyla geçen kökü saymak için, puanlamayı değiştirmez |
 | `eren_check` | Etiket dosyasında örneklem satırına Eren doğrulaması: `{"agree": true/false, "T1", "T5", "T6": yes/no, "note": isteğe bağlı}` (`agree` = Eren'in T1 / T5 / T6'sı etiketle aynı); 10 satırın ≥ 3'ünde katılmıyorum → yeniden etiketleme |
+| `aiops_rca.query` (`query.py`) | P2a sorgu katmanı: altı sorgu fonksiyonu ve ortak hesap; depolamadan bağımsız, bir okuyucu alır (DECISIONS 2026-11-09 "aynı tanım") |
+| okuyucu (store) | Sorgu fonksiyonlarına ham kayıt (span, log, metrik noktası, iz) veren nesne; süzgeci üst küme dönebilir, ortak kod bütün süzgeçleri yeniden uygular |
+| `FileStore` (`store_file.py`) | Dosya okuyucusu: vakanın `model_view` snapshot'ından ham kayıt |
+| `LiveStore` (`store_live.py`) | Canlı okuyucu: yeniden oynatma yığınındaki Jaeger v3, OpenSearch ve Prometheus'tan ham kayıt |
+| `METRIC_NAMES` | Tek ad tablosu (`query.py`): OTel metrik adı → (OTLP türü, Prometheus adı); `storage_check.METRICS` bundan türetilir |
+| `list_services` | Sorgu: vakadaki servisler (izlerdeki `service.name` ∪ metriklerdeki `container.name`, araçlar ve rutin servisler hariç) ve her birinde hangi sinyal var |
+| `metric_series` | Sorgu: servis × metrik × aralık kovalı seri (`cpu_pct`, `mem_mb`, `net_rx_bytes_per_s`, `net_tx_bytes_per_s`, `requests`, `errors`, `error_rate`, `p95_ms`, `p99_ms`) |
+| `search_spans` | Sorgu: süzgeçli span arama (servis, işlem, durum, en kısa süre, aralık, adet sınırı); başlangıç sırasıyla, `total` ve `truncated` ile |
+| `get_trace` | Sorgu: bir izin snapshot'taki bütün span'leri, span özeti alanlarıyla |
+| `search_logs` | Sorgu: süzgeçli log arama (servis, en düşük önem numarası, tam mesajda metin, aralık, adet sınırı); zaman sırasıyla |
+| `service_dependencies` | Sorgu: aralıkta çağıran → çağrılan kenarları, çağrı ve hata sayısıyla |
+| `tools/query_compare.py` | P2a karşılaştırma betiği: vaka başına yeniden oynatma ve aynı çağrıların dosya ↔ canlı karşılaştırması (LLM'siz) |
+| `Store` | Okuyucu arayüzü (`query.py`): `window`, `names`, `spans`, `trace`, `logs`, `metric_points`; `FileStore` ve `LiveStore` uyar |
+| `Span`, `LogRecord`, `MetricPoint` | Depolamadan bağımsız ham kayıt türleri (`query.py`); log ve metrik zamanı ms'ye indirilmiş |
+| `otlp_value`, `span_from_otlp`, `log_from_otlp` | OTLP JSON → Python değeri / ham kayıt; dosya ve Jaeger ortak kullanır (enum'lar sayı ya da dizgi) |
+| `to_ms_ns`, `read_window` | Zamanı ms'ye indirir (yine ns) / `window.json`'dan snapshot penceresi `[start, end)` ns |
+| `span_summary` | Span'in sorgu çıktısındaki sözlüğü (`trace_id`, `span_id`, `parent_span_id`, `service`, `operation`, `kind`, `start_ns`, `duration_ms`, `status`, `status_code`, `peer`, `error_text`) |
+| `CONTAINER_SERIES`, `SPAN_SERIES`, `SERIES` | `metric_series`'in metrikleri: konteyner metriklerinden (OTel adı, hesap, ölçek) / gelen span'lerden / ikisi birlikte |
+| `EXCLUDED` | `TOOLING_CONTAINERS` ∪ `ROUTINE_SERVICES`; altı sorguda dışlanır, sorulursa hata |
+| `STATUS_CODE_KEYS`, `PEER_KEY`, `SPAN_STATUS` | Span özetinde durum kodu anahtarları (sırayla ilk bulunan) / karşı taraf (`server.address`) / durum adı → kod (`unset` 0, `ok` 1, `error` 2) |
+| `SupersetStore`, `CPU_REL_TOL` | Yalnız testte (`test_query.py`): süzgeç kullanmayan okuyucu / `cpu_pct` P1 eşitliğinde göreli tolerans 1e-4 |
+| `start_ns`, `end_ns`, `duration_ms`, `points`, `caller`, `callee`, `calls`, `errors`, `operation`, `kind` | Sorgu çıktı alanları: kırpılmış aralık / span süresi ms / `[kova başı, değer]` listesi / bağımlılık kenarı ve sayıları / span adı ve türü (OTLP sayısı) |
+| `replay_case`, `storage_check.py replay-case <snapshot> [--keep-up]` | P2a: tek pilot / dev snapshot'ını boş yeniden oynatma yığınına oynatır, D3 şartlarını + örnek reddini + yığının kendi telemetrisini denetler, canlı okuyucuyla duman sayımı yapar, sonda `down -v` (`--keep-up` ile yığın açık kalır); kayıt `storage_runs/<UTC>-replay-case-<vaka>/replay_case.json` |
+| `jaeger_raw_slice` | `store_live.py`: Jaeger v3'ten bir servis ve zaman diliminin ham span'leri; arama derinliğine takılınca ikiye böler, 1 sn'de hata |
+| `parse_time_ns`, `LOG_SOURCE`, `PAGE_SIZE` | `store_live.py`: OpenSearch `@timestamp` → ns / OpenSearch'ten istenen alanlar / tek aramada en çok kayıt (10.000) |
+| `SAMPLE_REJECTS`, `EXEMPLAR_REJECTS`, `sample_rejects_ok` | `storage_check.py`: Prometheus'un örnek reddetme sayaçları / exemplar reddi sayacı (yalnız kayıt) / şart: üç sayaç var ve 0 (DECISIONS 2026-11-10) |
+| `FakeBackends`, `storage_check_dataset`, `STORAGE_CHECK_EXPECTED` | Yalnız testte (`test_store_live.py`): `127.0.0.1`'de sahte Jaeger / OpenSearch / Prometheus / `storage_check` testinin verisi / değişiklik öncesi koddan kaydedilen çıktı |
+| `sample_rejects`, `exemplar_rejects`, `own_telemetry_extra`, `smoke` | `replay_case.json` alanları: örnek reddi sayaçları / exemplar reddi / canlıda olup dosyada olmayan adlar / canlı okuyucunun duman sayımları ve süreleri |
+| `call_list`, `run_call`, `ranges`, `FUNCS`, `RANGE_NAMES` | `query_compare.py`: vakanın onaylı çağrı listesi (A / B / C aralıkları) / çağrıyı bir okuyucuda koşup JSON çıktı (hata da çıktı) / aralıklar / ad → sorgu fonksiyonu |
+| `STEP_S`, `MIN_DURATION_MS`, `SEVERITIES`, `TEXTS`, `ERROR_TRACES_MAX`, `SAMPLE_TRACES` | Çağrı listesinin sabitleri: kova 60 sn, en kısa süre 100 ms, önem 9 / 13 / 17, metin "error" / "fail", hata izleri en çok 200, örnek iz 50 |
+| `first_diff`, `diff_paths`, `digest` | İki JSON çıktının ilk farkı / bütün fark yollarının sayımı (indeksler `[]`) / sha256 |
+| `raw_compare`, `only_file`, `only_live`, `changed_ids`, `changed_fields`, `ids_only_file`, `ids_only_live` | Ham kayıt karşılaştırması (C) ve alanları: çoklu küme farkı / aynı kimlikte farklı kayıt sayısı ve değişen alanlar / yalnız bir tarafta olan kimlikler |
+| `compare_once`, `compare_case`, `OUT_ROOT` | Tek deneme (oynatma + karşılaştırma + sızıntı + OOM denetimi) / vaka (onaylı yeniden deneme kuralıyla) / kayıt kökü `~/cerebrum2/p2a_compare/` |
+| `query_compare.py run`, `query_compare.py report` | Karşılaştırma koşusu (`--set pilot\|dev` ya da `--cases`) / koşu kayıtlarından `results/p2a_compare.md`, `.json` |
+| `case.json`, `calls.jsonl`, `run.json`, `git_sha`, `git_dirty` | Karşılaştırma kayıtları: vaka özeti / çağrı başına eşitlik, sha256, süre, fark / koşu özeti, kodun sha'sı ve `src`, `tools`'ta commit'siz değişiklik var mı |
+| `JAEGER_TRANSFORMS` (`zero_duration`, `error_tag`), `jaeger_like_store`, `classify_differences`, `unexplained` | Jaeger'in okurken yaptığı dönüşümler (sıfır süre → +1 ns; `error="true"` → hata durumu) / bu dönüşümleri uygulayan dosya okuyucusu / farklı çağrının türünü kodla bulan işlev / hiçbir dönüşümle eşitlenmeyen fark |
+| `build_report`, `render_report` | Rapor verisi (`.json`) / rapor metni (`.md`) |
+| `undo_jaeger_error_tag` | `store_live.py`: Jaeger'den gelen span'in durumu hata ve `error` özniteliği metin `"true"` duruyorsa durumu belirtilmemiş sayar (DECISIONS 2026-11-12, seçenek C) |
+| `jaeger_quirks` | Yalnız testte: sahte Jaeger'in gerçek Jaeger'in dönüşümlerini taklit etmesi |
