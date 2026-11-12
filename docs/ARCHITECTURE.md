@@ -104,7 +104,7 @@ flowchart LR
 
 | Dosya | Görev |
 |---|---|
-| `README.md` | Repo tanıtımı (şimdilik sadece başlık) |
+| `README.md` | Repo tanıtımı: İngilizce özet, amaç, durum, akış şeması (bu dosyadaki diyagramın kopyası, makineye özel üç yol genel adlarla), P1 test tablosu (`results/p1_table.md` 1. bölümünden 12 satır × 4 sütun), tekrar üretme komutları, repo haritası, belgeler |
 | `.gitignore` | Önbellek, gizli bilgi ve büyük veriyi git dışında tutar |
 | `.gitattributes` | Satır sonlarını sabitler: metin dosyaları LF, `.bat`/`.cmd` CRLF |
 | `.editorconfig` | Editörlerin yeni dosyaları LF, UTF-8 ve sonda boş satırla kaydetmesi |
