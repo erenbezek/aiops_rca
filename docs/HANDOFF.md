@@ -4756,3 +4756,7 @@ Data:
 - **PROJECT** (Eren onayı, seçenek "kısmen"): DevOps "PromQL, Jaeger ve log sorguları" satırı `[ ] kısmen` (PromQL işlevleri canlı demoda); Proje 2'nin "aynı araç çağrıları" maddesine "araç düzeyi tamam, ajan düzeyi P2c" notu. Kutu işaretlenmedi.
 - **DECISIONS:** Jaeger belleği kararı (A, dev için) satır olarak eklendi; P2c'nin canlı koşularından önce yeniden açılır (dev tepesi %96,1).
 - **Sıradaki:** PR `task/p2a` → main; CI yeşil olmalı (kartın bitti ölçütü). Birleştirme Eren'de.
+
+## 2026-11-12 · Uygulama → Planlama (P2a: PR #34)
+- PR #34 `task/p2a` → main açıldı (sade açıklama). CI `test` yeşil: run 43205227622, 647 geçti, 3 atlandı (demo klonu isteyen `test_replay_config`; yerelde 650). PROJECT "Şu an"a P2a satırı (`39ef4e7`). Birleştirme Eren'de.
+- **Eksik (benim):** README kartı (`task/readme`, DECISIONS 2026-11-09) "P2a'nın arasında" yapılacaktı; yapılmadı. Planlamanın birleştirme notu geçerli: `task/readme` main'e P2a'dan sonra girerse HANDOFF ve DECISIONS sonlarında çakışma çıkar; iki blok tarih sırasıyla korunur.
