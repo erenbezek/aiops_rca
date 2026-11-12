@@ -129,9 +129,10 @@ def api_key(provider: str, *, keys_file: Path = KEYS_FILE) -> str | None:
     return None
 
 
-def request_body(spec: ModelSpec, messages: list[dict]) -> dict:
+def request_body(spec: ModelSpec, messages: list[dict], response_format: dict = RESPONSE_FORMAT) -> dict:
+    """İstek gövdesi. `response_format` verilmezse P1'in cevap şeması (P2b'de ajanın eylem şeması verilir)."""
     return {"model": spec.model_id, "messages": messages, "temperature": 0, "max_tokens": spec.max_tokens,
-            "response_format": RESPONSE_FORMAT, **spec.extra}
+            "response_format": response_format, **spec.extra}
 
 
 def post(url: str, body: dict, key: str | None, timeout: float) -> tuple[int, dict | str]:
@@ -161,8 +162,10 @@ def post(url: str, body: dict, key: str | None, timeout: float) -> tuple[int, di
         return -1, f"{type(e).__name__}: {e}"[:500]
 
 
-def parse_content(content: str | None) -> tuple[dict | None, list[str]]:
-    """Cevaptaki ilk JSON nesnesi ve şema hataları. (nesne, []) geçerli; aksi halde (None, hatalar)."""
+def parse_content(content: str | None,
+                  validate: Callable[[object], list[str]] = validate_answer) -> tuple[dict | None, list[str]]:
+    """Cevaptaki ilk JSON nesnesi ve şema hataları. (nesne, []) geçerli; aksi halde (None, hatalar). `validate`
+    verilmezse P1'in cevap doğrulayıcısı (`answer.validate_answer`)."""
     if not content:
         return None, ["empty content"]
     text = re.sub(r"```(?:json)?", "", content)
@@ -173,7 +176,7 @@ def parse_content(content: str | None) -> tuple[dict | None, list[str]]:
         obj, _ = json.JSONDecoder().raw_decode(text[start:])
     except ValueError as e:
         return None, [f"invalid JSON: {e}"]
-    errors = validate_answer(obj)
+    errors = validate(obj)
     return (None, errors) if errors else (obj, [])
 
 
@@ -203,7 +206,8 @@ def _attempt(status: int, resp: dict | str, elapsed: float) -> dict:
 
 def chat(spec: ModelSpec, messages: list[dict], *, url: str | None = None, key: str | None = None,
          timeout: float = TIMEOUT, sleep: Callable[[float], None] = time.sleep,
-         clock: Callable[[], float] = time.monotonic) -> dict:
+         clock: Callable[[], float] = time.monotonic, response_format: dict = RESPONSE_FORMAT,
+         validate: Callable[[object], list[str]] = validate_answer) -> dict:
     """Modele bir kez sorar (taşıma hatasında bir yeniden deneme). Dönen kayıt:
     `attempts` (her deneme: durum, süre, hata ya da içerik/token), `answer` (şemaya uyan nesne ya da None),
     `schema_valid`, `schema_errors`, `raw_output` (son denemenin içeriği), `finish_reason`, `tokens`, `duration_s`
@@ -211,7 +215,7 @@ def chat(spec: ModelSpec, messages: list[dict], *, url: str | None = None, key: 
     url = url or ENDPOINTS[spec.provider]
     if key is None:
         key = api_key(spec.provider)
-    body = request_body(spec, messages)
+    body = request_body(spec, messages, response_format)
     attempts = []
     for i in range(2):
         t0 = clock()
@@ -227,7 +231,7 @@ def chat(spec: ModelSpec, messages: list[dict], *, url: str | None = None, key: 
     if "error" in last:
         record["schema_errors"] = [f"no answer: HTTP {last['status']}"]
         return record
-    obj, errors = parse_content(last.get("content"))
+    obj, errors = parse_content(last.get("content"), validate)
     if last["status"] == 400:  # sağlayıcı modelin JSON'unu reddetti: şema dışı
         obj, errors = None, ["json_validate_failed (provider rejected the model's JSON)"] + errors
     if last.get("finish_reason") == "length":  # sınıra takılan cevap şema dışı (DECISIONS 2026-10-31)

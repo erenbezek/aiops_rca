@@ -4884,3 +4884,10 @@ Data:
 - **`TOOL_RESULT_TOKENS`'ın değeri** (700 öneri) pilot (a)'da ölçülür (kısaltılmış satırlarla kaç satır sığıyor, 8 adımda kırpma ne kadar oluyor), karar kayda; dev'den önce donar. Eylem JSON'larının geçmişteki payı da (a)'da ölçülür; gerekirse geçmişe `null`'suz yazılır, modelin çıktısı kayıtta tam (kayda).
 - **4B kuralının metni** ((c)'den önce commit'lenecek): "25 pilot vakanın ≥ 20'sinde şema geçerli son cevap **ve** ortalama vaka süresi ≤ 20 dk; **biri tutmazsa** 4B P2'ye girmez, sınırlamalara."
 - Öteki öneriler (zaman biçimi, eylem şeması, kırpma biçimi, adlar) değişmedi; Eren onayı bekliyor.
+
+## 2026-11-12 · Uygulama → Planlama (P2b 2. madde: araçlar ve llm_client şema parametresi; doğrulama isteği)
+- **Yapılan:** `src/aiops_rca/agent_tools.py` (`TOOLS` altı araç, açıklamalar taslak — istemle 3. maddede Eren onayına; `run_tool`, `ToolResult`; tek token sınırı + tek işaret, kısa satırlar, `T-mm:ss.mmm`, yuvarlamalar onaylı öneriden; geçersiz parametre tek satır `error:`; kullanılmayan alanlar yok sayılır). `llm_client`: `request_body` / `chat` / `parse_content`'e isteğe bağlı `response_format` ve `validate`; verilmezse P1 davranışı. P1 istek gövdesinin sha256'ları değişiklikten önce kaydedildi, beş modelde aynı (`test_p1_request_body_unchanged`).
+- **Testler:** `tests/test_agent_tools.py` (21: tanımlar, biçim, token sınırı ve işaret, toplamsal olmayan sayaçla sınır, doğrulama, dosya = canlı metin (sahte arka uçlar, Jaeger'in iki davranışıyla), sızıntı taraması); `test_llm_client.py`'ye 2. pytest 673.
+- **Kasıtlı kırmızı** (ayrı klon `~/cerebrum2/analysis/p2b_red/`, betik `analysis/p2b_red_tools.py`): 9 bozma; ilk turda tam metin doğrulaması yeşil kaldı (sahte sayaç toplamsaldı), test eklendi; ikinci turda 9 / 9 kırmızı, geri alınınca yeşil.
+- **Onay bekleyen adlar:** `FETCH_LIMIT` (500), `LEVELS`, `ARG_FIELDS`, `KIND_TEXT`, `STATUS_TEXT`, `UNITS`, `SERIES_DIGITS`, `ERROR_CHARS` (120), `rel_time`; `llm_client` parametreleri `response_format`, `validate`; testte `P1_BODY_SHA256`.
+- **Açık:** ARCHITECTURE dosya tablosu bu commit'te yok (sonraki adımda). Usage limit nedeniyle oturum burada durdu.
