@@ -5087,3 +5087,13 @@ Data:
 - **Sızıntı:** `tool_outputs/` taraması temiz.
 - **Gözlem (karar değil; tasarım bu koşudan sonra donuyor):** planlamanın 2. madde notu (2) gerçekleşti: model servissiz çağrıda çoğunlukla 60 sn veriyor ve tablo kesiliyor.
 - **Sıradaki:** 4B 25, dosya (Eren'e sorarak, ~2 sa); sonra canlı 3.
+
+## 2026-11-13 · Uygulama → Planlama (P2c-0 3. madde: pilot yeniden koşu, 4B 25, dosya; 4B kuralı)
+- **Koşu:** `llm_cache/20261113T182857Z-agent`, 18:28–20:31Z (2 sa 2 dk), Eren'e sorularak, iki kilit (`IsInhibited` 4 ve 8 `true`); uyku sayacı başta / sonda 139.995,5 sn (koşular arasında, 13:20–18:28Z'de makine ~3 sa 12 dk uyumuştu; koşu sırasında değil). Kod `2c1c775`, `prompt_sha256` `5e259201…`. Sonda `aiops-llm` yok. `evaluate score` koşuldu.
+- **4B kuralı (DECISIONS 2026-11-13, aynen):** şema geçerli son cevap **22 / 25 ≥ 20** ve ortalama vaka süresi **4,88 dk ≤ 20** → **geçti**; 4B P2'de kalır. (Ara sayımda ilk 5 vakanın 2'si geçersizdi; koşuya dokunulmadı.)
+- **Eski (P2b, `083032Z`) → yeni:** bitişler `step_limit` 19 → 21, `answer` 1 → 1, `schema_answer` 5 → 3; istek 225 → 224; giriş token 594.889 → 658.321; vaka süresi ort. 260,0 → 292,8 sn (en çok 421,7 → 526,5); bütçe bitişi 0 → 0; kırpılan vaka 3 → 4; en uzun tam mesaj 5.955 → 5.974; tekrarlanan çağrı 7 → 10; araç hatası 10 → 0; kesilen araç sonucu 33 → 27. İsabet (tasarım seti, iyimser): top-1 3 → 6, top-3 6 → 13.
+- **Geçersiz 3 cevap:** üçü de `evidence_path must start at the candidate service` (P1 doğrulayıcısı; `inc-01dd32ce`, `inc-072897d4`, `inc-0f31ed0e`).
+- **Araç kullanımı:** `metric_series` 138 (servissiz 62: `step_s` 300 → 40, 60 → 17, 30 → 3, 10 → 2), `list_services` 25, `search_logs` 20, `service_dependencies` 10, `search_spans` 4, `get_trace` 1. Kesilen 27 sonucun 18'i servissiz tablo.
+- **Bütçe yeniden açma kuralı:** tetiklenmedi (bütçe bitişi 0 / 25).
+- **Sızıntı:** `tool_outputs/` temiz.
+- **Sıradaki:** canlı mod, Gemini, P2b'deki 3 pilot vaka (`inc-2a87f603`, `inc-91bf76d4`, `inc-af671750`), `tools/agent_live.py` (Eren'e sorarak).
