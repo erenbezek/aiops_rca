@@ -4950,3 +4950,12 @@ Data:
 - **Sağlayıcı yoğunluğu:** 10 deneme HTTP 503 ("This model is currently experiencing high demand"); 9'u tek yeniden denemeyle geçti. `inc-07533a0a` 8 araçtan sonra cevap turunda iki kez 503 → `no_answer`. P1'in yeniden deneme kuralı (bir kez, 30 sn) ajanda vaka başına 9 istekle daha çok vaka kaybettirebilir: **P2c'den önce karar** (ör. yeniden deneme sayısı / bekleme, ya da kaybedilen vakanın yeniden koşulması; sonuç görülmeden kurala bağlanmalı). Şimdilik kural değişmedi.
 - **Sızıntı:** `tool_outputs/` temiz. Pilot isabeti bakılmadı (rapor (5)'te).
 - **4B kuralı** (c)'den önce DECISIONS 2026-11-13'te commit'li (`57b5c08`).
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (c): 25 pilot vaka, 4B, dosya; 4B kuralı)
+- **Koşu:** `llm_cache/20261113T083032Z-agent`, 08:30–10:20Z (1 sa 50 dk), iki kilit altında; uyku sayacı başta / sonda 128.456,2 sn (uyku yok); kod `599c745`; sunucu sonda kapandı. 225 isteğin 225'i HTTP 200.
+- **Bitişler:** `step_limit` 19, `schema_answer` 5, `answer` 1; `budget` 0, `schema_action` 0, `no_answer` 0.
+- **4B kuralı (DECISIONS 2026-11-13, `57b5c08`, koşudan önce):** şema geçerli son cevap **20 / 25** (eşik ≥ 20) ve ortalama vaka süresi **260,0 sn = 4,33 dk** (eşik ≤ 20 dk, en çok 421,7 sn) → **4B P2'ye girer** (geçerli cevap tam eşikte).
+- **5 `schema_answer`'ın hepsi aynı kural:** "candidate 2/3: evidence_path must start at the candidate service" (3 + 2); model yolu belirtinin görüldüğü servisten başlatıyor. Cevap talimatı P1'den birebir (değiştirilmedi); P2c'ye sınırlama / gözlem. Gemini'de 0.
+- **Öteki:** 8 araç 24 vaka, 7 araç 1; tekrarlanan çağrı 7 (9. tuzak adayı); araç hatası 10 (geçersiz parametre); token sınırında kesilen sonuç 33. Kırpma 3 vakada (3 tur); en uzun tam mesaj 5.955; bütçe bitişi 0 / 25 (yeniden açma kuralı tetiklenmedi).
+- **Sızıntı:** `tool_outputs/` temiz. Pilot isabeti bakılmadı (rapor (5)'te).
+- **Sıradaki:** (d) 2–3 pilot vakada canlı modda uçtan uca: `tools/agent_live.py` henüz yazılmadı (onaylı ad); plan Eren'e.
