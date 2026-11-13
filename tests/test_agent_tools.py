@@ -4,6 +4,8 @@
 - Biçim: zaman (`T-mm:ss.mmm`), yuvarlama, boş alanın yazılmaması, hata metninin kısaltılması, iz girintisi, log düzeyi.
 - Tek token sınırı: metin ≤ sınır, sığan kadar tam satır, fazlası varsa tek işaret (`[showing the first N of M ...]`).
 - Doğrulama: eksik / yanlış türde / bilinmeyen değer → tek satırlık `error: ...`; kullanılmayan alanlar yok sayılır.
+- Zaman (P2c-0 A): verilmeyen uç pencerenin ucu; `metric_series`'te alarma hizalı ızgara ve yalnız tam kovalar.
+- Servissiz `metric_series` (P2c-0 B): servis başına `query.metric_series` ile aynı değerler, veri yoksa başlıkta.
 - Aynı çağrı dosya ve canlı okuyucuda aynı metni verir (sahte arka uçlar, Jaeger'in iki davranışıyla).
 - Araç çıktılarının sızıntı taraması.
 """
@@ -97,7 +99,10 @@ def test_metric_series(tmp_path):
     ({"service": "cart", "metric": "mem_mb", "from_min": 0, "to_min": 0}, "from_min must be smaller than to_min"),
     ({"service": "cart", "metric": "memory", "from_min": -1, "to_min": 0}, 'unknown metric "memory"'),
     ({"service": "nope", "metric": "mem_mb", "from_min": -1, "to_min": 0}, 'unknown service "nope"; call list_services'),
-    ({"service": "cart", "metric": "mem_mb", "to_min": 0}, "metric_series needs from_min"),
+    ({"service": "cart", "metric": "mem_mb", "from_min": 14, "step_s": 600}, "no full bucket of step_s seconds"),
+    ({"service": "cart", "metric": "mem_mb", "to_min": -15.5}, "no full bucket of step_s seconds"),
+    ({"metric": "mem_mb", "from_min": 14}, "no full bucket of step_s seconds"),
+    ({"metric": "mem_mb", "step_s": 700}, "step_s must be between"),
     ({"service": "cart", "metric": "mem_mb", "from_min": "-1", "to_min": 0}, "from_min must be a number"),
     ({"service": "cart", "metric": "mem_mb", "from_min": -1, "to_min": 0, "step_s": 5}, "step_s must be between"),
     ({"service": "cart", "metric": "mem_mb", "from_min": -1, "to_min": 0, "step_s": 30.5}, "step_s must be a whole"),
@@ -107,6 +112,101 @@ def test_metric_series_errors(tmp_path, args, msg):
     st, case = _store(tmp_path)
     r = run(st, case, "metric_series", args)
     assert r.error and r.text.startswith("error: ") and msg in r.text and "\n" not in r.text
+
+
+def _starts(text):
+    return [line.split()[0] for line in text.splitlines()[1:]]
+
+
+def test_metric_series_default_range_aligned_full_buckets(tmp_path):
+    """Pencere T-15:00 … T+15:00. 420 sn adımda: başlangıç alarma hizalı ilk sınır (T-14:00), bitiş son tam kova;
+    T+00:00 bir sınır; her kova tam adım; değerler query.metric_series'in aynı aralıktaki çıktısı."""
+    st, case = _store(tmp_path)
+    a = case.alarm_ns
+    r = run(st, case, "metric_series", {"service": "cart", "metric": "requests", "step_s": 420})
+    assert not r.error and _starts(r.text) == ["T-14:00", "T-07:00", "T+00:00", "T+07:00"]
+    assert "clipped" not in r.text
+    q = query.metric_series(st, "cart", "requests", a - 840 * S, a + 840 * S, step_s=420)
+    assert [line.split()[1] for line in r.text.splitlines()[1:]] == [str(v) for _, v in q["points"]]
+    # from_min verildi: ızgara oradan; to_min yok: son tam kova (T-13:30 + 4 × 7 dk = T+14:30)
+    r = run(st, case, "metric_series", {"service": "cart", "metric": "requests", "step_s": 420, "from_min": -13.5})
+    assert _starts(r.text) == ["T-13:30", "T-06:30", "T+00:30", "T+07:30"]
+    # from_min pencereden önce: kırpılır, ızgara pencere başından, son kova yine tam (T-15:00 + 4 × 7 dk)
+    r = run(st, case, "metric_series", {"service": "cart", "metric": "requests", "step_s": 420, "from_min": -20})
+    assert _starts(r.text) == ["T-15:00", "T-08:00", "T-01:00", "T+06:00"] and "clipped" in r.text
+    # to_min verildi: o uç aynen (yarım son kova olabilir), başlangıç hizalı
+    r = run(st, case, "metric_series", {"service": "cart", "metric": "requests", "step_s": 420, "to_min": 1})
+    assert _starts(r.text) == ["T-14:00", "T-07:00", "T+00:00"]
+    # varsayılan 60 sn: hizalı pencerede bütün pencere
+    r = run(st, case, "metric_series", {"service": "cart", "metric": "mem_mb"})
+    assert _starts(r.text)[0] == "T-15:00" and _starts(r.text)[-1] == "T+14:00" and len(_starts(r.text)) == 30
+
+
+def test_metric_series_explicit_range_unchanged(tmp_path):
+    """Aralığı verilmiş tek servisli çağrı eski koddaki metni verir (P2b'deki beklenen metinler)."""
+    st, case = _store(tmp_path)
+    r = run(st, case, "metric_series", {"service": "cart", "metric": "mem_mb", "from_min": -3, "to_min": 0})
+    assert r.text == "mem_mb of cart (MB), 60 s buckets, bucket start time:\nT-03:00 -\nT-02:00 1.0\nT-01:00 3.0"
+
+
+def test_other_tools_default_range_is_window(tmp_path):
+    st, case = _store(tmp_path)
+    for name in ("search_spans", "search_logs", "service_dependencies"):
+        full = run(st, case, name, {"from_min": -15, "to_min": 15}).text
+        assert run(st, case, name, {}).text == full, name
+        assert run(st, case, name, {"from_min": -15}).text == full, name
+        assert run(st, case, name, {"to_min": 15}).text == full, name
+    assert run(st, case, "search_logs", {"from_min": 0}).text.splitlines()[0] == "3 log records"
+    # pencere uçlarına yakın kayıtlar: varsayılan aralık bunları da kapsamalı (ör. -10 / 0 gibi bir varsayılan değil)
+    a = T0 + 15 * 60 * S
+    (tmp_path / "edge").mkdir()
+    edge = make_store(tmp_path / "edge", spans={"cart": [span("e1", "s1", "Early", T0 + S, 5),
+                                                          span("e2", "s2", "Late", T0 + 30 * 60 * S - S, 5)]},
+                      logs={"cart": [log(T0 + S, 17, "error", "early"), log(T0 + 30 * 60 * S - S, 17, "error", "late")]})
+    assert run(edge, edge.case, "search_spans", {}).text.splitlines()[0] == "2 spans"
+    assert run(edge, edge.case, "search_logs", {}).text.splitlines()[0] == "2 log records"
+    assert run(edge, edge.case, "search_logs", {"to_min": 0}).text.splitlines()[1:] == ["T-14:59.000 cart ERROR early"]
+    assert run(edge, edge.case, "search_logs", {"from_min": 0}).text.splitlines()[1:] == ["T+14:59.000 cart ERROR late"]
+    assert a == edge.case.alarm_ns
+    r = run(st, case, "search_spans", {"from_min": 20})
+    assert r.error and "from_min must be smaller than to_min" in r.text
+
+
+def test_metric_series_all_services(tmp_path):
+    st, case = _store(tmp_path)
+    a = case.alarm_ns
+    r = run(st, case, "metric_series", {"metric": "requests"})
+    lines = r.text.splitlines()
+    assert lines[0] == ("requests of 2 services (incoming requests per bucket), 300 s buckets starting at T-15:00, "
+                        "6 values per row:")
+    for line, svc in zip(lines[1:], ("cart", "frontend")):
+        q = query.metric_series(st, svc, "requests", a - 900 * S, a + 900 * S, step_s=300)
+        assert line == f"{svc}: " + " ".join(str(v) for _, v in q["points"])
+    assert len(lines) == 3
+    # konteyner metriği: yalnız metriği olan servisler (frontend'in metriği yok, adı da geçmez)
+    r = run(st, case, "metric_series", {"metric": "mem_mb", "from_min": -3, "to_min": 0, "step_s": 60})
+    assert r.text.splitlines() == ["mem_mb of 1 services (MB), 60 s buckets starting at T-03:00, 3 values per row:",
+                                   "cart: - 1.0 3.0"]
+    # aralıkta gelen span'i olmayan servis: satırı yok, adı başlıkta
+    r = run(st, case, "metric_series", {"metric": "errors", "from_min": 0, "to_min": 1, "step_s": 30})
+    assert r.text.splitlines() == ["errors of 1 services (incoming requests with error status per bucket), 30 s "
+                                   "buckets starting at T+00:00, 2 values per row; no data for: frontend:",
+                                   "cart: 0 1"]
+    # bu sinyali taşıyan servis hiç yok
+    r = run(st, case, "metric_series", {"metric": "cpu_pct", "from_min": 5, "to_min": 6, "step_s": 30})
+    assert r.text.splitlines() == ["cpu_pct of 0 services (percent of one CPU core), 30 s buckets starting at "
+                                   "T+05:00, 2 values per row; no data for: cart:"]
+
+
+def test_metric_series_all_services_token_cap(tmp_path):
+    st, case = _store(tmp_path)
+    full = run(st, case, "metric_series", {"metric": "requests", "step_s": 10})
+    marker = "[showing the first 1 of 2 services; use a larger step_s, a shorter range or one service]"
+    cap = count("\n".join([*full.text.splitlines()[:2], marker]))  # tam olarak başlık + 1 satır + işaret
+    r = run(st, case, "metric_series", {"metric": "requests", "step_s": 10}, max_tokens=cap)
+    assert count(r.text) <= cap and r.truncated and r.lines_shown == 1 and r.lines_total == 2
+    assert r.text.splitlines()[1] == full.text.splitlines()[1]
+    assert r.text.splitlines()[-1] == marker
 
 
 def test_unknown_tool_and_unused_fields(tmp_path):
@@ -189,6 +289,10 @@ def test_file_and_live_same_text(tmp_path, backends):  # noqa: F811
     calls = [("list_services", {}),
              ("metric_series", {"service": "cart", "metric": "cpu_pct", "from_min": -15, "to_min": 15}),
              ("metric_series", {"service": "cart", "metric": "errors", "from_min": -15, "to_min": 15, "step_s": 30}),
+             ("metric_series", {"service": "cart", "metric": "cpu_pct", "step_s": 420}),
+             ("metric_series", {"metric": "cpu_pct"}),
+             ("metric_series", {"metric": "errors", "step_s": 120}),
+             ("search_spans", {}),
              ("search_spans", {"from_min": -15, "to_min": 15}),
              ("search_spans", {"from_min": -15, "to_min": 15, "status": "error"}),
              ("get_trace", {"trace_id": "t2"}),

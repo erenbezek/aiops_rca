@@ -99,7 +99,7 @@ def tool_definitions() -> str:
 
 TASK_TEMPLATE = """An alert fired at {alarm_time} (UTC). Investigate the telemetry of the shop with the tools below. \
 Telemetry is available from {win_from} to {win_to} minutes relative to the alert (negative values are before the \
-alert). Times in tool results are relative to the alert: T-02:30.000 is 2 minutes 30 seconds before it.
+alert). Before the alert the shop was working normally; the problem shows after the alert. Times in tool results are relative to the alert: T-02:30.000 is 2 minutes 30 seconds before it.
 
 {root_definition}
 
