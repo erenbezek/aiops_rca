@@ -4919,3 +4919,8 @@ Data:
 
 ## 2026-11-13 · Uygulama → Planlama (P2b 3. madde: istem metni Eren onaylı)
 - Eren istem metnini (sistem, görev, araç sonucu, iz, cevap turu; örnek değerlerle gösterildi) ve 3. maddenin adlarını onayladı. `prompt_sha256` = `a2fa4331c47c2be2ad96176c1cb70cc641715a4aca4d014f15755ef37a6cf102`, `tests/test_agent.py` `PROMPT_SHA256`'da sabit. Pilotta değişirse yeniden onay ve kayıt; dev'den önce donar. Not: P1'in cevap talimatındaki "as they appear in the data" birebir kuralı gereği değişmedi (ajanda "data" = araç sonuçları).
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (a): plan ve kurallar, ölçmeden önce)
+- Eren onaylı. Vakalar `inc-2a87f603`, `inc-91bf76d4`, `inc-af671750` (pilot); önce Gemini, sonra 4B (iki kilit altında); kayıt `llm_cache/` (deneme, git dışı). Kod `fb1b0e9`, `prompt_sha256` `a2fa4331…`.
+- Ölçülecekler: eylem şemasının iki modelde kabulü (`null` alanlar); birden fazla araç çağrısı; tur başına `input_tokens_local`, kırpma, eylem JSON'larının geçmişteki payı; araç sonucu token'ı ve sığan satır (`TOOL_RESULT_TOKENS` 700); Gemini 429 ve `GEMINI_GAP` 4 sn; 4B istek / vaka süresi; `tool_outputs/` sızıntı 0.
+- Kurallar: şema bir modelde reddedilirse yedek (bütün alanlar metin, boş `""`) → istem / şema değişikliği, Eren'in yeniden onayı. `TOOL_RESULT_TOKENS` ve `GEMINI_GAP` için ölçümden sonra öneri, karar Eren. Pilot isabeti yalnız bilgi.
