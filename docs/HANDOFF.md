@@ -5097,3 +5097,10 @@ Data:
 - **Bütçe yeniden açma kuralı:** tetiklenmedi (bütçe bitişi 0 / 25).
 - **Sızıntı:** `tool_outputs/` temiz.
 - **Sıradaki:** canlı mod, Gemini, P2b'deki 3 pilot vaka (`inc-2a87f603`, `inc-91bf76d4`, `inc-af671750`), `tools/agent_live.py` (Eren'e sorarak).
+
+## 2026-11-13 · Uygulama → Planlama (P2c-0 3. madde: canlı mod, Gemini, 3 pilot vaka)
+- **Koşu:** `tools/agent_live.py --model gemini-3.5-flash-lite --cases inc-2a87f603,inc-91bf76d4,inc-af671750`, `llm_cache/20261113T211812Z-agent` (`LiveStore`), 21:18–21:27Z (~9 dk), Eren'e sorularak, kilitler komutun içinde (`IsInhibited` 4 ve 8 `true`); uyku sayacı başta / sonda 139.995,5 sn; kod `85531e7`, `prompt_sha256` `5e259201…`. Önce ve sonra Docker'da konteyner ve `otel-replay_*` volume'ü yok. `evaluate score` koşuldu.
+- **Sonuç:** 3 / 3 vaka ilk denemede oynatıldı (`replay_case` 10 / 10 şart, PASS), OOM 0, `store_error` 0; 24 isteğin hepsi HTTP 200. Bitişler 3 `answer` (5–7 araç), son cevap 3 / 3 şemaya uygun; en uzun mesaj 5.327; bütçe bitişi ve kırpma 0; araç hatası 0; kesilen sonuç 6. Vaka süresi 33,1–45,2 sn. Sızıntı (`tool_outputs/`) temiz.
+- **Servissiz `metric_series` canlıda:** 3 çağrı (hepsi `error_rate`; biri varsayılan, ikisi `step_s=60` ile alarm sonrası, ikisi token sınırında kesildi), üçü de hatasız döndü; uçtan uca çalışıyor. Karşılaştırma yapılmadı (kart gereği).
+- **Jaeger belleği:** oynatmada tepe 1.352,7 / 1.514,5 / **1.970,2 MiB** (`GOMEMLIMIT` 2.000 MiB'nin %98,5'i; konteyner sınırı 2500M'nin ~%83'ü); ajan sırasında 993,8–1.388,5 MiB. Aynı 3 vakada P2b'de oynatma tepesi 1.410,0–1.816,6 MiB idi: oynatma ajandan bağımsız, yani aynı veride koşudan koşuya ~150 MiB oynuyor. Planlamanın açık "Jaeger belleği" kararı için veri.
+- **3. madde tamam.** Sıradaki: 4. madde (rapor; yeni rapor adı önerisi Eren'e).
