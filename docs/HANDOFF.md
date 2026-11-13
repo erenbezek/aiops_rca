@@ -4797,3 +4797,209 @@ Data:
   - Durum: P1 bitti; P2a bitti (rapora bağlantı, sayı yok: kart "her sayı `p1_table.md` hücresi" diyor); P2'nin kalanı ve canlı demo sırada; snapshot seti yayınlanmadı (seviye 2).
 - **Denetim (kartın ölçütleri):** `cerebrum2`, `keys.env`, `inc-` + 8 hex, kullanıcı adı, `/home/` → 0. Tablo 12 / 12 satır `p1_table.md` ile aynı. Tablo, diyagram ve kod blokları dışındaki sayılar yalnız ad olarak 1, 2, 3 ("top-1 / top-3", "Proje 1 / 2", "seviye 2"). Göreli bağlantılar 12 / 12 var. `results --check` ve `error_analysis summary --check` bu dalda "same". ARCHITECTURE README satırı güncel. pytest 650. Mermaid'in çizildiği PR önizlemesinde görülecek (yerelde mermaid aracı yok; yeni paket kurulmadı).
 - **Bekleyen kayıt (P2a sonrası, birleşmiş dala commit olmadığı için burada):** Eren izniyle silindi: `~/cerebrum2/aiops_rca_p1e` (14 test koşusunun `responses.jsonl` / `run.json`'u main'de bayt aynı, main'de ayrıca `scores.json`; tek özgün içerik `llm_cache/`'teki 10 deneme koşusu, P1e 1. adım, 2026-11-04 08:22–08:28Z, her biri 1 pilot vaka → silmeden önce main kopyasının `llm_cache/`'ine kopyalandı, 10 / 10 aynı) ve `~/cerebrum2/analysis/p2a_red/` (kasıtlı kırmızı klonu; kod dosyaları `9e44917` ile aynı; betik → `~/cerebrum2/analysis/p2a_red_c.py`). Boş disk 237,9 GB.
+
+## 2026-11-12 · Planlama → Uygulama (README kontrolü; PR #35 ve #38 birleşmiş hâliyle)
+- Kontrol main `64360ce` üzerinde: PR #35 11:22Z'de, Eren'in #38'i (İngilizce özetin ilk cümlesi) 11:28Z'de birleşti; kontrol birleşmeden sonra.
+- **Geçti (kartın ölçütleri):**
+  - Tablo 12 / 12 satır, 48 hücre `p1_table.md` 1. bölümüyle aynı (kendi betiğim); 9B satırları yalnız bağlantıyla.
+  - Yasak dizgi 0 (`cerebrum2`, `keys.env`, `inc-` + 8 hex, `/home/`, kullanıcı adı). Tablo, diyagram ve kod blokları dışındaki sayılar yalnız ad olarak 1, 2, 3.
+  - Göreli bağlantılar 12 / 12 var. Diyagram ARCHITECTURE'dakiyle aynı, yalnız üç yol farklı; GitHub bloğu mermaid olarak tanıyor (`data-type="mermaid"`).
+  - Tekrar üretme komutları scratch klonda (`64360ce`): `results --check` ve `error_analysis summary --check` "same", pytest 650. CI main'de üç birleştirmede de (`e34e6c7`, `6508826`, `64360ce`) yeşil.
+  - Temkinli dil maddelerinin üçü de var; İngilizce özet Türkçe metinle çelişmiyor.
+  - Birleştirme: `e34e6c7` → main arasında HANDOFF ve DECISIONS'ta silinen satır 0.
+- **Küçük notlar** (sonraki README güncellemesinde, P2 sonunda; 1. madde Eren'in):
+  1. #38'deki ilk cümle "This is a root cause analysis (RCA) for microservices." bir ad eksik (ör. "… (RCA) testbed for microservices"). "The documentation and the rest of this page are in Turkish." cümlesi de #38'le düştü.
+  2. "Dev–test okuması" `p1_table.md`'de top-3 içindir; README'de top-1 test sütununun yanında durduğu için başlık "Dev–test okuması (top-3)" daha açık. "(okuma kuralı tablonun altında)" `p1_table.md`'deki tabloyu kastediyor.
+  3. Diyagramda "repo dışı C2 koşu klasörü<br/>repo dışı, cevap içerir": "repo dışı" iki kez (kartın "yalnız üç yol" kuralı gereği kaldı).
+- Eren'in #36 ve #37 PR'ları #38'le aynı değişikliği yapıyor; açık duruyorlar.
+- Bekleyen silmeler (Eren izniyle) yapıldı: `aiops_rca_p1e`, `analysis/p2a_red/`.
+- **Dal:** bu kayıt `task/p2b`'de (main `64360ce`'den, scratch klonda açıldı). P2b kartı bu dala gelecek. Ortak kopya birleşmiş `task/readme`'de; o dala commit yok. Uygulama P2b'ye başlarken ortak kopyayı `task/p2b`'ye geçirir.
+
+## 2026-11-12 · Planlama → Uygulama (P2b kartı: ajan döngüsü ve pilot dumanı)
+- **Kararlar:** DECISIONS 2026-11-09 (P2 çerçevesi, ajan yapısı A, model, canlı taraf, 6K bütçe) ve 2026-11-12 (JSON eylem şeması, geçmişin kodla kırpılması, daraltma yok, takma ad yok). **Dal `task/p2b`** (main `64360ce`'den; README kontrolü kaydı içinde). Ortak kopya birleşmiş `task/readme`'de: temizse `task/p2b`'ye geçir.
+- Önce 3–5 maddelik planını yaz, Eren onaylasın. Yeni paket yok. Yeni adlar önce öneri, GLOSSARY onaydan sonra. **Dev ve test bu kartta açılmaz** (yalnız pilot). İstem, araçlar ve kırpma sınırları pilotta belirlenir; her değişiklik kayda; donma P2c'de, dev'den önce.
+- **İş:**
+  1. **Araç seti:** P2a'nın altı fonksiyonu üzerinde ince sarmalayıcılar; hesap `query.py`'de kalır (sorgu katmanına yeni hesap gerekirse önce öneri). Her araç için uygulama önerir: ad, tek cümlelik açıklama, parametreler (zaman biçimi; geçerli aralık vaka penceresi `window.json`), çıktının metin biçimi (sabit sıra, yuvarlanmış sayılar; 1 ns farkı görünmez) ve satır sınırı ("k satır daha" işaretiyle). Araçlar vaka bilgisi taşımaz; modele giden bütün araç çıktıları `leakage` ile taranır, her vakada bulgu 0. Araç sonuçları dosya ve canlı okuyucuda aynı çağrıyla üretilir.
+  2. **Döngü (DECISIONS 2026-11-12):** her tur katı JSON eylem şeması: araç + parametreler ya da "cevap ver". Uygulama önerir: kısa gerekçe alanı (P2c'de tuzak etiketlemesine kaynak), adım sınırı (öneri: en çok 8 araç çağrısı, sonra zorunlu cevap turu; vaka başına istek ≤ 9; Gemini ücretsiz katmanı günde 500 istek). Son tur P1'in `ANSWER_SCHEMA`'sı, `validate_answer`; şema dışı son cevap P1'deki gibi yeniden sorulmaz. Geçersiz parametre araç sonucu olarak modele döner ve adım sayılır. Model kod yazmaz, çalıştırmaz.
+  3. **İstem:** sistem mesajı ve görev mesajı; kök tanımı ve cevap talimatı P1'in onaylı metninden birebir (DECISIONS 2026-11-01; karşılaştırma için). İstem metni ve araç tanımları Eren onayından sonra donar (P1 "Onay 3" gibi); sha256 testte sabit. Ayarlar P1'deki gibi: sıcaklık 0, Gemini akıl yürütme `minimal`, Qwen düşünme kapalı, çıktı sınırı 1600 / 800.
+  4. **Bütçe:** her çağrıdan önce tam mesaj Qwen tokenizer'ıyla ≤ 6.000 (yerel modelde sunucunun sayımı; P1'deki gibi). Araç sonucu üst sınırı ve iz biçimi uygulamanın önerisi. Son araç sonucu hep (kesilmiş hâliyle) durur; kırpmadan sonra da sığmazsa vaka "bütçe" bitişiyle kapanır. **Yeniden açma kuralı** (DECISIONS 2026-11-09): pilot dumanda vakaların yarısından çoğu bütçe yüzünden biterse bütçe kararı yeniden açılır.
+  5. **Kayıt:** vaka başına her tur: modelin JSON'u, araç çağrısı, araç çıktısının sha256'sı ve token sayısı, düşen geçmiş, sağlayıcının `usage`'ı ve Qwen sayımı, süre; bitiş nedeni (cevap / adım sınırı / bütçe / şema dışı / taşıma hatası). Son cevap P1'in kayıt biçiminde; `evaluate score` olduğu gibi çalışır. Ajanın çağrıları kayıttan yeniden koşulabilir (P2c'de öteki okuyucuya yapılacak). Tam konuşmaların yerini uygulama önerir (repo içi ya da dışı; test koşusu P2d'de aynı biçimle yazılacak).
+  6. **Testler (CI, anahtar ve ağ yok):** sahte model sunucusuyla araç turu, cevap turu, adım sınırı, kırpma (sınırda ve sınır aşılınca), şema dışı eylem ve cevap, geçersiz parametre; araç metin biçimi; sızıntı taraması.
+  7. **Pilot dumanı** (sıra): (a) 2–3 pilot vakada iki modelde çok turlu döngü çalışıyor mu (DECISIONS 2026-11-09: P1'in dumanı tek turdu); (b) 25 pilot vaka Gemini, dosya; (c) 25 pilot vaka 4B, dosya (tahmin ~12 dk / vaka, gece; şarj sınırı 80 ve iki kilit); (d) 2–3 pilot vakada canlı modda uçtan uca (`replay-case` yığını açıkken ajan; Jaeger belleği P2a'da sınırın %96'sına çıktı, kayda). Ölçülen: vaka başına adım, istek, token, süre, bitiş nedeni; top-1 / top-3 ve kanıt yalnız bilgi.
+  8. **4B kararı (ölçmeden önce yazılı kural):** uygulama planda kuralı önerir, Eren onaylar, (c)'den önce commit'lenir. Kural yalnız işleyebilirliğe bakar (döngü çalışıyor mu, süre P2c ve P2d'ye yetiyor mu), başarıya bakmaz: başarıya göre model seçmek sonucu seçmek olur. Öneri: 25 pilot vakanın ≥ 20'sinde şema geçerli son cevap ve ortalama vaka süresi ≤ 20 dk (P2c + P2d: 18 + 18 vaka × dosya ve canlı = 72 koşu ≈ ≤ 24 sa). Kalırsa 4B P2'ye girmez, sınırlamalara.
+- **Güç kontrolü (ölçmeden önce):** pilot tasarım aşaması; istem ve araçlar pilotta ayarlandığı için pilot başarısı iyimser okunur ve hiçbir karar ölçütü değildir. Kararı değiştiren sonuçlar: döngü bir modelde çalışmazsa (çok turlu ya da şema) → düzeltme, düzelmezse o model P2'ye girmez (Eren); bütçe kuralı; 4B kuralı; vaka başına istek sayısı → P2c'nin Gemini planı.
+- **Bitti sayılır (yazmadan önce yazılı):**
+  - Araç seti, döngü, istem ve kırpma kuralı repoda; istem ve araç tanımları Eren onaylı, sha256 testte; adlar GLOSSARY'de; ARCHITECTURE'da `agent` kesik olmaktan çıkar.
+  - pytest ve PR CI yeşil.
+  - Pilot dumanı (a)–(d) koşuldu; Gemini 25 / 25 ve 4B 25 / 25 vaka bitiş nedeniyle kayıtta; araç çıktılarında sızıntı 0; bütçe yüzünden biten vaka sayısı raporda.
+  - 4B kararı önceden yazılı kuralla verildi; bütçe kuralı denetlendi.
+  - Rapor (ad önerisi uygulamada): vaka başına adım, istek, token, süre, bitiş nedeni; pilot top-1 / top-3 bilgi olarak.
+  - P2c'ye devredilenler yazılı: donma adayı, Gemini istek / vaka, Jaeger belleği kararı (DECISIONS 2026-11-12).
+- **Planlamanın kontrolü:** scratch klonda pytest; bir pilot vakanın konuşmasını kayıttan yeniden kurup her turun tam mesajını kendi sayımımla ≤ 6.000 bulmak ve kırpmayı kurala göre denetlemek; araç çıktılarını P2a fonksiyonlarının çıktısından kendi betiğimle yeniden üretmek (sarmalayıcı hesap eklemiyor); rapor sayılarını kayıtlardan yeniden üretmek; sızıntı taraması.
+- **Sınırlamalara (hatırlatma):** ücretsiz katmanda girdiler sağlayıcı tarafından kullanılabilir; veri sentetik demo telemetrisi; anahtar ya da kişisel veri girmez (DECISIONS 2026-11-09). Takma ad yok (DECISIONS 2026-11-12). Standart araç çağırma özelliği kullanılmadı (DECISIONS 2026-11-12).
+- **Eren'in adımları:** planı, adları, istem ve araç tanımlarını, 4B kuralını onaylamak; PR'ı birleştirmek.
+
+## 2026-11-12 · Uygulama → Planlama (P2b planı onaylı; 1. madde: tasarım önerisi, kod yok)
+- **Plan** (Eren onaylı): (1) bu öneri; (2) araç sarmalayıcıları + metin biçimi + sızıntı taraması, `llm_client`'a şema parametresi (P1 isteği bayt aynı, testle); (3) döngü, 6K sayımı ve kırpma, adım sınırı, bitiş nedenleri, kayıt; istem metni kodla birlikte Eren onayına (P1 "Onay 3" gibi), sha256 testte; (4) pilot dumanı (a)–(d), 4B kuralı (c)'den önce commit; (5) rapor, 4B kararı, bütçe kuralı denetimi, ARCHITECTURE, GLOSSARY, P2c devri, PR.
+- **Araçlar** (modele görünen adlar P2a fonksiyonlarıyla aynı; hesap `query.py`'de, sarmalayıcı yalnız parametre çevirisi, doğrulama ve metin biçimi):
+  - **Zaman:** parametrelerde alarma göre dakika (`from_min`, `to_min`; ör. −10, 0; ondalıklı olabilir), çıktıda alarma göre `T−mm:ss.mmm` / `T+mm:ss.mmm`. Gerekçe: pencereler gece yarısını geçebiliyor (saat:dakika belirsiz); model tarih hesaplamaz. Görev mesajında alarm anı (UTC) ve pencerenin alarma göre başı / sonu bir kez verilir. Pencere dışı kısım P2a'daki gibi kırpılır, çıktıda "(clipped to the incident window)".
+  - `list_services()` → satır başına `service: spans=yes logs=no metrics=yes`.
+  - `metric_series(service, metric, from_min, to_min, step_s=60)` → satır başına `T−10:00 <değer>`; `metric` ∈ P2a'nın 9 serisi; `step_s` 10–600. Yuvarlama: `cpu_pct`, `mem_mb`, `p95_ms`, `p99_ms` 1 ondalık; `net_*_bytes_per_s` tam sayı; `error_rate` 3 ondalık; `requests`, `errors` tam sayı; değer yoksa `-`.
+  - `search_spans(from_min, to_min, service?, operation?, status?, min_duration_ms?)` → satır başına `T+01:23.456 <service> <operation> kind=<server|client|…> status=<error|ok|unset> code=<..> dur=<ms, 1 ondalık> peer=<..> trace=<id> [error: <metin, 120 karakter>]`; P2a sırası (başlangıç). Süre 1 ondalık ms: P2a'nın 1 ns farkı görünmez.
+  - `get_trace(trace_id)` → izin span'leri, P2a sırası, üst span'e göre girinti (yalnız gösterim; ağaç izin kendi `parent_span_id`'lerinden).
+  - `search_logs(from_min, to_min, service?, min_level?, text?)` → satır başına `T+00:05.120 <service> <LEVEL> <mesaj, 200 karakter>`; `min_level` ∈ `info` (9), `warn` (13), `error` (17).
+  - `service_dependencies(from_min, to_min)` → satır başına `caller -> callee calls=<n> errors=<n>`.
+  - **Satır sınırı:** arama araçlarında 20, `get_trace` ve bağımlılıklarda 40, seride kova sayısı (en çok 60); fazlası `[+N more lines; narrow the query]`. Bütün araç sonuçları ayrıca token üst sınırıyla kesilir (aşağıda).
+  - **Geçersiz parametre** (bilinmeyen servis / metrik / alan, `from_min ≥ to_min`, tür hatası): araç sonucu olarak tek satır hata (`error: unknown service "x"; call list_services`), adım sayılır.
+  - **Sızıntı:** modele giden her araç sonucu `leakage` ile taranır (kayıttaki araç sonuçları klasörü, vaka başına bulgu 0).
+- **Eylem şeması** (her tur, `strict`): `{"reason": "<kısa cümle>", "action": "call_tool" | "answer", "tool": "<6 addan biri ya da none>", "args": {<11 alanın hepsi; kullanılmayan null>}}`. Araçlar arasında alanlar farklı olduğu için `args` düz bir nesne: `service, metric, operation, status, min_duration_ms, min_level, text, trace_id, from_min, to_min, step_s`, hepsi zorunlu ve `null` olabilir (`strict` şemanın şartı). Riski: Gemini'nin OpenAI uyumlu ucunun `null` tür dizilerini (`["string","null"]`) `strict`'te kabul edip etmediği bilinmiyor; (a)'da ilk sınanan şey. Kabul etmezse yedek: bütün alanlar metin, boşsa `""` (kayda, yeniden onay).
+- **Adım sınırı ve cevap turu:** en çok **8 araç çağrısı**. Model `answer` seçerse ya da 8. araç sonucundan sonra, bir sonraki istek P1'in `ANSWER_SCHEMA`'sıyla "cevap turu"dur (P1'in cevap talimatı birebir). İstek sayısı: gönüllü cevapta araç + 2, zorunlu cevapta 8 + 1 = 9 → **vaka başına ≤ 9 istek** (kartın sınırı). 25 vaka ≤ 225 Gemini isteği (günde 500).
+- **Bütçe ve kırpma** (DECISIONS 2026-11-12):
+  - Her istekten önce tam mesaj (şablon dahil) Qwen tokenizer'ıyla sayılır (P1'deki `/apply-template` + `/tokenize`); ≤ **6.000**. Çıktı sınırları ayrı (Gemini 1600, yerel 800; yerelde 6.000 + 800 < 8.192 bağlam).
+  - Her araç sonucu en çok **700 token** (öneri; pilotta ölçülür): aşarsa sondan satır düşer, `[truncated: N more lines]`.
+  - Sığmazsa en eski araç sonucunun metni tek satırlık ize iner: `[earlier result dropped to fit the budget: <tool>(<args>) returned N lines]`; gerekirse bir sonraki en eski; **son araç sonucu hep durur**. Modelin eylem JSON'ları (gerekçe dahil) düşmez. Bunlarla da sığmazsa vaka **bütçe** bitişiyle kapanır (cevap yok).
+  - Geçmiş biçimi: sistem, görev (araç tanımları burada), sonra her adımda `assistant` (modelin eylem JSON'u) + `user` (`Result of <tool>(<args>):` + metin). Sağlayıcıların araç rolü kullanılmaz (DECISIONS 2026-11-12).
+- **Bitiş nedenleri:** `answer` (gönüllü cevap turu), `step_limit` (8 adımdan sonra zorunlu cevap turu), `budget`, `schema_action` (eylem şema dışı; P1 gibi yeniden sorulmaz), `schema_answer` (cevap turu şema dışı), `no_answer` (taşıma hatası / yeniden denenmeyen HTTP). Puanlama P1'deki gibi: cevabı olmayan satır cevapsız.
+- **Kayıt:** koşu klasörü P1 biçiminde (`run.json`, `responses.jsonl`: son cevap P1 satırı + `end_reason`, adım ve istek sayısı, toplam token ve süre); ayrıca `turns.jsonl` (vaka × tur: modelin JSON'u, araç ve parametreler, araç çıktısının sha256'sı ve token sayısı, düşen sonuçlar, sağlayıcının `usage`'ı, Qwen sayımı, süre). Araç çıktılarının metni `tool_outputs/` (sızıntı taraması ve yeniden kurma için). `evaluate score` olduğu gibi çalışır. Pilot dumanı P1 kuralıyla `llm_cache/`'e (git dışı, deneme); P2c / P2d resmî koşuların yeri (repo `eval_responses/`) o kartlarda.
+- **Canlı mod (d):** `tools/agent_live.py`: vaka başına `replay_case` (yığın açık) → ajan `LiveStore` ile → `down -v`.
+- **4B kuralı (öneri; Eren onayıyla (c)'den önce commit):** 25 pilot vakanın **≥ 20'sinde** şema geçerli son cevap **ve** ortalama vaka süresi **≤ 20 dk**. İkisi tutmazsa 4B P2'ye girmez, sınırlamalara. Yalnız işleyebilirlik; isabet bakılmaz.
+- **Modül ve ad önerileri (onay bekliyor):** `src/aiops_rca/agent_tools.py` (`TOOLS`: ad → açıklama ve parametreler; `run_tool(store, case, name, args) -> ToolResult`; `ToolResult`: metin, satır sayısı, kesildi mi, hata mı); `src/aiops_rca/methods/agent.py` (`agent_method` — `llm_method` gibi bağlam yöneticisi; `ACTION_SCHEMA`, `MAX_TOOL_CALLS = 8`, `TOOL_RESULT_TOKENS = 700`, `fit_history`, `END_REASONS`); `evaluate run --method agent --model <etiket>`; `tools/agent_live.py`; kayıt dosyaları `turns.jsonl`, `tool_outputs/`; alanlar `end_reason`, `n_tool_calls`, `n_requests`. Modele görünen alan adları: `reason`, `action`, `tool`, `args`, `from_min`, `to_min`, `min_level`, `step_s`.
+- **Açık sorular:** (1) zaman biçimi (alarma göre dakika / `T±mm:ss.mmm`); (2) eylem şeması (düz `args`, `null` riski); (3) sınırlar (8 adım, 700 token / sonuç, satır sınırları); (4) kırpma biçimi; (5) 4B kuralı; (6) adlar.
+
+## 2026-11-12 · Planlama → Uygulama (P2b 1. madde kontrolü: tasarım önerisi)
+- **Genel:** öneri kartla ve DECISIONS 2026-11-12 ile tutarlı; mimari sorun yok. İstek sayısı hesabı doğru (gönüllü cevapta araç + 2, zorunlu cevapta 9; ≤ 9). Gerekçeler doğrulandı: 25 pilot penceresinin 2'si gece yarısını geçiyor; `search_spans` / `search_logs` başlangıca göre artan sıralı ve `total` döndürüyor. Önerilen adlar GLOSSARY'deki adlarla çakışmıyor (onay Eren'de).
+- **Ölçüm** (3 pilot vaka, `inc-2a87f603`, `inc-91bf76d4`, `inc-af671750`; önerilen satır biçimi, yerel Qwen sunucusunun `/tokenize`'ı; betik repo dışı):
+  - Span satırı (arama ve iz) medyan 63–85, en çok 109 token. 20 satırlık `search_spans` 1.285–1.747 token; 40 satırlık `get_trace` 2.754 token (`inc-af671750`, 48 span'lik iz).
+  - Log satırı (uyarı ve üstü) medyan 29–44 token, 20 satır 871. Bağımlılık satırı 11–12 token, 18–19 satır 226–255. Seri satırı (`T-10:00.000 12.3`) ~15 token.
+- **Düzeltilecek:**
+  1. **Satır sınırı ile 700 token'lık sınır uyuşmuyor:** 700'e span araçlarında 8–10, `get_trace`'te ~10, logda ~16 satır sığıyor. Model 20 / 40 satır sözü veren `[+N more lines]` ile `[truncated: N more lines]`'ı birlikte görür. Sınırlar birlikte seçilsin: ya satır sınırları 700'e uydurulsun ya satır kısaltılsın (null alanlar yazılmasın: `code=None`, `peer=None`; seride ms yok) ya da token sınırı artsın; (a)'da bu ölçümle, karar kayda.
+  2. **Arama sonuçları en erkenden başlıyor:** süzgeçsiz C aramasında 103.239–162.757 span'in ilk 20'si aralığın ilk saniyeleri. Çıktı bunu açıkça söylesin (ör. `[showing the first 20 of 103239 by start time; narrow the query]`); yoksa model aralığın tamamını gördüğünü sanabilir (2. ve 6. tuzak).
+  3. **4B kuralının ifadesi:** "İkisi tutmazsa" yerine "biri tutmazsa" (iki şart birlikte gerekiyor). (c)'den önce commit'lenecek metinde.
+- **Küçük:** modele giden metinde eksi işareti ASCII `-` olsun (öneride `T−`, U+2212). Eylem JSON'unda 11 alanın hepsi her turda yazılıyor ve geçmişten düşmüyor; 8 turdaki toplam payı (a)'da ölçülsün. Gerekirse geçmişe null'suz yazılır, modelin çıktısı kayıtta tam kalır (kayda).
+- **Açık sorular:** (1) zaman biçimi, (2) eylem şeması, (4) kırpma biçimi: öneri uygun. (3) sınırlar: yukarıdaki 1. madde. (5) 4B kuralı: 3. maddeyle. (6) adlar: Eren.
+
+## 2026-11-12 · Uygulama → Planlama (P2b 1. madde: planlama düzeltmeleri öneriye işlendi)
+- **Satır sınırı kalkar, tek sınır token** (planlama 1. ve 2. maddeleri birlikte): her araç sonucu, `TOOL_RESULT_TOKENS`'a sığan kadar **tam satır** gösterir; fazlası varsa tek işaret: aramalarda `[showing the first N of M by start time; narrow the query]` (`M` = P2a'nın `total`'ı), `get_trace`'te `[showing the first N of M spans of this trace by start time]`, seride `[showing the first N of M buckets; use a larger step_s or a shorter range]`, bağımlılıkta `[showing N of M edges]` (sıra caller, callee). İki işaretin çelişmesi biter; model gördüğünün aralığın tamamı olmadığını ve sıranın ne olduğunu okur.
+- **Satırlar kısalır:** boş alanlar yazılmaz (`code=`, `peer=`, `error:` yalnız değer varsa); seride zaman `T-10:00` (ms yok); eksi işareti ASCII `-`.
+- **`TOOL_RESULT_TOKENS`'ın değeri** (700 öneri) pilot (a)'da ölçülür (kısaltılmış satırlarla kaç satır sığıyor, 8 adımda kırpma ne kadar oluyor), karar kayda; dev'den önce donar. Eylem JSON'larının geçmişteki payı da (a)'da ölçülür; gerekirse geçmişe `null`'suz yazılır, modelin çıktısı kayıtta tam (kayda).
+- **4B kuralının metni** ((c)'den önce commit'lenecek): "25 pilot vakanın ≥ 20'sinde şema geçerli son cevap **ve** ortalama vaka süresi ≤ 20 dk; **biri tutmazsa** 4B P2'ye girmez, sınırlamalara."
+- Öteki öneriler (zaman biçimi, eylem şeması, kırpma biçimi, adlar) değişmedi; Eren onayı bekliyor.
+
+## 2026-11-12 · Uygulama → Planlama (P2b 2. madde: araçlar ve llm_client şema parametresi; doğrulama isteği)
+- **Yapılan:** `src/aiops_rca/agent_tools.py` (`TOOLS` altı araç, açıklamalar taslak — istemle 3. maddede Eren onayına; `run_tool`, `ToolResult`; tek token sınırı + tek işaret, kısa satırlar, `T-mm:ss.mmm`, yuvarlamalar onaylı öneriden; geçersiz parametre tek satır `error:`; kullanılmayan alanlar yok sayılır). `llm_client`: `request_body` / `chat` / `parse_content`'e isteğe bağlı `response_format` ve `validate`; verilmezse P1 davranışı. P1 istek gövdesinin sha256'ları değişiklikten önce kaydedildi, beş modelde aynı (`test_p1_request_body_unchanged`).
+- **Testler:** `tests/test_agent_tools.py` (21: tanımlar, biçim, token sınırı ve işaret, toplamsal olmayan sayaçla sınır, doğrulama, dosya = canlı metin (sahte arka uçlar, Jaeger'in iki davranışıyla), sızıntı taraması); `test_llm_client.py`'ye 2. pytest 673.
+- **Kasıtlı kırmızı** (ayrı klon `~/cerebrum2/analysis/p2b_red/`, betik `analysis/p2b_red_tools.py`): 9 bozma; ilk turda tam metin doğrulaması yeşil kaldı (sahte sayaç toplamsaldı), test eklendi; ikinci turda 9 / 9 kırmızı, geri alınınca yeşil.
+- **Onay bekleyen adlar:** `FETCH_LIMIT` (500), `LEVELS`, `ARG_FIELDS`, `KIND_TEXT`, `STATUS_TEXT`, `UNITS`, `SERIES_DIGITS`, `ERROR_CHARS` (120), `rel_time`; `llm_client` parametreleri `response_format`, `validate`; testte `P1_BODY_SHA256`.
+- **Açık:** ARCHITECTURE dosya tablosu bu commit'te yok (sonraki adımda). Usage limit nedeniyle oturum burada durdu.
+
+## 2026-11-12 · Planlama → Uygulama (P2b 2. madde kontrolü: ajan araçları ve llm_client)
+- **Geçti:**
+  - pytest 673 (scratch klon, `aedd61a`).
+  - P1 değişmedi: eski (`64360ce`) ve yeni `llm_client` ile beş modelde, üç seviyenin istemiyle istek gövdesi 15 / 15 birebir; `parse_content` beş girdide aynı (kendi karşılaştırmam, eski modül ayrı yüklendi).
+  - Araçlar hesap eklemiyor: 5 pilot vakada (gece yarısını geçen ikisi dahil: `inc-2a87f603`, `inc-48be145f`; ayrıca `inc-0f31ed0e`, `inc-91bf76d4`, `inc-af671750`) 222 çağrıda `run_tool` metni, P2a fonksiyonlarının `limit=None` çıktısından kendi biçimleyicimle üretilen satırlarla aynı; toplamlar (`M`) P2a'nın `total`'ıyla aynı; 83'ü kesildi, hepsi gerçek Qwen sayımıyla ≤ 700 token; kesilme bayrağı gösterilen < toplam ile tutarlı. Altı araç; aralıklar −30 … +30 dk ve ondalıklı dakikalar; seride 10–120 sn kovalar. 30 geçersiz çağrının (bilinmeyen servis / metrik / araç, `from_min ≥ to_min`, tür hatası, olmayan iz) 30'u tek satırlık `error:`.
+- **Düzeltilecek:**
+  1. **Ad çakışması:** `LEVELS` GLOSSARY'de üç girdi seviyesinin adı (`inputs.py`, `error_analysis.py`, `evaluate.py`, `methods/llm.py`). Log önemi için başka ad önerilsin (ör. `LOG_LEVELS`).
+  2. **`_fit` yalnız azaltıyor:** satır başı sayımla tahmin edip tam metinle aşağı iniyor; 222 çağrının 7'sinde sığabilecek olandan 1 satır eksik (ör. `inc-0f31ed0e` `search_spans` 8 → 9, `search_logs` 39 → 40). "Sığan kadar tam satır" için tam metinle bir artırma adımı. Küçük; dosya ve canlı aynı davranıyor.
+- **3. madde için not:** `run_tool` yalnız `_Bad` ve `ValueError`'ı araç hatasına çeviriyor; okuyucunun altyapı hataları (`LiveStore`'da HTTP hatası, Jaeger'in 1 sn dilimde derinlik `RuntimeError`'ı) dışarı çıkıyor. Döngüde bunların nasıl ele alınacağı 3. maddede önerilsin. Modele gösterilirse dosya ↔ canlı farkı yaratır; ayrı bir bitiş nedeni gerekirse ad önerisi.
+- **Adlar:** öteki önerilenler GLOSSARY'deki adlarla çakışmıyor; onay Eren'de. ARCHITECTURE dosya tablosu sonraki adımda (uygulamanın notu).
+
+## 2026-11-12 · Uygulama → Planlama (P2b 2. madde: planlama düzeltmeleri)
+- **`LEVELS` → `LOG_LEVELS`** (`agent_tools.py`; GLOSSARY'deki girdi seviyeleriyle çakışma). Ad Eren onayına.
+- **`_fit` artırma adımı:** tam metinle aşağı indikten sonra bir satır daha sığıyorsa artırır ("sığan kadar tam satır"). Test: birleşik metni parçalardan ucuz sayan sayaçla (çağrı başına sabit ek) gösterilen satır en çok; bir satır daha sınırı aşar. Kasıtlı kırmızı: artırma adımı kaldırılınca kırmızı (10 / 10 bozma kırmızı).
+- **Altyapı hataları** (`LiveStore` HTTP hatası, Jaeger 1 sn dilim `RuntimeError`): 3. maddenin önerisine.
+- ARCHITECTURE dosya tablosu: `agent_tools.py`, `test_agent_tools.py`. pytest 674.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 3. madde: ajan döngüsü; istem metni Eren onayına)
+- **Plan** Eren onaylı; iki karar ve ad onaylı: altyapı hatası modele gösterilmez, vaka `store_error` ile biter; Gemini istekleri arasında `GEMINI_GAP` (4 sn, değer pilot (a)'da ölçülür; bekleme süreye girmez, `wait_s` ayrı).
+- **Yapılan:** `src/aiops_rca/methods/agent.py` (`agent_method`, `run_case`, `ACTION_SCHEMA` / `ACTION_FORMAT`, `validate_action`, `fit_history`, `build_messages`, istem: `TASK_TEMPLATE`, `RESULT_TEMPLATE`, `ANSWER_TURN`, `DROPPED`; kök tanımı ve cevap talimatı P1'in `USER_TEMPLATE`'inden kodla alınıyor, birebir testte). `evaluate run --method agent --model <etiket>` (dosya modu; satır `responses.jsonl`, turlar `turns.jsonl`, araç çıktıları `tool_outputs/<vaka>.jsonl`). Satır P1 biçiminde + `end_reason`, `n_tool_calls`, `n_requests`, `model_s`, `wait_s`; bütçe bitişi `input_status: over_budget` (P1'in "bütçe aşımı" sütunu), altyapı hatası ve taşıma hatası `no_answer`.
+- **Testler:** `tests/test_agent.py` (11). pytest 685.
+- **Kasıtlı kırmızı** (ayrı klon `~/cerebrum2/analysis/p2b_red/`, betik `analysis/p2b_red_agent.py`): ilk tur **geçersizdi** (klon eski commit'teydi, bozulmamış hâli de 8 test kırmızıydı); klon yeniden açıldı: bozulmamış 11 / 11, 9 bozmanın 9'u kırmızı (son sonuç da düşer, adım sınırı 9, altyapı hatası yakalanmaz, cevap turu eylem şemasıyla, en yeni sonuç düşer, token toplanmaz, kök tanımı P1'den değil, bütçe bitişi cevapsız, bekleme süreden düşülmez), geri alınınca 11 / 11.
+- **Bekleyen:** istem metni (`prompt_sha256` şu an `a2fa4331…`) Eren onayına; onaydan sonra sha256 testte sabitlenir ve donar (pilotta değişirse kayda). Gerçek model bu adımda çağrılmadı; eylem şemasının Gemini'de ve llama.cpp'de çalışması pilot (a)'da.
+- **Onay bekleyen adlar:** `run_case`, `validate_action`, `build_messages` (ajan), `ACTION_FORMAT`, `TASK_TEMPLATE`, `RESULT_TEMPLATE`, `ANSWER_TURN`, `DROPPED`, `ROOT_DEFINITION`, `ANSWER_INSTRUCTIONS`, `tool_definitions`, `task_message`, `answer_message`, `call_text`; satır alanları `model_s`, `wait_s`; tur alanları (`kind`, `dropped`, `tool_output_sha256`, `tool_output_tokens`, `tool_lines_shown`, `tool_lines_total`, `tool_truncated`, `tool_error`, `store_error`, `call`).
+
+## 2026-11-13 · Uygulama → Planlama (P2b 3. madde: istem metni Eren onaylı)
+- Eren istem metnini (sistem, görev, araç sonucu, iz, cevap turu; örnek değerlerle gösterildi) ve 3. maddenin adlarını onayladı. `prompt_sha256` = `a2fa4331c47c2be2ad96176c1cb70cc641715a4aca4d014f15755ef37a6cf102`, `tests/test_agent.py` `PROMPT_SHA256`'da sabit. Pilotta değişirse yeniden onay ve kayıt; dev'den önce donar. Not: P1'in cevap talimatındaki "as they appear in the data" birebir kuralı gereği değişmedi (ajanda "data" = araç sonuçları).
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (a): plan ve kurallar, ölçmeden önce)
+- Eren onaylı. Vakalar `inc-2a87f603`, `inc-91bf76d4`, `inc-af671750` (pilot); önce Gemini, sonra 4B (iki kilit altında); kayıt `llm_cache/` (deneme, git dışı). Kod `fb1b0e9`, `prompt_sha256` `a2fa4331…`.
+- Ölçülecekler: eylem şemasının iki modelde kabulü (`null` alanlar); birden fazla araç çağrısı; tur başına `input_tokens_local`, kırpma, eylem JSON'larının geçmişteki payı; araç sonucu token'ı ve sığan satır (`TOOL_RESULT_TOKENS` 700); Gemini 429 ve `GEMINI_GAP` 4 sn; 4B istek / vaka süresi; `tool_outputs/` sızıntı 0.
+- Kurallar: şema bir modelde reddedilirse yedek (bütün alanlar metin, boş `""`) → istem / şema değişikliği, Eren'in yeniden onayı. `TOOL_RESULT_TOKENS` ve `GEMINI_GAP` için ölçümden sonra öneri, karar Eren. Pilot isabeti yalnız bilgi.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (a): 3 pilot vaka, iki model; sonuç ve öneri)
+- **Koşular** (`llm_cache/`, kod `fb1b0e9` + yalnız HANDOFF, `prompt_sha256` `a2fa4331…`): Gemini `20261113T044646Z-agent` (2 dk 20 sn); 4B `20261113T073326Z-agent` (07:33–07:47Z, iki kilit, uyku sayacı başta / sonda 128.456,2 sn, sunucu sonda kapandı). **Süreç hatam:** 4B'yi Gemini'den hemen sonra Eren'e sormadan başlattım (04:49Z); Eren durdurdu, yarım kayıt `20261113T044934Z-agent` (1 vaka) kullanılmıyor; sunucu konteyneri elle kapatıldı. Sonra Eren'in "başlat"ıyla baştan. Kural hafızada: uzun / ağır koşudan önce sor.
+- **Eylem şeması iki modelde kabul:** Gemini 25 / 25, 4B 27 / 27 eylem turu HTTP 200 ve şemaya uygun (`null` alanlar sorun değil) → yedek biçim gerekmedi.
+- **Çok turlu döngü çalışıyor:**
+  - Gemini: 2 vaka `step_limit` (8 araç, 9 istek), 1 vaka `answer` (5 araç, 7 istek); son cevaplar 3 / 3 şemaya uygun.
+  - 4B: 3 vaka `step_limit` (8 araç, 9 istek); son cevap 2 / 3 şemaya uygun, 1 `schema_answer` ("candidate 2: evidence_path must start at the candidate service").
+  - 4B iki vakada aynı çağrıyı tekrarlıyor (`get_trace` aynı iz iki kez, `search_spans` aynı parametrelerle iki kez): 9. tuzak (anlamsız tekrar) P2c etiketlemesinde görülebilir; şimdilik yalnız gözlem.
+- **Bütçe:** kırpma hiç olmadı. En uzun tam mesaj Gemini 4.289, **4B 5.932** (cevap turu, `inc-91bf76d4`; sınır 6.000). Eylem JSON'u tur başına ~117 token (Gemini, ~410 karakter).
+- **Araç sonucu sınırı (700):** sınıra yalnız span araması (6–11 / 22–195 satır) ve iz (16–21 / 44–56) takılıyor; öteki araçlar 2–247 token.
+- **Gemini aralığı (4 sn):** 25 istekte 429 yok; vaka başına model süresi 10,7–14,7 sn, bekleme 24,9–33,3 sn.
+- **4B süresi:** istek 16–47 sn, **vaka 234–306 sn (~4–5 dk)**; kartın tahmini ~12 dk'nın altında → 25 vaka ≈ 2 sa.
+- **Sızıntı:** iki koşunun `tool_outputs/`'u temiz.
+- **Öneri (Eren kararı):** `TOOL_RESULT_TOKENS` 700 kalsın (6 vakada kırpma 0; 4B'nin en uzun mesajı sınıra yakın, kırpma kuralı tam bunun için; (b)/(c)'de bütçe bitişleri sayılır, yarıdan fazlaysa kart gereği yeniden açılır). `GEMINI_GAP` 4 sn kalsın (429 yok). İkisi değişmezse istem ve kod aynı kalır.
+- Pilot isabeti bakılmadı (bilgi; (b)/(c) raporunda).
+- **Eren kararı (2026-11-13):** `TOOL_RESULT_TOKENS` 700 ve `GEMINI_GAP` 4 sn kalır. (b) başlatıldı: 25 pilot vaka, Gemini, dosya modu, `llm_cache/`.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (b): 25 pilot vaka, Gemini, dosya)
+- **Koşu:** `llm_cache/20261113T075333Z-agent`, 07:53–08:21Z (28 dk), iki kilit altında; kod `4de1d5c` (`prompt_sha256` `a2fa4331…`).
+- **Bitişler:** `step_limit` 14, `answer` 10, `no_answer` 1; `budget` 0, `schema_action` 0, `schema_answer` 0 → **şema geçerli son cevap 24 / 25**. Araç sayısı: 8 araç 15 vaka, 7 → 3, 6 → 4, 5 → 2, 3 → 1. Toplam 213 istek (vaka başına ≤ 9).
+- **Bütçe:** kırpma 0 vaka; en uzun tam mesaj 4.418. Bütçe yeniden açma kuralı (yarıdan fazlası bütçe bitişi) tetiklenmedi: 0 / 25.
+- **Araç sonucu:** 6 sonuç token sınırında kesildi; araç hatası 0; tekrarlanan çağrı 0.
+- **Süre:** vaka `duration_s` ortalama 34,7 sn (en çok 192,2: yeniden denemeler), model 20,7 sn, bekleme 31,2 sn. Token: giriş 486.420, çıkış 31.682.
+- **Sağlayıcı yoğunluğu:** 10 deneme HTTP 503 ("This model is currently experiencing high demand"); 9'u tek yeniden denemeyle geçti. `inc-07533a0a` 8 araçtan sonra cevap turunda iki kez 503 → `no_answer`. P1'in yeniden deneme kuralı (bir kez, 30 sn) ajanda vaka başına 9 istekle daha çok vaka kaybettirebilir: **P2c'den önce karar** (ör. yeniden deneme sayısı / bekleme, ya da kaybedilen vakanın yeniden koşulması; sonuç görülmeden kurala bağlanmalı). Şimdilik kural değişmedi.
+- **Sızıntı:** `tool_outputs/` temiz. Pilot isabeti bakılmadı (rapor (5)'te).
+- **4B kuralı** (c)'den önce DECISIONS 2026-11-13'te commit'li (`57b5c08`).
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (c): 25 pilot vaka, 4B, dosya; 4B kuralı)
+- **Koşu:** `llm_cache/20261113T083032Z-agent`, 08:30–10:20Z (1 sa 50 dk), iki kilit altında; uyku sayacı başta / sonda 128.456,2 sn (uyku yok); kod `599c745`; sunucu sonda kapandı. 225 isteğin 225'i HTTP 200.
+- **Bitişler:** `step_limit` 19, `schema_answer` 5, `answer` 1; `budget` 0, `schema_action` 0, `no_answer` 0.
+- **4B kuralı (DECISIONS 2026-11-13, `57b5c08`, koşudan önce):** şema geçerli son cevap **20 / 25** (eşik ≥ 20) ve ortalama vaka süresi **260,0 sn = 4,33 dk** (eşik ≤ 20 dk, en çok 421,7 sn) → **4B P2'ye girer** (geçerli cevap tam eşikte).
+- **5 `schema_answer`'ın hepsi aynı kural:** "candidate 2/3: evidence_path must start at the candidate service" (3 + 2); model yolu belirtinin görüldüğü servisten başlatıyor. Cevap talimatı P1'den birebir (değiştirilmedi); P2c'ye sınırlama / gözlem. Gemini'de 0.
+- **Öteki:** 8 araç 24 vaka, 7 araç 1; tekrarlanan çağrı 7 (9. tuzak adayı); araç hatası 10 (geçersiz parametre); token sınırında kesilen sonuç 33. Kırpma 3 vakada (3 tur); en uzun tam mesaj 5.955; bütçe bitişi 0 / 25 (yeniden açma kuralı tetiklenmedi).
+- **Sızıntı:** `tool_outputs/` temiz. Pilot isabeti bakılmadı (rapor (5)'te).
+- **Sıradaki:** (d) 2–3 pilot vakada canlı modda uçtan uca: `tools/agent_live.py` henüz yazılmadı (onaylı ad); plan Eren'e.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (d): canlı mod aracı; koşudan önce)
+- Plan Eren onaylı. `tools/agent_live.py` (onaylı ad): vaka başına `storage_check.replay_case` (yığın açık) → ajan `LiveStore` ile → yığın konteynerlerinde OOM / yeniden başlama denetimi → `down -v`; OOM kuralı P2a'daki gibi (bir kez baştan, ikinci kez "oynatılamadı", satır yazılmaz). Ajan sırasında yığın belleği örneklenir. Kayıt biçimi dosya moduyla aynı: `evaluate.append_agent_case` (yeni ortak işlev; `_run_agent` de bunu kullanıyor) + `live.json`. Yalnız pilot / dev; kilitler komutun içinde.
+- Test: vaka reddi (`test_agent_live_rejects_unknown_and_test_cases`); gerçek yığın CI'da yok. pytest 686.
+- Koşu: 3 pilot vaka (`inc-2a87f603`, `inc-91bf76d4`, `inc-af671750`), Gemini; ~10 dk; Eren'e sorulacak. Bu adımda dosya ↔ canlı ajan karşılaştırması yok (P2c'nin okuma kuralından önce sonuç görülmez).
+- Onay bekleyen ad: `append_agent_case`; satır alanları `replay_dir`, `attempts_live`, `jaeger_peak_mib`; `live.json`.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (d): canlı mod, 3 pilot vaka, Gemini)
+- **Koşu:** `tools/agent_live.py --model gemini-3.5-flash-lite`, `llm_cache/20261113T102704Z-agent` (`settings.store` = `LiveStore`), 10:27–10:35Z (~9 dk), kilitler komutun içinde; uyku sayacı başta / sonda 128.456,2 sn; kod `e6c75b6`. Sonda Docker'da konteyner ve `otel-replay_*` volume'ü yok.
+- **Sonuç:** 3 / 3 vaka ilk denemede oynatıldı (`replay_case` 10 / 10 şart), ajan sırasında OOM / yeniden başlama 0, `store_error` 0; 24 isteğin hepsi HTTP 200 (503 yok). Bitişler 3 `answer` (5–7 araç, 7–9 istek), son cevap 3 / 3 şemaya uygun; en uzun mesaj 4.026. Jaeger tepesi oynatmada 1.410,0–1.816,6 MiB (%90,8), ajan sırasında 970,9–1.143,8 MiB. Sızıntı (`tool_outputs/`) temiz.
+- Dosya ↔ canlı ajan karşılaştırması yapılmadı (P2c, okuma kuralından sonra). Yalnız uçtan uca çalıştığı gösterildi.
+- **Düzeltme:** önceki kayıtta pytest "686" yazdım; doğrusu 687.
+- **Pilot dumanı (a)–(d) tamam.** Sıradaki: 5. madde (rapor, P2c devri, ARCHITECTURE, PR) planı Eren'e.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 5. madde: rapor ve P2c'ye devir; doğrulama isteği)
+- **Kayıtlar repoda:** pilot (b), (c), (d) `llm_cache/`'ten `eval_responses/`'e kopyalandı, `diff -rq` aynı: `20261113T075333Z-agent` (responses `a4b5aad0ebfc…`, turns `84357d507a79…`), `20261113T083032Z-agent` (`0405dbd3ab05…`, `40d53658a5e3…`), `20261113T102704Z-agent` (`2f93b44e6456…`, `a49722df55db…`); üçüne `evaluate score` (`scores.json`). (a) ve yarım koşu `llm_cache/`'te.
+- **Rapor:** `results/p2b_pilot.md` / `.json` (`tools/agent_report.py`; `.json` sha256 `1102c5ec523da1c3…`; `--check` CI'da bayt aynı, `test_pilot_report_reproduces`). 4B kuralı geçti (20 / 25, 4,33 dk); bütçe yeniden açma kuralı üç koşuda tetiklenmedi (0 / 25, 0 / 25, 0 / 3).
+- **Pilot isabeti (yalnız bilgi, karar ölçütü değil):** Gemini dosya top-1 6 / 25, top-3 11 / 25; 4B dosya 3 / 25, 6 / 25; Gemini canlı 2 / 3, 3 / 3. **Gözlem (planlama için):** P1'de kural pilot + dev'de top-3 36 / 43 buluyordu; ajanın pilottaki araması en basit baseline'ın çok altında. Kart "istem, araçlar ve sınırlar pilotta belirlenir; donma P2c'de" diyor; donmadan önce tasarımın (istem, araç sırası / çıktısı, adım sınırı) pilotta gözden geçirilip geçirilmeyeceği planlama ve Eren kararı. Ben bir değişiklik yapmadım.
+- **P2c'ye devredilenler:**
+  1. **Donma adayı:** kod `e6c75b6` (+ rapor), `prompt_sha256` `a2fa4331…`, `MAX_TOOL_CALLS` 8, `TOOL_RESULT_TOKENS` 700, `GEMINI_GAP` 4 sn, bütçe 6.000.
+  2. **Gemini istek / vaka:** (b) 213 / 25 = 8,5 (en çok 9); 25 vaka ≈ 213 istek (günlük 500).
+  3. **Açık karar: 503.** (b)'de 10 deneme HTTP 503, bir vaka kaybedildi; yeniden deneme kuralı (P1'den: bir kez, 30 sn) P2c'den önce, sonuç görülmeden.
+  4. **Açık karar: Jaeger belleği** (DECISIONS 2026-11-12, P2c canlı koşularından önce): (d)'de oynatmada %90,8.
+  5. **4B biçim hatası:** 5 / 25 `schema_answer`, hepsi `evidence_path` adayla başlamıyor; cevap talimatı P1'den birebir.
+  6. **4B tekrarları ve araç hataları:** 7 tekrarlanan çağrı, 10 geçersiz parametre (Gemini'de 0 / 0); 9. tuzak adayı.
+  7. **Bütçe:** yeniden açma gerekmedi; en uzun mesaj 4B'de 5.955 (sınıra yakın).
+- **ARCHITECTURE:** `agent` kesik değil; dosya tablosu (`agent_report.py`, `results/p2b_pilot.*`). PROJECT "Şu an"a P2b satırı. pytest 688.
+- **Bitti ölçütleri (kart):** araç seti, döngü, istem, kırpma kuralı repoda; istem Eren onaylı, sha256 testte; adlar GLOSSARY'de; `agent` kesik değil; pytest yeşil (PR CI açılınca); pilot (a)–(d) koşuldu; Gemini 25 / 25 ve 4B 25 / 25 vaka bitiş nedeniyle kayıtta; araç çıktılarında sızıntı 0; bütçe bitişi raporda; 4B kuralı ve bütçe kuralı denetlendi; rapor var; P2c devri yazılı. PROJECT kutuları planlama kontrolünden sonra Eren onayıyla.
+
+## 2026-11-13 · Planlama → Uygulama (P2b 3.–5. madde ve pilot dumanı kontrolü: geçti)
+- **Kontrol edilen:** `56f90b2` (scratch klon; betikler `p2b_pilot_check1.py`, `p2b_pilot_check2.py`, repo dışı). pytest 688; `agent_report.py --check`, `results --check`, `error_analysis summary --check` üçü "same"; çalışma kopyası temiz kaldı.
+- **Rapor sayıları kendi sayımımla aynı** (üç koşu, `responses.jsonl` + `turns.jsonl`'dan; `agent_report.py` kullanılmadan): bitişler, geçerli cevap (24 / 25, 20 / 25, 3 / 3), istek (213, 225, 24), token, süre, en uzun mesaj, kırpmalı vaka, tekrar, araç hatası, kesilen sonuç, HTTP. Fark 0. `evaluate score` üç koşuda `scores.json`'u bayt aynı üretti. `eval_responses/` kopyaları `llm_cache/`'tekilerle aynı (yalnız `scores.json` ek).
+- **Kayıt tutarlılığı (53 vaka, 462 tur):** vakalar pilot içinde, yineleme yok; her vakada ≤ 8 araç ve ≤ 9 istek; `n_requests` / `n_tool_calls` turlarla, araç çıktısı metni `tool_output_sha256` ile, eylem ham çıktıyla aynı; bitiş nedeni kayıttan kendi okumamla (son cevabı `validate_answer` ile yeniden doğrulayarak) 53 / 53 aynı; düşen sonuçlar en eskiden, son sonuç hiç düşmemiş. Sorun 0.
+- **6.000 sınırı, kendi kurduğum mesajlarla:** 462 isteğin mesaj listesini kayıtlardan (ham eylem + `tool_outputs/` + istem parçaları) yeniden kurdum, yerel Qwen şablonuyla saydım: 462 / 462 `input_tokens_local` ile aynı ve ≤ 6.000 (en çok 5.955). 4B'deki 3 kırpmalı turda bir sonuç daha az düşürülse mesaj sınırı aşıyor (en az kırpma). Canlı koşunun (d) görev mesajı dosya penceresiyle kurulunca da sayım aynı.
+- **Araç çıktıları (dosya koşuları, 377 çağrı):** `run_tool` yeniden koşulunca 377 / 377 aynı metin; hata olmayan 367'si kendi biçimleyicimle (P2a `limit=None` çıktısından) aynı, ≤ 700 token ve kesilenlerde bir satır daha sığmıyor (2. maddedeki `_fit` düzeltmesi tutuyor); 10 araç hatası tek satır `error:`.
+- **İstem:** `prompt_sha256()` = `a2fa4331…` = üç koşunun `run.json`'u; kök tanımı ve cevap talimatı P1 isteminin alt dizgisi.
+- **Kurallar:** 4B kuralı commit'i `57b5c08` 07:53:44Z, (c) 08:30:32Z'de başladı (önce). 20 / 25 ve 4,33 dk → geçti (tam eşikte). Bütçe yeniden açma: 0 / 25, 0 / 25, 0 / 3.
+- **Sızıntı:** üç koşunun `tool_outputs/` metni (183.591 karakter) `leakage.FLAG_NAME`, `TEXT_RULES` ve kendi ek terimlerimle (flagd, load-generator, chaos, inject, scenario, fault, stress-ng) tarandı: 0. Diff'te anahtar / e-posta kalıbı 0.
+- **Kod okuması, düzeltme istemeyen notlar (P2c'de ele alınır):**
+  1. `run_case` `run_tool` çevresinde `(OSError, RuntimeError)` yakalıyor: tokenizer sunucusunun hatası da `store_error` diye etiketlenir; `RuntimeError` geniş. Pilotta `store_error` 0, etkisi yok.
+  2. `duration_s` 503 yeniden deneme beklemesini (30 sn) içeriyor ((b) en çok 192,2 sn bundan); `wait_s` yalnız istek aralığı. 503 kararıyla birlikte ele alınmalı.
+  3. (d) `run.json` `sets` = `["pilot", "dev"]`, vakalar 3 pilot; puanlama etkilenmiyor.
+- **Sonuç:** P2b bitti ölçütleri tutuyor. **PR açılabilir** (sade açıklama). PROJECT kutusu değişmiyor (Proje 2 kutusu P2 sonunda).
+- **P2c kartından önce planlamada (Eren kararı, sırayla):** (1) pilot isabeti düşük (Gemini top-3 11 / 25; P1 kuralı pilot + dev'de 36 / 43): donmadan önce pilotta tasarım gözden geçirilecek mi, sınırı ne (pilot tasarım seti; dev görülmeden, tek tur, önceden yazılı). Gözlem: Gemini 25 vakanın 14'ünde 8 aracı bitirip zorunlu cevaba düşüyor; çağrıların 67 / 178'i `metric_series`; 4B 21 vakada `list_services` çağırmadan başlıyor. (2) 503 yeniden deneme kuralı. (3) Jaeger belleği. (4) dosya ↔ canlı okuma kuralı. Uygulama bunlar için bir şey yapmaz.

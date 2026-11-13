@@ -1,0 +1,30 @@
+{
+ "method": "agent",
+ "model_id": "gemini-3.5-flash-lite",
+ "provider": "gemini",
+ "temperature": 0,
+ "settings": {
+  "model": "gemini-3.5-flash-lite",
+  "store": "FileStore",
+  "max_tokens": 1600,
+  "extra": {
+   "reasoning_effort": "minimal"
+  },
+  "prompt_sha256": "a2fa4331c47c2be2ad96176c1cb70cc641715a4aca4d014f15755ef37a6cf102",
+  "total_budget": 6000,
+  "max_tool_calls": 8,
+  "tool_result_tokens": 700,
+  "image": "ghcr.io/ggml-org/llama.cpp@sha256:8f3c2cd0808a394d1e7ce02f025f453caacbf163389fe6b6443ec3a1efff96a0",
+  "gguf": "Qwen3.5-4B-Q4_K_M.gguf",
+  "gguf_sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+  "tokenizer": "qwen3.5-4b",
+  "request_gap_s": 4
+ },
+ "sets": [
+  "pilot"
+ ],
+ "started_at": "2026-11-13T07:53:33Z",
+ "repo_commit": "4de1d5c469a67e08146b0a2eceaf96d5d657b19d",
+ "repo_clean": true,
+ "n_cases": 25
+}

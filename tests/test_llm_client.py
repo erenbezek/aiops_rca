@@ -365,3 +365,34 @@ def test_count_tokens_uses_tokenize_endpoint(server):
     assert llm_client.count_tokens(base, "merhaba dünya") == 4
     assert srv.requests[0]["path"] == "/tokenize" and srv.requests[0]["body"] == {"content": "merhaba dünya"}
     assert llm_client.count_tokens(base, "") == 0 and len(srv.requests) == 1  # boş metin sunucuya gitmez
+
+
+# P2b 2. madde: `chat` / `request_body`'ye yanıt biçimi ve doğrulayıcı parametresi eklendi. P1'in istek gövdesi
+# değişmedi: aşağıdaki sha256'lar değişiklikten önceki koddan (main 64360ce) kaydedildi (HANDOFF 2026-11-12).
+P1_BODY_SHA256 = {
+    "qwen3.5-2b": "3ca0b85b8b3f1cc7c7ca3d2f84ad27ef46d615590cc81806478736ff29782f2b",
+    "qwen3.5-4b": "fd5e96f3c321878ff1f3dc1b86510ef30a236f51a9dc80cfe657b2703a9be7e9",
+    "qwen3.5-9b": "2e3afe3e6168df9b12fd85714ea0b51bf18012c7d3ac2ba66be922d146015418",
+    "gpt-oss-120b": "7cc30742dcd796826771d85f40ee8c323fd233e8469a1c182e1eb457540d69ad",
+    "gemini-3.5-flash-lite": "239270e531e730ae56fa959393a608e7df8585a500e6e8e231d075f97721f2c1",
+}
+
+
+def test_p1_request_body_unchanged():
+    import hashlib
+    from aiops_rca.llm_client import request_body
+    from aiops_rca.methods.llm import build_messages
+    msgs = build_messages("summary", "2026-01-01T00:15:00+00:00", '{"x": 1}')
+    got = {k: hashlib.sha256(json.dumps(request_body(s, msgs)).encode()).hexdigest() for k, s in MODELS.items()}
+    assert got == P1_BODY_SHA256
+
+
+def test_custom_response_format_and_validator(server):
+    fmt = {"type": "json_schema", "json_schema": {"name": "x", "strict": True, "schema": {"type": "object"}}}
+    srv = server(completion(json.dumps({"action": "answer"})), completion(json.dumps({"bad": 1})))
+    ok = lambda obj: [] if obj.get("action") == "answer" else ["no action"]  # noqa: E731
+    r = chat(MODELS["qwen3.5-4b"], MESSAGES, url=srv.url, key="k", response_format=fmt, validate=ok)
+    assert srv.requests[0]["body"]["response_format"] == fmt
+    assert r["schema_valid"] and r["answer"] == {"action": "answer"}
+    r = chat(MODELS["qwen3.5-4b"], MESSAGES, url=srv.url, key="k", response_format=fmt, validate=ok)
+    assert not r["schema_valid"] and r["schema_errors"] == ["no action"]

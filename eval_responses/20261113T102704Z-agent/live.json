@@ -1,0 +1,65 @@
+{
+ "inc-2a87f603": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261113T102704Z-replay-case-inc-2a87f603",
+    "replay_valid": true,
+    "agent_s": 48.5,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 970.9,
+     "otel-replay-prometheus-1": 134.2,
+     "otel-replay-opensearch-1": 991.9
+    },
+    "containers_ok": true,
+    "end_reason": "answer",
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-91bf76d4": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261113T102952Z-replay-case-inc-91bf76d4",
+    "replay_valid": true,
+    "agent_s": 42.6,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1084.4,
+     "otel-replay-prometheus-1": 82.7,
+     "otel-replay-opensearch-1": 883.8
+    },
+    "containers_ok": true,
+    "end_reason": "answer",
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-af671750": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261113T103248Z-replay-case-inc-af671750",
+    "replay_valid": true,
+    "agent_s": 51.2,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1143.8,
+     "otel-replay-prometheus-1": 54.1,
+     "otel-replay-opensearch-1": 855.3
+    },
+    "containers_ok": true,
+    "end_reason": "answer",
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ }
+}

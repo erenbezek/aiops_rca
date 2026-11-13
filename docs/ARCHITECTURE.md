@@ -32,7 +32,7 @@ flowchart LR
     nar["candidate_narrowing<br/>(narrowing.py, ilk 5)"]
     inp["Girdi seviyeleri (inputs.py)<br/>ham / özet / daraltma, ≤ 5000 token;<br/>takma ad: alias.py"]
     llm["LLM (methods/llm.py, llm_client.py)<br/>small_local_model / large_api_model;<br/>onaylı istem, tam mesaj ≤ 6000"]
-    agent["Proje 2 ajanı"]
+    agent["Proje 2 ajanı<br/>(methods/agent.py; dosya: evaluate --method agent,<br/>canlı: tools/agent_live.py)"]
     cache[("llm_cache/ — git dışı")]
     evr[("eval_responses/")]
     ev["Değerlendirme (evaluate score, scoring.py)<br/>top-1/3, kanıt, kalibrasyon"]
@@ -90,7 +90,6 @@ flowchart LR
     qcmp -->|"fark türü kodla"| p2arep[("results/p2a_compare.md / .json")]
 
     classDef yok stroke-dasharray: 5 5
-    class agent yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
@@ -121,12 +120,14 @@ flowchart LR
 | `src/aiops_rca/query.py` | P2a sorgu katmanı: altı sorgu fonksiyonu (`list_services`, `metric_series`, `search_spans`, `get_trace`, `search_logs`, `service_dependencies`), ortak hesap, okuyucu arayüzü (`Store`), ad tablosu `METRIC_NAMES`; depolamadan bağımsız |
 | `src/aiops_rca/store_file.py` | Dosya okuyucusu `FileStore`: vakanın `model_view` snapshot'ından ham kayıt (sinyal başına bir kez okur, bellekte tutar) |
 | `src/aiops_rca/store_live.py` | Canlı okuyucu `LiveStore`: yeniden oynatma yığınındaki Jaeger v3 (servis × dilim, derinlikte bölme, tekrar ayıklama), OpenSearch (zaman dilimi, 10.000'de bölme) ve Prometheus'tan (ham örnek) ham kayıt; `http`, `rfc3339`, `jaeger_raw_slice`, `REPLAY_ENDS` (`storage_check.py` buradan alır) |
+| `src/aiops_rca/agent_tools.py` | P2b ajan araçları: altı aracın modele görünen tanımları (`TOOLS`), `run_tool` (parametre çevirisi ve doğrulama, P2a sorgusu, metin biçimi, tek token sınırı + tek işaret; hesap `query.py`'de) |
 | `src/aiops_rca/scoring.py` | Puanlama: ad eşleme (takma adlı koşuda önce gerçek ada çeviri), top-1/top-3, kanıt geçerliliği, etiket yoluyla örtüşme, Brier, seçici doğruluk, kapsama, sorulmayan girdi (boş, bütçe aşımı), cevapsız satır, set özeti |
 | `src/aiops_rca/methods/rule.py` | Kural baseline (`rule_baseline`): `signals.rule_check` ilk 3'ü şemadaki cevaba |
 | `src/aiops_rca/methods/baro.py` | BARO baseline: `baro_table` (10 sn ızgara, konteyner ve iz sütunları), `baro_rank` (RCAEval 1.9.0 `main.py` ön adımları + `baro`, saf Python), `baro_baseline` (CLI `--method baro`) |
 | `src/aiops_rca/runs.py` | Koşu kaydı: `run.json`, `responses.jsonl` (koşu klasörü `<UTC>-<yöntem>/`) |
-| `src/aiops_rca/evaluate.py` | CLI `python -m aiops_rca.evaluate run` / `score`: yöntemi vakalarda koşar ve kaydeder (`--cases` süzgeci; `--method llm --model --level [--alias]`) / kayıtlardan puanlar, `scores.json` ve set tablosu |
+| `src/aiops_rca/evaluate.py` | CLI `python -m aiops_rca.evaluate run` / `score`: yöntemi vakalarda koşar ve kaydeder (`--cases` süzgeci; `--method llm --model --level [--alias]`) / kayıtlardan puanlar, `scores.json` ve set tablosu; `--method agent --model` (P2b, dosya modu: satır + `turns.jsonl` + `tool_outputs/`) |
 | `src/aiops_rca/methods/llm.py` | LLM yöntemi (P1c): onaylı istem, girdi seviyesi (gerçek ya da takma ad), boş ve bütçeyi aşan girdiyi sormama, tam mesajın yerel sayımı, `llm_client.chat` ile sorma (içerik gelmezse `no_answer`); GGUF SHA256 kontrolü, `run.json` ayarları |
+| `src/aiops_rca/methods/agent.py` | P2b ajan döngüsü (`agent_method`, `run_case`): istem (P1'in sistem istemi, kök tanımı ve cevap talimatı birebir; araç tanımları `TOOLS`'tan), katı JSON eylem şeması (`ACTION_FORMAT`), en çok 8 araç + cevap turu (P1 cevap şeması), 6K bütçe ve kırpma (`fit_history`), bitiş nedenleri (`store_error` dahil), tur kaydı |
 | `src/aiops_rca/llm_client.py` | LLM çağrı katmanı (P1c): beş model (`MODELS`), cevap şemasının strict biçimi, istek, taşıma hatasında tek yeniden deneme, şema kontrolü (şema dışı ve sınıra takılan yeniden sorulmaz), token ve süre; Groq aralığı (`Pacer`), yerel llama.cpp sunucusu (`LocalServer`) |
 | `src/aiops_rca/inputs.py` | Girdi seviyeleri (P1c): özet (`summary_input`; `trial_summary.build`'in taşınmış hali `summary_table`) ham (`raw_input`: pencerenin WARN+ log ve hata span'i satırları, ≤ 5000 token, baştan kesme + işaret; boş girdi işareti) ve daraltma (`narrowed_input`: ilk 5 aday ada göre, özet satırı + işlemler + çağıranlar + en sık 3 log, adaylar arası kenarlar). Token sayımı dışarıdan verilir |
 | `src/aiops_rca/methods/narrowing.py` | Daraltma referansı (`narrowing_baseline`, CLI `--method narrowing`, P1e): daraltma sırasının ilk 3'ü kural biçiminde (güven yok, kenarsız yol); modelsiz referans satırı |
@@ -139,6 +140,7 @@ flowchart LR
 | `results/p1_error_labels.json`, `results/p1_error_summary.md`, `results/p1_error_summary.json` | Dev hata analizinin donmuş soruları ve 29 satırın etiketleri (örneklemde `eren_check`) / `error_analysis summary` ile üretilen özet (CI bayt aynı yeniden üretir) |
 | `results/p1_limitations.md` | P1 sonuçlarının sınırlamaları (elle yazılır; maddeler kayıtlardan, her birinde sayı, okumaya etkisi ve kaynak) |
 | `results/p2a_compare.md`, `results/p2a_compare.json` | P2a dosya ↔ canlı karşılaştırmasının raporu (`query_compare.py report`; snapshot'ları okuduğu için CI'da yeniden üretilmez): çağrı sayıları, kodla sınıflanmış fark türleri, ham kayıt farkları, exemplar reddi, süre, Jaeger tepesi, vaka tablosu |
+| `results/p2b_pilot.md`, `results/p2b_pilot.json` | P2b pilot dumanı raporu (`tools/agent_report.py`): koşu ve vaka başına bitiş, adım, istek, token, süre, kırpma, tekrar, araç hatası; 4B ve bütçe kuralı; pilot isabeti yalnız bilgi |
 | `tests/test_error_analysis.py` | Hata analizi seçimi: T3 kuralı, satır türleri, dev'de 29 satır ve otomatik türler, örneklem tohumu, `direct` hesabı, etiket dosyası tutarlılığı, özet (ad anahtarı, ad eşlenmemesi planlamanın sayılarıyla, toplamlar, doğrulama okuması, etiket dosyasındaki `eren_check`, özet dosyalarının bayt aynı yeniden üretimi) |
 | `tests/test_results.py` | Sonuç tablosu: Fisher (bilinen değerler, karardaki eşikler), 9B okuması, satır denetimi, dev grupları 11/7, repodaki tablonun kayıtlardan bayt aynı yeniden üretilmesi |
 | `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi, BARO ve daraltma referansı koşuları |
@@ -150,6 +152,8 @@ flowchart LR
 | `tests/test_query.py` | Sorgu katmanı: CI örneklerinde P1 ölçüleriyle eşitlik (`signals.service_rows`, `call_graph.service_edges`, ad kümeleri), kurallar sahte veriyle, üst küme dönen okuyucuda aynı sonuç |
 | `tests/test_store_live.py` | Canlı okuyucu, sahte arka uçlarla (`FakeBackends`, `127.0.0.1`): ham kayıtlar ve altı sorgu dosyayla aynı, dilim bölmeleri, aralık uçları, ayrıştırma; `storage_check.compare_interval` çıktısı değişiklik öncesi koddan kaydedilen değerle aynı; örnek reddi şartı |
 | `tests/test_query_compare.py` | Karşılaştırma: çağrı listesinin bileşimi ve belirlenimliliği, aynı veride hepsi eşit, kasıtlı eksikte yalnız ilgili çağrılar farklı, fark dökümü, türlerin kodla sınıflanması |
+| `tests/test_agent_tools.py` | Ajan araçları: tanımlar, biçim, token sınırı (toplamsal olmayan sayaçlarla azaltma ve artırma), doğrulama hataları, dosya = canlı metin, sızıntı taraması |
+| `tests/test_agent.py` | Ajan döngüsü sahte llama sunucusuyla: araç ve cevap turları, adım sınırı, kırpma, bütçe, şema dışı eylem / cevap, geçersiz parametre, altyapı hatası, cevapsız, istek biçimleri, P1 metni, kayıt dosyaları, `evaluate score` |
 | `tests/test_alias.py`, `tests/fixtures/alias_summary_expected.json` | Takma ad birim testleri: betiğin paket kurallarını kullanması, eşlemenin GLOSSARY ile aynılığı, CI örneklerinde üç seviye (yalnız adlar değişir, gerçek ad kalmaz), ham satır sırası ve kesmeden önce çevirme, sondan eksiltme, bozuk kopyaların yakalanması / CI örneklerinde eski `trial_alias`'ın (+ onaylı iki ad) takma adlı özet metinleri |
 | `tests/fixtures/snapshots/` | CI örnekleri: 4 pilot vakanın kırpılmış görünümü (≤ 5 MB; üretici repo dışı `p1a_fixtures.py`) |
 | `tests/fixtures/rule_expected.json`, `tests/test_rule_fixtures.py` | Örneklerde kural baseline'ın beklenen çıktısı ve sinyal güçleri; CI aynısını üretir |
@@ -181,6 +185,8 @@ flowchart LR
 | `tools/gen_leakage_fixtures.py` | `tests/fixtures/leakage/` sahte dosyalarını üretir; dosyalar elle değil bu betikle değiştirilir |
 | `tools/storage_check.py` | Depolama kartı ölçümleri: `watch` (demoyu açar, izleme sistemi ve collector'ın kaybı, büyümesi ve belleği; çıktı `~/cerebrum2/storage_runs/`), `compare` (canlı = dosya: Jaeger, OpenSearch, Prometheus ↔ `telemetry/filtered/`), `replay` (C2 pencerelerini `deploy/replay/` yığınına yeniden oynatır; gönderilen = dosya, karşılaştırma, Prometheus bloğu, ölçütler); `replay-case <snapshot> [--keep-up]` (P2a: tek pilot / dev vakası boş yığına, D3 şartları + örnek reddi 0 + yığının kendi telemetrisi yok + duman, sonda `down -v`) |
 | `tools/query_compare.py` | P2a dosya ↔ canlı karşılaştırması (LLM'siz): `call_list` (onaylı çağrı listesi), `run` (vaka başına `replay_case`, aynı çağrılar iki okuyucuda, ham kayıt, sızıntı taraması, OOM kuralı, `down -v`; kayıt `~/cerebrum2/p2a_compare/`), `report` (fark türü kodla: Jaeger dönüşümleri dosyaya uygulanıp yeniden koşulur → `results/p2a_compare.md`, `.json`) |
+| `tools/agent_live.py` | P2b ajanın canlı modu: vaka başına `replay_case` → ajan `LiveStore` ile → OOM / yeniden başlama denetimi (P2a kuralı, bir kez baştan) → `down -v`; kayıt dosya moduyla aynı (`evaluate.append_agent_case`) + `live.json` |
+| `tools/agent_report.py` | P2b pilot dumanı raporu: `eval_responses/`'teki üç pilot koşusundan `results/p2b_pilot.md` / `.json` (`--check`: CI bayt aynı); 4B ve bütçe kuralları; isabet yalnız bilgi |
 | `deploy/otel-demo/jaeger-config-extras.yml` | Jaeger katmanımız: izler diske (badger, `jaeger-data` volume'ü `/tmp`'de), 7 gün saklama |
 | `deploy/replay/compose.yaml` | Yeniden oynatma yığını (`otel-replay`): Jaeger, Prometheus, OpenSearch upstream tanımından `extends` ile (portlar 127.0.0.1, ayrı volume'ler), tek alıcısı dosya olan collector (`REPLAY_WINDOW`, sayaçlar 127.0.0.1:18888) |
 | `deploy/replay/otelcol-replay.yml` | Yeniden oynatma collector'ı: `otlpjsonfile` alıcıları, `transform/backend_compat` ve upstream exporter kopyaları; izinli farklar `block_on_overflow` ve Jaeger paketi 2048 span |
