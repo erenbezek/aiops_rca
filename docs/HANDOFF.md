@@ -4959,3 +4959,9 @@ Data:
 - **Öteki:** 8 araç 24 vaka, 7 araç 1; tekrarlanan çağrı 7 (9. tuzak adayı); araç hatası 10 (geçersiz parametre); token sınırında kesilen sonuç 33. Kırpma 3 vakada (3 tur); en uzun tam mesaj 5.955; bütçe bitişi 0 / 25 (yeniden açma kuralı tetiklenmedi).
 - **Sızıntı:** `tool_outputs/` temiz. Pilot isabeti bakılmadı (rapor (5)'te).
 - **Sıradaki:** (d) 2–3 pilot vakada canlı modda uçtan uca: `tools/agent_live.py` henüz yazılmadı (onaylı ad); plan Eren'e.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (d): canlı mod aracı; koşudan önce)
+- Plan Eren onaylı. `tools/agent_live.py` (onaylı ad): vaka başına `storage_check.replay_case` (yığın açık) → ajan `LiveStore` ile → yığın konteynerlerinde OOM / yeniden başlama denetimi → `down -v`; OOM kuralı P2a'daki gibi (bir kez baştan, ikinci kez "oynatılamadı", satır yazılmaz). Ajan sırasında yığın belleği örneklenir. Kayıt biçimi dosya moduyla aynı: `evaluate.append_agent_case` (yeni ortak işlev; `_run_agent` de bunu kullanıyor) + `live.json`. Yalnız pilot / dev; kilitler komutun içinde.
+- Test: vaka reddi (`test_agent_live_rejects_unknown_and_test_cases`); gerçek yığın CI'da yok. pytest 686.
+- Koşu: 3 pilot vaka (`inc-2a87f603`, `inc-91bf76d4`, `inc-af671750`), Gemini; ~10 dk; Eren'e sorulacak. Bu adımda dosya ↔ canlı ajan karşılaştırması yok (P2c'nin okuma kuralından önce sonuç görülmez).
+- Onay bekleyen ad: `append_agent_case`; satır alanları `replay_dir`, `attempts_live`, `jaeger_peak_mib`; `live.json`.

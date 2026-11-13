@@ -100,18 +100,22 @@ def _run_agent(selected: list, sets: tuple[str, ...], root: Path, model: str, op
         run_dir = new_run("agent", sets, len(selected), root=root, model_id=spec.model_id, provider=spec.provider,
                           temperature=0, settings={"model": model, "store": getattr(store_factory, "__name__", "?"),
                                                    **settings})
-        (run_dir / "tool_outputs").mkdir()
         for case in selected:
-            out = ask(case)
-            append_response(run_dir, {"incident_id": case.incident_id, **out["row"]})
-            with (run_dir / "turns.jsonl").open("a", encoding="utf-8") as f:
-                for t in out["turns"]:
-                    f.write(json.dumps({"incident_id": case.incident_id, **t}, ensure_ascii=False, sort_keys=True)
-                            + "\n")
-            with (run_dir / "tool_outputs" / f"{case.incident_id}.jsonl").open("w", encoding="utf-8") as f:
-                for o in out["tool_outputs"]:
-                    f.write(json.dumps(o, ensure_ascii=False) + "\n")
+            append_agent_case(run_dir, case.incident_id, ask(case))
     return run_dir
+
+
+def append_agent_case(run_dir: Path, incident_id: str, out: dict, **extra) -> None:
+    """Ajan vakasının kaydı: satır `responses.jsonl`'a (P1 biçimi + `extra`), turlar `turns.jsonl`'a, modele giden araç
+    çıktıları `tool_outputs/<vaka>.jsonl`'a. Dosya ve canlı mod (`tools/agent_live.py`) aynı işlevi kullanır."""
+    append_response(run_dir, {"incident_id": incident_id, **out["row"], **extra})
+    with (run_dir / "turns.jsonl").open("a", encoding="utf-8") as f:
+        for t in out["turns"]:
+            f.write(json.dumps({"incident_id": incident_id, **t}, ensure_ascii=False, sort_keys=True) + "\n")
+    (run_dir / "tool_outputs").mkdir(exist_ok=True)
+    with (run_dir / "tool_outputs" / f"{incident_id}.jsonl").open("w", encoding="utf-8") as f:
+        for o in out["tool_outputs"]:
+            f.write(json.dumps(o, ensure_ascii=False) + "\n")
 
 
 def cmd_score(run_dir: Path, final_test: bool, *, incidents: Path = INCIDENTS, snapshots: Path = SNAPSHOTS) -> dict:

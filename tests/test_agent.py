@@ -220,3 +220,17 @@ PROMPT_SHA256 = "a2fa4331c47c2be2ad96176c1cb70cc641715a4aca4d014f15755ef37a6cf10
 
 def test_prompt_sha256_frozen():
     assert ag.prompt_sha256() == PROMPT_SHA256
+
+
+def test_agent_live_rejects_unknown_and_test_cases(capsys):
+    """Canlı mod gerçek yığın ister (CI'da yok); burada yalnız vaka reddi: pilot / dev dışı kimlik 2 ile döner."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import agent_live  # noqa: E402
+    assert agent_live.main(["--model", "gemini-3.5-flash-lite", "--cases", "inc-nope"]) == 2
+    test_ids = [p.stem for p in sorted(INCIDENTS.glob("inc-*.json"))
+                if json.loads(p.read_text()).get("set") == "test"][:1]
+    if test_ids:
+        assert agent_live.main(["--model", "gemini-3.5-flash-lite", "--cases", test_ids[0]]) == 2
+    assert "not valid pilot/dev cases" in capsys.readouterr().err
