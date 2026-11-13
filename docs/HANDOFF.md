@@ -5004,6 +5004,21 @@ Data:
 - **Sonuç:** P2b bitti ölçütleri tutuyor. **PR açılabilir** (sade açıklama). PROJECT kutusu değişmiyor (Proje 2 kutusu P2 sonunda).
 - **P2c kartından önce planlamada (Eren kararı, sırayla):** (1) pilot isabeti düşük (Gemini top-3 11 / 25; P1 kuralı pilot + dev'de 36 / 43): donmadan önce pilotta tasarım gözden geçirilecek mi, sınırı ne (pilot tasarım seti; dev görülmeden, tek tur, önceden yazılı). Gözlem: Gemini 25 vakanın 14'ünde 8 aracı bitirip zorunlu cevaba düşüyor; çağrıların 67 / 178'i `metric_series`; 4B 21 vakada `list_services` çağırmadan başlıyor. (2) 503 yeniden deneme kuralı. (3) Jaeger belleği. (4) dosya ↔ canlı okuma kuralı. Uygulama bunlar için bir şey yapmaz.
 
+## 2026-11-13 · Uygulama → Uygulama (uyg5 devir notları: yeni uygulama oturumu için)
+- **Durum:** P2a (PR #34) ve P2b (PR #39) birleşti, main `0f56048`. Çalışma kopyası main'de, temiz. P2c kartı yok; önce planlamada dört karar (pilot tasarımın gözden geçirilmesi, Gemini 503 yeniden deneme kuralı, Jaeger belleği, dosya ↔ canlı okuma kuralı; HANDOFF 2026-11-13 planlama kaydı). Kart gelmeden kod yok.
+- **Yeni çalışma kuralı (hafızada `uzun-kosu-once-sor`):** plan onaylı olsa da yerel model koşusu, oynatma ya da ~15 dk'yı aşan koşu başlatılmadan önce süre söylenir, Eren'e "şimdi başlatayım mı?" diye sorulur (P2b (a)'da 4B sorulmadan başlatıldı, Eren durdurdu).
+- **Koşu pratikleri:**
+  - Kilitler: `systemd-inhibit --what=handle-lid-switch:sleep:idle --mode=block` + `gnome-session-inhibit --inhibit suspend --inhibit idle` birlikte. `storage_check` / `query_compare` / `agent_live` kendini yeniden çalıştırır; `--why` metni `scenario_runner.inhibited()`'in tanıdığı ifadeyi ("storage card") taşımalı, yoksa `replay_case` korumada durur. `evaluate run --method agent` kilit almaz: elle iki kilidin altında başlat.
+  - Uyku kanıtı: koşu başında ve sonunda `CLOCK_BOOTTIME − CLOCK_MONOTONIC` (sayaç değişmemeli) + `journalctl` uyku kaydı.
+  - Ajan / yerel model koşusu öldürülürse `aiops-llm` konteyneri açık kalır: `docker stop aiops-llm`. Yeniden oynatma yarıda kalırsa `otel-replay_*` volume'leri: `storage_check.replay_compose(["down","-v"], <snapshot>)`.
+  - Gemini ücretsiz katman: 503 ("high demand") geliyor; 25 vakada 10 deneme, bir vaka kaybedildi (kural P2c'den önce).
+  - Ajan sayımı için yerel Qwen tokenizer sunucusu açılır (Gemini koşusunda da); 4B ile birlikte ~3 GB.
+- **Kasıtlı kırmızı:** oturumun scratchpad'i kayboldu; klonlar `~/cerebrum2/analysis/p2b_red/` (duruyor; silinmesi Eren'de), betikler `analysis/p2a_red_c.py`, `p2b_red_tools.py`, `p2b_red_agent.py`. Bozmadan önce klonun bozulmamış hâlinin yeşil olduğunu doğrula (P2b 3. maddede ilk tur bu yüzden geçersizdi: klon eski commit'teydi; `git checkout -- .` kopyalanan dosyaları geri alır). Klonu silip yeniden açarken kabuk o klasörün içinde olmasın.
+- **Çıktı kırpma:** komut çıktısını `cut -c` ile kısaltma; Türkçe harfleri ortadan bölüp tuhaf karakter gösteriyor. Python'la ya da `head` ile kısalt.
+- **`llm_cache/`'te kalanlar** (git dışı, denemeler): P2b (a) koşuları `20261113T044646Z-agent` (Gemini), `20261113T073326Z-agent` (4B); yarım 4B `20261113T044934Z-agent` (kullanılmıyor); (b), (c), (d)'nin aslı (kopyaları `eval_responses/`'te). P1e'nin 10 deneme koşusu (`20261104T0822…–0828…`) silinen `aiops_rca_p1e` klonundan buraya kopyalandı.
+- **Eren'in GitHub notu:** README'yi GitHub'da düzenleyince otomatik `erenbezek-patch-*` PR'ları açılıyor (main'e doğrudan yazılamıyor). PR'sız dala push sonrası sarı "Compare & pull request" bandı normal; PR yine iş bitince açılır.
+- **Arayüz notu:** Claude Code'un ara mesaj özetleri ("· summary") bazen İngilizce / Japonca çıkıyor; bunlar modelin metni değil (Eren sordu). Mesajlar ve dosyalar Türkçe kalır.
+
 ## 2026-11-13 · Planlama → Uygulama (P2c-0 kartı: tek pilot tasarım turu, sonra donma)
 - **Durum:** P2b birleşti (PR #39, main `0f56048`, CI yeşil). Dal `task/p2c` (main'den). Kurallar DECISIONS 2026-11-13: "tek pilot tasarım turu" (okumadan önce yazıldı) ve "değişiklik listesi" (Eren onaylı).
 - **Amaç:** onaylı iki değişikliği yapmak, pilotu **bir kez** yeniden koşmak, sonra istem, araçlar ve sınırları dondurmak. Dev'e ve teste bakılmaz, dokunulmaz.
