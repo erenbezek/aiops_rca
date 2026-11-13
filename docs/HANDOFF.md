@@ -4965,3 +4965,10 @@ Data:
 - Test: vaka reddi (`test_agent_live_rejects_unknown_and_test_cases`); gerçek yığın CI'da yok. pytest 686.
 - Koşu: 3 pilot vaka (`inc-2a87f603`, `inc-91bf76d4`, `inc-af671750`), Gemini; ~10 dk; Eren'e sorulacak. Bu adımda dosya ↔ canlı ajan karşılaştırması yok (P2c'nin okuma kuralından önce sonuç görülmez).
 - Onay bekleyen ad: `append_agent_case`; satır alanları `replay_dir`, `attempts_live`, `jaeger_peak_mib`; `live.json`.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (d): canlı mod, 3 pilot vaka, Gemini)
+- **Koşu:** `tools/agent_live.py --model gemini-3.5-flash-lite`, `llm_cache/20261113T102704Z-agent` (`settings.store` = `LiveStore`), 10:27–10:35Z (~9 dk), kilitler komutun içinde; uyku sayacı başta / sonda 128.456,2 sn; kod `e6c75b6`. Sonda Docker'da konteyner ve `otel-replay_*` volume'ü yok.
+- **Sonuç:** 3 / 3 vaka ilk denemede oynatıldı (`replay_case` 10 / 10 şart), ajan sırasında OOM / yeniden başlama 0, `store_error` 0; 24 isteğin hepsi HTTP 200 (503 yok). Bitişler 3 `answer` (5–7 araç, 7–9 istek), son cevap 3 / 3 şemaya uygun; en uzun mesaj 4.026. Jaeger tepesi oynatmada 1.410,0–1.816,6 MiB (%90,8), ajan sırasında 970,9–1.143,8 MiB. Sızıntı (`tool_outputs/`) temiz.
+- Dosya ↔ canlı ajan karşılaştırması yapılmadı (P2c, okuma kuralından sonra). Yalnız uçtan uca çalıştığı gösterildi.
+- **Düzeltme:** önceki kayıtta pytest "686" yazdım; doğrusu 687.
+- **Pilot dumanı (a)–(d) tamam.** Sıradaki: 5. madde (rapor, P2c devri, ARCHITECTURE, PR) planı Eren'e.
