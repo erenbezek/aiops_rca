@@ -212,3 +212,11 @@ def test_evaluate_run_and_score(tmp_path, fake, monkeypatch):
     assert scores["cases"][0]["incident_id"] == cid and scores["table"]["all"]["n"] == 1
     with pytest.raises(ValueError):
         evaluate.cmd_run("agent", ("pilot",), False, tmp_path / "runs", incidents=inc, snapshots=fixtures)
+
+
+# İstem metni Eren onaylı (HANDOFF 2026-11-13, P2b 3. madde; P1 "Onay 3" gibi). Değişirse yeniden onay ve kayıt.
+PROMPT_SHA256 = "a2fa4331c47c2be2ad96176c1cb70cc641715a4aca4d014f15755ef37a6cf102"
+
+
+def test_prompt_sha256_frozen():
+    assert ag.prompt_sha256() == PROMPT_SHA256
