@@ -3,6 +3,7 @@
     python -m aiops_rca.evaluate run --method rule|baro|narrowing [--sets pilot,dev] [--cases inc-…,…] [--final-test] [--root eval_responses]
     python -m aiops_rca.evaluate run --method llm --model <etiket> --level raw|summary|narrowed [--alias] [--sets …]
                                      [--cases …] [--root llm_cache]
+    python -m aiops_rca.evaluate run --method agent --model <etiket> [--sets …] [--cases …] [--root llm_cache]
     python -m aiops_rca.evaluate score <koşu klasörü> [--final-test]
 
 `run`: seçilen setlerin geçerli vakalarında yöntemi koşar, her cevabı şemayla doğrular ve kaydeder (`runs.py`).
@@ -12,6 +13,9 @@ içinden vaka süzer (set dışı kimlik hata). `llm` yöntemi (`methods/llm.py`
 `run.json`'a model, istem ve sunucu ayarları. `score`: kayıtlardan ve etiketlerden puanlar (çağrı kenarları snapshot'tan), `scores.json`
 yazar ve set başına tabloyu basar. Sorulmayan girdi (`input_status`
 `empty` / `over_budget`) ve cevapsız satır (`no_answer`) ıskalama ve çekimser sayılır; takma adlı koşuda cevaptaki adlar gerçek ada çevrilip eşlenir. `test` seti iki komutta da yalnız `--final-test` ile; `heldout` hiç.
+`agent` yöntemi (`methods/agent.py`, P2b) dosya modunda (`FileStore`) ajanı koşar: satır P1 biçiminde + bitiş nedeni,
+adım ve istek sayısı; koşu klasörüne ayrıca `turns.jsonl` (vaka × tur) ve `tool_outputs/<vaka>.jsonl` (modele giden
+araç çıktılarının metni).
 Çıkış: 0 tamam, 2 kullanım hatası.
 """
 from __future__ import annotations
@@ -48,8 +52,11 @@ def cmd_run(method: str, sets: tuple[str, ...], final_test: bool, root: Path, *,
     if method == "llm":
         if model is None or level is None:
             raise ValueError("--method llm needs --model and --level")
+    elif method == "agent":
+        if model is None or level is not None or alias:
+            raise ValueError("--method agent needs --model and takes no --level or --alias")
     elif model is not None or level is not None or alias:
-        raise ValueError("--model, --level and --alias are only for --method llm")
+        raise ValueError("--model, --level and --alias are only for --method llm and agent")
     selected = load_cases(sets, final_test=final_test, incidents=incidents, snapshots=snapshots)
     if cases is not None:
         missing = sorted(set(cases) - {c.incident_id for c in selected})
@@ -58,6 +65,8 @@ def cmd_run(method: str, sets: tuple[str, ...], final_test: bool, root: Path, *,
         selected = [c for c in selected if c.incident_id in set(cases)]
     if method == "llm":
         return _run_llm(selected, sets, root, model, level, alias, llm_options or {})
+    if method == "agent":
+        return _run_agent(selected, sets, root, model, llm_options or {})
     run_dir = new_run(method, sets, len(selected), root=root)
     fn = METHODS[method]
     for case in selected:
@@ -79,6 +88,29 @@ def _run_llm(selected: list, sets: tuple[str, ...], root: Path, model: str, leve
                           temperature=0, settings={"model": model, **settings})
         for case in selected:
             append_response(run_dir, {"incident_id": case.incident_id, **ask(case)})
+    return run_dir
+
+
+def _run_agent(selected: list, sets: tuple[str, ...], root: Path, model: str, options: dict) -> Path:
+    from aiops_rca.methods.agent import agent_method
+    from aiops_rca.store_file import FileStore
+    spec = MODELS.get(model)
+    store_factory = options.pop("store_factory", FileStore)
+    with agent_method(model, store_factory, **options) as (ask, settings):
+        run_dir = new_run("agent", sets, len(selected), root=root, model_id=spec.model_id, provider=spec.provider,
+                          temperature=0, settings={"model": model, "store": getattr(store_factory, "__name__", "?"),
+                                                   **settings})
+        (run_dir / "tool_outputs").mkdir()
+        for case in selected:
+            out = ask(case)
+            append_response(run_dir, {"incident_id": case.incident_id, **out["row"]})
+            with (run_dir / "turns.jsonl").open("a", encoding="utf-8") as f:
+                for t in out["turns"]:
+                    f.write(json.dumps({"incident_id": case.incident_id, **t}, ensure_ascii=False, sort_keys=True)
+                            + "\n")
+            with (run_dir / "tool_outputs" / f"{case.incident_id}.jsonl").open("w", encoding="utf-8") as f:
+                for o in out["tool_outputs"]:
+                    f.write(json.dumps(o, ensure_ascii=False) + "\n")
     return run_dir
 
 
@@ -122,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m aiops_rca.evaluate", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--method", required=True, choices=sorted([*METHODS, "llm"]))
+    r.add_argument("--method", required=True, choices=sorted([*METHODS, "llm", "agent"]))
     r.add_argument("--model", choices=list(MODELS))
     r.add_argument("--level", choices=list(LEVELS))
     r.add_argument("--alias", action="store_true")
