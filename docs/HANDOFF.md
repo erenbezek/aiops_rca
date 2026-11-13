@@ -5078,3 +5078,12 @@ Data:
 - **Geriye uyum:** P2b dosya koşularındaki 377 kayıtlı çağrının 368'i yeni kodla aynı metin (`tool_output_sha256`). Kalan 9'u 4B'nin servissiz `metric_series` çağrıları: eskiden hata, şimdi tablo (beklenen değişiklik; `service="all"` çağrısı yine hata).
 - **Notlar (düzeltme istemiyor):** (1) servissiz çağrı span metriklerinde servis başına iki sorgu yapıyor (metrik + `requests`); canlıda çağrı başına ~30 Jaeger sorgusu, süreye 3. maddenin canlı adımında bak. (2) Model servissiz çağrıda küçük adım verirse tablo token sınırında kesilir (işaret yol gösteriyor); pilot kayıtlarında görülecek.
 - **Sıradaki:** 3. madde, pilot yeniden koşu (Gemini 25, 4B 25, canlı 3; Eren'e sorarak, iki kilit). Bu koşudan sonra tasarım değişmez.
+
+## 2026-11-13 · Uygulama → Planlama (P2c-0 3. madde: pilot yeniden koşu, Gemini 25, dosya)
+- **Koşu:** `llm_cache/20261113T125627Z-agent`, 12:56–13:20Z (24 dk), Eren'e sorularak, iki kilit (`IsInhibited` 4 ve 8 `true`); uyku sayacı başta / sonda 128.456,2 sn; kod `cdfd320`, `prompt_sha256` `5e259201…`, `store` `FileStore`. Sonda `aiops-llm` yok. `evaluate score` koşuldu (`scores.json`, isabet yalnız "tasarım seti, iyimser").
+- **Eski (P2b, `075333Z`) → yeni:** bitişler `answer` 10 → 18, `step_limit` 14 → 7, `no_answer` 1 → 0; şema geçerli son cevap 24 → **25 / 25**; istek 213 → 201; giriş token 486.420 → 581.800; vaka süresi ort. 34,7 → 27,0 sn (en çok 192,2 → 51,0); bütçe bitişi 0 → 0, kırpılan vaka 0 → 0; **en uzun tam mesaj 4.418 → 5.963** (bütçe 6.000); tekrarlanan çağrı 0, araç hatası 0; **kesilen araç sonucu 6 → 44**; HTTP 503 10 → 8 (hepsi tek yeniden denemeyle geçti; kaybedilen vaka 0). İsabet (tasarım seti, iyimser): top-1 6 → 14, top-3 11 → 22.
+- **Araç kullanımı:** `list_services` 25, `metric_series` 56 (servissiz 43), `search_spans` 30, `search_logs` 30, `get_trace` 10, `service_dependencies` 7. Servissiz çağrıların 33'ünde model `step_s=60` verdi (9'unda 300, 1'inde vermedi); kesilen 44 sonucun 20'si servissiz tablo (60 sn adımda 700'e sığmıyor, işaret çıkıyor), 15 `search_spans`, 5 `search_logs`, 4 `get_trace`.
+- **Bütçe yeniden açma kuralı:** tetiklenmedi (bütçe bitişi 0 / 25). Not: en uzun mesaj sınıra 37 token kaldı.
+- **Sızıntı:** `tool_outputs/` taraması temiz.
+- **Gözlem (karar değil; tasarım bu koşudan sonra donuyor):** planlamanın 2. madde notu (2) gerçekleşti: model servissiz çağrıda çoğunlukla 60 sn veriyor ve tablo kesiliyor.
+- **Sıradaki:** 4B 25, dosya (Eren'e sorarak, ~2 sa); sonra canlı 3.
