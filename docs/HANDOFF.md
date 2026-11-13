@@ -4940,3 +4940,13 @@ Data:
 - **Öneri (Eren kararı):** `TOOL_RESULT_TOKENS` 700 kalsın (6 vakada kırpma 0; 4B'nin en uzun mesajı sınıra yakın, kırpma kuralı tam bunun için; (b)/(c)'de bütçe bitişleri sayılır, yarıdan fazlaysa kart gereği yeniden açılır). `GEMINI_GAP` 4 sn kalsın (429 yok). İkisi değişmezse istem ve kod aynı kalır.
 - Pilot isabeti bakılmadı (bilgi; (b)/(c) raporunda).
 - **Eren kararı (2026-11-13):** `TOOL_RESULT_TOKENS` 700 ve `GEMINI_GAP` 4 sn kalır. (b) başlatıldı: 25 pilot vaka, Gemini, dosya modu, `llm_cache/`.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (b): 25 pilot vaka, Gemini, dosya)
+- **Koşu:** `llm_cache/20261113T075333Z-agent`, 07:53–08:21Z (28 dk), iki kilit altında; kod `4de1d5c` (`prompt_sha256` `a2fa4331…`).
+- **Bitişler:** `step_limit` 14, `answer` 10, `no_answer` 1; `budget` 0, `schema_action` 0, `schema_answer` 0 → **şema geçerli son cevap 24 / 25**. Araç sayısı: 8 araç 15 vaka, 7 → 3, 6 → 4, 5 → 2, 3 → 1. Toplam 213 istek (vaka başına ≤ 9).
+- **Bütçe:** kırpma 0 vaka; en uzun tam mesaj 4.418. Bütçe yeniden açma kuralı (yarıdan fazlası bütçe bitişi) tetiklenmedi: 0 / 25.
+- **Araç sonucu:** 6 sonuç token sınırında kesildi; araç hatası 0; tekrarlanan çağrı 0.
+- **Süre:** vaka `duration_s` ortalama 34,7 sn (en çok 192,2: yeniden denemeler), model 20,7 sn, bekleme 31,2 sn. Token: giriş 486.420, çıkış 31.682.
+- **Sağlayıcı yoğunluğu:** 10 deneme HTTP 503 ("This model is currently experiencing high demand"); 9'u tek yeniden denemeyle geçti. `inc-07533a0a` 8 araçtan sonra cevap turunda iki kez 503 → `no_answer`. P1'in yeniden deneme kuralı (bir kez, 30 sn) ajanda vaka başına 9 istekle daha çok vaka kaybettirebilir: **P2c'den önce karar** (ör. yeniden deneme sayısı / bekleme, ya da kaybedilen vakanın yeniden koşulması; sonuç görülmeden kurala bağlanmalı). Şimdilik kural değişmedi.
+- **Sızıntı:** `tool_outputs/` temiz. Pilot isabeti bakılmadı (rapor (5)'te).
+- **4B kuralı** (c)'den önce DECISIONS 2026-11-13'te commit'li (`57b5c08`).
