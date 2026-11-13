@@ -344,3 +344,5 @@ Sadece Eren'in onayladığı isimler.
 | `tool_definitions`, `task_message`, `answer_message` | İstem metnini üreten işlevler (araç tanımları `TOOLS`'tan) |
 | `model_s`, `wait_s` | Ajan satırı: model istek süreleri toplamı / istek aralığı beklemesi (`duration_s`'ye girmez) |
 | `kind`, `dropped`, `call`, `tool_output_sha256`, `tool_output_tokens`, `tool_lines_shown`, `tool_lines_total`, `tool_truncated`, `tool_error`, `store_error` | `turns.jsonl` alanları: tur türü (`action` / `answer`) / ize inen adımlar / araç çağrısının metni / modele giden çıktının sha256'sı ve token'ı / gösterilen ve toplam satır / kesildi mi / araç hatası mı / okuyucunun altyapı hatası |
+| `append_agent_case` | `evaluate.py`: ajan vakasının kaydı (satır + `turns.jsonl` + `tool_outputs/<vaka>.jsonl`); dosya modu (`_run_agent`) ve canlı mod (`tools/agent_live.py`) aynı işlevi kullanır |
+| `replay_dir`, `attempts_live`, `jaeger_peak_mib`, `live.json` | Canlı mod ajan satırının alanları (vakanın `replay_case` kaydı, kaçıncı denemede geçtiği, Jaeger bellek tepesi oynatma / ajan) / vaka başına deneme kayıtları |
