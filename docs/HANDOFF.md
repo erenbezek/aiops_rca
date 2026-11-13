@@ -4972,3 +4972,18 @@ Data:
 - Dosya ↔ canlı ajan karşılaştırması yapılmadı (P2c, okuma kuralından sonra). Yalnız uçtan uca çalıştığı gösterildi.
 - **Düzeltme:** önceki kayıtta pytest "686" yazdım; doğrusu 687.
 - **Pilot dumanı (a)–(d) tamam.** Sıradaki: 5. madde (rapor, P2c devri, ARCHITECTURE, PR) planı Eren'e.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 5. madde: rapor ve P2c'ye devir; doğrulama isteği)
+- **Kayıtlar repoda:** pilot (b), (c), (d) `llm_cache/`'ten `eval_responses/`'e kopyalandı, `diff -rq` aynı: `20261113T075333Z-agent` (responses `a4b5aad0ebfc…`, turns `84357d507a79…`), `20261113T083032Z-agent` (`0405dbd3ab05…`, `40d53658a5e3…`), `20261113T102704Z-agent` (`2f93b44e6456…`, `a49722df55db…`); üçüne `evaluate score` (`scores.json`). (a) ve yarım koşu `llm_cache/`'te.
+- **Rapor:** `results/p2b_pilot.md` / `.json` (`tools/agent_report.py`; `.json` sha256 `1102c5ec523da1c3…`; `--check` CI'da bayt aynı, `test_pilot_report_reproduces`). 4B kuralı geçti (20 / 25, 4,33 dk); bütçe yeniden açma kuralı üç koşuda tetiklenmedi (0 / 25, 0 / 25, 0 / 3).
+- **Pilot isabeti (yalnız bilgi, karar ölçütü değil):** Gemini dosya top-1 6 / 25, top-3 11 / 25; 4B dosya 3 / 25, 6 / 25; Gemini canlı 2 / 3, 3 / 3. **Gözlem (planlama için):** P1'de kural pilot + dev'de top-3 36 / 43 buluyordu; ajanın pilottaki araması en basit baseline'ın çok altında. Kart "istem, araçlar ve sınırlar pilotta belirlenir; donma P2c'de" diyor; donmadan önce tasarımın (istem, araç sırası / çıktısı, adım sınırı) pilotta gözden geçirilip geçirilmeyeceği planlama ve Eren kararı. Ben bir değişiklik yapmadım.
+- **P2c'ye devredilenler:**
+  1. **Donma adayı:** kod `e6c75b6` (+ rapor), `prompt_sha256` `a2fa4331…`, `MAX_TOOL_CALLS` 8, `TOOL_RESULT_TOKENS` 700, `GEMINI_GAP` 4 sn, bütçe 6.000.
+  2. **Gemini istek / vaka:** (b) 213 / 25 = 8,5 (en çok 9); 25 vaka ≈ 213 istek (günlük 500).
+  3. **Açık karar: 503.** (b)'de 10 deneme HTTP 503, bir vaka kaybedildi; yeniden deneme kuralı (P1'den: bir kez, 30 sn) P2c'den önce, sonuç görülmeden.
+  4. **Açık karar: Jaeger belleği** (DECISIONS 2026-11-12, P2c canlı koşularından önce): (d)'de oynatmada %90,8.
+  5. **4B biçim hatası:** 5 / 25 `schema_answer`, hepsi `evidence_path` adayla başlamıyor; cevap talimatı P1'den birebir.
+  6. **4B tekrarları ve araç hataları:** 7 tekrarlanan çağrı, 10 geçersiz parametre (Gemini'de 0 / 0); 9. tuzak adayı.
+  7. **Bütçe:** yeniden açma gerekmedi; en uzun mesaj 4B'de 5.955 (sınıra yakın).
+- **ARCHITECTURE:** `agent` kesik değil; dosya tablosu (`agent_report.py`, `results/p2b_pilot.*`). PROJECT "Şu an"a P2b satırı. pytest 688.
+- **Bitti ölçütleri (kart):** araç seti, döngü, istem, kırpma kuralı repoda; istem Eren onaylı, sha256 testte; adlar GLOSSARY'de; `agent` kesik değil; pytest yeşil (PR CI açılınca); pilot (a)–(d) koşuldu; Gemini 25 / 25 ve 4B 25 / 25 vaka bitiş nedeniyle kayıtta; araç çıktılarında sızıntı 0; bütçe bitişi raporda; 4B kuralı ve bütçe kuralı denetlendi; rapor var; P2c devri yazılı. PROJECT kutuları planlama kontrolünden sonra Eren onayıyla.

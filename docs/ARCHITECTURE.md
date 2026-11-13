@@ -32,7 +32,7 @@ flowchart LR
     nar["candidate_narrowing<br/>(narrowing.py, ilk 5)"]
     inp["Girdi seviyeleri (inputs.py)<br/>ham / özet / daraltma, ≤ 5000 token;<br/>takma ad: alias.py"]
     llm["LLM (methods/llm.py, llm_client.py)<br/>small_local_model / large_api_model;<br/>onaylı istem, tam mesaj ≤ 6000"]
-    agent["Proje 2 ajanı"]
+    agent["Proje 2 ajanı<br/>(methods/agent.py; dosya: evaluate --method agent,<br/>canlı: tools/agent_live.py)"]
     cache[("llm_cache/ — git dışı")]
     evr[("eval_responses/")]
     ev["Değerlendirme (evaluate score, scoring.py)<br/>top-1/3, kanıt, kalibrasyon"]
@@ -90,7 +90,6 @@ flowchart LR
     qcmp -->|"fark türü kodla"| p2arep[("results/p2a_compare.md / .json")]
 
     classDef yok stroke-dasharray: 5 5
-    class agent yok
 ```
 
 - Sızıntıya karşı iki katman var: collector'daki süzme hem dosyaya hem izleme sistemine giden veriyi temizler. Sızıntı testi ise modele verilecek görünümü (`model_view`) tarar; klasör ve dosya adları da buna dahildir.
@@ -141,6 +140,7 @@ flowchart LR
 | `results/p1_error_labels.json`, `results/p1_error_summary.md`, `results/p1_error_summary.json` | Dev hata analizinin donmuş soruları ve 29 satırın etiketleri (örneklemde `eren_check`) / `error_analysis summary` ile üretilen özet (CI bayt aynı yeniden üretir) |
 | `results/p1_limitations.md` | P1 sonuçlarının sınırlamaları (elle yazılır; maddeler kayıtlardan, her birinde sayı, okumaya etkisi ve kaynak) |
 | `results/p2a_compare.md`, `results/p2a_compare.json` | P2a dosya ↔ canlı karşılaştırmasının raporu (`query_compare.py report`; snapshot'ları okuduğu için CI'da yeniden üretilmez): çağrı sayıları, kodla sınıflanmış fark türleri, ham kayıt farkları, exemplar reddi, süre, Jaeger tepesi, vaka tablosu |
+| `results/p2b_pilot.md`, `results/p2b_pilot.json` | P2b pilot dumanı raporu (`tools/agent_report.py`): koşu ve vaka başına bitiş, adım, istek, token, süre, kırpma, tekrar, araç hatası; 4B ve bütçe kuralı; pilot isabeti yalnız bilgi |
 | `tests/test_error_analysis.py` | Hata analizi seçimi: T3 kuralı, satır türleri, dev'de 29 satır ve otomatik türler, örneklem tohumu, `direct` hesabı, etiket dosyası tutarlılığı, özet (ad anahtarı, ad eşlenmemesi planlamanın sayılarıyla, toplamlar, doğrulama okuması, etiket dosyasındaki `eren_check`, özet dosyalarının bayt aynı yeniden üretimi) |
 | `tests/test_results.py` | Sonuç tablosu: Fisher (bilinen değerler, karardaki eşikler), 9B okuması, satır denetimi, dev grupları 11/7, repodaki tablonun kayıtlardan bayt aynı yeniden üretilmesi |
 | `tests/test_evaluate.py` | CLI uçtan uca (sahte snapshot): kural koşusu, şema, iki koşu aynı, puanlama, `test`/`heldout` reddi, BARO ve daraltma referansı koşuları |
@@ -186,6 +186,7 @@ flowchart LR
 | `tools/storage_check.py` | Depolama kartı ölçümleri: `watch` (demoyu açar, izleme sistemi ve collector'ın kaybı, büyümesi ve belleği; çıktı `~/cerebrum2/storage_runs/`), `compare` (canlı = dosya: Jaeger, OpenSearch, Prometheus ↔ `telemetry/filtered/`), `replay` (C2 pencerelerini `deploy/replay/` yığınına yeniden oynatır; gönderilen = dosya, karşılaştırma, Prometheus bloğu, ölçütler); `replay-case <snapshot> [--keep-up]` (P2a: tek pilot / dev vakası boş yığına, D3 şartları + örnek reddi 0 + yığının kendi telemetrisi yok + duman, sonda `down -v`) |
 | `tools/query_compare.py` | P2a dosya ↔ canlı karşılaştırması (LLM'siz): `call_list` (onaylı çağrı listesi), `run` (vaka başına `replay_case`, aynı çağrılar iki okuyucuda, ham kayıt, sızıntı taraması, OOM kuralı, `down -v`; kayıt `~/cerebrum2/p2a_compare/`), `report` (fark türü kodla: Jaeger dönüşümleri dosyaya uygulanıp yeniden koşulur → `results/p2a_compare.md`, `.json`) |
 | `tools/agent_live.py` | P2b ajanın canlı modu: vaka başına `replay_case` → ajan `LiveStore` ile → OOM / yeniden başlama denetimi (P2a kuralı, bir kez baştan) → `down -v`; kayıt dosya moduyla aynı (`evaluate.append_agent_case`) + `live.json` |
+| `tools/agent_report.py` | P2b pilot dumanı raporu: `eval_responses/`'teki üç pilot koşusundan `results/p2b_pilot.md` / `.json` (`--check`: CI bayt aynı); 4B ve bütçe kuralları; isabet yalnız bilgi |
 | `deploy/otel-demo/jaeger-config-extras.yml` | Jaeger katmanımız: izler diske (badger, `jaeger-data` volume'ü `/tmp`'de), 7 gün saklama |
 | `deploy/replay/compose.yaml` | Yeniden oynatma yığını (`otel-replay`): Jaeger, Prometheus, OpenSearch upstream tanımından `extends` ile (portlar 127.0.0.1, ayrı volume'ler), tek alıcısı dosya olan collector (`REPLAY_WINDOW`, sayaçlar 127.0.0.1:18888) |
 | `deploy/replay/otelcol-replay.yml` | Yeniden oynatma collector'ı: `otlpjsonfile` alıcıları, `transform/backend_compat` ve upstream exporter kopyaları; izinli farklar `block_on_overflow` ve Jaeger paketi 2048 span |

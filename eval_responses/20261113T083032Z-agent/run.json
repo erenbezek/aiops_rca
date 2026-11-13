@@ -1,0 +1,30 @@
+{
+ "method": "agent",
+ "model_id": "Qwen3.5-4B-Q4_K_M.gguf",
+ "provider": "local",
+ "temperature": 0,
+ "settings": {
+  "model": "qwen3.5-4b",
+  "store": "FileStore",
+  "max_tokens": 800,
+  "extra": {
+   "chat_template_kwargs": {
+    "enable_thinking": false
+   }
+  },
+  "prompt_sha256": "a2fa4331c47c2be2ad96176c1cb70cc641715a4aca4d014f15755ef37a6cf102",
+  "total_budget": 6000,
+  "max_tool_calls": 8,
+  "tool_result_tokens": 700,
+  "image": "ghcr.io/ggml-org/llama.cpp@sha256:8f3c2cd0808a394d1e7ce02f025f453caacbf163389fe6b6443ec3a1efff96a0",
+  "gguf": "Qwen3.5-4B-Q4_K_M.gguf",
+  "gguf_sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4"
+ },
+ "sets": [
+  "pilot"
+ ],
+ "started_at": "2026-11-13T08:30:32Z",
+ "repo_commit": "599c745b98dd6a1eed5f548b95245cecd590c8ef",
+ "repo_clean": true,
+ "n_cases": 25
+}

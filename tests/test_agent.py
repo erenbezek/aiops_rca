@@ -234,3 +234,12 @@ def test_agent_live_rejects_unknown_and_test_cases(capsys):
     if test_ids:
         assert agent_live.main(["--model", "gemini-3.5-flash-lite", "--cases", test_ids[0]]) == 2
     assert "not valid pilot/dev cases" in capsys.readouterr().err
+
+
+def test_pilot_report_reproduces():
+    """`results/p2b_pilot.*` repodaki pilot koşularından bayt aynı yeniden üretilir (snapshot gerekmez)."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import agent_report  # noqa: E402
+    assert agent_report.main(["--check"]) == 0
