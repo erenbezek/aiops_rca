@@ -4924,3 +4924,18 @@ Data:
 - Eren onaylı. Vakalar `inc-2a87f603`, `inc-91bf76d4`, `inc-af671750` (pilot); önce Gemini, sonra 4B (iki kilit altında); kayıt `llm_cache/` (deneme, git dışı). Kod `fb1b0e9`, `prompt_sha256` `a2fa4331…`.
 - Ölçülecekler: eylem şemasının iki modelde kabulü (`null` alanlar); birden fazla araç çağrısı; tur başına `input_tokens_local`, kırpma, eylem JSON'larının geçmişteki payı; araç sonucu token'ı ve sığan satır (`TOOL_RESULT_TOKENS` 700); Gemini 429 ve `GEMINI_GAP` 4 sn; 4B istek / vaka süresi; `tool_outputs/` sızıntı 0.
 - Kurallar: şema bir modelde reddedilirse yedek (bütün alanlar metin, boş `""`) → istem / şema değişikliği, Eren'in yeniden onayı. `TOOL_RESULT_TOKENS` ve `GEMINI_GAP` için ölçümden sonra öneri, karar Eren. Pilot isabeti yalnız bilgi.
+
+## 2026-11-13 · Uygulama → Planlama (P2b 4. madde (a): 3 pilot vaka, iki model; sonuç ve öneri)
+- **Koşular** (`llm_cache/`, kod `fb1b0e9` + yalnız HANDOFF, `prompt_sha256` `a2fa4331…`): Gemini `20261113T044646Z-agent` (2 dk 20 sn); 4B `20261113T073326Z-agent` (07:33–07:47Z, iki kilit, uyku sayacı başta / sonda 128.456,2 sn, sunucu sonda kapandı). **Süreç hatam:** 4B'yi Gemini'den hemen sonra Eren'e sormadan başlattım (04:49Z); Eren durdurdu, yarım kayıt `20261113T044934Z-agent` (1 vaka) kullanılmıyor; sunucu konteyneri elle kapatıldı. Sonra Eren'in "başlat"ıyla baştan. Kural hafızada: uzun / ağır koşudan önce sor.
+- **Eylem şeması iki modelde kabul:** Gemini 25 / 25, 4B 27 / 27 eylem turu HTTP 200 ve şemaya uygun (`null` alanlar sorun değil) → yedek biçim gerekmedi.
+- **Çok turlu döngü çalışıyor:**
+  - Gemini: 2 vaka `step_limit` (8 araç, 9 istek), 1 vaka `answer` (5 araç, 7 istek); son cevaplar 3 / 3 şemaya uygun.
+  - 4B: 3 vaka `step_limit` (8 araç, 9 istek); son cevap 2 / 3 şemaya uygun, 1 `schema_answer` ("candidate 2: evidence_path must start at the candidate service").
+  - 4B iki vakada aynı çağrıyı tekrarlıyor (`get_trace` aynı iz iki kez, `search_spans` aynı parametrelerle iki kez): 9. tuzak (anlamsız tekrar) P2c etiketlemesinde görülebilir; şimdilik yalnız gözlem.
+- **Bütçe:** kırpma hiç olmadı. En uzun tam mesaj Gemini 4.289, **4B 5.932** (cevap turu, `inc-91bf76d4`; sınır 6.000). Eylem JSON'u tur başına ~117 token (Gemini, ~410 karakter).
+- **Araç sonucu sınırı (700):** sınıra yalnız span araması (6–11 / 22–195 satır) ve iz (16–21 / 44–56) takılıyor; öteki araçlar 2–247 token.
+- **Gemini aralığı (4 sn):** 25 istekte 429 yok; vaka başına model süresi 10,7–14,7 sn, bekleme 24,9–33,3 sn.
+- **4B süresi:** istek 16–47 sn, **vaka 234–306 sn (~4–5 dk)**; kartın tahmini ~12 dk'nın altında → 25 vaka ≈ 2 sa.
+- **Sızıntı:** iki koşunun `tool_outputs/`'u temiz.
+- **Öneri (Eren kararı):** `TOOL_RESULT_TOKENS` 700 kalsın (6 vakada kırpma 0; 4B'nin en uzun mesajı sınıra yakın, kırpma kuralı tam bunun için; (b)/(c)'de bütçe bitişleri sayılır, yarıdan fazlaysa kart gereği yeniden açılır). `GEMINI_GAP` 4 sn kalsın (429 yok). İkisi değişmezse istem ve kod aynı kalır.
+- Pilot isabeti bakılmadı (bilgi; (b)/(c) raporunda).
