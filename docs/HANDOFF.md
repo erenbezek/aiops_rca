@@ -5104,3 +5104,10 @@ Data:
 - **Servissiz `metric_series` canlıda:** 3 çağrı (hepsi `error_rate`; biri varsayılan, ikisi `step_s=60` ile alarm sonrası, ikisi token sınırında kesildi), üçü de hatasız döndü; uçtan uca çalışıyor. Karşılaştırma yapılmadı (kart gereği).
 - **Jaeger belleği:** oynatmada tepe 1.352,7 / 1.514,5 / **1.970,2 MiB** (`GOMEMLIMIT` 2.000 MiB'nin %98,5'i; konteyner sınırı 2500M'nin ~%83'ü); ajan sırasında 993,8–1.388,5 MiB. Aynı 3 vakada P2b'de oynatma tepesi 1.410,0–1.816,6 MiB idi: oynatma ajandan bağımsız, yani aynı veride koşudan koşuya ~150 MiB oynuyor. Planlamanın açık "Jaeger belleği" kararı için veri.
 - **3. madde tamam.** Sıradaki: 4. madde (rapor; yeni rapor adı önerisi Eren'e).
+
+## 2026-11-14 · Uygulama → Planlama (P2c-0 4. madde: rapor; doğrulama isteği)
+- **Kopyalar:** `20261113T125627Z-agent` (Gemini dosya), `…182857Z-agent` (4B dosya), `…211812Z-agent` (Gemini canlı) `llm_cache/` → `eval_responses/`, `diff -r` ile bayt aynı (üçünde `scores.json` dahil).
+- **Rapor:** `results/p2c0_pilot.md` / `.json`, `python tools/agent_report.py --report p2c0` (adlar Eren onaylı: `p2c0_pilot`, `REPORTS`, `--report`). İçerik: üç çift (eski P2b / yeni P2c-0; `prompt_sha256` `a2fa4331` / `5e259201`) yan yana, P2b raporuyla aynı sütunlar (isabet "iyimser"); servissiz `metric_series` tablosu (çağrı, verilen `step_s`, kesilen, araç hatası); 4B kuralı (`182857Z`: 22 / 25, 4,88 dk → geçti) ve bütçe yeniden açma kuralı (yeni üç koşuda 0 / 25, 0 / 25, 0 / 3 → tetiklenmedi); yeni koşuların vaka tabloları. `summarize`, `build`, `render` değişmedi; `results/p2b_pilot.*` `--check` "same".
+- **Test:** `test_pilot_report_reproduces` iki raporu da `--check` ediyor; `pytest` 696. Kasıtlı kırmızı (scratch klon): p2c0 md'de bir sayı, 4B koşusundan bir vaka eksik, p2b json'da bir sayı → üçü kırmızı, geri alınca yeşil.
+- **Planlama kontrolü için:** rapor sayıları ve iki kural bağımsız hesaplanabilir (kayıtlar `eval_responses/` altında); sızıntı taraması üç yeni koşunun `tool_outputs/`'unda temizdi.
+- **Sıradaki:** 5. madde (donma kaydı: kod commit'i, `prompt_sha256`, sabitler), planlama kontrolünden sonra.
