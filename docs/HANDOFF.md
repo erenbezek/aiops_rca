@@ -4939,3 +4939,4 @@ Data:
 - **Sızıntı:** iki koşunun `tool_outputs/`'u temiz.
 - **Öneri (Eren kararı):** `TOOL_RESULT_TOKENS` 700 kalsın (6 vakada kırpma 0; 4B'nin en uzun mesajı sınıra yakın, kırpma kuralı tam bunun için; (b)/(c)'de bütçe bitişleri sayılır, yarıdan fazlaysa kart gereği yeniden açılır). `GEMINI_GAP` 4 sn kalsın (429 yok). İkisi değişmezse istem ve kod aynı kalır.
 - Pilot isabeti bakılmadı (bilgi; (b)/(c) raporunda).
+- **Eren kararı (2026-11-13):** `TOOL_RESULT_TOKENS` 700 ve `GEMINI_GAP` 4 sn kalır. (b) başlatıldı: 25 pilot vaka, Gemini, dosya modu, `llm_cache/`.
