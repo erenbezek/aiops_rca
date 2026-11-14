@@ -5143,3 +5143,7 @@ Data:
 ## 2026-11-14 · Planlama → Uygulama (dosya ↔ canlı okuma kuralı)
 - **Karar (Eren, DECISIONS 2026-11-14):** üç katman: (1) ajanın canlıdaki her çağrısı dosyaya da yapılır, metinler karşılaştırılır (beklenen: açıklanamayan 0); (2) model başına top-3 eşleştirilmiş okuma (≥ 6 / 0 ise "fark"); (3) Gemini dosya iki kez, ilk koşu resmî. Uygulaması P2c dev koşuları kartında (kart henüz yok; kart gelmeden kod yok).
 - **Planlamada bekleyen:** ajan ↔ P1 okuma kuralı ve 12 tuzağın uyarlanmış soruları (DECISIONS 2026-11-09, dev koşusundan önce; Eren kararı); sonra P2c dev koşuları kartı.
+
+## 2026-11-14 · Planlama → Uygulama (ajan ↔ P1 okuma kuralı; test eşitliği)
+- **Karar (Eren, DECISIONS 2026-11-14):** model başına iki hücre: ajan ↔ ham (top-3), ajan ↔ daraltma (top-1); eşleştirilmiş kesin işaret testi, iki yönlü p < 0,05. Ötekiler yalnız sayı. Dosya ↔ canlı kuralının sonuç düzeyi de aynı teste geçti (düzeltme satırı). Uygulaması P2c dev koşuları kartında.
+- **Planlamada bekleyen:** 12 tuzağın uyarlanmış soruları (DECISIONS 2026-11-09; etiketlemeden önce Eren onayı); sonra P2c dev koşuları kartı.
