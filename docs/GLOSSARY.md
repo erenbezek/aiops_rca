@@ -349,3 +349,10 @@ Sadece Eren'in onayladığı isimler.
 | `kind`, `dropped`, `call`, `tool_output_sha256`, `tool_output_tokens`, `tool_lines_shown`, `tool_lines_total`, `tool_truncated`, `tool_error`, `store_error` | `turns.jsonl` alanları: tur türü (`action` / `answer`) / ize inen adımlar / araç çağrısının metni / modele giden çıktının sha256'sı ve token'ı / gösterilen ve toplam satır / kesildi mi / araç hatası mı / okuyucunun altyapı hatası |
 | `append_agent_case` | `evaluate.py`: ajan vakasının kaydı (satır + `turns.jsonl` + `tool_outputs/<vaka>.jsonl`); dosya modu (`_run_agent`) ve canlı mod (`tools/agent_live.py`) aynı işlevi kullanır |
 | `replay_dir`, `attempts_live`, `jaeger_peak_mib`, `live.json` | Canlı mod ajan satırının alanları (vakanın `replay_case` kaydı, kaçıncı denemede geçtiği, Jaeger bellek tepesi oynatma / ajan) / vaka başına deneme kayıtları |
+| `GEMINI_RETRY_WAITS` | `llm_client.py`: Gemini'de taşıma hatasında yeniden deneme beklemeleri (30, 60, 120 sn; en çok 3 yeniden deneme); yerel ve Groq `RETRY_WAIT` ile bir kez (P2c, Eren onaylı) |
+| `tools/agent_compare.py` | P2c çağrı düzeyi dosya ↔ canlı karşılaştırması ve 4B "çıktı aynı, model ayrıştı" denetimi (Eren onaylı) |
+| `results/p2c_dev_calls.json` | `agent_compare.py`'nin dev çıktısı; rapor oradan okur (Eren onaylı) |
+| `p2c_dev` (`results/p2c_dev.json`, `.md`) | P2c dev raporunun adı: `tools/agent_report.py --report p2c_dev` (Eren onaylı) |
+| `sign_test` | `agent_report.py`: eşleştirilmiş kesin işaret testi, iki yönlü (p = 2 · P[Bin(b + c; 0,5) ≤ min(b, c)], en çok 1) (Eren onaylı) |
+| `tools/agent_error_analysis.py` | P2 hata analizi: seçim, okuma dosyası, tohumlu 10 satır, özet (Eren onaylı) |
+| `results/p2c_error_labels.json`, `results/p2c_error_summary` (`.md`, `.json`) | P2 hata analizinin etiket dosyası ve özeti (Eren onaylı) |

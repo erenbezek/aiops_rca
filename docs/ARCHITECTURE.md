@@ -88,6 +88,9 @@ flowchart LR
     qcmp["tools/query_compare.py<br/>run / report (LLM'siz)"] -->|"aynı çağrılar iki okuyucuda"| qry
     qcmp --> rcase
     qcmp -->|"fark türü kodla"| p2arep[("results/p2a_compare.md / .json")]
+    acmp["tools/agent_compare.py<br/>(P2c; canlı ajan çağrıları dosyada yeniden,<br/>sınıf kodla, 4B ayrışma)"] -->|"kayıtlardan"| evr
+    acmp --> p2ccalls[("results/p2c_dev_calls.json")]
+    p2ccalls --> arep["tools/agent_report.py --report p2c_dev<br/>(sign_test; results/p2c_dev.md / .json)"]
 
     classDef yok stroke-dasharray: 5 5
 ```
@@ -141,6 +144,9 @@ flowchart LR
 | `results/p1_limitations.md` | P1 sonuçlarının sınırlamaları (elle yazılır; maddeler kayıtlardan, her birinde sayı, okumaya etkisi ve kaynak) |
 | `results/p2a_compare.md`, `results/p2a_compare.json` | P2a dosya ↔ canlı karşılaştırmasının raporu (`query_compare.py report`; snapshot'ları okuduğu için CI'da yeniden üretilmez): çağrı sayıları, kodla sınıflanmış fark türleri, ham kayıt farkları, exemplar reddi, süre, Jaeger tepesi, vaka tablosu |
 | `results/p2b_pilot.md`, `results/p2b_pilot.json` | P2b pilot dumanı raporu (`tools/agent_report.py`): koşu ve vaka başına bitiş, adım, istek, token, süre, kırpma, tekrar, araç hatası; 4B ve bütçe kuralı; pilot isabeti yalnız bilgi |
+| `results/p2c_dev.md`, `results/p2c_dev.json` | P2c dev raporu (`tools/agent_report.py --report p2c_dev`; dev koşularından sonra): koşular, dosya ↔ canlı üç katman, ajan ↔ P1 iki hücre, öteki ölçüler yalnız sayı |
+| `results/p2c_dev_calls.json` | P2c çağrı düzeyi karşılaştırmanın çıktısı (`tools/agent_compare.py`; tokenizer ve snapshot ister, CI'da yeniden üretilmez) |
+| `results/p2c_error_labels.json`, `results/p2c_error_summary.md`, `.json` | P2 hata analizi etiketleri (soru metni + sha256) ve özeti (`tools/agent_error_analysis.py summary`) |
 | `results/p2c0_pilot.md`, `results/p2c0_pilot.json` | P2c-0 pilot tasarım turu raporu (`tools/agent_report.py --report p2c0`): eski (P2b) ve yeni pilot yan yana (Gemini dosya, 4B dosya, Gemini canlı), servissiz `metric_series` çağrıları, iki kural yeni koşulara; isabet iyimser, karara girmez |
 | `tests/test_error_analysis.py` | Hata analizi seçimi: T3 kuralı, satır türleri, dev'de 29 satır ve otomatik türler, örneklem tohumu, `direct` hesabı, etiket dosyası tutarlılığı, özet (ad anahtarı, ad eşlenmemesi planlamanın sayılarıyla, toplamlar, doğrulama okuması, etiket dosyasındaki `eren_check`, özet dosyalarının bayt aynı yeniden üretimi) |
 | `tests/test_results.py` | Sonuç tablosu: Fisher (bilinen değerler, karardaki eşikler), 9B okuması, satır denetimi, dev grupları 11/7, repodaki tablonun kayıtlardan bayt aynı yeniden üretilmesi |
@@ -154,6 +160,10 @@ flowchart LR
 | `tests/test_store_live.py` | Canlı okuyucu, sahte arka uçlarla (`FakeBackends`, `127.0.0.1`): ham kayıtlar ve altı sorgu dosyayla aynı, dilim bölmeleri, aralık uçları, ayrıştırma; `storage_check.compare_interval` çıktısı değişiklik öncesi koddan kaydedilen değerle aynı; örnek reddi şartı |
 | `tests/test_query_compare.py` | Karşılaştırma: çağrı listesinin bileşimi ve belirlenimliliği, aynı veride hepsi eşit, kasıtlı eksikte yalnız ilgili çağrılar farklı, fark dökümü, türlerin kodla sınıflanması |
 | `tests/test_agent_tools.py` | Ajan araçları: tanımlar, biçim, token sınırı (toplamsal olmayan sayaçlarla azaltma ve artırma), doğrulama hataları, varsayılan aralık ve kova hizası, servissiz `metric_series`, dosya = canlı metin, sızıntı taraması |
+| `tests/test_agent_live.py` | `agent_live.py` sahte yığınla: tek model kaydı, iki model sırası, OOM'da yalnız bozulan modelin yeniden koşusu, iki kez bozulunca "oynatılamadı", oynatma hatası, volume kalırsa satır yok, model reddi |
+| `tests/test_agent_compare.py` | `agent_compare.py`: sınıflama (bilinen tür yalnız `zero_duration`, `error_tag` açıklanamayan), dönüşüm sırası, 4B ayrışma denetimi, kayıt okuma |
+| `tests/test_agent_report_dev.py` | `p2c_dev` raporu: işaret testi değerleri ve kararın eşikleri, eşleştirme yönü, sağlayıcıya göre bekleme, sahte dev koşularıyla rapor |
+| `tests/test_agent_error_analysis.py` | P2 hata analizi: soru metni DECISIONS'la aynı, telemetri türü, kodla tuzaklar, seçim, özet denetimleri |
 | `tests/test_agent.py` | Ajan döngüsü sahte llama sunucusuyla: araç ve cevap turları, adım sınırı, kırpma, bütçe, şema dışı eylem / cevap, geçersiz parametre, altyapı hatası, cevapsız, istek biçimleri, P1 metni, kayıt dosyaları, `evaluate score` |
 | `tests/test_alias.py`, `tests/fixtures/alias_summary_expected.json` | Takma ad birim testleri: betiğin paket kurallarını kullanması, eşlemenin GLOSSARY ile aynılığı, CI örneklerinde üç seviye (yalnız adlar değişir, gerçek ad kalmaz), ham satır sırası ve kesmeden önce çevirme, sondan eksiltme, bozuk kopyaların yakalanması / CI örneklerinde eski `trial_alias`'ın (+ onaylı iki ad) takma adlı özet metinleri |
 | `tests/fixtures/snapshots/` | CI örnekleri: 4 pilot vakanın kırpılmış görünümü (≤ 5 MB; üretici repo dışı `p1a_fixtures.py`) |
@@ -186,12 +196,14 @@ flowchart LR
 | `tools/gen_leakage_fixtures.py` | `tests/fixtures/leakage/` sahte dosyalarını üretir; dosyalar elle değil bu betikle değiştirilir |
 | `tools/storage_check.py` | Depolama kartı ölçümleri: `watch` (demoyu açar, izleme sistemi ve collector'ın kaybı, büyümesi ve belleği; çıktı `~/cerebrum2/storage_runs/`), `compare` (canlı = dosya: Jaeger, OpenSearch, Prometheus ↔ `telemetry/filtered/`), `replay` (C2 pencerelerini `deploy/replay/` yığınına yeniden oynatır; gönderilen = dosya, karşılaştırma, Prometheus bloğu, ölçütler); `replay-case <snapshot> [--keep-up]` (P2a: tek pilot / dev vakası boş yığına, D3 şartları + örnek reddi 0 + yığının kendi telemetrisi yok + duman, sonda `down -v`) |
 | `tools/query_compare.py` | P2a dosya ↔ canlı karşılaştırması (LLM'siz): `call_list` (onaylı çağrı listesi), `run` (vaka başına `replay_case`, aynı çağrılar iki okuyucuda, ham kayıt, sızıntı taraması, OOM kuralı, `down -v`; kayıt `~/cerebrum2/p2a_compare/`), `report` (fark türü kodla: Jaeger dönüşümleri dosyaya uygulanıp yeniden koşulur → `results/p2a_compare.md`, `.json`) |
-| `tools/agent_live.py` | P2b ajanın canlı modu: vaka başına `replay_case` → ajan `LiveStore` ile → OOM / yeniden başlama denetimi (P2a kuralı, bir kez baştan) → `down -v`; kayıt dosya moduyla aynı (`evaluate.append_agent_case`) + `live.json` |
-| `tools/agent_report.py` | Pilot raporları (`REPORTS`, `--report p2b|p2c0`): `eval_responses/`'teki pilot koşularından `results/p2b_pilot.*` ve `results/p2c0_pilot.*` (`--check`: CI bayt aynı); 4B ve bütçe kuralları; isabet yalnız bilgi |
+| `tools/agent_live.py` | P2b ajanın canlı modu: vaka başına `replay_case` → ajan `LiveStore` ile → OOM / yeniden başlama denetimi (P2a kuralı, bir kez baştan) → `down -v`; kayıt dosya moduyla aynı (`evaluate.append_agent_case`) + `live.json`. P2c: `--model a,b` ile bir oynatmada birden çok model (sırayla, tek tokenizer sunucusu, model başına konteyner denetimi; kısmı bozulan model ikinci oynatmada) |
+| `tools/agent_compare.py` | P2c çağrı düzeyi dosya ↔ canlı karşılaştırması (kayıtlardan): canlı her araç çağrısı `FileStore`'da yeniden yapılır, metin bayt bayt; sınıf `same` / `zero_duration` / `unexplained` (`error_tag` yalnız tanı); `--file` ile 4B "çıktı aynı, model ayrıştı" denetimi → `results/p2c_dev_calls.json` |
+| `tools/agent_error_analysis.py` | P2 hata analizi: `select` (dev resmî dosya koşularında top-1 ıskalayanlar, kodla 8 tuzak), `dossier` (okuma dosyaları), `sample` (tohumlu 10 satır), `summary` (`results/p2c_error_summary.*`); soru metni DECISIONS'tan aynen, sha256 |
+| `tools/agent_report.py` | Pilot ve dev raporları (`REPORTS`, `--report p2b|p2c0|p2c_dev`): `eval_responses/`'teki koşulardan `results/p2b_pilot.*`, `results/p2c0_pilot.*`, `results/p2c_dev.*` (`--check`: CI bayt aynı); 4B ve bütçe kuralları; `p2c_dev`'de dosya ↔ canlı üç katman ve ajan ↔ P1 iki hücre (`sign_test`), yeniden deneme beklemesi ayrı sütun |
 | `deploy/otel-demo/jaeger-config-extras.yml` | Jaeger katmanımız: izler diske (badger, `jaeger-data` volume'ü `/tmp`'de), 7 gün saklama |
 | `deploy/replay/compose.yaml` | Yeniden oynatma yığını (`otel-replay`): Jaeger, Prometheus, OpenSearch upstream tanımından `extends` ile (portlar 127.0.0.1, ayrı volume'ler), tek alıcısı dosya olan collector (`REPLAY_WINDOW`, sayaçlar 127.0.0.1:18888) |
 | `deploy/replay/otelcol-replay.yml` | Yeniden oynatma collector'ı: `otlpjsonfile` alıcıları, `transform/backend_compat` ve upstream exporter kopyaları; izinli farklar `block_on_overflow` ve Jaeger paketi 2048 span |
-| `tests/test_replay_config.py` | `otelcol-replay.yml`'daki kopyalar kaynaklarıyla aynı mı (`REPLAY_ONLY` dışında), alıcılar yalnız dosya mı; upstream klonu yoksa (CI) exporter testi atlanır |
+| `tests/test_replay_config.py` | `otelcol-replay.yml`'daki kopyalar kaynaklarıyla aynı mı (`REPLAY_ONLY` dışında), alıcılar yalnız dosya mı; oynatma Jaeger'inin bellek ayarı demo yığınıyla aynı mı (2500M + `GOMEMLIMIT`); upstream klonu yoksa (CI) exporter testi atlanır |
 | `tools/incident_checks.py` | Vaka kontrolleri (C2 ölçüsüyle aynı): işlem düzeyi belirti, olay, taban sağlık, izleme sağlığı |
 | `tests/test_catalog.py` | Koşucunun doğru cevap alanları INCIDENT_CATALOG tablolarıyla aynı mı: flag senaryoları (`SCENARIOS`) ve altyapı hataları (`INFRA_ANSWERS`, `INFRA_FAULTS`, `PARAM_RE`; her satırın destek vakası geçerli ve belirtili); flag etiketlerinin kategorileri katalogla aynı (`noise_layer`'lı vakada + `noisy`); `heldout` yalnız ayrılan 6 birimde (`HELDOUT_UNITS`) |
 | `tests/test_incident_checks.py` | `incident_checks.py` kurallarının sınırları (sahte OTLP girdileriyle) ve V1a eşik değerleri |
