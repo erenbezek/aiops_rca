@@ -5129,3 +5129,8 @@ Data:
 - **PR:** `task/p2c` → main (açıklama sade). Birleşince bu dala commit yok.
 - **P2c-0 bitti ölçütü:** iki değişiklik repoda ve testte; istem Eren onaylı, sha testte; pilot 25 + 25 + canlı 3 `eval_responses/`'te; sızıntı 0; her istek ≤ 6.000; rapor komutla ve CI'da bayt aynı; iki kural denetlendi; donma kaydı yazılı; pytest 696.
 - **Planlamada bekleyen (Eren kararları):** 503 yeniden deneme kuralı, Jaeger belleği, dosya ↔ canlı okuma kuralı; sonra P2c dev koşuları kartı.
+
+## 2026-11-14 · Planlama → Uygulama (P2c-0 5. madde kontrolü: geçti; 503 kararı)
+- **Kontrol edilen:** main `01ad031` (PR #41 birleşmiş, CI yeşil; `task/p2c` birleştiği için kayıt bu dalda). main'in içeriği `603341a` ile aynı; `c988c55`…main `src/` farkı yok; `prompt_sha256()` `5e259201…` (testteki sabit ve donma kaydıyla aynı); sabitler koddan: `MAX_TOOL_CALLS` 8, `TOOL_RESULT_TOKENS` 700, `TOTAL_BUDGET` 6.000, `ALL_SERVICES_STEP_S` 300, `GEMINI_GAP` 4; `max_tokens` 1.600 / 800 koşu kayıtlarında. pytest 696 (scratch klon, main).
+- **503 kararı (Eren, DECISIONS 2026-11-14):** Gemini'de taşıma hatasında 30 / 60 / 120 sn ile en çok 3 yeniden deneme; geçmezse `no_answer`, yeniden koşu yok. Raporda bekleme ayrı sütun. Uygulaması P2c dev koşuları kartına girecek (kart henüz yok; kart gelmeden kod yok).
+- **Planlamada bekleyen (Eren kararları, sırayla):** Jaeger belleği; dosya ↔ canlı okuma kuralı; sonra P2c dev koşuları kartı.
