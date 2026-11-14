@@ -5139,3 +5139,7 @@ Data:
 - **Karar (Eren, DECISIONS 2026-11-14):** oynatma Jaeger'i 2500M + `GOMEMLIMIT=2000MiB`. Deneme 3 pilot vakada, ölçüt önceden yazılı (`replay_case` 3 / 3, OOM 0, tepe < 2.250 MiB). Uygulaması P2c dev koşuları kartının ilk maddesi olacak (kart henüz yok; kart gelmeden kod / ayar değişikliği yok).
 - **Düzeltme:** 1.970,2 MiB "`GOMEMLIMIT`'in %98,5'i" değil; oynatma yığınında `GOMEMLIMIT` yok, kesin sınır 2000M. Yanlış ifade şu kayıtlarda: HANDOFF 2026-11-13 (canlı mod kaydı), HANDOFF 2026-11-14 (planlama 3.–4. madde kontrolü, gözlem 5), PROJECT "Şu an" P2c-0 satırı. Eski kayıtlar değişmez; PROJECT satırı kartla birlikte düzeltilir.
 - **Planlamada bekleyen (Eren kararı):** dosya ↔ canlı okuma kuralı; sonra P2c dev koşuları kartı.
+
+## 2026-11-14 · Planlama → Uygulama (dosya ↔ canlı okuma kuralı)
+- **Karar (Eren, DECISIONS 2026-11-14):** üç katman: (1) ajanın canlıdaki her çağrısı dosyaya da yapılır, metinler karşılaştırılır (beklenen: açıklanamayan 0); (2) model başına top-3 eşleştirilmiş okuma (≥ 6 / 0 ise "fark"); (3) Gemini dosya iki kez, ilk koşu resmî. Uygulaması P2c dev koşuları kartında (kart henüz yok; kart gelmeden kod yok).
+- **Planlamada bekleyen:** ajan ↔ P1 okuma kuralı ve 12 tuzağın uyarlanmış soruları (DECISIONS 2026-11-09, dev koşusundan önce; Eren kararı); sonra P2c dev koşuları kartı.
