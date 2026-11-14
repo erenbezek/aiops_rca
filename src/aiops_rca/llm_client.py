@@ -7,8 +7,10 @@
   Gemini `minimal` (en düşükleri; kapatılamıyor).
 - Çıktı sınırı: yerel 800, API 1600 (akıl yürütme dahil). Tek deneme: sınıra takılan cevap (`finish_reason:
   length`) şema dışı sayılır, yeniden sorulmaz.
-- Taşıma hatasında (bağlantı/zaman aşımı, 429, 500, 502, 503, 504) bir kez yeniden denenir; ilk deneme kayda girer,
-  süre ve cevap ikinci denemedendir. Başka HTTP hatası (ör. 400, 413) yeniden denenmez, kayda girer.
+- Taşıma hatasında (bağlantı/zaman aşımı, 429, 500, 502, 503, 504) yerel model ve Groq bir kez yeniden dener
+  (`RETRY_WAIT`); Gemini en çok üç kez, 30 / 60 / 120 sn bekleyerek (`GEMINI_RETRY_WAITS`, DECISIONS 2026-11-14).
+  Her deneme kayda girer (`attempts`); süre ve cevap son denemedendir. Başka HTTP hatası (ör. 400, 413) yeniden
+  denenmez, kayda girer.
 - Groq `strict` şemada modelin bozuk JSON'unu 400 ile reddederse (`error.code: json_validate_failed`) bu modelin
   cevabıdır: içerik `failed_generation`'dan (kesilmeden) okunur, şema dışı, yeniden denenmez (DECISIONS 2026-11-01
   "Groq `json_validate_failed`"). Diğer 400'ler cevapsız.
@@ -46,6 +48,7 @@ CONTEXT = 8192
 TIMEOUT = 900  # saniye; 9B ~6K girdide ~5 dk (LOCAL_MODEL_BENCH), 800 çıktıyla pay
 GROQ_GAP = 65
 RETRY_WAIT = {"local": 30, "groq": GROQ_GAP, "gemini": 30}
+GEMINI_RETRY_WAITS = (30, 60, 120)  # Gemini taşıma hatasında yeniden deneme beklemeleri (DECISIONS 2026-11-14)
 TRANSPORT_ERRORS = frozenset({-1, 429, 500, 502, 503, 504})
 LOCAL_MAX_TOKENS = 800
 API_MAX_TOKENS = 1600
@@ -208,7 +211,7 @@ def chat(spec: ModelSpec, messages: list[dict], *, url: str | None = None, key: 
          timeout: float = TIMEOUT, sleep: Callable[[float], None] = time.sleep,
          clock: Callable[[], float] = time.monotonic, response_format: dict = RESPONSE_FORMAT,
          validate: Callable[[object], list[str]] = validate_answer) -> dict:
-    """Modele bir kez sorar (taşıma hatasında bir yeniden deneme). Dönen kayıt:
+    """Modele bir kez sorar (taşıma hatasında yerel / Groq bir, Gemini üç yeniden deneme). Dönen kayıt:
     `attempts` (her deneme: durum, süre, hata ya da içerik/token), `answer` (şemaya uyan nesne ya da None),
     `schema_valid`, `schema_errors`, `raw_output` (son denemenin içeriği), `finish_reason`, `tokens`, `duration_s`
     (son denemenin süresi), `error` (son deneme başarısızsa)."""
@@ -217,13 +220,15 @@ def chat(spec: ModelSpec, messages: list[dict], *, url: str | None = None, key: 
         key = api_key(spec.provider)
     body = request_body(spec, messages, response_format)
     attempts = []
-    for i in range(2):
+    # Yeniden deneme beklemeleri (sn), sırayla; uzunluğu yeniden deneme sayısı.
+    waits = GEMINI_RETRY_WAITS if spec.provider == "gemini" else (RETRY_WAIT[spec.provider],)
+    for i in range(len(waits) + 1):
         t0 = clock()
         status, resp = post(url, body, key, timeout)
         attempts.append(_attempt(status, resp, clock() - t0))
-        if status not in TRANSPORT_ERRORS or i == 1:
+        if status not in TRANSPORT_ERRORS or i == len(waits):
             break
-        sleep(RETRY_WAIT[spec.provider])
+        sleep(waits[i])
     last = attempts[-1]
     record = {"attempts": attempts, "answer": None, "schema_valid": False, "schema_errors": [],
               "raw_output": last.get("content"), "finish_reason": last.get("finish_reason"),

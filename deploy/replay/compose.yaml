@@ -5,8 +5,9 @@
 #
 # Kopya ayar yok (planlama, 2026-10-25): üç izleme servisi upstream'in tanımından `extends` ile gelir (imaj
 # upstream .env'den, ayar dosyaları upstream'inkiler). Jaeger canlıdaki gibi bizim katmanımızı da yükler
-# (../otel-demo/jaeger-config-extras.yml, 2000M). Farklı olan yalnız portlar (127.0.0.1, canlıdan ayrı), volume'ler
-# ve konteyner adları (upstream adları sabitliyor; burada Compose'un adları: otel-replay-<servis>-1).
+# (../otel-demo/jaeger-config-extras.yml); bellek ayarı demo yığınıyla aynı: 2500M + GOMEMLIMIT=2000MiB
+# (compose.extras.yaml; DECISIONS 2026-11-14 "yeniden oynatma Jaeger'i demo ayarına eşitlenir"). Farklı olan yalnız
+# portlar (127.0.0.1, canlıdan ayrı), volume'ler ve konteyner adları (upstream adları sabitliyor; burada Compose'un adları: otel-replay-<servis>-1).
 # Prometheus komutu upstream'in (7 gün); canlıdaki 2GB boyut sınırı burada yok (boyut küçük, D3 kısa).
 #
 # Collector: tek alıcısı dosya (otlpjsonfile, otelcol-replay.yml); kendi sayaçları yalnız çekme ucunda (:8888,
@@ -37,7 +38,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2000M
+          memory: 2500M
+    environment:
+      - GOMEMLIMIT=2000MiB
     ports: !override
       - "127.0.0.1:16686:16686"
     volumes:

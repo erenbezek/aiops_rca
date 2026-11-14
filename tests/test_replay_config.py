@@ -73,3 +73,30 @@ def test_exporters_same_as_upstream(name):
     for line in REPLAY_ONLY[name]:
         assert replay.count(line) == 1, f"{name}: allowed difference {line.strip()!r} not in replay config"
     assert [x for x in replay if x not in REPLAY_ONLY[name]] == block(UPSTREAM.read_text(), "exporters", name)
+
+
+REPLAY_COMPOSE = REPO / "deploy" / "replay" / "compose.yaml"
+DEMO_EXTRAS = REPO / "deploy" / "otel-demo" / "compose.extras.yaml"
+
+
+def _sub(lines: list[str], key: str) -> list[str]:
+    """`lines` içindeki `key:` anahtarı ve altındaki satırlar, girinti farkı atılarak."""
+    for i, line in enumerate(lines):
+        if line.strip() == f"{key}:":
+            indent = len(line) - len(line.lstrip())
+            out = [line[indent:]]
+            for rest in lines[i + 1:]:
+                if len(rest) - len(rest.lstrip()) <= indent:
+                    break
+                out.append(rest[indent:])
+            return out
+    raise AssertionError(f"{key} not found")
+
+
+@pytest.mark.parametrize("key", ["deploy", "environment"])
+def test_replay_jaeger_memory_same_as_demo(key):
+    """DECISIONS 2026-11-14: oynatma Jaeger'i demo yığınıyla aynı bellek ayarında (2500M + GOMEMLIMIT=2000MiB)."""
+    replay = _sub(block(REPLAY_COMPOSE.read_text(), "services", "jaeger"), key)
+    demo = _sub(block(DEMO_EXTRAS.read_text(), "services", "jaeger"), key)
+    assert replay == demo
+    assert any("2500M" in x for x in replay) if key == "deploy" else replay == ["environment:", "  - GOMEMLIMIT=2000MiB"]
