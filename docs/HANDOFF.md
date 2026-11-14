@@ -5134,3 +5134,8 @@ Data:
 - **Kontrol edilen:** main `01ad031` (PR #41 birleşmiş, CI yeşil; `task/p2c` birleştiği için kayıt bu dalda). main'in içeriği `603341a` ile aynı; `c988c55`…main `src/` farkı yok; `prompt_sha256()` `5e259201…` (testteki sabit ve donma kaydıyla aynı); sabitler koddan: `MAX_TOOL_CALLS` 8, `TOOL_RESULT_TOKENS` 700, `TOTAL_BUDGET` 6.000, `ALL_SERVICES_STEP_S` 300, `GEMINI_GAP` 4; `max_tokens` 1.600 / 800 koşu kayıtlarında. pytest 696 (scratch klon, main).
 - **503 kararı (Eren, DECISIONS 2026-11-14):** Gemini'de taşıma hatasında 30 / 60 / 120 sn ile en çok 3 yeniden deneme; geçmezse `no_answer`, yeniden koşu yok. Raporda bekleme ayrı sütun. Uygulaması P2c dev koşuları kartına girecek (kart henüz yok; kart gelmeden kod yok).
 - **Planlamada bekleyen (Eren kararları, sırayla):** Jaeger belleği; dosya ↔ canlı okuma kuralı; sonra P2c dev koşuları kartı.
+
+## 2026-11-14 · Planlama → Uygulama (Jaeger belleği kararı; kayıt düzeltmesi)
+- **Karar (Eren, DECISIONS 2026-11-14):** oynatma Jaeger'i 2500M + `GOMEMLIMIT=2000MiB`. Deneme 3 pilot vakada, ölçüt önceden yazılı (`replay_case` 3 / 3, OOM 0, tepe < 2.250 MiB). Uygulaması P2c dev koşuları kartının ilk maddesi olacak (kart henüz yok; kart gelmeden kod / ayar değişikliği yok).
+- **Düzeltme:** 1.970,2 MiB "`GOMEMLIMIT`'in %98,5'i" değil; oynatma yığınında `GOMEMLIMIT` yok, kesin sınır 2000M. Yanlış ifade şu kayıtlarda: HANDOFF 2026-11-13 (canlı mod kaydı), HANDOFF 2026-11-14 (planlama 3.–4. madde kontrolü, gözlem 5), PROJECT "Şu an" P2c-0 satırı. Eski kayıtlar değişmez; PROJECT satırı kartla birlikte düzeltilir.
+- **Planlamada bekleyen (Eren kararı):** dosya ↔ canlı okuma kuralı; sonra P2c dev koşuları kartı.
