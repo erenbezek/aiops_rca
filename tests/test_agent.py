@@ -215,7 +215,9 @@ def test_evaluate_run_and_score(tmp_path, fake, monkeypatch):
 
 
 # İstem metni Eren onaylı (HANDOFF 2026-11-13, P2b 3. madde; P1 "Onay 3" gibi). Değişirse yeniden onay ve kayıt.
-PROMPT_SHA256 = "a2fa4331c47c2be2ad96176c1cb70cc641715a4aca4d014f15755ef37a6cf102"
+# P2c-0 (pilot tasarım turu): A ve B metinleri Eren onaylı (HANDOFF 2026-11-13, P2c-0 2. madde); P2b'deki
+# a2fa4331c47c2be2ad96176c1cb70cc641715a4aca4d014f15755ef37a6cf102.
+PROMPT_SHA256 = "5e259201605b4f4742373adf4e8adc346a8d2aaad2ce652825469e173efb3f17"
 
 
 def test_prompt_sha256_frozen():
@@ -243,3 +245,4 @@ def test_pilot_report_reproduces():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
     import agent_report  # noqa: E402
     assert agent_report.main(["--check"]) == 0
+    assert agent_report.main(["--report", "p2c0", "--check"]) == 0  # P2c-0 pilot tasarım turu
