@@ -107,3 +107,10 @@ def test_read_run_from_records(tmp_path):
 def test_main_file_must_follow_live(tmp_path):
     with pytest.raises(SystemExit):
         ac.main(["--file", str(tmp_path), "--out", str(tmp_path / "o.json")])
+
+
+@pytest.mark.parametrize("live", ["a ", "a\n", " a", "a\r\n"])
+def test_classify_is_byte_exact(monkeypatch, live):
+    """Kural bayt bayt (DECISIONS 2026-11-14): yalnız boşluk / satır sonu farkı da `same` değildir."""
+    monkeypatch.setattr(ac.at, "run_tool", _fake_run_tool({frozenset(): "a", Z: "a", E: "a", ZE: "a"}))
+    assert ac.classify_call(None, "search_spans", {}, live, len, STORES) == {"class": "unexplained", "diagnosis": None}

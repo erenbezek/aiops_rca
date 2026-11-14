@@ -147,3 +147,22 @@ def test_build_p2c_dev(world):
 def test_build_p2c_dev_requires_runs():
     with pytest.raises(SystemExit):
         ar.build_p2c_dev()
+
+
+def test_p1_dev_rows_model_filter(tmp_path):
+    """Her model yalnız kendi ham / özet / daraltma satırını alır; ortak satırlar (kural, BARO, daraltma referansı)
+    ikisinde de aynı; bilgi satırı (9B) ve test yolu okunmaz."""
+    rows = [{"method": m, "model": None, "level": None, "info": False, "runs": {"dev": f"e/{m}", "test": "e/T"}}
+            for m in ("rule", "baro", "narrowing")]
+    for model in ("gemini-3.5-flash-lite", "qwen3.5-4b"):
+        for level in ("raw", "summary", "narrowed"):
+            rows.append({"method": "llm", "model": model, "level": level, "info": False,
+                         "runs": {"dev": f"e/{model}-{level}", "test": "e/T"}})
+    rows.append({"method": "llm", "model": "qwen3.5-9b", "level": "raw", "info": True, "runs": {"dev": "e/9b"}})
+    (tmp_path / "results").mkdir()
+    p = tmp_path / "results" / "p1_runs.json"
+    p.write_text(json.dumps({"note": "", "rows": rows}))
+    for model in ("gemini-3.5-flash-lite", "qwen3.5-4b"):
+        got = {k: v.name for k, v in ar.p1_dev_rows(p, model).items()}
+        assert got == {"rule": "rule", "baro": "baro", "narrowing": "narrowing", "raw": f"{model}-raw",
+                       "summary": f"{model}-summary", "narrowed": f"{model}-narrowed"}
