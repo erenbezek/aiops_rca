@@ -5147,3 +5147,7 @@ Data:
 ## 2026-11-14 · Planlama → Uygulama (ajan ↔ P1 okuma kuralı; test eşitliği)
 - **Karar (Eren, DECISIONS 2026-11-14):** model başına iki hücre: ajan ↔ ham (top-3), ajan ↔ daraltma (top-1); eşleştirilmiş kesin işaret testi, iki yönlü p < 0,05. Ötekiler yalnız sayı. Dosya ↔ canlı kuralının sonuç düzeyi de aynı teste geçti (düzeltme satırı). Uygulaması P2c dev koşuları kartında.
 - **Planlamada bekleyen:** 12 tuzağın uyarlanmış soruları (DECISIONS 2026-11-09; etiketlemeden önce Eren onayı); sonra P2c dev koşuları kartı.
+
+## 2026-11-14 · Planlama → Uygulama (12 tuzağın uyarlanmış soruları)
+- **Karar (Eren, DECISIONS 2026-11-14):** 8 tuzak birebir, 4 / 8 / 11 uyarlanmış, 10 uygulanamaz. Kodla: 2, 3, 4, 5, 7, 9, 11, 12; okuyarak: 1, 6, 8. Tam metin DECISIONS satırında; koda ve etiket dosyasına oradan aynen girer, ifade değişikliği Eren onayıyla.
+- **Dev koşusundan önceki kararların hepsi yazıldı:** 503 kuralı, Jaeger belleği, dosya ↔ canlı okuma kuralı, ajan ↔ P1 okuma kuralı, tuzak soruları. Sıradaki: P2c dev koşuları kartı (planlama yazacak; kart gelmeden kod yok).
