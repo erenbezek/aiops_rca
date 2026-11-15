@@ -1,25 +1,33 @@
 """P2b 4. madde (d): ajanın canlı modda uçtan uca koşusu (HANDOFF 2026-11-13, Eren onaylı plan); P2c 2. madde: bir
-oynatmada birden çok model (HANDOFF 2026-11-14 "P2c kartı 1. madde: öneri", (d)).
+oynatmada birden çok model (HANDOFF 2026-11-14 "P2c kartı 1. madde: öneri", (d)); P2c canlı kararı (DECISIONS
+2026-11-15): yerel sunucu her oynatmadan önce yeniden açılır, başta takas denetimi.
 
     python tools/agent_live.py --model <etiket>[,<etiket>] --cases <id>,<id> [--root llm_cache]
 
-Vaka başına: `storage_check.replay_case` (snapshot boş yeniden oynatma yığınına, D3 şartları, yığın açık) → her model
-sırayla (verilen sırada; dev'de önce Gemini, sonra 4B) ajanı `LiveStore` ile çalıştırır (`methods/agent.py`, dosya
-modundakiyle aynı istem ve ayarlar); her modelden sonra yığın konteynerlerinde ve yerel model sunucusunda
-(`aiops-llm`) OOM / yeniden başlama denetimi → `down -v`. OOM kuralı P2a'daki gibi (HANDOFF 2026-11-11): oynatma
-şartlarından biri kalırsa ya da bir model çalışırken OOM / yeniden başlama olursa o modelin kısmı bozuktur. Kısmı temiz
-geçen modelin satırı yazılır; kısmı bozulan model(ler) ve yığın bozulduktan sonra sırası gelen model(ler) ikinci bir
-oynatmada yeniden koşar; ikinci kez de olursa o model için satır yazılmaz, `live.json`'da "oynatılamadı". Ajan
-çalışırken yığın belleği ve makinenin boş belleği (`MemAvailable`) 30 sn'de bir örneklenir.
+Başta: boş takas `scenario_runner.MIN_SWAP_FREE_START_GB`'ın (2 GB) altındaysa hiçbir vakaya başlanmaz (çıkış 2).
+
+Vaka başına, her oynatma denemesinde: yerel sunucu (`aiops-llm`) kapatılıp yeniden açılır (istem önbelleği boş başlar;
+`llama-server`'ın `--cache-ram` varsayılanı 8 GiB, vaka başına ~1,1–1,4 GB büyüyordu) → `storage_check.replay_case`
+(snapshot boş yeniden oynatma yığınına, D3 şartları, yığın açık) → her model sırayla (verilen sırada; dev'de önce
+Gemini, sonra 4B) ajanı `LiveStore` ile çalıştırır (`methods/agent.py`, dosya modundakiyle aynı istem ve ayarlar);
+her modelden sonra yığın konteynerlerinde ve yerel model sunucusunda OOM / yeniden başlama denetimi → `down -v` →
+sunucu kapanır. OOM kuralı P2a'daki gibi (HANDOFF 2026-11-11): oynatma şartlarından biri kalırsa ya da bir model
+çalışırken OOM / yeniden başlama olursa o modelin kısmı bozuktur. Kısmı temiz geçen modelin satırı yazılır; kısmı
+bozulan model(ler) ve yığın bozulduktan sonra sırası gelen model(ler) ikinci bir oynatmada (yeni sunucuyla) yeniden
+koşar; ikinci kez de olursa o model için satır yazılmaz, `live.json`'da "oynatılamadı". Ajan çalışırken yığın belleği
+ve makinenin boş belleği (`MemAvailable`) 30 sn'de bir örneklenir.
 
 Tek sunucu: Qwen tokenizer'ı (API modelinde sayım) ve 4B'nin kendisi aynı yerel sunucu (`methods.llm.TOKENIZER`);
-bir kez açılır, bütün modellere `agent_method(..., base=...)` ile verilir. Başka yerel model reddedilir.
+adresi sabit (`LocalServer.base`), bütün modellere `agent_method(..., base=...)` ile verilir; sunucu her denemede o
+adreste yeniden açılır. Başka yerel model reddedilir.
 
 Kayıt biçimi dosya moduyla aynı (`evaluate.append_agent_case`): model başına `<root>/<UTC>-agent/` içinde `run.json`
 (`settings.store` = `LiveStore`), `responses.jsonl` (+ `replay_dir`, `attempts_live`, `jaeger_peak_mib`),
-`turns.jsonl`, `tool_outputs/`; ayrıca `live.json` (vaka başına o modelin deneme kayıtları). Yalnız `load_cases()`
-vakaları (pilot, dev); test ve heldout reddedilir. Uyku ve kapak kilitleri altında kendini yeniden çalıştırır.
-Çıkış kodu: 0 bütün vakalar her modelde oynatıldı, 1 en az biri oynatılamadı, 2 kullanım hatası.
+`turns.jsonl`, `tool_outputs/`; ayrıca `live.json` (vaka başına o modelin deneme kayıtları; her denemede
+`server_started_utc` ve oynatma geçtiyse `llm_mem_mib` {start: ilk modelden önce, end: son modelden sonra}). Yalnız
+`load_cases()` vakaları (pilot, dev); test ve heldout reddedilir. Uyku ve kapak kilitleri altında kendini yeniden
+çalıştırır. Çıkış kodu: 0 bütün vakalar her modelde oynatıldı, 1 en az biri oynatılamadı, 2 kullanım hatası ya da
+takas yetersiz.
 """
 from __future__ import annotations
 
@@ -74,8 +82,12 @@ def _open_server(stack: ExitStack) -> str:
 
 
 def run(models: list[str], cases: list, root: Path) -> int:
+    swap = sr.swap_free_gb()
+    if swap is None or swap < sr.MIN_SWAP_FREE_START_GB:
+        print(f"error: swap free {swap} GB < {sr.MIN_SWAP_FREE_START_GB} GB; no case started", file=sys.stderr)
+        return 2
+    base = LocalServer(MODELS[TOKENIZER].gguf).base
     with ExitStack() as stack:
-        base = _open_server(stack)
         asks, run_dirs, lives = {}, {}, {}
         for model in models:
             spec = MODELS[model]
@@ -93,50 +105,60 @@ def run(models: list[str], cases: list, root: Path) -> int:
             for n in (1, 2):
                 if not pending:
                     break
-                res: dict = {}
-                code = sc.replay_case(case.view, keep_up=True, result=res)
-                base_rec = {"attempt": n, "replay_dir": str(res.get("dir")), "replay_valid": code == 0}
-                recs = {m: dict(base_rec) for m in pending}
-                for m in pending:
-                    attempts[m].append(recs[m])
-                outs: dict = {}
-                try:
-                    if code != 0:
-                        for m in pending:
-                            recs[m]["problem"] = "replay_case failed"
-                        continue
-                    broken = False
+                with ExitStack() as server:
+                    started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    if _open_server(server) != base:
+                        raise RuntimeError("local server opened at an unexpected address")
+                    res: dict = {}
+                    code = sc.replay_case(case.view, keep_up=True, result=res)
+                    base_rec = {"attempt": n, "replay_dir": str(res.get("dir")), "replay_valid": code == 0,
+                                "server_started_utc": started}
+                    recs = {m: dict(base_rec) for m in pending}
                     for m in pending:
-                        rec = recs[m]
-                        if broken:
-                            rec["problem"] = "stack broken before this model"
+                        attempts[m].append(recs[m])
+                    outs: dict = {}
+                    try:
+                        if code != 0:
+                            for m in pending:
+                                recs[m]["problem"] = "replay_case failed"
                             continue
-                        peaks, low, stop = {}, {}, threading.Event()
-                        th = threading.Thread(target=_sample, args=(peaks, low, stop), daemon=True)
-                        th.start()
-                        t0 = time.monotonic()
-                        try:
-                            out = asks[m](case)
-                        finally:
-                            stop.set()
-                        rec["agent_s"] = round(time.monotonic() - t0, 1)
-                        rec["mem_peak_mib"] = {k: round(v, 1) for k, v in peaks.items()}
-                        rec["mem_available_min_mib"] = low.get("min")
-                        states = sc.container_states(watched)
-                        rec["containers"] = states
-                        rec["containers_ok"] = all(v and not v["oom_killed"] and v["restarts"] == 0
-                                                   for v in states.values())
-                        rec["end_reason"] = out["row"]["end_reason"]
-                        if rec["containers_ok"]:
-                            outs[m] = out
-                        else:
-                            broken = True
-                finally:
-                    p = sc.replay_compose(["down", "-v"], case.view)
-                    left = [v for v in sc.volume_sizes() if v.startswith(sc.REPLAY_PROJECT + "_")]
-                    for m in recs:
-                        recs[m]["down_exit"] = p.returncode
-                        recs[m]["replay_volumes_left"] = left
+                        llm_start = sc.mem_mib([LOCAL_NAME]).get(LOCAL_NAME)
+                        broken = False
+                        for m in pending:
+                            rec = recs[m]
+                            if broken:
+                                rec["problem"] = "stack broken before this model"
+                                continue
+                            peaks, low, stop = {}, {}, threading.Event()
+                            th = threading.Thread(target=_sample, args=(peaks, low, stop), daemon=True)
+                            th.start()
+                            t0 = time.monotonic()
+                            try:
+                                out = asks[m](case)
+                            finally:
+                                stop.set()
+                            rec["agent_s"] = round(time.monotonic() - t0, 1)
+                            rec["mem_peak_mib"] = {k: round(v, 1) for k, v in peaks.items()}
+                            rec["mem_available_min_mib"] = low.get("min")
+                            states = sc.container_states(watched)
+                            rec["containers"] = states
+                            rec["containers_ok"] = all(v and not v["oom_killed"] and v["restarts"] == 0
+                                                       for v in states.values())
+                            rec["end_reason"] = out["row"]["end_reason"]
+                            if rec["containers_ok"]:
+                                outs[m] = out
+                            else:
+                                broken = True
+                        llm_end = sc.mem_mib([LOCAL_NAME]).get(LOCAL_NAME)
+                        for m in recs:
+                            recs[m]["llm_mem_mib"] = {k: (round(v, 1) if v is not None else None)
+                                                      for k, v in (("start", llm_start), ("end", llm_end))}
+                    finally:
+                        p = sc.replay_compose(["down", "-v"], case.view)
+                        left = [v for v in sc.volume_sizes() if v.startswith(sc.REPLAY_PROJECT + "_")]
+                        for m in recs:
+                            recs[m]["down_exit"] = p.returncode
+                            recs[m]["replay_volumes_left"] = left
                 replay_peak = ((res.get("rec") or {}).get("mem_peak_mib") or {}).get("otel-replay-jaeger-1")
                 for m in list(pending):
                     rec = recs[m]
