@@ -5337,3 +5337,15 @@ Data:
 - **7. madde (kart aynen):** PROJECT "Şu an"; ARCHITECTURE / GLOSSARY; 5. madde kaydındaki 341,8 sn'nin `wait_s` olduğu notu; kapanış notları (dosya koşuları kodu `e9324b7`, canlı `0ac4edc`, fark yalnız canlı koşucu; 2 teknik kesinti; 4B canlıda her vakaya boş önbellekle başlıyor, ayrışma 0); `task/p2c-dev` PR'ı (sade açıklama). "Proje 2" kutusu P2 sonunda.
 - **Beklenen:** 7. madde kaydı ve PR; sonra planlama kontrolü ve Eren'in birleştirmesi.
 - **Düzeltme (aynı kayıt, sayı):** Eren'in görmediği 13 satırdan baktığım 9 değil 10: "evet" denen 5 satır ve "hayır" denen 5 satır (Gemini inc-4a62b9bb, inc-9292257f, inc-b4d12a5e; 4B inc-5cb2c977, inc-bfbbd586). "Hayır" satırlarında yalnız alıntılanan değerin araç çıktısında olduğuna baktım, gerekçenin tamamını okumadım.
+
+## 2026-11-16 · Uygulama → Planlama (P2c 7. madde: kapanış)
+- **PROJECT "Şu an":** P2c satırı (koşular, iki okuma kuralının sonucu, hata analizi kalıpları, dev'in resmî olmadığı; sıradaki P2d kartı).
+- **ARCHITECTURE:** `results/p2c_error_*` ve `tests/test_agent_error_analysis.py` satırları güncellendi (`eren_check`, CI bayt aynı). Diyagram değişmedi (P1 hata analizi de diyagramda yok; yeni bileşen yok). **GLOSSARY:** 6. ve 7. maddede yeni ad yok.
+- **Kapanış notları:**
+  - Kod: üç dosya koşusu `e9324b7`, canlı koşu `0ac4edc`; aradaki kod farkı yalnız `tools/agent_live.py` + testi (yerel sunucuyu her vakadan önce yeniden açma, başta takas ≥ 2 GB). `src/` donmuş (`c988c55`'e göre yalnız `llm_client.py`, P2c kartının yeniden deneme kararı).
+  - 2 teknik kesinti (5 + 2 vaka; `DEV_INTERRUPTED`), dört kısmi kayıt `llm_cache/`'te, puanlanmadı.
+  - 4B canlıda her vakaya boş istem önbelleğiyle başladı (dosya koşusunda önbellek doluydu); "çıktı aynı, model ayrıştı" 0, 18 / 18 vaka tur tur aynı.
+  - **341,8 sn düzeltmesi:** 4. madde kaydındaki "bekleme toplamı 341,8 sn" Gemini canlı koşusunun `responses.jsonl` satırlarındaki `wait_s` toplamı (18 satır): `methods/agent.py`'deki `Pacer`'ın istekler arası beklemesi (`GEMINI_GAP` 4 sn; ajan süresinden düşülür). Yeniden deneme beklemesi değil; o, rapordaki ayrı sütun (`retry_wait_s`): 6 istek birer kez × 30 sn (`GEMINI_RETRY_WAITS` ilk adımı) = 180 sn.
+- **Doğrulama:** pytest 786; `agent_report.py --report p2b / p2c0 / p2c_dev --check` same; `agent_error_analysis.py summary --check` same.
+- **PR:** `task/p2c-dev` → main, sade açıklama (Eren'e metin gösterildikten sonra açılır).
+- **Beklenen:** planlama kontrolü, sonra Eren'in birleştirmesi; ardından P2d kartı (planlama).
