@@ -1,5 +1,6 @@
-"""`tools/agent_error_analysis.py` (P2c 2. madde): soru metni DECISIONS'la aynı, kodla sayılan tuzaklar, seçim ve
-özet denetimleri; sahte kayıtlarla (gerçek dev koşusu henüz yok)."""
+"""`tools/agent_error_analysis.py` (P2c 2. ve 6. madde): soru metni DECISIONS'la aynı, kodla sayılan tuzaklar, seçim ve
+özet denetimleri sahte kayıtlarla; gerçek etiket dosyasındaki Eren doğrulaması ve repodaki özetin kayıtlardan aynen
+üretilmesi gerçek dev kayıtlarıyla."""
 from __future__ import annotations
 
 import json
@@ -153,3 +154,27 @@ def test_summary_rejects_changed_questions(tmp_path, world, monkeypatch):
     doc["questions"] = doc["questions"] + " "
     with pytest.raises(ValueError, match="questions"):
         _summary(tmp_path, world, doc, monkeypatch)
+
+
+# --- gerçek dev kayıtları ---
+
+def test_eren_check_in_labels_file():
+    # Eren 2026-11-16 (P2c 6. madde): 10 satırın 10'u katılıyor → yeniden etiketleme yok. 4B inc-320c56f9'da önce
+    # T1 evet dedi, geri aldı ("sıçrama" bir miktar artış varsa uydurma değil); işareti katılıyor.
+    doc = json.loads((ea.REPO / ea.LABELS_FILE).read_text(encoding="utf-8"))
+    checked = {x["key"]: x for x in doc["rows"] if "eren_check" in x}
+    assert sorted(checked) == ea.sample(ea.select()[0])
+    for x in checked.values():
+        e = x["eren_check"]
+        assert set(e) <= {"agree", "T1", "T6", "T8", "note"} and all(e[t] in ea.VALUES for t in ("T1", "T6", "T8"))
+        assert e["agree"] == all(e[t] == x[t] for t in ("T1", "T6", "T8"))
+    assert [k for k, x in checked.items() if "note" in x["eren_check"]] == ["qwen3.5-4b inc-320c56f9"]
+    assert ea.summary()["eren_check"] == {"n": 10, "checked": 10, "disagree": 0, "reading": "ok"}
+
+
+def test_summary_files_match_records():
+    # CI: özet repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
+    md, js = ea.summary_render()
+    assert (ea.REPO / ea.SUMMARY_MD).read_text(encoding="utf-8") == md
+    assert (ea.REPO / ea.SUMMARY_JSON).read_text(encoding="utf-8") == js
+    assert ea.main(["summary", "--check"]) == 0

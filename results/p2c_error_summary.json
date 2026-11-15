@@ -1,0 +1,275 @@
+{
+ "labels_sha256": "71ba4cc6b7a39ff336fa2af31f163ca86bec629bd52ff06dc5d2806ee860a492",
+ "questions_sha256": "b887cbbb9a7a199b1cd1aee6c3efcee68573b09f753152283a677d86f2e07cbd",
+ "rows": 23,
+ "traps": {
+  "gemini-3.5-flash-lite": {
+   "n": 9,
+   "T1": {
+    "yes": 1,
+    "no": 7,
+    "undetermined": 1
+   },
+   "T2": {
+    "yes": 6,
+    "no": 3,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 1,
+    "no": 7,
+    "undetermined": 1
+   },
+   "T4": {
+    "yes": 0,
+    "no": 9,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 2,
+    "no": 7,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 0,
+    "no": 8,
+    "undetermined": 1
+   },
+   "T7": {
+    "yes": 7,
+    "no": 1,
+    "undetermined": 1
+   },
+   "T8": {
+    "yes": 0,
+    "no": 9,
+    "undetermined": 0
+   },
+   "T9": {
+    "yes": 0,
+    "no": 9,
+    "undetermined": 0
+   },
+   "T11": {
+    "yes": 0,
+    "no": 9,
+    "undetermined": 0
+   },
+   "T12": {
+    "yes": 5,
+    "no": 4,
+    "undetermined": 0
+   }
+  },
+  "qwen3.5-4b": {
+   "n": 14,
+   "T1": {
+    "yes": 6,
+    "no": 7,
+    "undetermined": 1
+   },
+   "T2": {
+    "yes": 11,
+    "no": 3,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 10,
+    "no": 3,
+    "undetermined": 1
+   },
+   "T4": {
+    "yes": 0,
+    "no": 14,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 11,
+    "no": 3,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 3,
+    "no": 10,
+    "undetermined": 1
+   },
+   "T7": {
+    "yes": 12,
+    "no": 1,
+    "undetermined": 1
+   },
+   "T8": {
+    "yes": 0,
+    "no": 14,
+    "undetermined": 0
+   },
+   "T9": {
+    "yes": 3,
+    "no": 11,
+    "undetermined": 0
+   },
+   "T11": {
+    "yes": 3,
+    "no": 11,
+    "undetermined": 0
+   },
+   "T12": {
+    "yes": 13,
+    "no": 1,
+    "undetermined": 0
+   }
+  },
+  "all": {
+   "n": 23,
+   "T1": {
+    "yes": 7,
+    "no": 14,
+    "undetermined": 2
+   },
+   "T2": {
+    "yes": 17,
+    "no": 6,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 11,
+    "no": 10,
+    "undetermined": 2
+   },
+   "T4": {
+    "yes": 0,
+    "no": 23,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 13,
+    "no": 10,
+    "undetermined": 0
+   },
+   "T6": {
+    "yes": 3,
+    "no": 18,
+    "undetermined": 2
+   },
+   "T7": {
+    "yes": 19,
+    "no": 2,
+    "undetermined": 2
+   },
+   "T8": {
+    "yes": 0,
+    "no": 23,
+    "undetermined": 0
+   },
+   "T9": {
+    "yes": 3,
+    "no": 20,
+    "undetermined": 0
+   },
+   "T11": {
+    "yes": 3,
+    "no": 20,
+    "undetermined": 0
+   },
+   "T12": {
+    "yes": 18,
+    "no": 5,
+    "undetermined": 0
+   }
+  }
+ },
+ "info_all_cases": {
+  "gemini-3.5-flash-lite": {
+   "n": 18,
+   "T2": {
+    "yes": 11,
+    "no": 7,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 1,
+    "no": 16,
+    "undetermined": 1
+   },
+   "T4": {
+    "yes": 0,
+    "no": 18,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 3,
+    "no": 15,
+    "undetermined": 0
+   },
+   "T7": {
+    "yes": 13,
+    "no": 4,
+    "undetermined": 1
+   },
+   "T9": {
+    "yes": 0,
+    "no": 18,
+    "undetermined": 0
+   },
+   "T11": {
+    "yes": 0,
+    "no": 18,
+    "undetermined": 0
+   },
+   "T12": {
+    "yes": 8,
+    "no": 10,
+    "undetermined": 0
+   }
+  },
+  "qwen3.5-4b": {
+   "n": 18,
+   "T2": {
+    "yes": 13,
+    "no": 5,
+    "undetermined": 0
+   },
+   "T3": {
+    "yes": 10,
+    "no": 7,
+    "undetermined": 1
+   },
+   "T4": {
+    "yes": 0,
+    "no": 18,
+    "undetermined": 0
+   },
+   "T5": {
+    "yes": 12,
+    "no": 6,
+    "undetermined": 0
+   },
+   "T7": {
+    "yes": 14,
+    "no": 3,
+    "undetermined": 1
+   },
+   "T9": {
+    "yes": 5,
+    "no": 13,
+    "undetermined": 0
+   },
+   "T11": {
+    "yes": 4,
+    "no": 14,
+    "undetermined": 0
+   },
+   "T12": {
+    "yes": 17,
+    "no": 1,
+    "undetermined": 0
+   }
+  }
+ },
+ "eren_check": {
+  "n": 10,
+  "checked": 10,
+  "disagree": 0,
+  "reading": "ok"
+ }
+}
