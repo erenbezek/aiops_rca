@@ -1,0 +1,454 @@
+{
+ "rule": "DECISIONS 2026-11-14 P2c dosya ↔ canlı okuma kuralı (1)",
+ "known_classes": [
+  "zero_duration"
+ ],
+ "transforms": {
+  "zero_duration": "Jaeger süresi 0 olan span'i bitiş + 1 ns ile döndürüyor (depolama; duration_ms 0 ↔ 1e-06)",
+  "error_tag": "Jaeger error=\"true\" etiketini hata durumuna çeviriyor (depolama); canlı okuyucu bunu geri alıyor (store_live.undo_jaeger_error_tag, DECISIONS 2026-11-12), bu tür artık beklenmiyor (tanı olarak sınanır)"
+ },
+ "tool_result_tokens": 700,
+ "tokenizer": "qwen3.5-4b",
+ "runs": [
+  {
+   "model": "gemini-3.5-flash-lite",
+   "live": {
+    "dir": "20261115T153308Z-agent",
+    "repo_commit": "0ac4edcaa535f8053d77af846b43b4768ecbfef3",
+    "prompt_sha256": "5e259201605b4f4742373adf4e8adc346a8d2aaad2ce652825469e173efb3f17"
+   },
+   "file": null,
+   "cases": {
+    "inc-0c4902c3": {
+     "calls": 7,
+     "classes": {
+      "same": 7
+     },
+     "diffs": []
+    },
+    "inc-230c9d46": {
+     "calls": 5,
+     "classes": {
+      "same": 5
+     },
+     "diffs": []
+    },
+    "inc-234d34cf": {
+     "calls": 4,
+     "classes": {
+      "same": 4
+     },
+     "diffs": []
+    },
+    "inc-320c56f9": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-4a62b9bb": {
+     "calls": 4,
+     "classes": {
+      "same": 4
+     },
+     "diffs": []
+    },
+    "inc-5cb2c977": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-73ac64e9": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-8069b709": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-86d286ea": {
+     "calls": 6,
+     "classes": {
+      "same": 6
+     },
+     "diffs": []
+    },
+    "inc-9292257f": {
+     "calls": 7,
+     "classes": {
+      "same": 7
+     },
+     "diffs": []
+    },
+    "inc-ac155a23": {
+     "calls": 5,
+     "classes": {
+      "same": 5
+     },
+     "diffs": []
+    },
+    "inc-ac820869": {
+     "calls": 6,
+     "classes": {
+      "same": 6
+     },
+     "diffs": []
+    },
+    "inc-ae15665a": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-b4d12a5e": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-bfbbd586": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-d6d5f1b2": {
+     "calls": 5,
+     "classes": {
+      "same": 5
+     },
+     "diffs": []
+    },
+    "inc-d9ea423d": {
+     "calls": 7,
+     "classes": {
+      "same": 7
+     },
+     "diffs": []
+    },
+    "inc-fa775703": {
+     "calls": 7,
+     "classes": {
+      "same": 7
+     },
+     "diffs": []
+    }
+   },
+   "totals": {
+    "cases": 18,
+    "calls": 119,
+    "same": 119
+   }
+  },
+  {
+   "model": "qwen3.5-4b",
+   "live": {
+    "dir": "20261115T153310Z-agent",
+    "repo_commit": "0ac4edcaa535f8053d77af846b43b4768ecbfef3",
+    "prompt_sha256": "5e259201605b4f4742373adf4e8adc346a8d2aaad2ce652825469e173efb3f17"
+   },
+   "file": {
+    "dir": "20261114T202141Z-agent",
+    "repo_commit": "e9324b7ff463ce50a2a2e28b2f69760ae984feb2",
+    "prompt_sha256": "5e259201605b4f4742373adf4e8adc346a8d2aaad2ce652825469e173efb3f17"
+   },
+   "cases": {
+    "inc-0c4902c3": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-230c9d46": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-234d34cf": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-320c56f9": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-4a62b9bb": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-5cb2c977": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-73ac64e9": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-8069b709": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-86d286ea": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-9292257f": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-ac155a23": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-ac820869": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-ae15665a": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-b4d12a5e": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-bfbbd586": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-d6d5f1b2": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-d9ea423d": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    },
+    "inc-fa775703": {
+     "calls": 8,
+     "classes": {
+      "same": 8
+     },
+     "diffs": []
+    }
+   },
+   "totals": {
+    "cases": 18,
+    "calls": 144,
+    "same": 144,
+    "divergence": {
+     "cases_paired": 18,
+     "model_diverged": 0,
+     "output_differs": 0,
+     "identical": 18
+    }
+   },
+   "divergence": {
+    "inc-0c4902c3": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-230c9d46": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-234d34cf": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-320c56f9": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-4a62b9bb": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-5cb2c977": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-73ac64e9": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-8069b709": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-86d286ea": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-9292257f": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-ac155a23": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-ac820869": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-ae15665a": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-b4d12a5e": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-bfbbd586": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-d6d5f1b2": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-d9ea423d": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    },
+    "inc-fa775703": {
+     "model_diverged": false,
+     "diverged_turn": null,
+     "output_differs_at": null,
+     "turns_compared": 9,
+     "turns_file": 9,
+     "turns_live": 9
+    }
+   }
+  }
+ ]
+}

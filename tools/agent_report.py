@@ -44,12 +44,19 @@ PAIRS = [("20261113T075333Z-agent", "20261113T125627Z-agent", "Gemini, dosya, 25
          ("20261113T083032Z-agent", "20261113T182857Z-agent", "qwen3.5-4b, dosya, 25 vaka"),
          ("20261113T102704Z-agent", "20261113T211812Z-agent", "Gemini, canlı, 3 vaka")]
 # P2c dev koşuları (kart 4. madde); klasörler koşulardan sonra yazılır (5. madde). Anahtar → (klasör, etiket).
-DEV_RUNS = {"gemini_file": (None, "Gemini, dosya, 1. koşu (resmî)"),
-            "gemini_file_2": (None, "Gemini, dosya, 2. koşu (gürültü tabanı)"),
-            "qwen_file": (None, "qwen3.5-4b, dosya"),
-            "gemini_live": (None, "Gemini, canlı"),
-            "qwen_live": (None, "qwen3.5-4b, canlı")}
+# Kopyalar llm_cache/'tekilerle bayt aynı (HANDOFF 2026-11-15).
+DEV_RUNS = {"gemini_file": ("20261114T194507Z-agent", "Gemini, dosya, 1. koşu (resmî)"),
+            "gemini_file_2": ("20261114T200540Z-agent", "Gemini, dosya, 2. koşu (gürültü tabanı)"),
+            "qwen_file": ("20261114T202141Z-agent", "qwen3.5-4b, dosya"),
+            "gemini_live": ("20261115T153308Z-agent", "Gemini, canlı"),
+            "qwen_live": ("20261115T153310Z-agent", "qwen3.5-4b, canlı")}
 DEV_MODELS = {"gemini-3.5-flash-lite": ("gemini_file", "gemini_live"), "qwen3.5-4b": ("qwen_file", "qwen_live")}
+# Canlı dev koşusunun teknik kesintileri (HANDOFF / DECISIONS 2026-11-15): puanlanmadı, `llm_cache/`'te kalır
+# (repoda değil). (Gemini klasörü, 4B klasörü, iki modelde oynatılan vaka, neden).
+DEV_INTERRUPTED = [("20261115T132147Z-agent", "20261115T132149Z-agent", 5,
+                    "takas koruması (boş takas < 1 GB) kalan 13 vakayı oynatmadı"),
+                   ("20261115T141055Z-agent", "20261115T141057Z-agent", 2,
+                    "durduruldu (yerel sunucunun istem önbelleği vaka başına büyüyordu)")]
 REPORTS = {"p2b": {"out": REPO / "results" / "p2b_pilot", "rule_4b": RULE_4B},
            "p2c0": {"out": REPO / "results" / "p2c0_pilot",
                     "rule_4b": {**RULE_4B, "run": "20261113T182857Z-agent"}},
@@ -329,6 +336,7 @@ def build_p2c_dev(runs: dict = DEV_RUNS, eval_dir: Path = EVAL, calls_path: Path
                                              "reopen": s["budget_endings"] > s["n_cases"] / 2}
                                          for k, s in summ.items()},
            "calls_file": {"sha256": hashlib.sha256(calls_path.read_bytes()).hexdigest()},
+           "interrupted": [{"gemini": g, "qwen": q, "cases": n, "reason": why} for g, q, n, why in DEV_INTERRUPTED],
            "models": {}}
     for model, (fkey, lkey) in DEV_MODELS.items():
         live_cases = set(_known(dirs[lkey], "top3"))
@@ -381,6 +389,15 @@ def render_p2c_dev(rep: dict) -> str:
           "; ".join(f"{rep['runs'][k]['label']} {v['budget_endings']}/{v['n_cases']}"
                     for k, v in rep["budget_rule"].items()) +
           f" → **{'yeniden açılır' if any(v['reopen'] for v in rep['budget_rule'].values()) else 'tetiklenmedi'}**.",
+          "- **Kod:** " + "; ".join(f"{s['label']} `{s['repo_commit'][:7]}`" for s in rep["runs"].values()) +
+          ". Dosya koşuları ile canlı koşu arasındaki kod farkı yalnız canlı koşucu (`tools/agent_live.py`: yerel "
+          "sunucu her oynatmadan önce yeniden açılır, başta takas denetimi); `src/` ve istem aynı.",
+          f"- **Teknik kesinti:** {len(rep.get('interrupted', []))} (puanlanmadı; canlı koşu baştan koşuldu): " +
+          "; ".join(f"`{i['gemini']}` / `{i['qwen']}`, {i['cases']} vaka, {i['reason']}"
+                    for i in rep.get("interrupted", [])) + ".",
+          "- **Okuma notu (sonuçtan önce yazıldı, DECISIONS 2026-11-15):** 4B dosya koşusunda yerel sunucunun istem "
+          "önbelleği önceki vakalardan doluydu, canlıda her vaka boş önbellekle başladı; \"çıktı aynı, model "
+          "ayrıştı\" çıkarsa sayılır ve bu fark olası neden olarak sınırlamalara yazılır.",
           "", "## Dosya ↔ canlı (DECISIONS 2026-11-14, üç katman)", ""]
     for model, m in rep["models"].items():
         t = m["call_level"]["totals"]

@@ -145,8 +145,17 @@ def test_build_p2c_dev(world):
 
 
 def test_build_p2c_dev_requires_runs():
-    with pytest.raises(SystemExit):
-        ar.build_p2c_dev()
+    with pytest.raises(SystemExit, match="DEV_RUNS not filled"):
+        ar.build_p2c_dev({**ar.DEV_RUNS, "qwen_live": (None, "qwen3.5-4b, canlı")})
+
+
+def test_dev_runs_filled_and_interrupted_listed():
+    """5. madde: beş koşu dolu ve `eval_responses/`'te; iki teknik kesinti raporda listelenir."""
+    assert all(d and (ar.EVAL / d / "scores.json").exists() for d, _ in ar.DEV_RUNS.values())
+    rep = ar.build_p2c_dev()
+    assert [i["cases"] for i in rep["interrupted"]] == [5, 2]
+    md = ar.render_p2c_dev(rep)
+    assert "**Teknik kesinti:** 2" in md and all(g in md for g, *_ in ar.DEV_INTERRUPTED)
 
 
 def test_p1_dev_rows_model_filter(tmp_path):
