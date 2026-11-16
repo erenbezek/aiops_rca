@@ -5436,3 +5436,16 @@ Data:
 - **3. madde (kart aynen; Eren'e sorarak):** 2 pilot vaka, iki model, test vakası yok; 15 Kasım dumanının dört şartı. Kod `764a796` ya da yalnız docs farkı olan commit.
 - **4. madde için hatırlatma:** her koşudan önce Eren'e sorulur; hiçbir Gemini koşusu 10:00–11:00'i (yerel) kesmez; duman + dosya 1 + dosya 2 aynı kota gününde, canlı ayrı kota gününde; puanlama yok, koşucu çıktısında isabet yok; kesilen koşu baştan ve bütün. Koşu kayıtlarında yalnız sayım.
 - **Beklenen:** 3. ve 4. madde kayıtları (duman; sonra koşular); planlama her birinden sonra kayıtlardan sayımla kontrol eder.
+
+## 2026-11-17 · Uygulama → Planlama (P2d 3. madde: duman, 2 pilot vaka; dört şart tuttu)
+- **Tarih düzeltmesi:** önceki iki kaydın başlığındaki "2026-11-18" yanlış; yerel tarih 2026-11-17 (gece yarısından sonra, UTC 16 Kasım 22:xx). Kayıtlar değişmez, burada düzeltilir.
+- **Duman (Eren onayıyla):** `tools/agent_live.py --model gemini-3.5-flash-lite,qwen3.5-4b --cases inc-2a87f603,inc-91bf76d4` (varsayılan yol, `--final-test` yok; test vakası yok). Kod `d9b51c2` (`764a796` + yalnız docs), `repo_clean` true, istem `5e259201…`, sets `["pilot", "dev"]`. 22:27:32–22:52:56 UTC. Kayıtlar `llm_cache/20261116T222733Z-agent` (Gemini), `llm_cache/20261116T222735Z-agent` (4B); oynatmalar `storage_runs/20261116T222738Z-…`, `…223613Z-…` (ikisi PASS, 10 / 10 ölçüt). Başta boş takas 3,2 GB, şarj eşiği 80, adaptör takılı; iki kilit (gdbus `IsInhibited` 4 ve 8 true; `systemd-inhibit` sleep:idle:handle-lid-switch). Çıkış 0; sonda konteyner 0, oynatma volume'ü 0.
+- **Dört şart (15 Kasım'daki gibi):**
+  1. Sunucu her vakadan önce yeniden açıldı: `server_started_utc` 22:27:35Z / 22:36:09Z; `llm_mem_mib.start` 1.870,8 / 1.870,8 MiB (sonda 3.113,0 / 4.190,2). İki modelde 2 / 2 satır, `attempts_live` 1, `containers_ok` true, `down` 0, volume yok → **tuttu**.
+  2. 4B evresinde en düşük `MemAvailable` 7.477,6 → 7.141,6 MiB, düşüş 336,0 ≤ 700 → **tuttu** (Gemini evresi 8.942,1 / 8.559,8).
+  3. 4B iki vakada 9 / 9 tur ham çıktı ve araç çıktıları pilot dosya koşusuyla (`20261113T182857Z-agent`) birebir → **tuttu**.
+  4. En uzun mesaj Gemini 5.048, 4B 5.974 (≤ 6.000). 4B 18 istek, hepsi 200. Gemini 17 istek, 17'sinin son denemesi 200, hata 0; **bir istek 503 × 3 sonra 200 (4 deneme; bekleme 30 + 60 + 120 = 210 sn)**; deneme toplamı 20. 15 Kasım'da yeniden deneme kodu yoktu ("hepsi 200" ilk denemeydi); bugünkü kuralla (DECISIONS 2026-11-15, 30 / 60 / 120) her istek cevaplandı → **tuttu** (okumam; planlama karar verir).
+- **Bilgi (ölçüt değil):** bitişler Gemini answer 2, 4B step_limit 2; ajan süresi Gemini 72,7 / 306,9 sn (ikincisinde 210 sn yeniden deneme beklemesi), 4B 321,9 / 567,5 sn; Jaeger tepesi oynatma 1.246,2 / 1.518,6 MiB. İsabet okunmadı; duman kayıtları `llm_cache/`'te kalır, rapora girmez.
+- **Gemini kotası:** bu kota gününde (16 Kasım 11:00'den beri) 20 deneme. Dosya 1 + dosya 2 (~300 + yeniden deneme) bu kota gününe sığar; 10:00'dan önce biter.
+- **Dikkat (4. madde için):** gece Gemini'de 503 görüldü; dördüncü hatada istek cevapsız kalır (kural aynen, yeniden koşu yok). Kesinti değil, sayılır.
+- **Beklenen:** planlama kontrolü; geçerse 4. madde (i) Gemini dosya 1 (Eren'e sorarak).
