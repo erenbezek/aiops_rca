@@ -368,3 +368,12 @@ Sadece Eren'in onayladığı isimler.
 | `kind_of`, `coded`, `load_run`, `T2_root_in_outputs` | `agent_error_analysis.py`: çağrının telemetri türü / kodla tuzaklar / koşunun dev vakaları / T2'nin yan sayısı: kök adı bir araç çıktısında geçti mi (Eren onaylı) |
 | `containers`, `mem_available_min_mib` | `live.json` deneme alanları (P2c `agent_live.py`): modelden sonra konteyner durumları (yığın + `aiops-llm`) / ajan evresinde makinenin en düşük `MemAvailable`'ı (Eren onaylı) |
 | `server_started_utc`, `llm_mem_mib` | `live.json` deneme alanları (P2c canlı kararı, DECISIONS 2026-11-15): o denemede yerel sunucunun yeniden açıldığı an (UTC) / `aiops-llm` konteynerinin belleği {start: ilk modelden önce, end: son modelden sonra}, MiB; yalnız oynatma geçtiyse (Eren onaylı, 2026-11-15) |
+| `--final-test` (`agent_live.py`, `agent_compare.py`) | P2d: yalnız test vakalarını açan bayrak (`evaluate`'teki adla aynı); varsayılan pilot / dev, heldout hiç (Eren onaylı) |
+| `--set test` (`agent_error_analysis.py`, `error_analysis`) | P2d: hata analizinin test setine uygulanması; varsayılan dev (Eren onaylı) |
+| `--report p2d`, `build_p2d`, `render_p2d` | `agent_report.py`: P2d test raporu (yalnız toplam) ve onu kuran / yazan işlevler (Eren onaylı) |
+| `TEST_RUNS`, `TEST_INTERRUPTED` | `agent_report.py`: P2d test koşuları (anahtarlar `DEV_RUNS`'taki gibi; koşulardan sonra dolar) / test koşularının teknik kesintileri (Eren onaylı) |
+| `results/p2d_test` (`.md`, `.json`), `results/p2d_test_calls.json` | P2d test raporu / test canlı koşusunun çağrı düzeyi karşılaştırması (Eren onaylı) |
+| `results/p2d_error_labels.json`, `results/p2d_error_summary` (`.md`, `.json`) | P2d ajan test hata analizinin etiketleri ve özeti (Eren onaylı) |
+| `results/p1_test_error_labels.json`, `results/p1_test_error_summary` (`.md`, `.json`) | P2d P1 test hata analizinin etiketleri ve özeti (Eren onaylı) |
+| `set_labels`, `QUESTIONS_SHA256`, `FILES` | `error_analysis`: bir setin etiketleri (test yalnız açıkça) / P1e sorularının donmuş sha256'sı / set → etiket ve özet dosyaları (ajan aracında da `FILES`) (Eren onaylı) |
+| `dev_test_reading`, `p1_info` | `p2d` rapor JSON alanları: iki dosya satırının dev–test Fisher okuması (`results.dev_test_reading`) / P1 gpt-oss ve 9B bilgi satırları (Eren onaylı) |
