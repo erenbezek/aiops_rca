@@ -246,3 +246,4 @@ def test_pilot_report_reproduces():
     import agent_report  # noqa: E402
     assert agent_report.main(["--check"]) == 0
     assert agent_report.main(["--report", "p2c0", "--check"]) == 0  # P2c-0 pilot tasarım turu
+    assert agent_report.main(["--report", "p2c_dev", "--check"]) == 0  # P2c dev koşuları

@@ -1,0 +1,51 @@
+{
+ "method": "agent",
+ "model_id": "gemini-3.5-flash-lite",
+ "provider": "gemini",
+ "temperature": 0,
+ "settings": {
+  "model": "gemini-3.5-flash-lite",
+  "store": "LiveStore",
+  "cases": [
+   "inc-0c4902c3",
+   "inc-230c9d46",
+   "inc-234d34cf",
+   "inc-320c56f9",
+   "inc-4a62b9bb",
+   "inc-5cb2c977",
+   "inc-73ac64e9",
+   "inc-8069b709",
+   "inc-86d286ea",
+   "inc-9292257f",
+   "inc-ac155a23",
+   "inc-ac820869",
+   "inc-ae15665a",
+   "inc-b4d12a5e",
+   "inc-bfbbd586",
+   "inc-d6d5f1b2",
+   "inc-d9ea423d",
+   "inc-fa775703"
+  ],
+  "max_tokens": 1600,
+  "extra": {
+   "reasoning_effort": "minimal"
+  },
+  "prompt_sha256": "5e259201605b4f4742373adf4e8adc346a8d2aaad2ce652825469e173efb3f17",
+  "total_budget": 6000,
+  "max_tool_calls": 8,
+  "tool_result_tokens": 700,
+  "image": "ghcr.io/ggml-org/llama.cpp@sha256:8f3c2cd0808a394d1e7ce02f025f453caacbf163389fe6b6443ec3a1efff96a0",
+  "gguf": "Qwen3.5-4B-Q4_K_M.gguf",
+  "gguf_sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+  "tokenizer": "qwen3.5-4b",
+  "request_gap_s": 4
+ },
+ "sets": [
+  "pilot",
+  "dev"
+ ],
+ "started_at": "2026-11-15T15:33:08Z",
+ "repo_commit": "0ac4edcaa535f8053d77af846b43b4768ecbfef3",
+ "repo_clean": true,
+ "n_cases": 18
+}

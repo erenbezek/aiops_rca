@@ -349,3 +349,22 @@ Sadece Eren'in onayladığı isimler.
 | `kind`, `dropped`, `call`, `tool_output_sha256`, `tool_output_tokens`, `tool_lines_shown`, `tool_lines_total`, `tool_truncated`, `tool_error`, `store_error` | `turns.jsonl` alanları: tur türü (`action` / `answer`) / ize inen adımlar / araç çağrısının metni / modele giden çıktının sha256'sı ve token'ı / gösterilen ve toplam satır / kesildi mi / araç hatası mı / okuyucunun altyapı hatası |
 | `append_agent_case` | `evaluate.py`: ajan vakasının kaydı (satır + `turns.jsonl` + `tool_outputs/<vaka>.jsonl`); dosya modu (`_run_agent`) ve canlı mod (`tools/agent_live.py`) aynı işlevi kullanır |
 | `replay_dir`, `attempts_live`, `jaeger_peak_mib`, `live.json` | Canlı mod ajan satırının alanları (vakanın `replay_case` kaydı, kaçıncı denemede geçtiği, Jaeger bellek tepesi oynatma / ajan) / vaka başına deneme kayıtları |
+| `GEMINI_RETRY_WAITS` | `llm_client.py`: Gemini'de taşıma hatasında yeniden deneme beklemeleri (30, 60, 120 sn; en çok 3 yeniden deneme); yerel ve Groq `RETRY_WAIT` ile bir kez (P2c, Eren onaylı) |
+| `tools/agent_compare.py` | P2c çağrı düzeyi dosya ↔ canlı karşılaştırması ve 4B "çıktı aynı, model ayrıştı" denetimi (Eren onaylı) |
+| `results/p2c_dev_calls.json` | `agent_compare.py`'nin dev çıktısı; rapor oradan okur (Eren onaylı) |
+| `p2c_dev` (`results/p2c_dev.json`, `.md`) | P2c dev raporunun adı: `tools/agent_report.py --report p2c_dev` (Eren onaylı) |
+| `sign_test` | `agent_report.py`: eşleştirilmiş kesin işaret testi, iki yönlü (p = 2 · P[Bin(b + c; 0,5) ≤ min(b, c)], en çok 1) (Eren onaylı) |
+| `tools/agent_error_analysis.py` | P2 hata analizi: seçim, okuma dosyası, tohumlu 10 satır, özet (Eren onaylı) |
+| `results/p2c_error_labels.json`, `results/p2c_error_summary` (`.md`, `.json`) | P2 hata analizinin etiket dosyası ve özeti (Eren onaylı) |
+| `build_p2c0`, `render_p2c0`, `all_services_calls` | `agent_report.py`: P2c-0 raporunu kuran / yazan işlevler; yeni koşulardaki servissiz `metric_series` çağrılarının sayımı (Eren onaylı) |
+| `DEV_RUNS`, `DEV_MODELS` | `agent_report.py`: P2c dev koşuları (anahtar → klasör, etiket; koşulardan sonra doldurulur) / model → (dosya, canlı) koşu anahtarı (Eren onaylı) |
+| `DEV_INTERRUPTED` | `agent_report.py`: canlı dev koşusunun teknik kesintileri (Gemini klasörü, 4B klasörü, oynatılan vaka, neden); puanlanmaz, raporun "Teknik kesinti" satırı buradan (Eren onaylı, 2026-11-15) |
+| `ALPHA`, `paired` | `agent_report.py`: işaret testinin eşiği (0,05, iki yönlü p < 0,05) / aynı vakalarda iki tarafın eşleştirilmiş okuması (yalnız sol, yalnız sağ, p, okuma) (Eren onaylı) |
+| `retry_wait_s`, `retries` | `agent_report.py`: bir isteğin yeniden deneme beklemesi deneme sayısından, sağlayıcıya göre / koşunun yeniden deneme sayımı (Eren onaylı) |
+| `p1_dev_rows`, `build_p2c_dev`, `render_p2c_dev` | `agent_report.py`: bir modelin P1 dev satırları (`results/p1_runs.json`, yalnız dev) / P2c dev raporunu kuran ve yazan işlevler (Eren onaylı) |
+| `KNOWN`, `read_run`, `classify_call`, `compare_calls`, `model_divergence` | `agent_compare.py`: bilinen tek fark türü (`zero_duration`) / koşu kaydını okuma / bir canlı çağrının sınıfı / koşunun bütün çağrıları / 4B "çıktı aynı, model ayrıştı" denetimi (Eren onaylı) |
+| `QUESTIONS`, `questions_sha256` | `agent_error_analysis.py`: 12 tuzağın uyarlanmış soruları, DECISIONS 2026-11-14 satırından aynen / metnin sha256'sı (Eren onaylı) |
+| `RUN_KEYS`, `CODED`, `READ`, `TRAPS` | `agent_error_analysis.py`: resmî dosya koşularının `DEV_RUNS` anahtarları / kodla sayılan tuzaklar / okuyarak etiketlenen tuzaklar / bütün uygulanan tuzaklar (T10 hariç) (Eren onaylı) |
+| `kind_of`, `coded`, `load_run`, `T2_root_in_outputs` | `agent_error_analysis.py`: çağrının telemetri türü / kodla tuzaklar / koşunun dev vakaları / T2'nin yan sayısı: kök adı bir araç çıktısında geçti mi (Eren onaylı) |
+| `containers`, `mem_available_min_mib` | `live.json` deneme alanları (P2c `agent_live.py`): modelden sonra konteyner durumları (yığın + `aiops-llm`) / ajan evresinde makinenin en düşük `MemAvailable`'ı (Eren onaylı) |
+| `server_started_utc`, `llm_mem_mib` | `live.json` deneme alanları (P2c canlı kararı, DECISIONS 2026-11-15): o denemede yerel sunucunun yeniden açıldığı an (UTC) / `aiops-llm` konteynerinin belleği {start: ilk modelden önce, end: son modelden sonra}, MiB; yalnız oynatma geçtiyse (Eren onaylı, 2026-11-15) |

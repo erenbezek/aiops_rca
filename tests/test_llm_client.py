@@ -8,7 +8,7 @@ import pytest
 
 from aiops_rca import llm_client
 from aiops_rca.answer import validate_answer
-from aiops_rca.llm_client import MODELS, RESPONSE_FORMAT, Pacer, chat, parse_content
+from aiops_rca.llm_client import GEMINI_RETRY_WAITS, MODELS, RESPONSE_FORMAT, Pacer, chat, parse_content
 
 GOOD = {"candidates": [
     {"service": "payment", "confidence": 0.7, "evidence_path": ["payment", "checkout", "frontend"], "rationale": "a"},
@@ -240,10 +240,53 @@ def test_parse_content_unit():
 @pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
 def test_transport_error_retried_once(server, status):
     srv = server((status, "busy"), completion(json.dumps(GOOD)))
-    rec, sleeps = run("gemini-3.5-flash-lite", srv)
+    rec, sleeps = run("qwen3.5-4b", srv)
     assert len(srv.requests) == 2 and sleeps == [30]
     assert rec["schema_valid"] is True and len(rec["attempts"]) == 2
     assert rec["attempts"][0]["status"] == status and rec["attempts"][0]["error"] == "busy"
+
+
+def test_gemini_retry_waits_fixed():
+    """DECISIONS 2026-11-14: Gemini taşıma hatasında 30 / 60 / 120 sn, en çok 3 yeniden deneme."""
+    assert GEMINI_RETRY_WAITS == (30, 60, 120)
+
+
+@pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
+def test_gemini_transport_error_retried_up_to_three(server, status):
+    srv = server((status, "busy"), (status, "busy 2"), completion(json.dumps(GOOD)))
+    rec, sleeps = run("gemini-3.5-flash-lite", srv)
+    assert len(srv.requests) == 3 and sleeps == [30, 60]
+    assert rec["schema_valid"] is True and [a["status"] for a in rec["attempts"]] == [status, status, 200]
+    assert rec["raw_output"] == json.dumps(GOOD) and rec["error"] is None
+
+
+def test_gemini_fourth_transport_error_gives_up(server):
+    srv = server((503, "a"), (503, "b"), (503, "c"), (503, "d"), completion(json.dumps(GOOD)))
+    rec, sleeps = run("gemini-3.5-flash-lite", srv)
+    assert len(srv.requests) == 4 and sleeps == [30, 60, 120]
+    assert [a["status"] for a in rec["attempts"]] == [503] * 4
+    assert rec["schema_valid"] is False and rec["answer"] is None and rec["error"] == "d"
+    assert rec["schema_errors"] == ["no answer: HTTP 503"]
+
+
+def test_gemini_mixed_transport_errors_then_answer(server):
+    srv = server((429, "rate"), (500, "oops"), (504, "slow"), completion(json.dumps(GOOD)))
+    rec, sleeps = run("gemini-3.5-flash-lite", srv)
+    assert len(srv.requests) == 4 and sleeps == [30, 60, 120] and rec["schema_valid"] is True
+
+
+@pytest.mark.parametrize("status", [400, 401, 413])
+def test_gemini_other_http_errors_not_retried(server, status):
+    srv = server((status, "rejected"), completion(json.dumps(GOOD)))
+    rec, sleeps = run("gemini-3.5-flash-lite", srv)
+    assert len(srv.requests) == 1 and sleeps == [] and rec["error"] == "rejected"
+
+
+def test_gemini_transport_error_after_other_error_stops(server):
+    """Yeniden denemede taşıma dışı hata gelirse durur (o deneme son)."""
+    srv = server((503, "busy"), (400, "bad"), completion(json.dumps(GOOD)))
+    rec, sleeps = run("gemini-3.5-flash-lite", srv)
+    assert len(srv.requests) == 2 and sleeps == [30] and rec["error"] == "bad"
 
 
 def test_groq_retry_waits_gap(server):
