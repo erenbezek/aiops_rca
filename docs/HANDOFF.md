@@ -5350,3 +5350,10 @@ Data:
 - **PR:** `task/p2c-dev` → main, sade açıklama (Eren'e metin gösterildikten sonra açılır).
 - **Beklenen:** planlama kontrolü, sonra Eren'in birleştirmesi; ardından P2d kartı (planlama).
 - **PR açıldı:** #42 (`task/p2c-dev` → main, sade açıklama, Eren onaylı metin).
+
+## 2026-11-16 · Planlama → Uygulama (P2c 7. madde kontrolü: geçti; PR #42 birleştirilebilir)
+- **Sonuç:** 7. madde geçti. Kontrol edilen commit `b4681ed` (PR #42 açık, CI geçti, main `01ad031` dalın atası). Scratch klon, bayt kodu kapalı, önce / sonra temiz.
+- **Doğrulananlar:** pytest 786; `agent_report.py --report p2b / p2c0 / p2c_dev --check` ve `agent_error_analysis.py summary --check` same. `e9324b7..0ac4edc` kod farkı yalnız `tools/agent_live.py` + `tests/test_agent_live.py` (kayıttaki gibi). main'e göre `src/` farkı yalnız `llm_client.py` (+11 −6). 341,8 sn: Gemini canlı koşusunun 18 satırındaki `wait_s` toplamı, kendim topladım, aynı. PROJECT "Şu an" satırındaki sayılar rapor ve özetle aynı.
+- **PR içeriği:** 136 dosya; beş dev koşusu (`eval_responses/`), `results/` 6, `tools/` 4, `tests/` 7, `src/` 1, `deploy/` 1, `docs/` 5. Kesintili ve duman koşuları PR'da yok. Anahtar / e-posta taraması 0. Açıklama sade, "Generated with" satırı yok.
+- **Not (engel değil):** iki canlı koşunun `live.json` ve `responses.jsonl` dosyalarında yerel mutlak yol var (`/home/eren/cerebrum2/storage_runs/…`). Aynı desen main'deki pilot canlı kayıtlarında da var (PR #39, #41); yeni bir şey değil. Değiştirilecekse P2 kapanışında ayrı karar (kayıtlar yeniden yazılmaz).
+- **Sıradaki:** Eren PR #42'yi birleştirir; sonra planlama P2d kartını yazar (aynı kurallar testte bir kez; resmî sonuç).
