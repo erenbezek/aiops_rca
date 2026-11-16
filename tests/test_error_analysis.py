@@ -223,3 +223,84 @@ def test_summary_files_match_records():
     assert (ea.REPO / ea.SUMMARY_MD).read_text(encoding="utf-8") == md
     assert (ea.REPO / ea.SUMMARY_JSON).read_text(encoding="utf-8") == js
     assert ea.main(["summary", "--check"]) == 0
+
+
+# --- P2d 6. madde A: --set test (HANDOFF 2026-11-17); sahte test koşularıyla, gerçek test kaydı okunmaz ---
+
+def test_files_and_frozen_questions():
+    assert ea.FILES["dev"] == (ea.LABELS_FILE, ea.SUMMARY_MD, ea.SUMMARY_JSON)
+    assert [p.as_posix() for p in ea.FILES["test"]] == ["results/p1_test_error_labels.json",
+                                                         "results/p1_test_error_summary.md",
+                                                         "results/p1_test_error_summary.json"]
+    doc = json.loads((ea.REPO / ea.LABELS_FILE).read_text(encoding="utf-8"))
+    assert doc["questions_sha256"] == ea.QUESTIONS_SHA256 and ea.SEED == 20261104
+
+
+def test_heldout_labels_refused():
+    import pytest
+    with pytest.raises(PermissionError):
+        ea.set_labels("heldout")
+
+
+TIDS = [f"inc-{i + 100:08x}" for i in range(4)]
+
+
+def fake_test_repo(tmp_path, monkeypatch):
+    """`results/p1_runs.json` + sahte test koşuları (vaka 0: isabet, 1 ve 3: ıskalama, 2: şema dışı)."""
+    rows = []
+    for m in ea.MODELS_IN:
+        for lv in ea.LEVELS:
+            d = tmp_path / "eval_responses" / f"{m}-{lv}"
+            d.mkdir(parents=True)
+            cases = [{"incident_id": TIDS[0], "set": "test", "input_status": "ok", "no_answer": False,
+                      "schema_valid": True, "top1": True, "top3": True, "matched": ["payment"]},
+                     {"incident_id": TIDS[1], "set": "test", "input_status": "ok", "no_answer": False,
+                      "schema_valid": True, "top1": False, "top3": False, "matched": ["checkout"]},
+                     {"incident_id": TIDS[2], "set": "test", "input_status": "ok", "no_answer": False,
+                      "schema_valid": False, "top1": False, "top3": False, "matched": []},
+                     {"incident_id": TIDS[3], "set": "test", "input_status": "ok", "no_answer": False,
+                      "schema_valid": True, "top1": False, "top3": True, "matched": ["cart", "payment"]}]
+            (d / "scores.json").write_text(json.dumps({"cases": cases}))
+            (d / "responses.jsonl").write_text("".join(json.dumps({"incident_id": c}) + "\n" for c in TIDS))
+            rows.append({"method": "llm", "model": m, "level": lv, "info": False,
+                         "runs": {"dev": "eval_responses/DO-NOT-READ", "test": f"eval_responses/{m}-{lv}"}})
+    (tmp_path / "results").mkdir()
+    (tmp_path / "results" / "p1_runs.json").write_text(json.dumps({"note": "", "rows": rows}))
+    labels = {c: lab("payment", [["payment", "checkout"]]) for c in TIDS}
+    monkeypatch.setattr(ea, "set_labels", lambda s, repo=None: labels if s == "test" else {})
+    monkeypatch.setattr(ea, "name_misses", lambda repo: {})
+    return tmp_path
+
+
+def test_select_on_test_set(tmp_path, monkeypatch):
+    repo = fake_test_repo(tmp_path, monkeypatch)
+    rows, auto = ea.select(repo, "test")
+    assert [r["key"] for r in rows] == [f"{m} {lv} {c}" for m in ea.MODELS_IN for lv in ea.LEVELS
+                                        for c in (TIDS[1], TIDS[3])]
+    assert [r["t3"] for r in rows[:2]] == ["yes", "no"] and all(r["run_dir"].endswith(f"{r['model']}-{r['level']}")
+                                                                 for r in rows)
+    assert all((c["top1_hit"], c["in_scope"], c["schema_invalid"]) == (1, 2, 1) for c in auto.values())
+    assert ea.sample(rows) == ea.sample(rows, seed=20261104) and len(ea.sample(rows)) == 10
+
+
+def _test_doc(rows, questions):
+    out = [{"key": r["key"], "model": r["model"], "level": r["level"], "incident_id": r["incident_id"],
+            "root_visibility": "direct", "direct_signals": ["p95_ms"], "top3": r["top3"], "T1": "no", "T2": "yes",
+            "T3": r["t3"], "T4": "no", "T5": "no", "T6": "no", "reason": "x", "note": ""} for r in rows]
+    return {"questions": questions, "questions_sha256": ea.QUESTIONS_SHA256, "rows": out}
+
+
+def test_summary_on_test_set(tmp_path, monkeypatch):
+    import pytest
+    repo = fake_test_repo(tmp_path, monkeypatch)
+    rows, _ = ea.select(repo, "test")
+    questions = json.loads((ea.REPO / ea.LABELS_FILE).read_text(encoding="utf-8"))["questions"]
+    (repo / ea.FILES["test"][0]).write_text(json.dumps(_test_doc(rows, questions)))
+    res = ea.summary(repo, "test")
+    assert res["rows"] == 18 and res["traps"]["all"]["T3"]["yes"] == 9 and res["eren_check"]["n"] == 10
+    md = ea.summary_markdown(res, "test")
+    assert md.startswith("# P1 test hata analizi özeti") and "summary --set test" in md and "(test, satır" in md
+    assert "inc-" not in md
+    (repo / ea.FILES["test"][0]).write_text(json.dumps(_test_doc(rows, questions[:-1] + [questions[-1] + " "])))
+    with pytest.raises(ValueError, match="frozen P1e questions"):
+        ea.summary(repo, "test")

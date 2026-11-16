@@ -114,3 +114,20 @@ def test_classify_is_byte_exact(monkeypatch, live):
     """Kural bayt bayt (DECISIONS 2026-11-14): yalnız boşluk / satır sonu farkı da `same` değildir."""
     monkeypatch.setattr(ac.at, "run_tool", _fake_run_tool({frozenset(): "a", Z: "a", E: "a", ZE: "a"}))
     assert ac.classify_call(None, "search_spans", {}, live, len, STORES) == {"class": "unexplained", "diagnosis": None}
+
+
+@pytest.mark.parametrize("final, sets", [(False, ("pilot", "dev")), (True, ("test",))])
+def test_build_sets_by_final_test(monkeypatch, final, sets):
+    """P2d (HANDOFF 2026-11-17): `--final-test` yalnız test vakalarını yükler; varsayılan pilot / dev."""
+    seen = []
+    monkeypatch.setattr(ac, "load_cases", lambda s, final_test=False: seen.append((s, final_test)) or [])
+    assert ac.build([], len, final)["runs"] == [] and seen == [(sets, final)]
+
+
+def test_build_rejects_cases_outside_sets(monkeypatch, tmp_path):
+    d = new_run("agent", ("pilot",), 1, root=tmp_path, model_id="m", provider="gemini",
+                settings={"model": "gemini-3.5-flash-lite", "store": "LiveStore", "prompt_sha256": "p"})
+    append_agent_case(d, "inc-x", {"row": {"end_reason": "answer"}, "turns": [], "tool_outputs": []})
+    monkeypatch.setattr(ac, "load_cases", lambda s, final_test=False: [])
+    with pytest.raises(SystemExit, match="not test cases"):
+        ac.build([(d, None)], len, True)

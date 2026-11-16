@@ -219,3 +219,43 @@ def test_main_rejects_bad_models(models, capsys):
     case = _cases()[0].incident_id
     assert agent_live.main(["--model", models, "--cases", case]) == 2
     assert "error: models" in capsys.readouterr().err
+
+
+# --- P2d (HANDOFF 2026-11-17): --final-test yalnız test vakalarını açar; varsayılan aynı ---
+
+class _Fake:
+    incident_id = "inc-t0000000"
+
+
+@pytest.mark.parametrize("flag, sets, final", [([], ("pilot", "dev"), False), (["--final-test"], ("test",), True)])
+def test_main_sets_by_final_test(monkeypatch, flag, sets, final):
+    seen = {}
+    monkeypatch.setenv("SCENARIO_RUNNER_INHIBITED", "1")
+    monkeypatch.setattr(agent_live, "load_cases", lambda s, final_test=False: seen.update(load=(s, final_test))
+                        or [_Fake()])
+    monkeypatch.setattr(agent_live, "run", lambda models, cases, root, s: seen.update(run=s) or 0)
+    assert agent_live.main(["--model", GEM, "--cases", _Fake.incident_id, *flag]) == 0
+    assert seen == {"load": (sets, final), "run": sets}
+
+
+def test_main_final_test_rejects_other_cases(monkeypatch, capsys):
+    monkeypatch.setattr(agent_live, "load_cases", lambda s, final_test=False: [_Fake()])
+    assert agent_live.main(["--model", GEM, "--cases", _cases()[0].incident_id, "--final-test"]) == 2
+    assert "not valid test cases" in capsys.readouterr().err
+
+
+def test_heldout_never_loaded():
+    with pytest.raises(PermissionError):
+        agent_live.load_cases(("heldout",), final_test=True)
+
+
+def test_run_records_given_sets(monkeypatch, tmp_path):
+    FakeWorld(monkeypatch, tmp_path)
+    assert agent_live.run([GEM], _cases(), tmp_path / "out", ("test",)) == 0
+    d, _, _ = _read(tmp_path / "out", GEM)
+    assert json.loads((d / "run.json").read_text())["sets"] == ["test"]
+    FakeWorld(monkeypatch, tmp_path / "b")
+    (tmp_path / "b").mkdir()
+    assert agent_live.run([GEM], _cases(), tmp_path / "b" / "out") == 0
+    d, _, _ = _read(tmp_path / "b" / "out", GEM)
+    assert json.loads((d / "run.json").read_text())["sets"] == ["pilot", "dev"]

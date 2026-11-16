@@ -5,6 +5,7 @@
     python -m aiops_rca.error_analysis dossier --out DIR   # satır başına çalışma dosyası (snapshot + yerel tokenizer)
     python -m aiops_rca.error_analysis sample              # Eren doğrulaması için 10 satır (tohum 20261104)
     python -m aiops_rca.error_analysis summary [--check]   # results/p1_error_summary.md / .json (yalnız sayımlar)
+    python -m aiops_rca.error_analysis <komut> --set test  # P1 test başarısızları (P2d 6. madde A)
 
 Kapsam: `results/p1_runs.json`'daki dev koşularından (P1d a1, gerçek ad) 4B, gpt-oss ve Gemini × ham / özet / daraltma;
 girdi sorulmuş (`input_status` ok), cevap gelmiş, şema içi ve top-1'i ıskalayan satırlar. Kural, BARO, daraltma
@@ -23,6 +24,10 @@ satırın saatine göre sayılır. En az bir sinyal → `direct`. `indirect` / `
 `dossier`: her satır için modelin o seviyedeki girdisi yeniden üretilir (`inputs.<seviye>_input`, sayım yerel Qwen
 tokenizer'ıyla; sunucu açılır, üretim yapılmaz) ve sha256'sı kayıttaki `input_sha256` ile aynı olmalı (değilse
 durur). Dosyada etiket, T3, modelin cevabı ve girdi. Test vakası hiç okunmaz.
+
+`--set test` (HANDOFF 2026-11-17, P2d): aynı seçim ve sorular `results/p1_runs.json`'daki test koşularına; etiketler
+`results/p1_test_error_labels.json`, özet `results/p1_test_error_summary.md` / `.json`; örneklem tohumu aynı. Etiket
+dosyasının soruları dev'dekiyle aynı olmalı (sha256 `QUESTIONS_SHA256`). Varsayılan dev; dev çıktıları değişmez.
 
 `summary` (HANDOFF 2026-11-05): etiket dosyasından tuzak × model × seviye sayımları, otomatik türler, kökün
 görünürlüğüne göre T3, Eren doğrulamasının durumu (`eren_check.agree`; 10 satırın ≥ 3'ünde katılmıyorum → yeniden
@@ -55,9 +60,14 @@ def _jsonl(path: Path) -> list[dict]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
+def set_labels(set_: str, repo: Path = REPO) -> dict[str, dict]:
+    """`set_` (dev ya da test) etiketleri; test yalnız açıkça istenince (`_check_sets(..., final_test=True)`)."""
+    _check_sets((set_,), set_ == "test")
+    return {d["incident_id"]: d for d in _labels((set_,), repo / "incidents")}
+
+
 def dev_labels(repo: Path = REPO) -> dict[str, dict]:
-    _check_sets(("dev",), False)
-    return {d["incident_id"]: d for d in _labels(("dev",), repo / "incidents")}
+    return set_labels("dev", repo)
 
 
 def t3(matched_first: str | None, label: dict) -> str:
@@ -140,19 +150,19 @@ def kind(score: dict, resp: dict) -> str:
     return "top1_hit" if score["top1"] else "in_scope"
 
 
-def select(repo: Path = REPO) -> tuple[list[dict], dict]:
+def select(repo: Path = REPO, set_: str = "dev") -> tuple[list[dict], dict]:
     """(kapsamdaki satırlar, (model, seviye) → otomatik tür sayıları). Satırlar model, seviye, vaka sırasıyla."""
     spec = json.loads((repo / "results" / "p1_runs.json").read_text(encoding="utf-8"))
-    labels = dev_labels(repo)
+    labels = set_labels(set_, repo)
     rows, auto = [], {}
     for model in MODELS_IN:
         for level in LEVELS:
-            run_dir = next(r["runs"]["dev"] for r in spec["rows"]
+            run_dir = next(r["runs"][set_] for r in spec["rows"]
                            if r["method"] == "llm" and (r["model"], r["level"]) == (model, level))
             scores = json.loads((repo / run_dir / "scores.json").read_text(encoding="utf-8"))
             resp = {r["incident_id"]: r for r in _jsonl(repo / run_dir / "responses.jsonl")}
             counts = dict.fromkeys(AUTO, 0)
-            for c in sorted((c for c in scores["cases"] if c["set"] == "dev"), key=lambda c: c["incident_id"]):
+            for c in sorted((c for c in scores["cases"] if c["set"] == set_), key=lambda c: c["incident_id"]):
                 k = kind(c, resp[c["incident_id"]])
                 counts[k] += 1
                 if k == "in_scope":
@@ -178,6 +188,11 @@ VISIBILITY = ("direct", "indirect", "absent")
 DISAGREE_MAX = 2  # HANDOFF 2026-11-04: 10 satırın ≥ 3'ünde katılmıyorum → sorular netleşir, 29 satır yeniden
 LABELS_FILE = Path("results") / "p1_error_labels.json"
 SUMMARY_MD, SUMMARY_JSON = Path("results") / "p1_error_summary.md", Path("results") / "p1_error_summary.json"
+QUESTIONS_SHA256 = "dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7"  # P1e soruları (donmuş)
+# set → (etiket dosyası, özet md, özet json); test P2d 6. madde A (HANDOFF 2026-11-17)
+FILES = {"dev": (LABELS_FILE, SUMMARY_MD, SUMMARY_JSON),
+         "test": (Path("results") / "p1_test_error_labels.json", Path("results") / "p1_test_error_summary.md",
+                  Path("results") / "p1_test_error_summary.json")}
 
 
 def name_key(name: str) -> str:
@@ -218,10 +233,13 @@ def name_misses(repo: Path = REPO) -> dict:
     return out
 
 
-def summary(repo: Path = REPO) -> dict:
-    labels_path = repo / LABELS_FILE
+def summary(repo: Path = REPO, set_: str = "dev") -> dict:
+    labels_path = repo / FILES[set_][0]
     doc = json.loads(labels_path.read_text(encoding="utf-8"))
-    rows, auto = select(repo)
+    if doc["questions_sha256"] != QUESTIONS_SHA256 or \
+            hashlib.sha256("\n".join(doc["questions"]).encode()).hexdigest() != QUESTIONS_SHA256:
+        raise ValueError("questions in the label file differ from the frozen P1e questions")
+    rows, auto = select(repo, set_)
     if [x["key"] for x in doc["rows"]] != [r["key"] for r in rows]:
         raise ValueError("label rows differ from the selection")
     cells = [f"{m} {lv}" for m in MODELS_IN for lv in LEVELS]
@@ -255,16 +273,19 @@ def _cell_text(cell: str) -> str:
     return f"{model} {LEVEL_TEXT[level]}"
 
 
-def summary_markdown(res: dict) -> str:
+def summary_markdown(res: dict, set_: str = "dev") -> str:
     auto_cols = (("empty", "boş"), ("over_budget", "bütçe aşımı"), ("no_answer", "cevapsız"),
                  ("schema_invalid", "şema dışı"), ("repetition_loop", "tekrar döngüsü"), ("top1_hit", "top-1 isabet"),
                  ("in_scope", "etiketlenen"))
-    out = ["# P1e hata analizi özeti", "",
-           f"Üreten: `python -m aiops_rca.error_analysis summary`. Etiketler `{LABELS_FILE.as_posix()}` sha256 "
+    title = "# P1e hata analizi özeti" if set_ == "dev" else "# P1 test hata analizi özeti (P2d)"
+    cmd = "summary" if set_ == "dev" else f"summary --set {set_}"
+    runs = "P1d a1 (gerçek ad)" if set_ == "dev" else "P1e test koşuları"
+    out = [title, "",
+           f"Üreten: `python -m aiops_rca.error_analysis {cmd}`. Etiketler `{FILES[set_][0].as_posix()}` sha256 "
            f"`{res['labels_sha256']}`, sorular sha256 `{res['questions_sha256']}` (tam metin etiket dosyasında). "
-           f"Kapsam: dev, P1d a1 (gerçek ad), 4B / gpt-oss / Gemini × ham / özet / daraltma; girdi sorulmuş, şema "
+           f"Kapsam: {set_}, {runs}, 4B / gpt-oss / Gemini × ham / özet / daraltma; girdi sorulmuş, şema "
            f"içi, top-1'i ıskalayan {res['rows']} satır.", "",
-           "## 1. Otomatik türler (dev, satır başına 18 vaka)", "",
+           f"## 1. Otomatik türler ({set_}, satır başına 18 vaka)", "",
            "| Satır | " + " | ".join(t for _, t in auto_cols) + " |", "|---" * (len(auto_cols) + 1) + "|"]
     for cell, c in res["auto"].items():
         out.append(f"| {_cell_text(cell)} | " + " | ".join(str(c[k]) for k, _ in auto_cols) + " |")
@@ -301,22 +322,22 @@ def summary_markdown(res: dict) -> str:
     return "\n".join(out)
 
 
-def summary_render(repo: Path = REPO) -> tuple[str, str]:
-    res = summary(repo)
-    return summary_markdown(res), json.dumps(res, ensure_ascii=False, indent=1) + "\n"
+def summary_render(repo: Path = REPO, set_: str = "dev") -> tuple[str, str]:
+    res = summary(repo, set_)
+    return summary_markdown(res, set_), json.dumps(res, ensure_ascii=False, indent=1) + "\n"
 
 
 # --- çalışma dosyası (yerel; snapshot ve tokenizer sunucusu ister) ---
 
-def dossier(out: Path, repo: Path = REPO) -> list[dict]:
+def dossier(out: Path, repo: Path = REPO, set_: str = "dev") -> list[dict]:
     from aiops_rca import inputs
     from aiops_rca.cases import load_cases
     from aiops_rca.llm_client import MODELS, LocalServer, count_tokens
     from aiops_rca.methods.llm import TOKENIZER
 
-    rows, _ = select(repo)
-    labels = dev_labels(repo)
-    cases = {c.incident_id: c for c in load_cases(("dev",))}
+    rows, _ = select(repo, set_)
+    labels = set_labels(set_, repo)
+    cases = {c.incident_id: c for c in load_cases((set_,), final_test=set_ == "test")}
     out.mkdir(parents=True, exist_ok=True)
     index = []
     with LocalServer(MODELS[TOKENIZER].gguf) as server:
@@ -350,16 +371,19 @@ def dossier(out: Path, repo: Path = REPO) -> list[dict]:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m aiops_rca.error_analysis", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("select")
-    d = sub.add_parser("dossier")
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--set", dest="set_", choices=sorted(FILES), default="dev",
+                        help="dev (default) or test (P2d); heldout is never allowed")
+    sub.add_parser("select", parents=[common])
+    d = sub.add_parser("dossier", parents=[common])
     d.add_argument("--out", type=Path, required=True)
-    sub.add_parser("sample")
-    sm = sub.add_parser("summary")
+    sub.add_parser("sample", parents=[common])
+    sm = sub.add_parser("summary", parents=[common])
     sm.add_argument("--check", action="store_true", help="regenerate and compare with the files in the repo")
     args = p.parse_args(argv)
     if args.cmd == "summary":
-        md, js = summary_render()
-        files = ((REPO / SUMMARY_MD, md), (REPO / SUMMARY_JSON, js))
+        md, js = summary_render(REPO, args.set_)
+        files = ((REPO / FILES[args.set_][1], md), (REPO / FILES[args.set_][2], js))
         if args.check:
             same = [path.exists() and path.read_text(encoding="utf-8") == text for path, text in files]
             print("same" if all(same) else "differs: " + ", ".join(f.name for (f, _), ok in zip(files, same) if not ok))
@@ -368,13 +392,13 @@ def main(argv: list[str] | None = None) -> int:
             path.write_text(text, encoding="utf-8")
             print(f"{path.relative_to(REPO)} {hashlib.sha256(path.read_bytes()).hexdigest()}")
         return 0
-    rows, auto = select()
+    rows, auto = select(REPO, args.set_)
     if args.cmd == "select":
         print(json.dumps({"rows": [r["key"] for r in rows], "auto": auto}, ensure_ascii=False, indent=1))
     elif args.cmd == "sample":
         print("\n".join(sample(rows)))
     else:
-        index = dossier(args.out)
+        index = dossier(args.out, REPO, args.set_)
         print(f"{len(index)} files, input sha256 equal to the records: {args.out}")
     return 0
 

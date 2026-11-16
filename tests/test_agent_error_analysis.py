@@ -1,6 +1,6 @@
 """`tools/agent_error_analysis.py` (P2c 2. ve 6. madde): soru metni DECISIONS'la aynı, kodla sayılan tuzaklar, seçim ve
 özet denetimleri sahte kayıtlarla; gerçek etiket dosyasındaki Eren doğrulaması ve repodaki özetin kayıtlardan aynen
-üretilmesi gerçek dev kayıtlarıyla."""
+üretilmesi gerçek dev kayıtlarıyla. P2d 2. madde: `--set test` sahte test kayıtlarıyla; boş `TEST_RUNS`."""
 from __future__ import annotations
 
 import json
@@ -75,7 +75,7 @@ def test_t7_counts_only_first_candidate_calls():
 
 # --- seçim ve özet, sahte koşularla ---
 
-def _run(d: Path, model: str, cases: dict):
+def _run(d: Path, model: str, cases: dict, set_: str = "dev"):
     d.mkdir(parents=True)
     (d / "run.json").write_text(json.dumps({"settings": {"model": model}}))
     (d / "tool_outputs").mkdir()
@@ -85,7 +85,7 @@ def _run(d: Path, model: str, cases: dict):
         rows.append({"incident_id": cid, "end_reason": "answer" if valid else "schema_answer", "schema_valid": valid,
                      "answer": ans})
         turns.append({"incident_id": cid, **turn(0, "search_spans", service="cart")})
-        scores.append({"incident_id": cid, "set": "dev", "top1": top1, "top3": top1,
+        scores.append({"incident_id": cid, "set": set_, "top1": top1, "top3": top1,
                        "matched": ["cart"] if valid else []})
         (d / "tool_outputs" / f"{cid}.jsonl").write_text(json.dumps({"turn": 0, "text": "x"}) + "\n")
     (d / "responses.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
@@ -93,14 +93,18 @@ def _run(d: Path, model: str, cases: dict):
     (d / "scores.json").write_text(json.dumps({"cases": scores}))
 
 
-@pytest.fixture
-def world(tmp_path):
+def _world(tmp_path, set_):
     ids = [f"inc-{i:08x}" for i in range(4)]
     _run(tmp_path / "g", "gemini-3.5-flash-lite", {ids[0]: (True, True), ids[1]: (False, True), ids[2]: (False, False),
-                                                   ids[3]: (True, True)})
-    _run(tmp_path / "q", "qwen3.5-4b", {i: (False, True) for i in ids})
+                                                   ids[3]: (True, True)}, set_)
+    _run(tmp_path / "q", "qwen3.5-4b", {i: (False, True) for i in ids}, set_)
     runs = {"gemini_file": ("g", "G"), "qwen_file": ("q", "Q")}
     return runs, tmp_path, {i: LABEL for i in ids}
+
+
+@pytest.fixture
+def world(tmp_path):
+    return _world(tmp_path, "dev")
 
 
 def test_select_scope(world):
@@ -121,12 +125,13 @@ def _labels_doc(rows, **override):
     return {"questions": ea.QUESTIONS, "questions_sha256": ea.questions_sha256(), "rows": out}
 
 
-def _summary(tmp_path, world, doc, monkeypatch):
+def _summary(tmp_path, world, doc, monkeypatch, set_="dev"):
     runs, ev, labels = world
     (tmp_path / "results").mkdir(exist_ok=True)
-    (tmp_path / ea.LABELS_FILE).write_text(json.dumps(doc))
+    (tmp_path / ea.FILES[set_][0]).write_text(json.dumps(doc))
     monkeypatch.setattr(ea, "dev_labels", lambda repo: labels)
-    return ea.summary(tmp_path, runs, ev)
+    monkeypatch.setattr(ea, "set_labels", lambda s, repo: labels if s == "test" else pytest.fail("dev via set_labels"))
+    return ea.summary(tmp_path, runs, ev, set_)
 
 
 def test_summary_counts_and_checks(tmp_path, world, monkeypatch):
@@ -154,6 +159,36 @@ def test_summary_rejects_changed_questions(tmp_path, world, monkeypatch):
     doc["questions"] = doc["questions"] + " "
     with pytest.raises(ValueError, match="questions"):
         _summary(tmp_path, world, doc, monkeypatch)
+
+
+# --- P2d: --set test (HANDOFF 2026-11-17) ---
+
+def test_files_by_set():
+    assert ea.FILES["dev"] == (ea.LABELS_FILE, ea.SUMMARY_MD, ea.SUMMARY_JSON)
+    assert [p.as_posix() for p in ea.FILES["test"]] == ["results/p2d_error_labels.json", "results/p2d_error_summary.md",
+                                                         "results/p2d_error_summary.json"]
+
+
+def test_select_and_summary_on_test_set(tmp_path, monkeypatch):
+    w = _world(tmp_path, "test")
+    runs, ev, labels = w
+    rows, info = ea.select(runs, ev, labels, "test")
+    assert [r["key"].split()[0] for r in rows] == ["gemini-3.5-flash-lite"] * 2 + ["qwen3.5-4b"] * 4
+    dev_rows, dev_info = ea.select(runs, ev, labels, "dev")  # set süzgeci: test satırı dev'e girmez
+    assert dev_rows == [] and all(v["n"] == 0 for v in dev_info.values()) and info["qwen3.5-4b"]["n"] == 4
+    assert ea.sample(rows) == ea.sample(rows, seed=20261104)  # tohum aynı
+    res = _summary(tmp_path, w, _labels_doc(rows), monkeypatch, "test")
+    assert res["rows"] == 6 and res["eren_check"]["reading"] == "pending"
+    md = ea.summary_markdown(res, "test")
+    assert md.startswith("# P2d test hata analizi özeti") and "summary --set test" in md
+    assert "results/p2d_error_labels.json" in md and "Kapsam: test," in md
+
+
+def test_test_runs_empty_until_runs():
+    with pytest.raises(SystemExit, match="TEST_RUNS not filled"):
+        ea.select(set_="test")
+    with pytest.raises(SystemExit, match="TEST_RUNS not filled"):
+        ea.main(["summary", "--set", "test", "--check"])
 
 
 # --- gerçek dev kayıtları ---
