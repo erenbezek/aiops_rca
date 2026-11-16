@@ -5349,3 +5349,4 @@ Data:
 - **Doğrulama:** pytest 786; `agent_report.py --report p2b / p2c0 / p2c_dev --check` same; `agent_error_analysis.py summary --check` same.
 - **PR:** `task/p2c-dev` → main, sade açıklama (Eren'e metin gösterildikten sonra açılır).
 - **Beklenen:** planlama kontrolü, sonra Eren'in birleştirmesi; ardından P2d kartı (planlama).
+- **PR açıldı:** #42 (`task/p2c-dev` → main, sade açıklama, Eren onaylı metin).
