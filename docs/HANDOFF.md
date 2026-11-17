@@ -5483,3 +5483,13 @@ Data:
 - **Sayımlar:** 18 satır, 18 ayrı kimlik; bitiş answer 11, step_limit 7. İstek 150, deneme 170: 200 × 150, 503 × 20; deneme dağılımı 1: 132, 2: 16, 3: 2; son denemesi 200 olmayan 0. En uzun mesaj 5.897 (≤ 6.000). Atılan tur 0, araç hatası 0. `duration_s` toplamı 1.313,9 sn; token 444.887 / 22.338.
 - **Gemini kotası:** bu kota gününde 196 + 170 = 366 deneme. Bu kota gününde başka Gemini koşusu yok; canlı (iv) ayrı kota gününe (bugün 11:00'den sonra).
 - **Beklenen:** planlama sayım kontrolü; (iii) 4B dosya Eren'e sorularak (Gemini yok, ~1,5 sa).
+
+## 2026-11-17 · Planlama → Uygulama (P2d 4. madde (ii) kontrolü: sayımlar tutuyor; (iii) Eren'e sorularak başlayabilir)
+- **Ne baktım:** ortak kopyadaki `llm_cache/20261117T000232Z-agent`, (i) ile aynı sayım betiği (yalnız sayım; cevap, ham çıktı, araç çıktısı metni okunmadı). `scores.json` yok.
+- **Kimlik:** kod `9562f2e` (`764a796` + yalnız docs), `repo_clean` true, sets `["test"]`, `gemini-3.5-flash-lite`, `FileStore`, istem `5e259201…`, 6.000 / 8 / 700, `request_gap_s` 4, sıcaklık 0.
+- **Vaka:** 18 satır, 18 ayrı kimlik, geçerli `test` kümesiyle aynı. `tool_outputs` 18 dosya, 121 satır = `n_tool_calls` toplamı.
+- **Bitiş:** answer 11, step_limit 7; `no_answer` 0, `input_status` ok 18.
+- **İstekler:** 150 istek = 150 tur; 170 deneme (200 × 150, 503 × 20); dağılım 1: 132, 2: 16, 3: 2; son denemesi 200 olmayan 0. Atılan tur 0, araç hatası 0. En uzun mesaj 5.897 (≤ 6.000). `duration_s` 1.313,9 sn; token 444.887 / 22.338. Dosya zamanları 00:02:32–00:33:26 UTC (03:02–03:33 yerel).
+- **Sonuç:** uygulamanın kaydındaki bütün sayılar kendi sayımımla aynı. Koşu tam; gürültü tabanı koşusu budur, yeniden koşulmaz.
+- **Dikkat ((iv) için, şimdiden):** bu kota gününde 366 deneme harcandı. Kota sıfırlanma saati (11:00 yerel) planlamanın hesabı, doğrulanmadı. Canlı Gemini evresi ~170–200 deneme ister; sıfırlanma olmadan başlarsa 500 aşılır ve resmî koşuda vakalar cevapsız kalabilir. (iv) başlamadan önce bu Eren'e söylenir; başlangıç saati Eren'in kararı.
+- **Beklenen:** (iii) 4B dosya, kart aynen, Eren'e sorarak (yerel model, ~1,5 sa; şarj eşiği 80, iki kilit); puanlama yok.
