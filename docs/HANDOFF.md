@@ -5543,3 +5543,16 @@ Data:
 - **Testler:** `test_p2d_report_reproduces` (yeni; `TEST_RUNS` dolu, kesinti yok, `--report p2d --check` bayt aynı); `test_p2d_requires_test_runs` ve `test_test_runs_empty_until_runs` boş `TEST_RUNS`'u monkeypatch'le kuruyor (kapı sınanmaya devam ediyor). Kasıtlı kırmızı (scratch kopyada `p2d_test.md`'ye bir satır) → `reproduces` kırmızı. pytest 807 yeşil.
 - **Yeni ad:** `test_p2d_report_reproduces` (test adı).
 - **Beklenen:** planlama kontrolü (bağımsız yeniden puanlama ve hücreler); sonra 6. madde Eren'e sorularak.
+
+## 2026-11-17 · Planlama → Uygulama (P2d 5. madde kontrolü: geçti; 6. madde Eren'e sorularak)
+- **Ne baktım (yalnız toplam; vaka kimliği yazdırılmadı):** scratch klon `bb4dc58`; kendi betiğim (dev'deki 5. madde kontrol betiğinin test hâli) beş koşuyu kayıtlardan yeniden kurdu ve etiketlerle yeniden puanladı.
+- **Kod:** `764a796`'dan beri kod farkı yalnız `TEST_RUNS`'un beş klasörü; test dosyalarında kapı testleri monkeypatch'e geçti, `test_p2d_report_reproduces` eklendi.
+- **Kopya:** beş klasör `llm_cache/` ile sha256 aynı; repoda fazladan yalnız `scores.json`.
+- **Yeniden puanlama:** top-1 / top-3 benim = `scores.json` = rapor: Gemini dosya 1 10 / 14, dosya 2 10 / 15, canlı 5 / 12; 4B dosya 4 / 7, canlı 4 / 7. Vaka düzeyinde puanlayıcıyla fark 0, kayıt tutarlılığında sorun 0. Bitişler, geçerli cevap, istek, en uzun mesaj, tekrar, araç hatası, yeniden deneme ve bekleme sayıları raporla aynı.
+- **Hücreler (kendi işaret testim ve Fisher'ım):** dosya ↔ canlı top-3 Gemini 14 / 12 (4 / 2, p = 0.6875), 4B 7 / 7 (0 / 0, p = 1.0); ajan ↔ ham top-3 Gemini 14 / 6 (9 / 1, p = 0.0215, ajan lehine fark), 4B 7 / 7 (3 / 3, p = 1.0); ajan ↔ daraltma top-1 Gemini 10 / 15 (1 / 6, p = 0.125), 4B 4 / 9 (1 / 6, p = 0.125); gürültü tabanı 3 / 18 ve 6 / 18; dev–test Fisher Gemini 14 → 14 p = 1.0, 4B 9 → 7 p = 0.738. Hepsi raporla aynı.
+- **Çağrı düzeyi:** 4B canlının 143 araç çıktısı 4B dosya çıktısıyla bayt aynı, 18 / 18 vakada ham çıktılar birebir. Gemini canlının 123 çağrısından 45'inin dosya koşularında karşılığı var ve hepsi aynı (farklı 0). Kalan 78 çağrıyı yeniden kurmadım; yerel tokenizer sunucusu ister. Bunlar için uygulamanın 123 / 123 sonucuna dayanıyorum. `p2d_test_calls.json` sha raporla aynı.
+- **Rapor:** `--report p2d --check` scratch'te "same", çıkış 0. `p2d_test.md` / `.json` içinde vaka kimliği 0. `p2d_test_calls.json` dev'deki çağrı dosyası gibi vaka kimliği içeriyor (54); içinde doğruluk yok, yalnız çağrı eşitliği var, kartla çelişmiyor. pytest 807 yeşil.
+- **Kasıtlı kırmızı (scratch, 2):** canlı `scores.json`'da bir top-3 çevrildi → `--check` çıkış 1. `TEST_RUNS`'ta 4B canlı klasörü dosya klasörüyle değiştirildi → `test_p2d_report_reproduces` kırmızı. Geri alındı, kopya temiz.
+- **Sızıntı:** kendi taramamda 0. Ben çözülmüş metni taradım (406.100 karakter); uygulama dosya baytlarını saydı (477.315); fark JSON kaçışları.
+- **Not (betimsel, okuma kuralı değil):** Gemini canlı top-1 5 / 18, dosyada 10 / 18. Okuma kuralı top-3 üzerinde ve sonuç "ayırt edilemedi"; top-1 farkı için yeni test yok, kural değişmez. Raporda ve sınırlamalarda sayı olarak durur.
+- **Beklenen:** 6. madde, kart aynen, Eren'e sorarak: A (P1 test başarısızlıkları, P1e soruları) ve B (ajan ıskalamaları, P2 soruları); her birinde Eren 10 tohumlu satırı doğrular. Planlamaya yalnız toplamlar ve kodlu sayımlar gelir.
