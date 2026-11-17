@@ -65,11 +65,11 @@ DEV_INTERRUPTED = [("20261115T132147Z-agent", "20261115T132149Z-agent", 5,
                    ("20261115T141055Z-agent", "20261115T141057Z-agent", 2,
                     "durduruldu (yerel sunucunun istem önbelleği vaka başına büyüyordu)")]
 # P2d test koşuları (kart 4. madde); klasörler koşulardan sonra yazılır (5. madde). Anahtarlar ve etiketler dev'deki gibi.
-TEST_RUNS = {"gemini_file": (None, "Gemini, dosya, 1. koşu (resmî)"),
-             "gemini_file_2": (None, "Gemini, dosya, 2. koşu (gürültü tabanı)"),
-             "qwen_file": (None, "qwen3.5-4b, dosya"),
-             "gemini_live": (None, "Gemini, canlı"),
-             "qwen_live": (None, "qwen3.5-4b, canlı")}
+TEST_RUNS = {"gemini_file": ("20261116T230248Z-agent", "Gemini, dosya, 1. koşu (resmî)"),
+             "gemini_file_2": ("20261117T000232Z-agent", "Gemini, dosya, 2. koşu (gürültü tabanı)"),
+             "qwen_file": ("20261117T003612Z-agent", "qwen3.5-4b, dosya"),
+             "gemini_live": ("20261117T080509Z-agent", "Gemini, canlı"),
+             "qwen_live": ("20261117T080511Z-agent", "qwen3.5-4b, canlı")}
 # Test koşularının teknik kesintileri (kart 4. madde; puanlamadan önce yazılır): (Gemini klasörü, 4B klasörü, iki modelde
 # oynatılan vaka, neden).
 TEST_INTERRUPTED: list[tuple[str, str, int, str]] = []

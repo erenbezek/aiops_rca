@@ -5529,3 +5529,17 @@ Data:
 - **Sonuç:** uygulamanın kaydındaki bütün sayılar kendi sayımımla aynı. Dört test koşusu tam; hiçbiri kesilmedi, hiçbiri yeniden koşulmaz. 4. madde bitti.
 - **Not:** bir Gemini isteği yine 4. denemede cevaplandı; kural içinde. Kota: yeni kota gününde 182 deneme, 429 yok.
 - **Beklenen:** 5. madde, kart aynen, Eren'e sorarak: dosya koşularını `eval_responses/`'a bayt-aynı kopya, `evaluate score --final-test`, `agent_compare.py --final-test`, `TEST_RUNS` doldurma, `--report p2d` (yalnız toplam), `test_p2d_requires_test_runs` → `--report p2d --check`. Açıklanamayan çağrı farkları 6. maddeden önce açılmaz. Planlamaya raporda yalnız toplamlar gelir.
+
+## 2026-11-17 · Uygulama → Planlama (P2d 5. madde: puanlama ve rapor; yalnız toplam)
+- **Plan (Eren onaylı):** beş test koşusu `eval_responses/`'e bayt aynı, `evaluate score --final-test`, `agent_compare.py --final-test`, `TEST_RUNS`, `--report p2d` + CI denetimi, sızıntı taraması.
+- **Kopya:** beş klasör (21 / 21 / 21 / 22 / 22 dosya) `llm_cache/` ile sha256 aynı; puanlamadan sonra `diff -r` farkı yalnız yeni `scores.json`.
+- **Çağrı düzeyi (`results/p2d_test_calls.json`):** Gemini 123 / 123 `same`, 4B 143 / 143 `same`; `zero_duration` 0, açıklanamayan 0; 4B denetimi model ayrıştı 0, araç çıktısı farklı 0, baştan sona aynı 18.
+- **Rapor (`results/p2d_test.md` / `.json`, vaka kimliği 0):** top-3 / top-1 Gemini dosya 1 14 / 10, dosya 2 15 / 10, canlı 12 / 5; 4B dosya 7 / 4, canlı 7 / 4.
+  - Dosya ↔ canlı top-3: Gemini p = 0.6875, 4B p = 1.0 → ayırt edilemedi. Gürültü tabanı (Gemini): dosya 1 ↔ dosya 2 3 / 18, dosya 1 ↔ canlı 6 / 18.
+  - Ajan ↔ P1: Gemini ajan ↔ ham top-3 14 / 6, p = 0.0215 → fark, ajan lehine; Gemini ajan ↔ daraltma top-1 10 / 15, p = 0.125; 4B ham 7 / 7, p = 1.0; 4B daraltma 4 / 9, p = 0.125 → üçü ayırt edilemedi.
+  - Dev–test (Fisher, top-3): Gemini 14 → 14, p = 1.0; 4B 9 → 7, p = 0.738 → ayırt edilemedi.
+  - Bütçe yeniden açma kuralı beş koşuda 0 / 18 (tetiklenmedi); teknik kesinti 0.
+- **Sızıntı:** beş koşunun `tool_outputs/` metni (477.315 karakter) `leakage.FLAG_NAME`, `TEXT_RULES` (5 kural) ve dev'deki ek terimlerle (flagd, load-generator, chaos, inject, scenario, fault, stress-ng) tarandı: 0.
+- **Testler:** `test_p2d_report_reproduces` (yeni; `TEST_RUNS` dolu, kesinti yok, `--report p2d --check` bayt aynı); `test_p2d_requires_test_runs` ve `test_test_runs_empty_until_runs` boş `TEST_RUNS`'u monkeypatch'le kuruyor (kapı sınanmaya devam ediyor). Kasıtlı kırmızı (scratch kopyada `p2d_test.md`'ye bir satır) → `reproduces` kırmızı. pytest 807 yeşil.
+- **Yeni ad:** `test_p2d_report_reproduces` (test adı).
+- **Beklenen:** planlama kontrolü (bağımsız yeniden puanlama ve hücreler); sonra 6. madde Eren'e sorularak.

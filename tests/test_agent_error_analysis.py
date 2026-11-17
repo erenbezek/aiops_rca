@@ -184,7 +184,9 @@ def test_select_and_summary_on_test_set(tmp_path, monkeypatch):
     assert "results/p2d_error_labels.json" in md and "Kapsam: test," in md
 
 
-def test_test_runs_empty_until_runs():
+def test_test_runs_empty_until_runs(monkeypatch):
+    """Boş `TEST_RUNS` kapısı: koşular girdikten sonra da (P2d 5. madde) boş durumda hata verir."""
+    monkeypatch.setattr(ea.ar, "TEST_RUNS", {k: (None, n) for k, (_, n) in ea.ar.TEST_RUNS.items()})
     with pytest.raises(SystemExit, match="TEST_RUNS not filled"):
         ea.select(set_="test")
     with pytest.raises(SystemExit, match="TEST_RUNS not filled"):

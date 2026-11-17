@@ -275,10 +275,16 @@ def test_p2d_power_matches_card():
     assert ar._reach(14, 18, 18) == "≤ 7" and ar._reach(9, 18, 18) == "≤ 2 ya da ≥ 16"
 
 
-def test_p2d_requires_test_runs():
-    """Planlama kontrolü 2026-11-17 şart 4: koşular girene kadar `TEST_RUNS` boş ve rapor üretilmez (CI bu boş durumu
-    sınar; koşular girince yerini bayt aynı denetimi alır)."""
-    assert all(d is None for d, _ in ar.TEST_RUNS.values()) and set(ar.TEST_RUNS) == set(ar.DEV_RUNS)
+def test_p2d_report_reproduces():
+    """P2d 5. madde: `TEST_RUNS` dört test koşusuyla dolu (beş satır, boş satır yok), kesinti yok ve
+    `results/p2d_test.*` repodaki kayıtlardan bayt aynı yeniden üretilir."""
+    assert set(ar.TEST_RUNS) == set(ar.DEV_RUNS) and all(d for d, _ in ar.TEST_RUNS.values())
     assert ar.TEST_INTERRUPTED == []
+    assert ar.main(["--report", "p2d", "--check"]) == 0
+
+
+def test_p2d_requires_test_runs(monkeypatch):
+    """Boş `TEST_RUNS` ile rapor üretilmez (planlama kontrolü 2026-11-17 şart 4)."""
+    monkeypatch.setattr(ar, "TEST_RUNS", {k: (None, n) for k, (_, n) in ar.TEST_RUNS.items()})
     with pytest.raises(SystemExit, match="TEST_RUNS not filled"):
         ar.main(["--report", "p2d", "--check"])
