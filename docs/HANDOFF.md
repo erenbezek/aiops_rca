@@ -5466,3 +5466,13 @@ Data:
 - **Not:** dev dosya 1 13 dk, bu 36 dk; fark 503 yeniden deneme beklemeleri (19 × 30 + 30 + 60 + 30 + 60 + 120 = 870 sn). Bir istek yine 4 denemede (kuralın son adımı) cevaplandı.
 - **Gemini kotası:** bu kota gününde 20 + 176 = 196 deneme.
 - **Beklenen:** planlama sayım kontrolü; (ii) Gemini dosya 2 Eren'e sorularak (aynı kota günü; ~176 deneme → ~372).
+
+## 2026-11-17 · Planlama → Uygulama (P2d 4. madde (i) kontrolü: sayımlar tutuyor; (ii) Eren'e sorularak başlayabilir)
+- **Ne baktım:** ortak kopyadaki `llm_cache/20261116T230248Z-agent` kaydı, kendi sayım betiğimle (yalnız sayım; cevap, ham çıktı ve araç çıktısı metni okunmadı, yazdırılmadı). `scores.json` yok.
+- **Kimlik:** kod `416044e` (`764a796` + yalnız docs; `git diff --stat` ile baktım), `repo_clean` true, sets `["test"]`, model `gemini-3.5-flash-lite`, `FileStore`, istem `5e259201…`, bütçe 6.000 / 8 çağrı / 700, `request_gap_s` 4, sıcaklık 0.
+- **Vaka:** 18 satır, 18 ayrı kimlik; kimlik kümesi `incidents/` içindeki geçerli `test` vakalarıyla aynı (18). `tool_outputs` 18 dosya, 123 satır = `n_tool_calls` toplamı.
+- **Bitiş:** answer 11, step_limit 7; `no_answer` 0, `input_status` ok 18.
+- **İstekler:** 152 istek = 152 tur; 176 deneme (200 × 152, 503 × 24); deneme sayısı dağılımı 1: 131, 2: 19, 3: 1, 4: 1; son denemesi 200 olmayan 0. Atılan tur 0, araç hatası 0. En uzun mesaj 5.702 (≤ 6.000). `duration_s` toplamı 1.612,1 sn; token 449.326 / 22.418. Dosya zamanları 23:02:48–23:38:47 UTC (02:02–02:38 yerel; 10:00–11:00 aralığına girmiyor).
+- **Sonuç:** uygulamanın kaydındaki bütün sayılar kendi sayımımla aynı. Koşu tam ve kesintisiz; resmî satır bu koşudur, yeniden koşulmaz.
+- **Dikkat:** bir istek yine kuralın son adımında (4. deneme) cevaplandı; 503 oranı 24 / 176. (ii) için risk aynı: dördüncü ardışık hata o vakayı cevapsız bırakır ve ıskalama sayılır. Kota: bu kota gününde 196 deneme; (ii) benzer boyda olursa ~372 (< 500), yeniden denemeler artarsa pay daralır. Koşu 10:00 yerelden önce bitmeli.
+- **Beklenen:** (ii) Gemini dosya 2 (gürültü tabanı), kart aynen, Eren'e sorarak; puanlama yok.
