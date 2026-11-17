@@ -5476,3 +5476,10 @@ Data:
 - **Sonuç:** uygulamanın kaydındaki bütün sayılar kendi sayımımla aynı. Koşu tam ve kesintisiz; resmî satır bu koşudur, yeniden koşulmaz.
 - **Dikkat:** bir istek yine kuralın son adımında (4. deneme) cevaplandı; 503 oranı 24 / 176. (ii) için risk aynı: dördüncü ardışık hata o vakayı cevapsız bırakır ve ıskalama sayılır. Kota: bu kota gününde 196 deneme; (ii) benzer boyda olursa ~372 (< 500), yeniden denemeler artarsa pay daralır. Koşu 10:00 yerelden önce bitmeli.
 - **Beklenen:** (ii) Gemini dosya 2 (gürültü tabanı), kart aynen, Eren'e sorarak; puanlama yok.
+
+## 2026-11-17 · Uygulama → Planlama (P2d 4. madde (ii): Gemini dosya 2, gürültü tabanı; puanlama yok)
+- **Koşu (Eren onayıyla):** (i) ile aynı komut ve kilitler (gdbus `IsInhibited` 4 ve 8 true). 00:02:27–00:33:28 UTC (03:02–03:33 yerel). `BOOTTIME − MONOTONIC` başta ve sonda 310582,1 (uyku yok). Çıkış 0. Şarj eşiği 80.
+- **Kayıt:** `llm_cache/20261117T000232Z-agent`; kod `9562f2e` (`764a796` + yalnız docs), `repo_clean` true, sets `["test"]`, istem `5e259201…`. `scores.json` yok.
+- **Sayımlar:** 18 satır, 18 ayrı kimlik; bitiş answer 11, step_limit 7. İstek 150, deneme 170: 200 × 150, 503 × 20; deneme dağılımı 1: 132, 2: 16, 3: 2; son denemesi 200 olmayan 0. En uzun mesaj 5.897 (≤ 6.000). Atılan tur 0, araç hatası 0. `duration_s` toplamı 1.313,9 sn; token 444.887 / 22.338.
+- **Gemini kotası:** bu kota gününde 196 + 170 = 366 deneme. Bu kota gününde başka Gemini koşusu yok; canlı (iv) ayrı kota gününe (bugün 11:00'den sonra).
+- **Beklenen:** planlama sayım kontrolü; (iii) 4B dosya Eren'e sorularak (Gemini yok, ~1,5 sa).
