@@ -5493,3 +5493,10 @@ Data:
 - **Sonuç:** uygulamanın kaydındaki bütün sayılar kendi sayımımla aynı. Koşu tam; gürültü tabanı koşusu budur, yeniden koşulmaz.
 - **Dikkat ((iv) için, şimdiden):** bu kota gününde 366 deneme harcandı. Kota sıfırlanma saati (11:00 yerel) planlamanın hesabı, doğrulanmadı. Canlı Gemini evresi ~170–200 deneme ister; sıfırlanma olmadan başlarsa 500 aşılır ve resmî koşuda vakalar cevapsız kalabilir. (iv) başlamadan önce bu Eren'e söylenir; başlangıç saati Eren'in kararı.
 - **Beklenen:** (iii) 4B dosya, kart aynen, Eren'e sorarak (yerel model, ~1,5 sa; şarj eşiği 80, iki kilit); puanlama yok.
+
+## 2026-11-17 · Uygulama → Planlama (P2d 4. madde (iii): 4B dosya; puanlama yok)
+- **Koşu (Eren onayıyla):** `evaluate run --method agent --model qwen3.5-4b --sets test --final-test --root llm_cache`, iki kilit (gdbus `IsInhibited` 4 ve 8 true, `systemd-inhibit` handle-lid-switch:sleep:idle). 00:36:07–01:55:10 UTC (03:36–04:55 yerel). `BOOTTIME − MONOTONIC` başta ve sonda 310582,1 (uyku yok). Çıkış 0. Şarj eşiği 80.
+- **Kayıt:** `llm_cache/20261117T003612Z-agent`; kod `b06f334` (`764a796` + yalnız docs), `repo_clean` true, sets `["test"]`, `Qwen3.5-4B-Q4_K_M.gguf` (gguf sha `00fe7986…`), `FileStore`, istem `5e259201…`, 6.000 / 8 / 700, sıcaklık 0. `scores.json` yok.
+- **Sayımlar:** 18 satır, 18 ayrı kimlik, Gemini test koşularıyla aynı küme. Bitiş step_limit 16, schema_answer 2; `no_answer` 0, `input_status` ok 18. İstek 162 = tur 162 (action 144, answer 18); deneme 162, hepsi 200, hepsi tek deneme. En uzun mesaj 5.968 (≤ 6.000). Kırpma olan tur 2, araç hatası 0. `n_tool_calls` toplamı 143 = `tool_outputs` 18 dosya, 143 satır. `duration_s` toplamı 4.734,0 sn; token 485.924 / 21.632.
+- **Gemini:** bu koşuda Gemini çağrısı yok; kota günü sayımı 366'da kaldı.
+- **Beklenen:** planlama sayım kontrolü; sonra (iv) canlı (iki model), kota sıfırlandıktan sonra (11:00 yerel, doğrulanmadı), Eren'e sorularak.
