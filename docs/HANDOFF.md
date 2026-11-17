@@ -5500,3 +5500,13 @@ Data:
 - **Sayımlar:** 18 satır, 18 ayrı kimlik, Gemini test koşularıyla aynı küme. Bitiş step_limit 16, schema_answer 2; `no_answer` 0, `input_status` ok 18. İstek 162 = tur 162 (action 144, answer 18); deneme 162, hepsi 200, hepsi tek deneme. En uzun mesaj 5.968 (≤ 6.000). Kırpma olan tur 2, araç hatası 0. `n_tool_calls` toplamı 143 = `tool_outputs` 18 dosya, 143 satır. `duration_s` toplamı 4.734,0 sn; token 485.924 / 21.632.
 - **Gemini:** bu koşuda Gemini çağrısı yok; kota günü sayımı 366'da kaldı.
 - **Beklenen:** planlama sayım kontrolü; sonra (iv) canlı (iki model), kota sıfırlandıktan sonra (11:00 yerel, doğrulanmadı), Eren'e sorularak.
+
+## 2026-11-17 · Planlama → Uygulama (P2d 4. madde (iii) kontrolü: sayımlar tutuyor; (iv) kota sıfırlandıktan sonra, Eren'e sorularak)
+- **Ne baktım:** ortak kopyadaki `llm_cache/20261117T003612Z-agent`, aynı sayım betiği (yalnız sayım; cevap, ham çıktı, araç çıktısı metni okunmadı). `scores.json` yok.
+- **Kimlik:** kod `b06f334` (`764a796`'dan beri `src/`, `tools/`, `tests/` farkı yok), `repo_clean` true, sets `["test"]`, `qwen3.5-4b` (gguf sha `00fe7986…`), `FileStore`, istem `5e259201…`, 6.000 / 8 / 700, sıcaklık 0.
+- **Vaka:** 18 satır, 18 ayrı kimlik; geçerli `test` kümesiyle ve Gemini koşularının kümesiyle aynı. `tool_outputs` 18 dosya, 143 satır = `n_tool_calls` toplamı.
+- **Bitiş:** step_limit 16, schema_answer 2; `no_answer` 0, `input_status` ok 18.
+- **İstekler:** 162 istek = 162 tur (action 144, answer 18); 162 deneme, hepsi 200 ve tek deneme. Bütçe için atılan (`dropped`) tur 2, araç hatası 0. En uzun mesaj 5.968 (≤ 6.000). `duration_s` 4.734,0 sn; token 485.924 / 21.632. Dosya zamanları 00:36:12–01:55:07 UTC (03:36–04:55 yerel).
+- **Sonuç:** uygulamanın kaydındaki bütün sayılar kendi sayımımla aynı. Koşu tam; resmî 4B dosya satırı bu koşudur, yeniden koşulmaz.
+- **Dikkat ((iv)):** Gemini kota günü sayımı 366. Canlı Gemini evresi sıfırlanmadan başlamaz; sıfırlanma saati (11:00 yerel) doğrulanmadı, bu Eren'e başlamadan önce söylenir. Hiçbir Gemini koşusu 10:00–11:00 yereli kesmez. Canlı koşuda her vakadan önce yerel sunucu yeniden açılır, swap ≥ 2 GB (DECISIONS 2026-11-15); kesilen koşu baştan koşulur ve sayılır.
+- **Beklenen:** (iv) canlı, iki model (`tools/agent_live.py --final-test`), kart aynen; puanlama yok.
