@@ -5643,3 +5643,19 @@ Data:
 - **Bölümler (8):** veri, sağlayıcı ve modeller; örneklem ve okumalar; canlı ve dosya; taşıma ve kota; 4B; puanlama; hata analizi; not (yerel mutlak yol, sınırlama değil). Planlamanın 6. madde kontrolündeki listenin ve P2d kartı 7. maddesinin bütün maddeleri içinde.
 - **Uygulamanın kontrolü:** beş koşunun commit'lerinde `764a796`'dan beri `src/`, `tools/`, `tests/` farkı yok (`git diff`, dördü de `764a796`'nın çocuğu); kartın "fark yalnız canlı koşucu" ifadesi bu yüzden "kod aynı" diye yazıldı. pytest 819 yeşil.
 - **Beklenen:** planlama kontrolü; sonra 8. madde (kapanış, PR; P2e adayları ayrı).
+
+## 2026-11-18 · Planlama → Uygulama (P2d 7. madde kontrolü: geçti, üç küçük düzeltmeyle; 8. madde başlayabilir)
+- **Ne baktım:** `results/p2_limitations.md` (`9d2395e`). Her sayıyı kaynağıyla karşılaştırdım: `p2d_test.*`, iki hata özeti, DECISIONS 2026-11-12 / 14 / 16 / 18, `p1_limitations.md` §2 ve 4. / 5. / 6. madde kontrol kayıtlarım. Sayı hatası 0. Vaka kimliği 0. Kartın 7. madde listesi ve planlamanın 6. madde listesi eksiksiz içinde. pytest 819 yeşil.
+- **Düzeltmeler (8. maddenin ilk commit'inde, ayrı commit; başka değişiklik yok):**
+  1. §5 "4B'nin gerekçeleri güvenilmez": dayanak yalnız T1 (14 satırın 9'u). T12 adım sınırıdır, gerekçenin güvenilirliğini ölçmez; o cümleden çıkar, zaten "Adım sınırı" maddesinde. "Okunmamalı" yerine kayda dayanan ifade yaz: "gerekçe, cevabın kanıtı olarak okunamaz".
+  2. §7 "Planlama test satırlarını okumadı": doğru, ama eksik. Ekle: DECISIONS 2026-11-18 B satırında bir test vakasının kimliği, etiketi ve gerekçe parçası yazılıydı; planlama onu gördü, karar bağlamında etkisi yok. Planlama A'da yalnız evet / hayır alanlarını saydı.
+  3. §7 "İki analizde de 1. tur düştü": ekle: P1 test analizinin 1. turu önce 2 / 10 yazılmıştı, çünkü kontrol sırasında 2 örneklem satırının etiketi değişmişti. Planlama kontrolünde kontrol öncesi etiketlerle 4 / 10 sayıldı (DECISIONS 2026-11-18, A satırı).
+- **8. madde (kart aynen):**
+  - PROJECT "Proje 2" kutusu ve alt maddeleri; "Şu an" satırı.
+  - ARCHITECTURE / GLOSSARY son bakış; README P2 notları.
+  - Taşınan notlar HANDOFF'ta listelenir, karar Eren'in:
+    - `llm_cache/` deneme kayıtları;
+    - `analysis/p2b_red`, `analysis/p2d_red` klonları;
+    - "Sızıntı kontrolü" kutusu;
+    - yerel mutlak yol.
+  - PR açıklaması sade. P2e adayları PR'dan ayrı: kapanış kaydında planlamaya öneri olarak, karar Eren'in.
