@@ -5598,3 +5598,17 @@ Data:
 - **Kod:** A'nın 2. tur desteği (`src/aiops_rca/error_analysis.py`, B'dekinin aynısı) kartta zaten var. B için kod değişikliği beklemiyorum. B testleri `eren_check` ile etiketin aynı olmasını istiyorsa güncellenen `eren_check` bunu sağlar. Başka bir kod gereği çıkarsa önce planlamaya yaz.
 - **Kural:** HANDOFF ve DECISIONS'a test vaka kimliği, etiketi ya da gerekçe metni yazılmaz; yalnız sayı.
 - **Beklenen:** dört adımın sayıları (A ve B'de değişen satırlar, 2. tur katılmıyorum, B'de değişen satırlarda katılmıyorum) ve yeni özet toplamları; sonra 7. madde.
+
+## 2026-11-18 · Uygulama → Planlama (P2d 6. madde okuma düzeltmesi kartı bitti; yalnız sayı)
+- **Kart (8b54f37), sırayla, her biri ayrı commit, Eren onayıyla:**
+  1. **A 2. adım düzeltmesi (`df35c26`):** 54 satırın yalnız T1'i daraltılmış A okumasıyla. `694a898`'e göre 2 satır evet → hayır, 0 satır hayır → evet (biri örneklemde). Kalan 47 satır tarandı, değişen yok. Öteki alanlar ve `eren_check` aynı (kodla karşılaştırıldı).
+  2. **B yeniden okuma (`1036882`):** 22 satırda yalnız T1 / T6 / T8, dört B okuması açısından. 4 satırda birer alan hayır → evet: T1 2, T6 1, T8 1. Öteki etiketler aynı (kodla karşılaştırıldı).
+  3. **Eren, tek oturum:** B'de değişen 4 satırın 4'üne katılıyorum (`ff83aed`; `eren_check` o alanda yeni cevapla, tarih ve "Eren okuma düzeltmesi" notuyla; eski cevaplar satır notunda; `agree` yani 1. / 2. tur kaydı değişmedi). A 2. tur kodu (`7bea126`, B'dekinin aynısı, yeni ad yok; dev özeti bayt aynı; kasıtlı kırmızı 2, scratch). A 2. tur (`79b31c5`): örneklem dışı 44 satırın tümü, T1 / T5 / T6, 0 katılmıyorum → tamam. Kontrol sırasında etiket değişmedi.
+  4. **Durma:** koşul oluşmadı.
+- **A son toplamları (54; evet / hayır / belirlenemez):** T1 15 / 39 / 0, T2 16 / 18 / 20, T3 44 / 5 / 5, T4 0 / 25 / 29, T5 0 / 54 / 0, T6 8 / 46 / 0. Eren: 1. tur 4 / 10 (yeniden etiketleme), 2. tur 0 / 44 (tamam). T1 geçmişi: kontrol öncesi 10 → `694a898` 17 → `df35c26` 15.
+- **B son toplamları (22):** T1 11 / 9 / 2, T6 2 / 18 / 2, T8 2 / 20 / 0 (önceki 9 / 11 / 2, 1 / 19 / 2, 1 / 21 / 0 git geçmişinde). Kodla sayılanlar değişmedi. Eren: 1. tur 4 / 10, 2. tur 0 / 12, okuma düzeltmesi 4 / 4 katılıyorum.
+- **Testler:** pytest 819 yeşil; `summary --check` A dev, A test, B test "same".
+- **PROJECT:** "Hata analizi" kutusu işaretlendi (A'nın 2. turu geçti), not satırı eklendi.
+- **Sınırlamalar (7. maddeye, planlamanın listesine ek yok):** dev P1e T1 eski okumayla; ad eşlenmemesiyle ıskalama testte 7 (1. sırada 3); Gemini canlı top-1 5 / 18.
+- **Karar isteniyor (2), bekliyor:** P2e adayları (önceki uygulama kaydında), P2d kapanışında.
+- **Beklenen:** planlama kontrolü; sonra 7. madde.

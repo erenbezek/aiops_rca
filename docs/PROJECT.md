@@ -36,8 +36,9 @@ kök neden analizinde ne kadar iş görür?
   - Seviye 2 (deneyi baştan koşmak): Tam snapshot seti proje sonunda GitHub Releases'te sıkıştırılmış olarak yayınlandı
 - [x] Sonuç tablosu geliştirme ve test setini yan yana gösteriyor
   - P1e: tablo 1. bölüm dev–test yan yana (Fisher, iki yönlü); 3. ve 4. bölüm dev ve test ayrıntısı, demo / kendi hatalarımız ayrımıyla.
-- [ ] Hata analizi: başarısız vakalar 12'li hata sınıflandırmasıyla etiketlendi (arXiv 2602.09937)
+- [x] Hata analizi: başarısız vakalar 12'li hata sınıflandırmasıyla etiketlendi (arXiv 2602.09937)
   - Not (P1e): kısmen. Yalnız dev (29 satır) ve 12 tuzağın P1'e uyan 6'sı (T1–T6); Eren 10 satırı doğruladı (`results/p1_error_summary.md`). Test analizi ve 12'nin tamamı P2'de (DECISIONS 2026-11-04).
+  - P2d (2026-11-18): P1 test başarısızları 54 satır, P1e'nin 6 sorusuyla (`results/p1_test_error_summary.md`); ajan test ıskaları 22 satır, P2'nin 12 sorusuyla (11'i uygulanır, T10 uygulanamaz; `results/p2d_error_summary.md`). İkisinde de Eren doğrulaması: 1. tur düştü, yeniden etiketleme, 2. tur (örneklem dışı satırların tümü) geçti. Okuma düzeltmesi DECISIONS 2026-11-18. Sınır: dev P1e T1 etiketleri eski okumayla (dev ↔ test T1 doğrudan karşılaştırılamaz).
 - [ ] DevOps kontrol listesi dolduruldu (aşağıda)
 - [ ] Proje 2 (ajan): Proje 1 bittikten sonra
   - Ajan aynı vakalarda hem dosyadan hem canlı izleme sisteminden (Prometheus, Jaeger, OpenSearch) koşuldu, iki satır tabloda yan yana
