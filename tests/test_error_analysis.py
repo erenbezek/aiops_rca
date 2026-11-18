@@ -304,3 +304,35 @@ def test_summary_on_test_set(tmp_path, monkeypatch):
     (repo / ea.FILES["test"][0]).write_text(json.dumps(_test_doc(rows, questions[:-1] + [questions[-1] + " "])))
     with pytest.raises(ValueError, match="frozen P1e questions"):
         ea.summary(repo, "test")
+
+
+# --- P2d 6. madde A: gerçek test etiketleri (Eren kontrolü 2026-11-18) ---
+
+def test_eren_check_in_test_labels_file():
+    # Tohumlu 10 satır: 8 katılıyor, 2 katılmıyor (gpt-oss daraltma a519be4f ve ham 402b4b2d, ikisi de T1: Eren evet)
+    # → yeniden etiketleme yok. Kontrol sırasında 3 satırda T1 hayır → evet düzeltildi (emsal; notlu).
+    rows, _ = ea.select(set_="test")
+    doc = json.loads((ea.REPO / ea.FILES["test"][0]).read_text(encoding="utf-8"))
+    assert doc["questions_sha256"] == ea.QUESTIONS_SHA256 and len(doc["rows"]) == 54
+    checked = {x["key"]: x for x in doc["rows"] if "eren_check" in x}
+    assert sorted(checked) == ea.sample(rows)
+    for x in checked.values():
+        e = x["eren_check"]
+        assert set(e) <= {"agree", "T1", "T5", "T6", "note"} and all(e[t] in ("yes", "no") for t in ("T1", "T5", "T6"))
+        assert e["agree"] == all(e[t] == x[t] for t in ("T1", "T5", "T6"))
+    o = "gpt-oss-120b"
+    off = [(k, t) for k, x in checked.items() for t in ("T1", "T5", "T6") if x["eren_check"][t] != x[t]]
+    assert sorted(off) == [(f"{o} narrowed inc-a519be4f", "T1"), (f"{o} raw inc-402b4b2d", "T1")]
+    fixed = {"qwen3.5-4b summary inc-c6ae4086", f"{o} summary inc-c6ae4086", "qwen3.5-4b raw inc-a519be4f"}
+    by_key = {x["key"]: x for x in doc["rows"]}
+    assert all(by_key[k]["T1"] == "yes" and "düzeltildi" in by_key[k]["note"] for k in fixed)
+    assert ea.summary(set_="test")["eren_check"] == {"n": 10, "checked": 10, "disagree": 2, "reading": "ok"}
+
+
+def test_test_summary_files_match_records():
+    # CI: test özeti repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
+    md, js = ea.summary_render(set_="test")
+    _, md_path, js_path = ea.FILES["test"]
+    assert (ea.REPO / md_path).read_text(encoding="utf-8") == md
+    assert (ea.REPO / js_path).read_text(encoding="utf-8") == js
+    assert ea.main(["summary", "--set", "test", "--check"]) == 0
