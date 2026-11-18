@@ -1,6 +1,6 @@
 # aiops_rca
 
-**In English:** This is a root cause analysis (RCA) for microservices. Faults are injected into the OpenTelemetry Demo plus one of our own services, each incident is recorded as a snapshot of logs, metrics and traces, and RCA methods are scored on the same incidents against rule and BARO baselines. Project 1 tests whether a small local model, helped by statistical narrowing, can find the root cause when logs may not leave the machine; Project 2 builds a tool-using agent.
+**In English:** This is a root cause analysis (RCA) for microservices. Faults are injected into the OpenTelemetry Demo plus one of our own services, each incident is recorded as a snapshot of logs, metrics and traces, and RCA methods are scored on the same incidents against rule and BARO baselines. Project 1 tests whether a small local model, helped by statistical narrowing, can find the root cause when logs may not leave the machine; Project 2 tests a tool-using agent on the same incidents, both from the recorded files and from a live monitoring stack.
 
 ## Amaç
 
@@ -9,11 +9,9 @@ Mikroservis ortamına (OpenTelemetry Demo ve kendi Python servisimiz) bilerek ha
 ## Durum
 
 - **Proje 1 bitti:** sonuç tablosu, dev hata analizi ve sınırlamalar `results/` altında.
-- **Proje 2 sürüyor:** ilk kart (P2a, ajanın sorgu araçları ve dosya ↔ canlı karşılaştırması) bitti, rapor [`results/p2a_compare.md`](results/p2a_compare.md). Ajan döngüsü ve koşuları sırada.
+- **Proje 2 bitti:** sabit sorgu araçlarıyla çalışan tek ajan, dosyadan ve canlı izleme sisteminden koşuldu; test raporu, iki test hata analizi ve sınırlamalar `results/` altında (aşağıda).
 - **Canlı demo** (hata enjekte et → kanıtlı olay raporu) Proje 2'den sonra.
 - **Snapshot seti henüz yayınlanmadı.** Vakaların ham kayıtları repo dışında; proje sonunda GitHub Releases'te sıkıştırılmış olarak yayınlanacak (tekrarlanabilirlik seviye 2). O zamana kadar deneyi baştan koşmak mümkün değil; aşağıdaki komutlar repodaki kayıtlardan sonuçları yeniden üretir.
-
-Proje 2 bitince bu sayfa güncellenecek.
 
 ## Akış
 
@@ -102,9 +100,6 @@ flowchart LR
     qcmp["tools/query_compare.py<br/>run / report (LLM'siz)"] -->|"aynı çağrılar iki okuyucuda"| qry
     qcmp --> rcase
     qcmp -->|"fark türü kodla"| p2arep[("results/p2a_compare.md / .json")]
-
-    classDef yok stroke-dasharray: 5 5
-    class agent yok
 ```
 
 ## Proje 1 sonuçları (test seti)
@@ -133,6 +128,31 @@ Okurken:
 - Bilgi amaçlı ek model satırları ve ayrıntılar tabloda.
 - Sınırlamalar: [`results/p1_limitations.md`](results/p1_limitations.md).
 
+## Proje 2 sonuçları (test seti)
+
+Kaynak: [`results/p2d_test.md`](results/p2d_test.md) (komutla üretilir; koşular, çağrı düzeyi karşılaştırma, Brier, kanıt, süre ve token oradadır). Sayılar doğru kök nedeni ilk 1'de / ilk 3'te bulan vaka sayısı. Ajan her vakada en çok 8 araç çağrısıyla izleri, metrikleri ve logları sorgular; "dosya" kayıtlı snapshot'tan, "canlı" vakanın yeniden oynatıldığı izleme sisteminden (Prometheus, Jaeger, OpenSearch) okur. Resmî satır Gemini dosya 1. koşu; 2. koşu gürültü tabanı için.
+
+| Ajan | top-1 test | top-3 test | top-1 dev | top-3 dev |
+|---|---|---|---|---|
+| Gemini, dosya, 1. koşu (resmî) | 10/18 | 14/18 | 9/18 | 14/18 |
+| Gemini, dosya, 2. koşu | 10/18 | 15/18 | 9/18 | 15/18 |
+| Gemini, canlı | 5/18 | 12/18 | 9/18 | 14/18 |
+| qwen3.5-4b, dosya | 4/18 | 7/18 | 4/18 | 9/18 |
+| qwen3.5-4b, canlı | 4/18 | 7/18 | 4/18 | 9/18 |
+
+Okumalar (koşudan önce yazıldı):
+
+- **Dosya ↔ canlı, top-3:** Gemini 14 ↔ 12, 4B 7 ↔ 7 → ayırt edilemedi. Canlı araç çağrılarının hepsi dosyadakiyle aynı çıktıyı verdi (Gemini 123, 4B 143).
+- **Ajan ↔ P1:** Gemini ajan ↔ ham, top-3: 14 ↔ 6, p = 0.0215 → fark, ajan lehine. Gemini ajan ↔ daraltma, top-1: 10 ↔ 15; 4B ajan ↔ ham, top-3: 7 ↔ 7; 4B ajan ↔ daraltma, top-1: 4 ↔ 9 → üçü ayırt edilemedi.
+- **Dev–test** (iki resmî dosya satırı, top-3): Gemini 14 → 14, 4B 9 → 7 → ayırt edilemedi.
+
+Okurken:
+
+- "Ayırt edilemedi" "aynı" demek değil; 18 vakada yalnız büyük farklar görülebilir. Dört ajan ↔ P1 hücresinde çoklu karşılaştırma düzeltmesi yok.
+- Gemini aynı ayarla iki koşuda 3 / 18 vakada farklı top-3 sonucu verdi; canlı top-1'in düşüklüğü (5/18) test edilmedi.
+- 4B testte 18 vakanın 16'sında adım sınırına takıldı.
+- Hata analizleri: [`results/p2d_error_summary.md`](results/p2d_error_summary.md) (ajan ıskaları), [`results/p1_test_error_summary.md`](results/p1_test_error_summary.md) (P1 test başarısızları). Sınırlamalar: [`results/p2_limitations.md`](results/p2_limitations.md).
+
 ## Tekrar üretme
 
 Kurulum CI'daki gibi (`pyproject.toml`'daki Python sürümü):
@@ -142,10 +162,13 @@ python -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev]"
 python -m aiops_rca.results --check
 python -m aiops_rca.error_analysis summary --check
+python -m aiops_rca.error_analysis summary --set test --check
+python tools/agent_report.py --report p2d --check
+python tools/agent_error_analysis.py summary --set test --check
 python -m pytest
 ```
 
-İki `--check` komutu sonuç tablosunu ve hata analizi özetini repodaki kayıtlardan yeniden üretip repodakilerle karşılaştırır; CI ikisini de bayt aynı üretir. Snapshot, API anahtarı ve ağ gerekmez.
+`--check` komutları sonuç tablolarını ve hata analizi özetlerini repodaki kayıtlardan yeniden üretip repodakilerle karşılaştırır; CI hepsini bayt aynı üretir. Snapshot, API anahtarı ve ağ gerekmez.
 
 ## Repo haritası
 
@@ -157,7 +180,7 @@ python -m pytest
 | `incidents/` | Vaka etiketleri (doğru cevap ve set) |
 | `incident_lists/` | Gece koşularının vaka listeleri |
 | `eval_responses/` | Resmî koşuların kayıtları |
-| `results/` | Sonuç tabloları, hata analizi, sınırlamalar, P2a raporu |
+| `results/` | Sonuç tabloları, hata analizleri, sınırlamalar, P2 raporları |
 | `deploy/` | Demo katmanları (collector süzmesi, compose), yeniden oynatma yığını, systemd birimi, yardımcı imaj |
 | `services/` | Kendi servisimiz (quote-gateway) |
 | `docs/` | Proje hafızası (aşağıda) |
