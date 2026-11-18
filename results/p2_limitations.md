@@ -34,7 +34,7 @@ P2 sonuçlarının ([`p2d_test.md`](p2d_test.md), [`p2d_error_summary.md`](p2d_e
 ## 5. 4B
 
 - **Adım sınırı.** Testte 4B'nin 18 vakasının 16'sı adım sınırında bitti (8 araç çağrısı; Gemini resmî koşuda 7, canlıda 9). Turların bir kısmı israf: kesilen tablo yüzünden servis servis sorgu (mesaj sınırı 6.000), aynı çağrının tekrarı (kodla anlamsız tekrar 4B'de 4 / 18 vaka; koşu tablosunda tekrar 10). Kaynak: `p2d_test.md`, `p2d_error_summary.md` §2, HANDOFF 2026-11-18 (6. madde).
-- **4B'nin gerekçeleri güvenilmez.** Ajan ıskalarının hata analizinde 4B'de T1 (yorumda uydurma) 14 satırın 9'unda evet, T12 (adım sınırı) 12'sinde. 4B'nin gerekçesi, cevabın neden verildiğini açıklamak için okunmamalı. Kaynak: `p2d_error_summary.md` §1.
+- **4B'nin gerekçeleri güvenilmez.** Ajan ıskalarının hata analizinde 4B'de T1 (yorumda uydurma) 14 satırın 9'unda evet. 4B'nin gerekçesi, cevabın kanıtı olarak okunamaz. Kaynak: `p2d_error_summary.md` §1.
 - **Şema dışı son cevap** 4B'de 2 / 18 (var olmayan servis adı; aynı aday iki kez). Kaynak: `p2d_test.md`, HANDOFF 2026-11-18 (6. madde).
 
 ## 6. Puanlama
@@ -45,8 +45,8 @@ P2 sonuçlarının ([`p2d_test.md`](p2d_test.md), [`p2d_error_summary.md`](p2d_e
 
 ## 7. Hata analizi
 
-- **Etiketleyen bir LLM; doğrulamada çapa etkisi.** Etiketler uygulama oturumunun (Claude Code); Eren etiketi ve dayanağını görerek doğruladı. Planlama test satırlarını okumadı, yalnız toplamları ve kodla sayılanları denetledi. Kaynak: DECISIONS 2026-11-16 (P2d test hata analizi).
-- **İki analizde de 1. tur doğrulama düştü.** Ajan ıskaları (22 satır): 1. tur 4 / 10 katılmıyorum, 2. tur (örneklem dışı 12) 0. P1 test başarısızları (54 satır): 1. tur 4 / 10, 2. tur (örneklem dışı 44) 0. İkisinde de yeniden etiketleme sonrası 2. tur geçti. Kaynak: DECISIONS 2026-11-18, `p2d_error_summary.md` §3, `p1_test_error_summary.md` §5.
+- **Etiketleyen bir LLM; doğrulamada çapa etkisi.** Etiketler uygulama oturumunun (Claude Code); Eren etiketi ve dayanağını görerek doğruladı. Planlama test satırlarını okumadı, yalnız toplamları ve kodla sayılanları denetledi; A'da yalnız evet / hayır alanlarını saydı. DECISIONS 2026-11-18 B satırında bir test vakasının kimliği, etiketi ve gerekçe parçası yazılıydı; planlama onu gördü, karar bağlamında etkisi yok. Kaynak: DECISIONS 2026-11-16 (P2d test hata analizi), HANDOFF 2026-11-18 (planlama, 6. madde kontrolleri).
+- **İki analizde de 1. tur doğrulama düştü.** Ajan ıskaları (22 satır): 1. tur 4 / 10 katılmıyorum, 2. tur (örneklem dışı 12) 0. P1 test başarısızları (54 satır): 1. tur 4 / 10, 2. tur (örneklem dışı 44) 0. İkisinde de yeniden etiketleme sonrası 2. tur geçti. P1 test analizinin 1. turu önce 2 / 10 yazılmıştı, çünkü kontrol sırasında 2 örneklem satırının etiketi değişmişti; planlama kontrolünde kontrol öncesi etiketlerle 4 / 10 sayıldı (DECISIONS 2026-11-18, A satırı). Kaynak: DECISIONS 2026-11-18, `p2d_error_summary.md` §3, `p1_test_error_summary.md` §5.
 - **Okumalar sonuçtan sonra soru metnine göre düzeltildi.** Soru metni değişmedi; Eren'in kontrol okumaları metinden dar ya da geniş bulununca metne döndürüldü (DECISIONS 2026-11-18 "okuma düzeltmesi"). Ajan analizinde T1 9 → 11, T6 1 → 2, T8 1 → 2; P1 test analizinde T1 kontrol öncesi 10 → 15. Eski sayılar git geçmişinde. Kaynak: DECISIONS 2026-11-18, HANDOFF 2026-11-18.
 - **Dev P1e T1 etiketleri eski okumayla.** Dev ↔ test T1 doğrudan karşılaştırılamaz. Kaynak: DECISIONS 2026-11-18 (A satırı).
 - **Kapsam.** P1 analizi 12 tuzağın P1'e uyan 6'sı (T1–T6); ajan analizinde T10 (yanlış atfedilen kanıt) uygulanamaz (tek ajan). Kaynak: DECISIONS 2026-11-04, 2026-11-14.
