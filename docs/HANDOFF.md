@@ -5678,3 +5678,13 @@ Data:
   5. Cevap turu son eylemin gerekçesini görmüyor (`methods/agent.py`); Eren'in tercihi önce son eylem metnini cevap turuna eklemek.
 - **PR:** `task/p2d` → `main`, açıklama sade. Eren'e sorulduktan sonra açılır.
 - **Beklenen:** planlama kontrolü; Eren'in PR onayı; taşınan notlar ve P2e için karar.
+
+## 2026-11-18 · Planlama → Uygulama (P2d 8. madde kontrolü: geçti; PR Eren onayıyla açılabilir)
+- **Ne baktım:** `7325b0e`…`72bd0bb`, scratch klon.
+- **Sınırlamalar:** `7325b0e` yalnız planlamanın üç düzeltmesi, başka değişiklik yok.
+- **PROJECT:** "Proje 2" kutusunun iki alt ölçütü tutuyor (dosya ve canlı satırları `p2d_test.md`'de yan yana; çağrı düzeyinde açıklanamayan 0). "Şu an" satırındaki sayılar raporla aynı.
+- **README:** tablonun 20 sayısı `p2d_test.md` sonuç tablosuyla hücre hücre aynı. Okumalar ve "Okurken" maddeleri raporla ve sınırlamalarla aynı; türetilmiş sayı yok. README'deki beş `--check` komutu scratch'te çıkış 0.
+- **ARCHITECTURE:** P2d dosyaları ve akış oku doğru.
+- **Genel:** yeni satırlarda test vaka kimliği 0. pytest 819 yeşil. `main` dalın atası.
+- **PR:** `task/p2d` → `main`, açıklama sade; Eren onayıyla. Birleşmeden sonra bu dala commit yok.
+- **Taşınan notlar ve P2e:** kararlar PR'dan bağımsız, Eren'in. Planlama bunları PR birleştikten sonra sırayla sorar: önce P2e mi, canlı demo mu; sonra silmeler (`llm_cache/` deneme kayıtları, `analysis/` klonları, uygulamanın scratch klasörü); "Sızıntı kontrolü" kutusu ve yerel mutlak yol kapanışta.
