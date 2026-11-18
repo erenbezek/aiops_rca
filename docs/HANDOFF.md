@@ -5612,3 +5612,27 @@ Data:
 - **Sınırlamalar (7. maddeye, planlamanın listesine ek yok):** dev P1e T1 eski okumayla; ad eşlenmemesiyle ıskalama testte 7 (1. sırada 3); Gemini canlı top-1 5 / 18.
 - **Karar isteniyor (2), bekliyor:** P2e adayları (önceki uygulama kaydında), P2d kapanışında.
 - **Beklenen:** planlama kontrolü; sonra 7. madde.
+
+## 2026-11-18 · Planlama → Uygulama (P2d 6. madde kontrolü: geçti, 6. madde bitti; 7. madde başlayabilir)
+- **Ne baktım (yalnız sayı; gerekçe, not ve araç metni okunmadı):** scratch klon `d034202`, kendi betiklerim.
+- **Etiket geçmişi (commit başına, kendi sayımım), A:** başlangıç (`e8924eb`) T1 evet 13. `e333a83` T1 evet → hayır 3, `agree` değişen 2 → T1 evet 10. `694a898` hayır → evet 7 → 17. `df35c26` evet → hayır 2 → 15. `79b31c5` etiket değişimi 0, yeni `eren_check` 44. Bütün adımlarda T1 dışında etiket değişimi 0. Kaydındaki "10 → 17 → 15" ile aynı.
+- **Etiket geçmişi, B:** `1036882`: T1 hayır → evet 2, T6 1, T8 1; başka değişim 0. `ff83aed`: etiket değişimi 0; 4 satırda `eren_check` alanı güncellendi, `agree` değişmedi.
+- **A son hâli:** seçim 54 satır kendi türetimimle aynı, T3 kod farkı 0, özet hücreleri etiketlerle fark 0. T1 15 / 39 / 0, öteki tuzaklar değişmedi. 1. tur 4 / 10 → yeniden etiketleme. 2. tur 44 / 44 işaretli, 0 katılmıyorum; Eren'in T1 / T5 / T6 alanları etiketlerle aynı. Soru sha `dc58d84a…`.
+- **B son hâli:** kodla sayılan 176 hücre farkı 0. T1 11 / 9 / 2 (Gemini 2 / 6 / 0, 4B 9 / 3 / 2), T6 2 / 18 / 2, T8 2 / 20 / 0. 1. tur 4 / 10, 2. tur 0 / 12. Soru sha `b887cbbb…`.
+- **Kod:** `7bea126`'nın 2. tur farkı B'dekinin aynısı. Dev özetleri (P1e ve P2c) ve `p2d_test.*` değişmedi; beş `--check` komutu çıkış 0. pytest 819 yeşil. Kasıtlı kırmızı (scratch, 1): A'nın 2. turunda 3 satır katılmıyorum yapılınca özet "yeniden etiketleme" okudu, `--check` çıkış 1; geri alındı.
+- **Kayıt kuralı:** yeni HANDOFF ve DECISIONS satırlarında test vaka kimliği 0.
+- **PROJECT "Hata analizi" kutusu:** işaretlenmesi doğru, not satırındaki sınır da doğru.
+- **7. madde (sınırlamalar; kart aynen, yalnız toplam, vaka kimliği yok).** En az şunlar girmeli:
+  - **Veri ve sağlayıcı (metin aynen):** "ücretsiz katmanda girdiler sağlayıcı tarafından kullanılabilir; veri sentetik demo telemetrisi; anahtar ya da kişisel veri girmez".
+  - **Örneklem:** n = 18, tek demo ortamı. Erişilebilir fark sınırları (Gemini için "fark" test ≤ 7, 4B için ≤ 2 ya da ≥ 16). Ajan ↔ P1'deki dört hücrede çoklu karşılaştırma düzeltmesi yok.
+  - **Canlı ve dosya:** Gemini canlı top-1 5 / 18, dosyada 10 / 18. Okuma kuralı top-3'e bakıyor, "ayırt edilemedi"; top-1 farkı test edilmedi. Gürültü tabanı top-3'te 3 / 18.
+  - **Taşıma:** Gemini 503 yeniden denemeleri: iki koşuda birer istek ancak 4. (son) denemede cevaplandı; cevapsız kalan 0. Kota sıfırlanma saati doğrulanmadı.
+  - **4B:** testte 18 vakanın 16'sı adım sınırında; 4B'nin gerekçeleri güvenilmez (hata analizinde T1 ve T12). 4B canlı ile dosya baştan sona aynı; istem önbelleği notu sonuca yansımadı.
+  - **Ad eşlenmemesi:** ad eşlenmemesiyle ıskalama testte 7 (1. sırada 3); puanlama katı.
+  - **Hata analizi:**
+    - Etiketleyici uygulama oturumu (Claude Code); iki analizde de 1. tur doğrulama düştü.
+    - Okumalar sonuçtan sonra soru metnine göre düzeltildi (DECISIONS 2026-11-18); eski sayılar git geçmişinde.
+    - Dev P1e T1 etiketleri eski okumayla, dev ↔ test T1 doğrudan karşılaştırılamaz.
+    - P1 analizi 12 tuzağın 6'sı; ajan analizinde T10 uygulanamaz.
+  - **Kayıtlar:** canlı kayıtlarda yerel mutlak yol var (`/home/…/storage_runs/…`). Sınırlama değil, not; kapanışta ayrı karar.
+- **Beklenen:** 7. madde metni ve yeri (`results/p2d_limitations.md` ya da kartta yazan dosya), sonra planlama kontrolü. 8. maddede P2e adayları ayrı ele alınır.
