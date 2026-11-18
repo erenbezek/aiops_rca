@@ -43,7 +43,13 @@
    "T1": "no",
    "T6": "no",
    "T8": "no",
-   "reason": "1. aday checkout: 'p95 yüksek' — girdide checkout p95 75,3 / 86,7 / 32,7 ms, alarm sonrası kovalarda en yüksek değer; alarm öncesi bakılmamış, karşılaştırma iddiası yok. Gerekçeler çağrılarla uyumlu."
+   "reason": "1. aday checkout: 'p95 yüksek' — girdide checkout p95 75,3 / 86,7 / 32,7 ms, alarm sonrası kovalarda en yüksek değer; alarm öncesi bakılmamış, karşılaştırma iddiası yok. Gerekçeler çağrılarla uyumlu.",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "gemini-3.5-flash-lite inc-402b4b2d",
@@ -62,7 +68,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday quote: 'quote yanıt vermedi, quote-gateway'de bağlantı hatası, shipping'te 500, checkout başarısız' — get_trace'te quote-gateway → 'quote-svc' ConnectionError (Max retries), shipping 500 / 502, checkout 'expected 200, got 500' girdide var.",
-   "note": "Hata quote-gateway'in yanlış host'a ('quote-svc') bağlanması; 'quote yanıt vermedi' okuması çıkarım, girdideki bağlantı hatasıyla çelişmiyor (1'e girmedi)."
+   "note": "Hata quote-gateway'in yanlış host'a ('quote-svc') bağlanması; 'quote yanıt vermedi' okuması çıkarım, girdideki bağlantı hatasıyla çelişmiyor (1'e girmedi).",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "gemini-3.5-flash-lite inc-901ecfb4",
@@ -81,7 +93,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday checkout: 'olay süresince p95 yüksek' — girdide checkout p95 408,8 / 429,3 / 68,5 ms (300 sn kovalar, T+00:00'dan). İddia girdide var.",
-   "note": "Aynı tabloda cart 152,6 / 152,6 / 0,9 da yüksek ama gerekçe bunu inkâr etmiyor."
+   "note": "Aynı tabloda cart 152,6 / 152,6 / 0,9 da yüksek ama gerekçe bunu inkâr etmiyor.",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "gemini-3.5-flash-lite inc-a519be4f",
@@ -99,7 +117,13 @@
    "T1": "no",
    "T6": "no",
    "T8": "no",
-   "reason": "1. aday shipping: checkout hata span'lerinde 'shipping quote failure: failed POST to shipping service: expected 200, got 400' aynen var. Sonuç yanlış (kök cart; get_trace'te CartService/AddItem 559.686,7 ms), veri iddiası doğru."
+   "reason": "1. aday shipping: checkout hata span'lerinde 'shipping quote failure: failed POST to shipping service: expected 200, got 400' aynen var. Sonuç yanlış (kök cart; get_trace'te CartService/AddItem 559.686,7 ms), veri iddiası doğru.",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "gemini-3.5-flash-lite inc-c6ae4086",
@@ -118,7 +142,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday checkout: 'p95 sıçramaları ve eksik metrik dönemleri' — girdide p95 40,6 / 26,9 / 27,6 / - / 60,7 ms (artış var), error_rate'te T+03:00 '-'. İddia girdide var.",
-   "note": "'Sıçrama' 27,6 → 60,7 için güçlü ama yön doğru (dev ölçüsü: bir miktar artış varsa uydurma sayılmaz)."
+   "note": "'Sıçrama' 27,6 → 60,7 için güçlü ama yön doğru (dev ölçüsü: bir miktar artış varsa uydurma sayılmaz).",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "gemini-3.5-flash-lite inc-d3869549",
@@ -188,7 +218,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday shipping: 'T+00:00'dan itibaren %100 hata, checkout'ta shipping quote failure' — girdide shipping error_rate T+00:00…T+08:00 1,000, checkout span'lerinde 'failed POST to shipping service: expected 200, got 500'. İddia girdide var.",
-   "note": "t2 gerekçesi checkout 1,000'ın T+08:00'da ('alarmdan 8 dk önce') başladığını söylüyor; girdide 60 sn kovalar T-12:00'dan başlıyor, 1,000 T+00:00'da. Sonraki çağrı bu yanlış pencereyi soruyor ama gerekçeyle uyumlu (8 değil); 1. adayın gerekçesi değil (6'ya girmedi)."
+   "note": "t2 gerekçesi checkout 1,000'ın T+08:00'da ('alarmdan 8 dk önce') başladığını söylüyor; girdide 60 sn kovalar T-12:00'dan başlıyor, 1,000 T+00:00'da. Sonraki çağrı bu yanlış pencereyi soruyor ama gerekçeyle uyumlu (8 değil); 1. adayın gerekçesi değil (6'ya girmedi).",
+   "eren_check": {
+    "agree": true,
+    "T1": "no",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "qwen3.5-4b inc-240a614f",
@@ -207,7 +243,13 @@
    "T6": "undetermined",
    "T8": "no",
    "reason": "Geçerli son cevap yok (schema_answer); T1 ve T6 belirlenemez. Adımlarda gerekçe ile çağrı uyumlu (t5 'checkout ya da payment' → checkout).",
-   "note": "Ham çıktıdaki 2. ve 3. aday ('payment-service', 'inventory-service') girdide olmayan servis adları; şema bu yüzden düştü."
+   "note": "Ham çıktıdaki 2. ve 3. aday ('payment-service', 'inventory-service') girdide olmayan servis adları; şema bu yüzden düştü.",
+   "eren_check": {
+    "agree": true,
+    "T1": "undetermined",
+    "T6": "undetermined",
+    "T8": "no"
+   }
   },
   {
    "key": "qwen3.5-4b inc-27e7ae46",
@@ -276,7 +318,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday checkout: 'p99'da büyük sıçrama ve eksik kovalar, hata oranları ve aşağı akış çağrı sayıları sıfır' — p99 35,5 → 316,2 / 324,5 ve eksik T+03:00 kovası girdide var; ama service_dependencies'te checkout'un çağrıları 59–169 (hataları 0), 'çağrı sayıları sıfır' girdiyle çelişiyor (1).",
-   "note": "Kısmen dil kayması olabilir (errors=0 kastedilmiş); soru metnine göre çelişen veri iddiası sayıldı."
+   "note": "Kısmen dil kayması olabilir (errors=0 kastedilmiş); soru metnine göre çelişen veri iddiası sayıldı.",
+   "eren_check": {
+    "agree": true,
+    "T1": "yes",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "qwen3.5-4b inc-7d5db017",
@@ -295,7 +343,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday checkout: 'error_rate'te T+02:30'da başlayan sıçrama' — girdide (t2, 60 sn kovalar T-14:42'den) checkout 1,000 T-00:42 kovasında, 300 sn kovalarda T+00:00 kovasında başlıyor; T+02:30 sonradan kendi seçtiği pencerenin başı. Değer başka zamana bağlanmış (1).",
-   "note": "Uç durum: T+02:30'da hata gerçekten var (0,750); yanlış olan 'başlama' zamanı. Aynı tabloda payment da aynı değerlerde (0,750 / 1,000)."
+   "note": "Uç durum: T+02:30'da hata gerçekten var (0,750); yanlış olan 'başlama' zamanı. Aynı tabloda payment da aynı değerlerde (0,750 / 1,000).",
+   "eren_check": {
+    "agree": true,
+    "T1": "yes",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "qwen3.5-4b inc-810ca9d1",
@@ -313,7 +367,13 @@
    "T1": "yes",
    "T6": "no",
    "T8": "no",
-   "reason": "1. aday checkout: 'T+02:00'da 209,2 ms sıçrama, öteki servisler sabit' — 209,2 girdide var, ama aynı 300 sn kovada quote-gateway 8,8 → 156,2, shipping 10,7 → 161,8, frontend 35,7 → 78,2 (1). 2. ve 3. aday bu değerleri kendisi yazıyor."
+   "reason": "1. aday checkout: 'T+02:00'da 209,2 ms sıçrama, öteki servisler sabit' — 209,2 girdide var, ama aynı 300 sn kovada quote-gateway 8,8 → 156,2, shipping 10,7 → 161,8, frontend 35,7 → 78,2 (1). 2. ve 3. aday bu değerleri kendisi yazıyor.",
+   "eren_check": {
+    "agree": true,
+    "T1": "yes",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "qwen3.5-4b inc-986ae88a",
@@ -384,7 +444,13 @@
    "T6": "undetermined",
    "T8": "no",
    "reason": "Geçerli son cevap yok (schema_answer); T1 ve T6 belirlenemez. Adımlarda gerekçe ile çağrı uyumlu (checkout sırayla error_rate, logs, requests, p99, spans).",
-   "note": "Ham çıktıda 1. aday currency (doğru kök; 'no route to host' span'i girdide), ama currency iki kez aday → şema dışı."
+   "note": "Ham çıktıda 1. aday currency (doğru kök; 'no route to host' span'i girdide), ama currency iki kez aday → şema dışı.",
+   "eren_check": {
+    "agree": true,
+    "T1": "undetermined",
+    "T6": "undetermined",
+    "T8": "no"
+   }
   },
   {
    "key": "qwen3.5-4b inc-c6ae4086",
@@ -402,7 +468,13 @@
    "T1": "yes",
    "T6": "no",
    "T8": "no",
-   "reason": "1. aday cart: 'cart T+03:00'da sıfır istek aldı' — girdide cart T+03:00 68 istek; sıfır olan checkout ve payment (1). Değer başka servise bağlanmış."
+   "reason": "1. aday cart: 'cart T+03:00'da sıfır istek aldı' — girdide cart T+03:00 68 istek; sıfır olan checkout ve payment (1). Değer başka servise bağlanmış.",
+   "eren_check": {
+    "agree": true,
+    "T1": "yes",
+    "T6": "no",
+    "T8": "no"
+   }
   },
   {
    "key": "qwen3.5-4b inc-d3869549",

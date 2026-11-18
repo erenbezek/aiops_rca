@@ -247,6 +247,45 @@ def test_sample_lists_second_round_on_test(capsys):
     assert sorted(out[11:]) == sorted(r["key"] for r in rows if r["key"] not in first) and len(out[11:]) == 12
 
 
+# --- gerçek test kayıtları (P2d 6. madde B) ---
+
+def test_eren_check_in_test_labels_file():
+    # Eren 2026-11-17 1. tur: 10 satırda 4 katılmıyorum. Dördü de etiketleyicinin soru dışı ölçüt (2. / 3. aday) önerisi;
+    # etiket donmuş metne göre ilk hâlinde kaldı (2026-11-18, notlu). Yeniden etiketlemede tek değişiklik: 4B
+    # inc-d3869549 T8 evet (Eren'in 1. tur cevabı 'hayır', notlu). 2. tur: örneklem dışı 12 satır, 12'si katılıyorum.
+    rows, _ = ea.select(set_="test")
+    doc = json.loads((ea.REPO / ea.FILES["test"][0]).read_text(encoding="utf-8"))
+    first = ea.sample(rows)
+    checked = {x["key"]: x for x in doc["rows"] if "eren_check" in x}
+    assert sorted(checked) == sorted(x["key"] for x in doc["rows"]) and len(checked) == 22
+    for x in checked.values():
+        e = x["eren_check"]
+        assert set(e) <= {"agree", "T1", "T6", "T8", "note"} and all(e[t] in ea.VALUES for t in ea.READ)
+    g, q = "gemini-3.5-flash-lite", "qwen3.5-4b"
+    off = {f"{g} inc-e763eeaf", f"{q} inc-986ae88a", f"{q} inc-a519be4f", f"{q} inc-e4d29c6d"}
+    assert {k for k, x in checked.items() if x["eren_check"]["agree"] is False} == off and off <= set(first)
+    for k in off:  # etiket ilk hâlinde: Eren'in cevabından tam bir okumada ayrılıyor
+        x = checked[k]
+        assert sum(x["eren_check"][t] != x[t] for t in ea.READ) == 1 and "soru dışı" in x["eren_check"]["note"]
+    fixed = checked[f"{q} inc-d3869549"]
+    assert fixed["T8"] == "yes" and fixed["eren_check"]["T8"] == "no" and fixed["eren_check"]["agree"] is True
+    for k, x in checked.items():  # öteki satırlarda Eren'in okuması etiketle aynı
+        if k not in off | {fixed["key"]}:
+            assert x["eren_check"]["agree"] is True and all(x["eren_check"][t] == x[t] for t in ea.READ)
+    res = ea.summary(set_="test")
+    assert res["eren_check"] == {"n": 10, "checked": 10, "disagree": 4, "reading": "relabel"}
+    assert res["eren_check_2"] == {"n": 12, "checked": 12, "disagree": 0, "reading": "ok"}
+
+
+def test_test_summary_files_match_records():
+    # CI: test özeti repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
+    md, js = ea.summary_render(set_="test")
+    _, md_path, js_path = ea.FILES["test"]
+    assert (ea.REPO / md_path).read_text(encoding="utf-8") == md
+    assert (ea.REPO / js_path).read_text(encoding="utf-8") == js
+    assert ea.main(["summary", "--set", "test", "--check"]) == 0
+
+
 # --- gerçek dev kayıtları ---
 
 def test_eren_check_in_labels_file():
