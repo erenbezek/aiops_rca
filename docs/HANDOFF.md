@@ -5688,3 +5688,52 @@ Data:
 - **Genel:** yeni satırlarda test vaka kimliği 0. pytest 819 yeşil. `main` dalın atası.
 - **PR:** `task/p2d` → `main`, açıklama sade; Eren onayıyla. Birleşmeden sonra bu dala commit yok.
 - **Taşınan notlar ve P2e:** kararlar PR'dan bağımsız, Eren'in. Planlama bunları PR birleştikten sonra sırayla sorar: önce P2e mi, canlı demo mu; sonra silmeler (`llm_cache/` deneme kayıtları, `analysis/` klonları, uygulamanın scratch klasörü); "Sızıntı kontrolü" kutusu ve yerel mutlak yol kapanışta.
+
+## 2026-11-18 · Planlama → Uygulama (Canlı demo kartı: product-catalog sınaması, Grafana panosu, demo komutu, web arayüzü)
+- **Durum:** P2d birleşti (PR #43); P2e kararı birleşti (PR #44, main `5385c0a`). Dal `task/canli-demo` (main'den; planlama açtı, bu kayıt içinde). Kararlar:
+  - DECISIONS 2026-11-09: kart içeriği (müdahale sınaması, Grafana panosu, hata enjekte et → kanıtlı rapor); demo P2'nin ajanını kullanır; PromQL işlevleri panoda.
+  - DECISIONS 2026-10-30: müdahale sınamasının ölçütü.
+  - DECISIONS 2026-11-18 (üç satır, Eren): model seçilebilir, varsayılan Gemini; öneri kural tablosundan; web arayüzü bu kartta.
+- **Amaç:** PROJECT'teki "Canlı demo: hata enjekte et → kanıtlı olay raporu (+ bir sonraki adım önerisi)" kutusu ve DevOps listesinin Grafana satırı. Demo gösterimdir, ölçüm değildir. İsabeti sonuç tablolarına girmez. Demoya bakarak ajan, araçlar ya da istem değiştirilmez.
+- **Bütün kart için kurallar:**
+  - **Ajan donmuş:** istem `5e259201…`, sınırlar 8 / 700 / 6000 / 300, araçlar, `llm_client.py` aynen. Demoya özgü olan yalnız depolama uçları (ana yığının Prometheus, Jaeger, OpenSearch'ü), alarm anı (enjeksiyon başlangıcı) ve pencere.
+  - **Ajan gerçek cevabı görmez.** Demo hatayı kendisi enjekte ettiği için cevabı bilir; bu, rapora ajan bittikten sonra ayrı ve etiketli bir bölüm olarak yazılabilir (1. maddede öneri).
+  - **Demo çıktıları** `incidents/`, `snapshots/`, `eval_responses/` altına yazılmaz; ayrı, git dışı bir klasöre (1. maddede öneri).
+  - **Sızıntı:** ajanın canlıda gördüğü bütün araç çıktıları koşu sonunda `leakage` kurallarıyla taranır. En az bir bulgu → demo durur, planlamaya yazılır. Canlı izleme sistemine giden verinin süzülmüş olduğu 1. maddede gösterilir.
+  - **Önce Eren:** demo ayarı değişikliği (product-catalog sınırı), volume silme, yeni paket, yeni ad. Uzun koşu (> 15 dk), yerel model ve demo yığınını açma Eren'e sorularak; şarj eşiği 80, iki kilit.
+  - **Portlar:** web arayüzü ve her yeni port yalnız `127.0.0.1`'e bağlanır (DECISIONS 2026-10-18). API anahtarı repoya, kayda ve rapora girmez; ücretsiz katman metni geçerli.
+- **Sıra (her madde sonunda kayıt + Eren onayı):**
+  1. **Öneri (kod yok):**
+     - (a) Demo komutunun adı, yeri ve akışı: korumalar → demo yığını açık, taban sağlık → seçilen hata (katalogdaki belirtili hatalardan; liste önerilir) enjekte → belirti süresi → ajan (seçilen model, canlı uçlarla) → rapor → hata geri alınır, doğrulanır. Enjeksiyon ve geri alma koşucunun (`scenario_runner.py`) kodunu kullanır, kopyalamaz.
+     - (b) Canlı uçlar: ana yığının adresleri, `store_live.py`'nin bugünkü yeniden oynatma uçlarıyla (`REPLAY_ENDS`) aynı arayüzden; okuyucu değişmeden mi, tek bir parametreyle mi.
+     - (c) Rapor biçimi (md + json): adaylar, kanıt yolu, gerekçe, kanıt geçerliliği (P1'in kodu), araç çağrıları ve çıktı özetleri, sonraki adım önerisi, "ajan önerir, uygulamaz" notu, süre ve token; ajan bittikten sonra gerçek cevap bölümü.
+     - (d) Sonraki adım kural tablosu: girdi yalnız ajanın 1. adayı ve kanıt türleri; çıktı sabit öneri metni; eşleşme yoksa "insan incelemesi". Tablonun satırları burada yazılır.
+     - (e) Grafana panosu: paneller (servis başına istek hızı `rate`, hata oranı, p95 `histogram_quantile`, konteyner CPU ve bellek), PromQL sorguları, panonun repoda tutulması (provisioning JSON) ve yüklenme yolu.
+     - (f) Web arayüzü: tek sayfa (hata ve model seç, başlat, ilerleme, rapor, Grafana bağlantısı). 2–3 kütüphane seçeneği, biri yeni bağımlılık gerektirmeyen standart kütüphane; artı / eksi; seçim Eren'in. Aynı anda tek demo (kilit).
+     - (g) Yeni adlar (dosya, komut, alan) listesi; GLOSSARY onaydan sonra.
+     - (h) 5. madde için hata listesi ve kabul ölçütleri.
+  2. **product-catalog müdahale sınaması (Eren'e sorarak; demo kodundan önce, çünkü taban buna bağlı).** Ölçüt DECISIONS 2026-10-30'dan aynen: frontend p95 ≤ 30 ms ve product-catalog p95 13–17 ms aralığına dönerse sınır yavaşlığın nedenidir; dönmezse disk / Jaeger tarafı. Her adım ayrı ölçüm (taban ölçüsüyle aynı, 10 dk normal dönem):
+     - (i) Şimdiki ayarla taban. Yavaşlık yoksa kayda "kendiliğinden geçti, nedeni bilinmiyor" yazılır, müdahale yapılmaz.
+     - (ii) Yavaşsa product-catalog bellek sınırı yükseltilir (değer 1. maddede önerilir, Eren onayı) ve ölçülür.
+     - (iii) Dönmezse canlı izleme volume'leri (Jaeger 25,2 GB) silinir (Eren onayı; DECISIONS 2026-11-09) ve ölçülür.
+     - (iv) Yine dönmezse durulur, planlamaya yazılır.
+
+     Betiğin yeri 1. maddede önerilir; sayılar ve sha256 kayda.
+  3. **Kod + testler:** demo komutu, kural tablosu, rapor, Grafana panosu. Sahte kayıtlarla ve sahte uçlarla testler; CI'da ağ ve anahtar yok. Ajan, araçlar, istem ve okuyucular değişmez: P2d raporu ve özetler bayt aynı kalır (`--check`). Kasıtlı kırmızı scratch klonda.
+  4. **Web arayüzü:** 1. maddede seçilen kütüphaneyle; testler (sayfa, başlatma kilidi, yalnız `127.0.0.1`).
+  5. **Kabul koşusu (Eren'e sorarak):** 1. maddedeki listeden her hata bir kez Gemini ile, en az bir hata 4B ile. Ölçütler sonuçtan önce 1. maddede netleşir; isabet ölçüt değildir. En az:
+     - uçtan uca biter;
+     - hata geri alınır ve doğrulanır;
+     - rapor bütün alanlarla çıkar;
+     - sızıntı 0;
+     - OOM ve beklenmeyen yeniden başlama 0;
+     - Grafana panelleri belirti penceresinde veri gösterir;
+     - web arayüzünden en az bir koşu.
+
+     İsabet kayda yalnız bilgi olarak geçer, sonuç tablolarına girmez.
+  6. **Kapanış:**
+     - PROJECT "Canlı demo" kutusu ve DevOps satırları: Grafana; PromQL; product-catalog sınaması nedeni ayırdıysa "Dağıtık sistemde sorun giderme".
+     - ARCHITECTURE (diyagram ve dosyalar), GLOSSARY (onaylı adlar), README (demo nasıl çalıştırılır).
+     - PR (açıklama sade).
+- **Taşınan notlar (karar Eren'in, bu kartın dışında):** `llm_cache/` deneme kayıtları, `analysis/` klonları, uygulamanın scratch klasörü; "Sızıntı kontrolü" kutusu ve yerel mutlak yol kapanışta. `task/p2d` dalında main'e girmemiş tek commit (`b723051`) var, içeriği PR #44 ile main'de; dal silinebilir (Eren).
+- **Beklenen:** 1. maddenin önerisi HANDOFF'ta; planlama kontrol eder, Eren onaylar.
