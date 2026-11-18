@@ -167,8 +167,9 @@
     "T1": "yes",
     "T6": "no",
     "T8": "no",
-    "note": "T1: 3. aday 'frontend cart'tan hata alıyor'; frontend error_rate hep 0,000 (hata frontend-proxy'de). İlk etiket yalnız 1. adaya bakmıştı."
-   }
+    "note": "T1: 3. aday 'frontend cart'tan hata alıyor'; frontend error_rate hep 0,000 (hata frontend-proxy'de). İlk etiket yalnız 1. adaya bakmıştı. 1. tur sonrası (2026-11-18): bu satırdaki değişiklik önerisi soru dışı ölçüte (2. / 3. aday) dayanıyordu; donmuş metinde T1 ve T6 yalnız 1. aday. Eren'in cevabı olduğu gibi kayıtlı; etiket donmuş metne göre ilk hâlinde kaldı."
+   },
+   "note": "Bilgi (sayılmaz): 3. aday 'frontend cart'tan hata alıyor'; frontend error_rate hep 0,000."
   },
   {
    "key": "qwen3.5-4b inc-01e8bcf7",
@@ -331,13 +332,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday checkout: 'T+02:00'da 10.087 ms p99 sıçraması, hata oranı ve istek normal' — girdide checkout p99 T+02:00 10.087,4, error_rate ve errors 0, istek 13–18. İddia girdide var.",
-   "note": "Aynı tabloda shipping p99 10.002,5 / 10.001,5 (kök shipping); gerekçe bunu inkâr etmiyor, görmezden geliyor (kodla T3 / T7).",
+   "note": "Aynı tabloda shipping p99 10.002,5 / 10.001,5 (kök shipping); gerekçe bunu inkâr etmiyor, görmezden geliyor (kodla T3 / T7). Bilgi (sayılmaz): 2. aday 'cart'ın gecikmesi öteki servislerden yüksek'; cart p99 2,2–2,8 ms.",
    "eren_check": {
     "agree": false,
     "T1": "yes",
     "T6": "no",
     "T8": "no",
-    "note": "T1: 2. aday 'cart'ın gecikmesi öteki servislerden biraz yüksek'; cart p99 2,2–2,8 ms, tablodaki en düşüklerden. İlk etiket yalnız 1. adaya bakmıştı. Çağrı penceresinin sınırı gerekçedeki kovayı dışarıda bırakması T8 değil."
+    "note": "T1: 2. aday 'cart'ın gecikmesi öteki servislerden biraz yüksek'; cart p99 2,2–2,8 ms, tablodaki en düşüklerden. İlk etiket yalnız 1. adaya bakmıştı. Çağrı penceresinin sınırı gerekçedeki kovayı dışarıda bırakması T8 değil. 1. tur sonrası (2026-11-18): bu satırdaki değişiklik önerisi soru dışı ölçüte (2. / 3. aday) dayanıyordu; donmuş metinde T1 ve T6 yalnız 1. aday. Eren'in cevabı olduğu gibi kayıtlı; etiket donmuş metne göre ilk hâlinde kaldı."
    }
   },
   {
@@ -357,13 +358,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday shipping: 'shipping checkout'a HTTP 400 dönüyor' — checkout span'lerinde 'failed POST to shipping service: expected 200, got 400' aynen var. Sonuç yanlış (kök cart; aynı span'lerde CartService/GetCart 544.573,5 ms), veri iddiası doğru.",
-   "note": "t7 gerekçesi 'error logs' diyor, bilgi span'lerden geldi; çağrı (shipping logları) gerekçeyle uyumlu (8 değil).",
+   "note": "t7 gerekçesi 'error logs' diyor, bilgi span'lerden geldi; çağrı (shipping logları) gerekçeyle uyumlu (8 değil). Bilgi (sayılmaz): 2. aday 'quote-gateway shipping'i çağırıyor'; girdide shipping -> quote-gateway.",
    "eren_check": {
     "agree": false,
     "T1": "yes",
     "T6": "no",
     "T8": "no",
-    "note": "T1: 2. aday 'quote-gateway shipping'i çağırıyor'; girdide shipping -> quote-gateway. İlk etiket yalnız 1. adaya bakmıştı. Gerekçe giden çağrı deyip çağrının gelen gecikmeyi sorması T8 değil."
+    "note": "T1: 2. aday 'quote-gateway shipping'i çağırıyor'; girdide shipping -> quote-gateway. İlk etiket yalnız 1. adaya bakmıştı. Gerekçe giden çağrı deyip çağrının gelen gecikmeyi sorması T8 değil. 1. tur sonrası (2026-11-18): bu satırdaki değişiklik önerisi soru dışı ölçüte (2. / 3. aday) dayanıyordu; donmuş metinde T1 ve T6 yalnız 1. aday. Eren'in cevabı olduğu gibi kayıtlı; etiket donmuş metne göre ilk hâlinde kaldı."
    }
   },
   {
@@ -418,14 +419,15 @@
    "T12": "yes",
    "T1": "yes",
    "T6": "no",
-   "T8": "no",
-   "reason": "1. aday frontend: 'en yüksek hata oranı ve gecikme sıçramaları' — girdide error_rate checkout 0,143 > product-catalog 0,072 > frontend 0,052; frontend p99 34,7 / 34,4 → 33,2 / 33,1, sıçrama yok (1).",
+   "T8": "yes",
+   "reason": "1. aday frontend: 'en yüksek hata oranı ve gecikme sıçramaları' — girdide error_rate checkout 0,143 > product-catalog 0,072 > frontend 0,052; frontend p99 34,7 / 34,4 → 33,2 / 33,1, sıçrama yok (1). T8: tur 4 gerekçesi 'errors' ve 'request volume' diyor, çağrı p99_ms soruyor (başka metrik; yeniden etiketlemede donmuş metne göre, 2026-11-18).",
    "note": "product-catalog'un hata ve gecikmesi girdide var; o kısım doğru.",
    "eren_check": {
     "agree": true,
     "T1": "yes",
     "T6": "no",
-    "T8": "no"
+    "T8": "no",
+    "note": "Kontrolde T8 'hayır' (etiketleyici satır 7'nin 'giden çağrı' kuralını yanlış atfetti); yeniden etiketlemede metne göre evet."
    }
   },
   {
@@ -469,13 +471,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday cart: 'trafiği öteki servislerden belirgin yüksek, yüksek istek hacmi olan tek servis' — girdide frontend 4.198–4.421, frontend-proxy 4.254–4.503, product-catalog 1.454–1.552, image-provider 1.183–1.274; cart 407–436 (1).",
-   "note": "2. adayın 'T-10:00'da istek düşüşü' iddiası error_rate'teki '-' kovası; 1. adayın gerekçesi değil.",
+   "note": "2. adayın 'T-10:00'da istek düşüşü' iddiası error_rate'teki '-' kovası; 1. adayın gerekçesi değil. Bilgi (sayılmaz): 2. aday alarm öncesi T-10:00 boşluğunu (error_rate) istek düşüşü ve arıza kanıtı yapıyor.",
    "eren_check": {
     "agree": false,
     "T1": "yes",
     "T6": "yes",
     "T8": "no",
-    "note": "T6: 2. aday alarm öncesi T-10:00 boşluğunu arıza kanıtı yapıyor. İlk etiket yalnız 1. adaya bakmıştı."
+    "note": "T6: 2. aday alarm öncesi T-10:00 boşluğunu arıza kanıtı yapıyor. İlk etiket yalnız 1. adaya bakmıştı. 1. tur sonrası (2026-11-18): bu satırdaki değişiklik önerisi soru dışı ölçüte (2. / 3. aday) dayanıyordu; donmuş metinde T1 ve T6 yalnız 1. aday. Eren'in cevabı olduğu gibi kayıtlı; etiket donmuş metne göre ilk hâlinde kaldı."
    }
   }
  ]
