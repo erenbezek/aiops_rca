@@ -258,7 +258,7 @@ def test_sample_lists_second_round_on_test(capsys):
     first = ea.sample(rows)
     assert out[:10] == first and out[10] == "# 2. tur"
     assert sorted(out[11:]) == sorted(r["key"] for r in rows if r["key"] not in first) and len(out[11:]) == 44
-    assert ea.summary(set_="test")["eren_check_2"] == {"n": 44, "checked": 0, "disagree": 0, "reading": "pending"}
+    assert ea.summary(set_="test")["eren_check_2"]["n"] == 44
 
 def test_summary_files_match_records():
     # CI: özet repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
@@ -356,10 +356,17 @@ def test_eren_check_in_test_labels_file():
     # (Eren evet, etiket hayır) → yeniden etiketleme. İkisi kontrol sırasında etiketleyicinin önerdiği düzeltme (notlu).
     # Yeniden etiketleme yalnız T1: 694a898 (A okuması) 7 satır hayır → evet; okuma düzeltmesiyle (8b54f37) 2 satır
     # evet → hayır, biri örneklemde ("erişilemez" örneği geri alındı). 1. tur kaydı değişmez.
+    # 2. tur (2026-11-18): örneklem dışı 44 satırın tümü, 44'ü katılıyorum, Eren'in T1 / T5 / T6'sı etiketle aynı.
     rows, _ = ea.select(set_="test")
     doc = json.loads((ea.REPO / ea.FILES["test"][0]).read_text(encoding="utf-8"))
     assert doc["questions_sha256"] == ea.QUESTIONS_SHA256 and len(doc["rows"]) == 54
-    checked = {x["key"]: x for x in doc["rows"] if "eren_check" in x}
+    marked = {x["key"]: x for x in doc["rows"] if "eren_check" in x}
+    assert len(marked) == 54
+    second = {k: x for k, x in marked.items() if k not in ea.sample(rows)}
+    assert len(second) == 44 and all(x["eren_check"]["agree"] is True and set(x["eren_check"]) == {"agree", "T1", "T5", "T6"}
+                                     and all(x["eren_check"][t] == x[t] for t in ("T1", "T5", "T6"))
+                                     for x in second.values())
+    checked = {k: x for k, x in marked.items() if k not in second}
     assert sorted(checked) == ea.sample(rows)
     for x in checked.values():
         e = x["eren_check"]
@@ -377,7 +384,9 @@ def test_eren_check_in_test_labels_file():
     fixed = [x for x in doc["rows"] if note(x).startswith("Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37)")]
     assert len(relabeled) == 7 and len(fixed) == 2 and {x["key"] for x in fixed} <= {x["key"] for x in relabeled}
     assert all(x["T1"] == "no" for x in fixed) and all(x["T1"] == "yes" for x in relabeled if x not in fixed)
-    assert ea.summary(set_="test")["eren_check"] == {"n": 10, "checked": 10, "disagree": 4, "reading": "relabel"}
+    res = ea.summary(set_="test")
+    assert res["eren_check"] == {"n": 10, "checked": 10, "disagree": 4, "reading": "relabel"}
+    assert res["eren_check_2"] == {"n": 44, "checked": 44, "disagree": 0, "reading": "ok"}
 
 
 def test_test_summary_files_match_records():

@@ -1,6 +1,6 @@
 # P1 test hata analizi özeti (P2d)
 
-Üreten: `python -m aiops_rca.error_analysis summary --set test`. Etiketler `results/p1_test_error_labels.json` sha256 `51d637d9e794e4ae9da57b68472b50b6bc27fbd6ab6deaee54a8b0eaa91740b7`, sorular sha256 `dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7` (tam metin etiket dosyasında). Kapsam: test, P1e test koşuları, 4B / gpt-oss / Gemini × ham / özet / daraltma; girdi sorulmuş, şema içi, top-1'i ıskalayan 54 satır.
+Üreten: `python -m aiops_rca.error_analysis summary --set test`. Etiketler `results/p1_test_error_labels.json` sha256 `5060a7a11e631fd2edf52acc9ef579e049d70799d2de1b1d43b4ac3c0b215838`, sorular sha256 `dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7` (tam metin etiket dosyasında). Kapsam: test, P1e test koşuları, 4B / gpt-oss / Gemini × ham / özet / daraltma; girdi sorulmuş, şema içi, top-1'i ıskalayan 54 satır.
 
 ## 1. Otomatik türler (test, satır başına 18 vaka)
 
@@ -63,4 +63,4 @@ Kök ilk 3'te eşlenmemiş bir adla geçiyor (`name_key` aynı: küçük harf, s
 
 Örneklem 10 satır (tohum 20261104); işaretlenen 10, katılmıyorum 4. Okuma: yeniden etiketleme (≥ 3 katılmıyorum).
 
-2. tur (1. tur yeniden etiketleme okudu; yeniden etiketlemeden sonra örneklem dışındaki 44 satırın tümü): işaretlenen 0, katılmıyorum 0. Okuma: bekliyor.
+2. tur (1. tur yeniden etiketleme okudu; yeniden etiketlemeden sonra örneklem dışındaki 44 satırın tümü): işaretlenen 44, katılmıyorum 0. Okuma: tamam (< 3 katılmıyorum).
