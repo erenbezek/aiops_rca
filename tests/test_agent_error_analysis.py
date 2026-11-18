@@ -193,6 +193,60 @@ def test_test_runs_empty_until_runs(monkeypatch):
         ea.main(["summary", "--set", "test", "--check"])
 
 
+def _world14(tmp_path):
+    """14 ıskalanan satır (7 + 7): tohumlu örneklem 10, örneklem dışı 4."""
+    ids = [f"inc-{i:08x}" for i in range(7)]
+    _run(tmp_path / "g", "gemini-3.5-flash-lite", {i: (False, True) for i in ids}, "test")
+    _run(tmp_path / "q", "qwen3.5-4b", {i: (False, True) for i in ids}, "test")
+    return {"gemini_file": ("g", "G"), "qwen_file": ("q", "Q")}, tmp_path, {i: LABEL for i in ids}
+
+
+def _marks(rows, first_disagree, second_disagree=None):
+    """1. tur örneklemin tümü işaretli (ilk `first_disagree` katılmıyorum); 2. tur verilirse örneklem dışı da."""
+    first = ea.sample(rows)
+    rest = [r["key"] for r in rows if r["key"] not in first]
+    marks = {k: {"agree": i >= first_disagree} for i, k in enumerate(first)}
+    if second_disagree is not None:
+        marks.update({k: {"agree": i >= second_disagree} for i, k in enumerate(rest)})
+    return {k: {"eren_check": {**v, "T1": "no", "T6": "no", "T8": "no"}} for k, v in marks.items()}
+
+
+def test_second_round_only_after_relabel(tmp_path, monkeypatch):
+    w = _world14(tmp_path)
+    rows, _ = ea.select(*w, "test")
+    assert len(rows) == 14 and len(ea.sample(rows)) == 10
+    res = _summary(tmp_path, w, _labels_doc(rows, **_marks(rows, 2)), monkeypatch, "test")
+    assert res["eren_check"]["reading"] == "ok" and "eren_check_2" not in res
+    assert "2. tur" not in ea.summary_markdown(res, "test")
+    with pytest.raises(ValueError, match="outside the sample"):  # 1. tur tamam okurken örneklem dışı işaret
+        _summary(tmp_path, w, _labels_doc(rows, **_marks(rows, 2, 0)), monkeypatch, "test")
+
+
+@pytest.mark.parametrize("second, want", [
+    (None, {"n": 4, "checked": 0, "disagree": 0, "reading": "pending"}),
+    (2, {"n": 4, "checked": 4, "disagree": 2, "reading": "ok"}),
+    (3, {"n": 4, "checked": 4, "disagree": 3, "reading": "relabel"}),
+])
+def test_second_round_reading(tmp_path, monkeypatch, second, want):
+    w = _world14(tmp_path)
+    rows, _ = ea.select(*w, "test")
+    res = _summary(tmp_path, w, _labels_doc(rows, **_marks(rows, 3, second)), monkeypatch, "test")
+    assert res["eren_check"] == {"n": 10, "checked": 10, "disagree": 3, "reading": "relabel"}
+    assert res["eren_check_2"] == want
+    assert f"satırın tümü): işaretlenen {want['checked']}, katılmıyorum {want['disagree']}" in \
+        ea.summary_markdown(res, "test")
+
+
+def test_sample_lists_second_round_on_test(capsys):
+    # Gerçek test etiketleri: 1. tur 10 satırda 4 katılmıyorum (Eren 2026-11-17) → 2. tur örneklem dışı 12 satır.
+    rows, _ = ea.select(set_="test")
+    assert ea.main(["sample", "--set", "test"]) == 0
+    out = capsys.readouterr().out.splitlines()
+    first = ea.sample(rows)
+    assert out[:10] == first and out[10] == "# 2. tur"
+    assert sorted(out[11:]) == sorted(r["key"] for r in rows if r["key"] not in first) and len(out[11:]) == 12
+
+
 # --- gerçek dev kayıtları ---
 
 def test_eren_check_in_labels_file():

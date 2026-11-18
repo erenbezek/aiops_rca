@@ -24,6 +24,11 @@ Telemetri türü (T5, T7): iz (`search_spans`, `get_trace`, `service_dependencie
 Varsayılan dev. `--set test` (HANDOFF 2026-11-17, P2d): aynı sorular ve tohum test koşularına (`agent_report.TEST_RUNS`
 resmî dosya koşuları); etiketler `results/p2d_error_labels.json`, özet `results/p2d_error_summary.md` / `.json`. Snapshot
 gerekmez (kayıtlar ve `incidents/` etiketleri); `summary --check` CI'da.
+
+İkinci tur (Eren 2026-11-17, P2d 6. madde B): 1. tur (tohumlu 10 satır) yeniden etiketleme okursa, yeniden etiketlemeden
+sonra örneklem dışındaki satırların tümü Eren'e sorulur; işaretleri de `eren_check` olarak yazılır, özette
+`eren_check_2` (aynı eşik: ≥ 3 katılmıyorum → yeniden etiketleme). 1. tur yeniden etiketleme okumadıkça örneklem
+dışındaki `eren_check` hatadır. `sample` 2. turun satırlarını da listeler.
 """
 from __future__ import annotations
 
@@ -251,15 +256,23 @@ def summary(repo: Path = REPO, runs: dict | None = None, eval_dir: Path | None =
             traps[c]["n"] += 1
             for t in TRAPS:
                 traps[c][t][x[t]] += 1
-    checked = [x for x in doc["rows"] if "eren_check" in x]
-    if not {x["key"] for x in checked} <= set(sample(rows)):
-        raise ValueError("eren_check outside the sample")
+    first_keys = set(sample(rows))
+    checked = [x for x in doc["rows"] if "eren_check" in x and x["key"] in first_keys]
+    second = [x for x in doc["rows"] if "eren_check" in x and x["key"] not in first_keys]
     disagree = sum(x["eren_check"]["agree"] is False for x in checked)
     n_sample = min(SAMPLE_N, len(rows))
     reading = "pending" if len(checked) < n_sample else "relabel" if disagree > DISAGREE_MAX else "ok"
-    return {"labels_sha256": hashlib.sha256(labels_path.read_bytes()).hexdigest(),
-            "questions_sha256": questions_sha256(), "rows": len(doc["rows"]), "traps": traps, "info_all_cases": info,
-            "eren_check": {"n": n_sample, "checked": len(checked), "disagree": disagree, "reading": reading}}
+    if second and reading != "relabel":
+        raise ValueError("eren_check outside the sample")
+    res = {"labels_sha256": hashlib.sha256(labels_path.read_bytes()).hexdigest(),
+           "questions_sha256": questions_sha256(), "rows": len(doc["rows"]), "traps": traps, "info_all_cases": info,
+           "eren_check": {"n": n_sample, "checked": len(checked), "disagree": disagree, "reading": reading}}
+    if reading == "relabel":  # 2. tur: örneklem dışındaki satırların tümü
+        n2 = len(rows) - n_sample
+        d2 = sum(x["eren_check"]["agree"] is False for x in second)
+        r2 = "pending" if len(second) < n2 else "relabel" if d2 > DISAGREE_MAX else "ok"
+        res["eren_check_2"] = {"n": n2, "checked": len(second), "disagree": d2, "reading": r2}
+    return res
 
 
 READING_TEXT = {"pending": "bekliyor", "ok": "tamam (< 3 katılmıyorum)",
@@ -287,6 +300,11 @@ def summary_markdown(res: dict, set_: str = "dev") -> str:
     out += ["", "## 3. Eren doğrulaması", "",
             f"Örneklem {e['n']} satır (tohum {SEED}); işaretlenen {e['checked']}, katılmıyorum {e['disagree']}. "
             f"Okuma: {READING_TEXT[e['reading']]}.", ""]
+    if "eren_check_2" in res:
+        e2 = res["eren_check_2"]
+        out += [f"2. tur (1. tur yeniden etiketleme okudu; yeniden etiketlemeden sonra örneklem dışındaki {e2['n']} "
+                f"satırın tümü): işaretlenen {e2['checked']}, katılmıyorum {e2['disagree']}. "
+                f"Okuma: {READING_TEXT[e2['reading']]}.", ""]
     return "\n".join(out)
 
 
@@ -316,7 +334,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(dossier(args.out, set_=args.set_))} files -> {args.out}")
     elif args.cmd == "sample":
         rows, _ = select(set_=args.set_)
-        print("\n".join(sample(rows)))
+        first = sample(rows)
+        print("\n".join(first))
+        if (REPO / FILES[args.set_][0]).exists() and "eren_check_2" in summary(REPO, set_=args.set_):
+            print("# 2. tur")
+            print("\n".join(r["key"] for r in rows if r["key"] not in first))
     else:
         md, js = summary_render(REPO, args.set_)
         if args.check:
