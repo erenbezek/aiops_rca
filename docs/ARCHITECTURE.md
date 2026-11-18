@@ -142,6 +142,7 @@ flowchart LR
 | `results/p1_runs.json`, `results/p1_table.md`, `results/p1_table.json` | Sonuç tablosunun resmî koşu listesi (satır → dev / test koşu klasörü) / komutla üretilen tablo (CI bayt aynı yeniden üretir) |
 | `results/p1_error_labels.json`, `results/p1_error_summary.md`, `results/p1_error_summary.json` | Dev hata analizinin donmuş soruları ve 29 satırın etiketleri (örneklemde `eren_check`) / `error_analysis summary` ile üretilen özet (CI bayt aynı yeniden üretir) |
 | `results/p1_limitations.md` | P1 sonuçlarının sınırlamaları (elle yazılır; maddeler kayıtlardan, her birinde sayı, okumaya etkisi ve kaynak) |
+| `results/p2_limitations.md` | P2 sonuçlarının sınırlamaları (elle yazılır; P1 biçiminde: her maddede sayı, okumaya etkisi ve kaynak; test vakası kimliği yok) |
 | `results/p2a_compare.md`, `results/p2a_compare.json` | P2a dosya ↔ canlı karşılaştırmasının raporu (`query_compare.py report`; snapshot'ları okuduğu için CI'da yeniden üretilmez): çağrı sayıları, kodla sınıflanmış fark türleri, ham kayıt farkları, exemplar reddi, süre, Jaeger tepesi, vaka tablosu |
 | `results/p2b_pilot.md`, `results/p2b_pilot.json` | P2b pilot dumanı raporu (`tools/agent_report.py`): koşu ve vaka başına bitiş, adım, istek, token, süre, kırpma, tekrar, araç hatası; 4B ve bütçe kuralı; pilot isabeti yalnız bilgi |
 | `results/p2c_dev.md`, `results/p2c_dev.json` | P2c dev raporu (`tools/agent_report.py --report p2c_dev`; dev koşularından sonra): koşular, dosya ↔ canlı üç katman, ajan ↔ P1 iki hücre, öteki ölçüler yalnız sayı |

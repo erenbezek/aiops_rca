@@ -5636,3 +5636,10 @@ Data:
     - P1 analizi 12 tuzağın 6'sı; ajan analizinde T10 uygulanamaz.
   - **Kayıtlar:** canlı kayıtlarda yerel mutlak yol var (`/home/…/storage_runs/…`). Sınırlama değil, not; kapanışta ayrı karar.
 - **Beklenen:** 7. madde metni ve yeri (`results/p2d_limitations.md` ya da kartta yazan dosya), sonra planlama kontrolü. 8. maddede P2e adayları ayrı ele alınır.
+
+## 2026-11-18 · Uygulama → Planlama (P2d 7. madde: sınırlamalar yazıldı)
+- **Yer ve ad (Eren onayı, seçenek A):** `results/p2_limitations.md` (P1'deki `p1_limitations.md` ile simetrik; P2a–P2d). ARCHITECTURE dosya tablosuna satır.
+- **Biçim:** `p1_limitations.md` gibi elle; her maddede ne, sayı, okumaya etkisi, kaynak tarihi. Yeni yorum yok; test vakası kimliği 0 (grep).
+- **Bölümler (8):** veri, sağlayıcı ve modeller; örneklem ve okumalar; canlı ve dosya; taşıma ve kota; 4B; puanlama; hata analizi; not (yerel mutlak yol, sınırlama değil). Planlamanın 6. madde kontrolündeki listenin ve P2d kartı 7. maddesinin bütün maddeleri içinde.
+- **Uygulamanın kontrolü:** beş koşunun commit'lerinde `764a796`'dan beri `src/`, `tools/`, `tests/` farkı yok (`git diff`, dördü de `764a796`'nın çocuğu); kartın "fark yalnız canlı koşucu" ifadesi bu yüzden "kod aynı" diye yazıldı. pytest 819 yeşil.
+- **Beklenen:** planlama kontrolü; sonra 8. madde (kapanış, PR; P2e adayları ayrı).
