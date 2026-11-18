@@ -262,12 +262,15 @@ def test_eren_check_in_test_labels_file():
         e = x["eren_check"]
         assert set(e) <= {"agree", "T1", "T6", "T8", "note"} and all(e[t] in ea.VALUES for t in ea.READ)
     g, q = "gemini-3.5-flash-lite", "qwen3.5-4b"
-    # Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): 4 satırda birer alan değişti; Eren bunları 3. adımda doğrular,
-    # o zamana kadar o alan eren_check'le karşılaştırılmaz.
+    # Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): 4 satırda birer alan hayır → evet; Eren dördüne de katıldı,
+    # eren_check'te o alan yeni cevapla (agree, yani 1. / 2. tur kaydı, değişmez); eski cevap satır notunda.
     reread = {f"{g} inc-0383450c": "T1", f"{g} inc-402b4b2d": "T1", f"{q} inc-7d5db017": "T6", f"{q} inc-a519be4f": "T8"}
     for k, t in reread.items():
-        assert checked[k][t] == "yes" and checked[k]["note"].startswith("Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37)")
-    same = lambda k, t: t == reread.get(k) or checked[k]["eren_check"][t] == checked[k][t]
+        x = checked[k]
+        assert x[t] == "yes" == x["eren_check"][t] and x["note"].startswith("Okuma düzeltmesi (DECISIONS 2026-11-18")
+        assert "Eren okuma düzeltmesi (2026-11-18" in x["eren_check"]["note"] and f"önceki cevabı: {t} no." in x["note"]
+    assert sum("Eren okuma düzeltmesi" in (x["eren_check"].get("note") or "") for x in checked.values()) == 4
+    same = lambda k, t: checked[k]["eren_check"][t] == checked[k][t]
     off = {f"{g} inc-e763eeaf", f"{q} inc-986ae88a", f"{q} inc-a519be4f", f"{q} inc-e4d29c6d"}
     assert {k for k, x in checked.items() if x["eren_check"]["agree"] is False} == off and off <= set(first)
     for k in off:  # etiket ilk hâlinde: Eren'in cevabından tam bir okumada ayrılıyor

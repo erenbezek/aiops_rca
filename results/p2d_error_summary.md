@@ -1,6 +1,6 @@
 # P2d test hata analizi özeti
 
-Üreten: `python tools/agent_error_analysis.py summary --set test`. Etiketler `results/p2d_error_labels.json` sha256 `7657c2ed421a9f5176d9b02b2bbad1acee327092400ba5c80b40e2f2c51d91c1`, sorular sha256 `b887cbbb9a7a199b1cd1aee6c3efcee68573b09f753152283a677d86f2e07cbd` (tam metin etiket dosyasında; DECISIONS 2026-11-14). Kapsam: test, resmî dosya koşuları (Gemini 1. koşu, 4B), top-1'i ıskalayan 22 satır. T10 uygulanamaz.
+Üreten: `python tools/agent_error_analysis.py summary --set test`. Etiketler `results/p2d_error_labels.json` sha256 `77386f46126875e1e2c8c2f4de1a1855991cbb336933d9d4d4e6cf2021351706`, sorular sha256 `b887cbbb9a7a199b1cd1aee6c3efcee68573b09f753152283a677d86f2e07cbd` (tam metin etiket dosyasında; DECISIONS 2026-11-14). Kapsam: test, resmî dosya koşuları (Gemini 1. koşu, 4B), top-1'i ıskalayan 22 satır. T10 uygulanamaz.
 
 ## 1. Tuzaklar, ıskalanan satırlar (evet / hayır / belirlenemez)
 

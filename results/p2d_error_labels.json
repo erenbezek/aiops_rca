@@ -19,12 +19,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday payment: 'payment'ta adres çözümleme hatası, checkout'u düşürüyor' — girdide checkout'un PaymentService/Charge istemci span'leri 'dns: A record lookup error: lookup badAddress' ile UNAVAILABLE; payment'ın error_rate'i T+0'dan sonra '-' (veri yok). Hata payment çağrısında, iddia girdiyle çelişmiyor. Okuma (1): gerekçe 'payment servisi adres çözümleme hatası yaşıyor' diyor; girdide hata checkout'un PaymentService/Charge istemci span'inde (lookup badAddress), payment'ın kendi değeri değil (1, değeri başka servise bağlama).",
-   "note": "Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): T1 no → yes. DNS hatası checkout tarafındaki istemci span'inde (yanlış adres); 'payment'ın kendisi arızalı' okuması bir çıkarım, değer iddiası değil (1'e girmedi).",
+   "note": "Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): T1 no → yes. DNS hatası checkout tarafındaki istemci span'inde (yanlış adres); 'payment'ın kendisi arızalı' okuması bir çıkarım, değer iddiası değil (1'e girmedi). Eren'in okuma düzeltmesinden önceki cevabı: T1 no.",
    "eren_check": {
     "agree": true,
-    "T1": "no",
+    "T1": "yes",
     "T6": "no",
-    "T8": "no"
+    "T8": "no",
+    "note": "Eren okuma düzeltmesi (2026-11-18, DECISIONS 8b54f37): T1 no → yes, katılıyorum."
    }
   },
   {
@@ -68,12 +69,13 @@
    "T6": "no",
    "T8": "no",
    "reason": "1. aday quote: 'quote yanıt vermedi, quote-gateway'de bağlantı hatası, shipping'te 500, checkout başarısız' — get_trace'te quote-gateway → 'quote-svc' ConnectionError (Max retries), shipping 500 / 502, checkout 'expected 200, got 500' girdide var. Okuma (1): gerekçe 'quote yanıt vermedi' diyor; girdide hata quote-gateway'in 'quote-svc'ye bağlantı hatası (Max retries), quote'un kendi değeri değil (1, değeri başka servise bağlama).",
-   "note": "Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): T1 no → yes. Hata quote-gateway'in yanlış host'a ('quote-svc') bağlanması; 'quote yanıt vermedi' okuması çıkarım, girdideki bağlantı hatasıyla çelişmiyor (1'e girmedi).",
+   "note": "Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): T1 no → yes. Hata quote-gateway'in yanlış host'a ('quote-svc') bağlanması; 'quote yanıt vermedi' okuması çıkarım, girdideki bağlantı hatasıyla çelişmiyor (1'e girmedi). Eren'in okuma düzeltmesinden önceki cevabı: T1 no.",
    "eren_check": {
     "agree": true,
-    "T1": "no",
+    "T1": "yes",
     "T6": "no",
-    "T8": "no"
+    "T8": "no",
+    "note": "Eren okuma düzeltmesi (2026-11-18, DECISIONS 8b54f37): T1 no → yes, katılıyorum."
    }
   },
   {
@@ -343,12 +345,13 @@
    "T6": "yes",
    "T8": "no",
    "reason": "1. aday checkout: 'error_rate'te T+02:30'da başlayan sıçrama' — girdide (t2, 60 sn kovalar T-14:42'den) checkout 1,000 T-00:42 kovasında, 300 sn kovalarda T+00:00 kovasında başlıyor; T+02:30 sonradan kendi seçtiği pencerenin başı. Değer başka zamana bağlanmış (1). Okuma (2): 'T+02:30'da başlayan' yanlış başlangıç; 60 sn kovalarda checkout 1,000 T-00:42'de, alarm öncesinde başlıyor; kayma başlangıcı alarm çizgisinin öbür yanına geçiriyor (6).",
-   "note": "Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): T6 no → yes. Uç durum: T+02:30'da hata gerçekten var (0,750); yanlış olan 'başlama' zamanı. Aynı tabloda payment da aynı değerlerde (0,750 / 1,000).",
+   "note": "Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): T6 no → yes. Uç durum: T+02:30'da hata gerçekten var (0,750); yanlış olan 'başlama' zamanı. Aynı tabloda payment da aynı değerlerde (0,750 / 1,000). Eren'in okuma düzeltmesinden önceki cevabı: T6 no.",
    "eren_check": {
     "agree": true,
     "T1": "yes",
-    "T6": "no",
-    "T8": "no"
+    "T6": "yes",
+    "T8": "no",
+    "note": "Eren okuma düzeltmesi (2026-11-18, DECISIONS 8b54f37): T6 no → yes, katılıyorum."
    }
   },
   {
@@ -418,13 +421,13 @@
    "T6": "no",
    "T8": "yes",
    "reason": "1. aday shipping: 'shipping checkout'a HTTP 400 dönüyor' — checkout span'lerinde 'failed POST to shipping service: expected 200, got 400' aynen var. Sonuç yanlış (kök cart; aynı span'lerde CartService/GetCart 544.573,5 ms), veri iddiası doğru. Okuma (3): tur 5 gerekçesi 'checkout'un giden çağrıları' diyor, çağrı metric_series(checkout, p99_ms) gelen span gecikmesini soruyor (8).",
-   "note": "Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): T8 no → yes. t7 gerekçesi 'error logs' diyor, bilgi span'lerden geldi; çağrı (shipping logları) gerekçeyle uyumlu (8 değil). Bilgi (sayılmaz): 2. aday 'quote-gateway shipping'i çağırıyor'; girdide shipping -> quote-gateway.",
+   "note": "Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): T8 no → yes. t7 gerekçesi 'error logs' diyor, bilgi span'lerden geldi; çağrı (shipping logları) gerekçeyle uyumlu (8 değil). Bilgi (sayılmaz): 2. aday 'quote-gateway shipping'i çağırıyor'; girdide shipping -> quote-gateway. Eren'in okuma düzeltmesinden önceki cevabı: T8 no.",
    "eren_check": {
     "agree": false,
     "T1": "yes",
     "T6": "no",
-    "T8": "no",
-    "note": "T1: 2. aday 'quote-gateway shipping'i çağırıyor'; girdide shipping -> quote-gateway. İlk etiket yalnız 1. adaya bakmıştı. Gerekçe giden çağrı deyip çağrının gelen gecikmeyi sorması T8 değil. 1. tur sonrası (2026-11-18): bu satırdaki değişiklik önerisi soru dışı ölçüte (2. / 3. aday) dayanıyordu; donmuş metinde T1 ve T6 yalnız 1. aday. Eren'in cevabı olduğu gibi kayıtlı; etiket donmuş metne göre ilk hâlinde kaldı."
+    "T8": "yes",
+    "note": "T1: 2. aday 'quote-gateway shipping'i çağırıyor'; girdide shipping -> quote-gateway. İlk etiket yalnız 1. adaya bakmıştı. Gerekçe giden çağrı deyip çağrının gelen gecikmeyi sorması T8 değil. 1. tur sonrası (2026-11-18): bu satırdaki değişiklik önerisi soru dışı ölçüte (2. / 3. aday) dayanıyordu; donmuş metinde T1 ve T6 yalnız 1. aday. Eren'in cevabı olduğu gibi kayıtlı; etiket donmuş metne göre ilk hâlinde kaldı. Eren okuma düzeltmesi (2026-11-18, DECISIONS 8b54f37): T8 no → yes, katılıyorum."
    }
   },
   {
