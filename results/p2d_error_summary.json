@@ -1,13 +1,13 @@
 {
- "labels_sha256": "697b517c686a8d055f6d0274ca6e11a174204065e2117e975605f3727850c271",
+ "labels_sha256": "7657c2ed421a9f5176d9b02b2bbad1acee327092400ba5c80b40e2f2c51d91c1",
  "questions_sha256": "b887cbbb9a7a199b1cd1aee6c3efcee68573b09f753152283a677d86f2e07cbd",
  "rows": 22,
  "traps": {
   "gemini-3.5-flash-lite": {
    "n": 8,
    "T1": {
-    "yes": 0,
-    "no": 8,
+    "yes": 2,
+    "no": 6,
     "undetermined": 0
    },
    "T2": {
@@ -89,8 +89,8 @@
     "undetermined": 0
    },
    "T6": {
-    "yes": 1,
-    "no": 11,
+    "yes": 2,
+    "no": 10,
     "undetermined": 2
    },
    "T7": {
@@ -99,8 +99,8 @@
     "undetermined": 2
    },
    "T8": {
-    "yes": 1,
-    "no": 13,
+    "yes": 2,
+    "no": 12,
     "undetermined": 0
    },
    "T9": {
@@ -122,8 +122,8 @@
   "all": {
    "n": 22,
    "T1": {
-    "yes": 9,
-    "no": 11,
+    "yes": 11,
+    "no": 9,
     "undetermined": 2
    },
    "T2": {
@@ -147,8 +147,8 @@
     "undetermined": 0
    },
    "T6": {
-    "yes": 1,
-    "no": 19,
+    "yes": 2,
+    "no": 18,
     "undetermined": 2
    },
    "T7": {
@@ -157,8 +157,8 @@
     "undetermined": 2
    },
    "T8": {
-    "yes": 1,
-    "no": 21,
+    "yes": 2,
+    "no": 20,
     "undetermined": 0
    },
    "T9": {

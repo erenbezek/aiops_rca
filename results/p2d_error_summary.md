@@ -1,14 +1,14 @@
 # P2d test hata analizi özeti
 
-Üreten: `python tools/agent_error_analysis.py summary --set test`. Etiketler `results/p2d_error_labels.json` sha256 `697b517c686a8d055f6d0274ca6e11a174204065e2117e975605f3727850c271`, sorular sha256 `b887cbbb9a7a199b1cd1aee6c3efcee68573b09f753152283a677d86f2e07cbd` (tam metin etiket dosyasında; DECISIONS 2026-11-14). Kapsam: test, resmî dosya koşuları (Gemini 1. koşu, 4B), top-1'i ıskalayan 22 satır. T10 uygulanamaz.
+Üreten: `python tools/agent_error_analysis.py summary --set test`. Etiketler `results/p2d_error_labels.json` sha256 `7657c2ed421a9f5176d9b02b2bbad1acee327092400ba5c80b40e2f2c51d91c1`, sorular sha256 `b887cbbb9a7a199b1cd1aee6c3efcee68573b09f753152283a677d86f2e07cbd` (tam metin etiket dosyasında; DECISIONS 2026-11-14). Kapsam: test, resmî dosya koşuları (Gemini 1. koşu, 4B), top-1'i ıskalayan 22 satır. T10 uygulanamaz.
 
 ## 1. Tuzaklar, ıskalanan satırlar (evet / hayır / belirlenemez)
 
 | Model | n | T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9 | T11 | T12 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| gemini-3.5-flash-lite | 8 | 0/8/0 | 6/2/0 | 4/4/0 | 0/8/0 | 1/7/0 | 0/8/0 | 7/1/0 | 0/8/0 | 0/8/0 | 0/8/0 | 2/6/0 |
-| qwen3.5-4b | 14 | 9/3/2 | 13/1/0 | 8/4/2 | 0/14/0 | 6/8/0 | 1/11/2 | 7/5/2 | 1/13/0 | 3/11/0 | 2/12/0 | 12/2/0 |
-| toplam | 22 | 9/11/2 | 19/3/0 | 12/8/2 | 0/22/0 | 7/15/0 | 1/19/2 | 14/6/2 | 1/21/0 | 3/19/0 | 2/20/0 | 14/8/0 |
+| gemini-3.5-flash-lite | 8 | 2/6/0 | 6/2/0 | 4/4/0 | 0/8/0 | 1/7/0 | 0/8/0 | 7/1/0 | 0/8/0 | 0/8/0 | 0/8/0 | 2/6/0 |
+| qwen3.5-4b | 14 | 9/3/2 | 13/1/0 | 8/4/2 | 0/14/0 | 6/8/0 | 2/10/2 | 7/5/2 | 2/12/0 | 3/11/0 | 2/12/0 | 12/2/0 |
+| toplam | 22 | 11/9/2 | 19/3/0 | 12/8/2 | 0/22/0 | 7/15/0 | 2/18/2 | 14/6/2 | 2/20/0 | 3/19/0 | 2/20/0 | 14/8/0 |
 
 ## 2. Kodla sayılan tuzaklar, 18 vakanın tümü (bilgi)
 
