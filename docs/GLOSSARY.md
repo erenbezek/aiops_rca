@@ -290,6 +290,7 @@ Sadece Eren'in onayladığı isimler.
 | `note` | Hata analizi etiket satırında isteğe bağlı tek satır gözlem (sayılmaz) |
 | `name_key` | Ad karşılaştırma anahtarı (hata analizi özeti): küçük harf, son nokta parçası, `/` öncesi, sondaki `service` atılır, yalnız harfler; gRPC adıyla geçen kökü saymak için, puanlamayı değiştirmez |
 | `eren_check` | Etiket dosyasında örneklem satırına Eren doğrulaması: `{"agree": true/false, "T1", "T5", "T6": yes/no, "note": isteğe bağlı}` (`agree` = Eren'in T1 / T5 / T6'sı etiketle aynı); 10 satırın ≥ 3'ünde katılmıyorum → yeniden etiketleme |
+| `eren_check_2` | P2 hata analizi özetinde 2. tur Eren doğrulaması (`n`, `checked`, `disagree`, `reading`): 1. tur yeniden etiketleme okursa, yeniden etiketlemeden sonra örneklem dışındaki satırların tümü; aynı eşik (≥ 3 katılmıyorum) |
 | `aiops_rca.query` (`query.py`) | P2a sorgu katmanı: altı sorgu fonksiyonu ve ortak hesap; depolamadan bağımsız, bir okuyucu alır (DECISIONS 2026-11-09 "aynı tanım") |
 | okuyucu (store) | Sorgu fonksiyonlarına ham kayıt (span, log, metrik noktası, iz) veren nesne; süzgeci üst küme dönebilir, ortak kod bütün süzgeçleri yeniden uygular |
 | `FileStore` (`store_file.py`) | Dosya okuyucusu: vakanın `model_view` snapshot'ından ham kayıt |
