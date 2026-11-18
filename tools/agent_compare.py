@@ -3,7 +3,7 @@ ayrıştı" denetimi (DECISIONS 2026-11-14 "P2c dosya ↔ canlı okuma kuralı" 
 kontrolü şart 1).
 
     python tools/agent_compare.py --live <canlı koşu> [--file <aynı modelin dosya koşusu>] ... --out <json>
-                                  [--tokenizer http://127.0.0.1:PORT]
+                                  [--tokenizer http://127.0.0.1:PORT] [--final-test]
 
 Koşudan sonra, yalnız kayıtlardan (`agent_live.py`'ye dokunmaz). Her `--live` bir canlı ajan koşusu klasörü
 (`settings.store` = `LiveStore`); ardından gelen `--file` (isteğe bağlı) aynı modelin dosya koşusu (`FileStore`).
@@ -24,8 +24,10 @@ araç çıktıları iki modda aynıysa i. turun ham çıktısı (`raw_output`) d
 turda ham çıktı farklıysa vaka "çıktı aynı, model ayrıştı" (`model_diverged`); ilk farklılık bir araç çıktısındaysa
 denetim orada biter (sonraki turların girdisi farklı).
 
-Çıktı: `--out` JSON (dev'de `results/p2c_dev_calls.json`). Snapshot ve tokenizer ister; CI'da koşmaz, çıktısı
-commit'lenir. Yalnız pilot / dev vakaları.
+Çıktı: `--out` JSON (dev'de `results/p2c_dev_calls.json`, testte `results/p2d_test_calls.json`). Snapshot ve tokenizer
+ister; CI'da koşmaz, çıktısı commit'lenir. Varsayılan yalnız pilot / dev vakaları; `--final-test` (P2d, HANDOFF
+2026-11-17) yalnız test vakaları. Ekrana yalnız koşu başına toplamlar basılır; testte farklı çağrıların ayrıntısı
+(`diffs`) 6. maddeden önce açılmaz (planlama kontrolü 2026-11-17 şart 2).
 """
 from __future__ import annotations
 
@@ -141,8 +143,9 @@ def model_divergence(file_run: dict, live_run: dict) -> dict:
     return out
 
 
-def build(pairs: list[tuple[Path, Path | None]], count) -> dict:
-    cases = {c.incident_id: c for c in load_cases()}
+def build(pairs: list[tuple[Path, Path | None]], count, final_test: bool = False) -> dict:
+    sets = ("test",) if final_test else ("pilot", "dev")
+    cases = {c.incident_id: c for c in load_cases(sets, final_test=final_test)}
     rep = {"rule": "DECISIONS 2026-11-14 P2c dosya ↔ canlı okuma kuralı (1)", "known_classes": [KNOWN],
            "transforms": JAEGER_TRANSFORMS, "tool_result_tokens": TOOL_RESULT_TOKENS, "tokenizer": TOKENIZER,
            "runs": []}
@@ -152,7 +155,7 @@ def build(pairs: list[tuple[Path, Path | None]], count) -> dict:
             raise SystemExit(f"error: {live_dir} is not a live run (store {live['store']})")
         unknown = [c for c in live["cases"] if c not in cases]
         if unknown:
-            raise SystemExit(f"error: not pilot/dev cases: {unknown}")
+            raise SystemExit(f"error: not {'/'.join(sets)} cases: {unknown}")
         calls = compare_calls(live, cases, count)
         tot = Counter()
         for v in calls.values():
@@ -182,6 +185,7 @@ def main(argv: list[str]) -> int:
                     help="file-mode run of the same model; pairs with the --live given just before it")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--tokenizer")
+    ap.add_argument("--final-test", action="store_true", help="test cases only (P2d); heldout is never allowed")
     # --live / --file sırası: her --file kendisinden önceki --live'a bağlanır
     pairs: list[tuple[Path, Path | None]] = []
     it = iter(argv)
@@ -203,7 +207,7 @@ def main(argv: list[str]) -> int:
     args = ap.parse_args(rest)
     with ExitStack() as stack:
         base = args.tokenizer or stack.enter_context(LocalServer(MODELS[TOKENIZER].gguf)).base
-        rep = build(pairs, functools.partial(count_tokens, base))
+        rep = build(pairs, functools.partial(count_tokens, base), args.final_test)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(rep, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     for r in rep["runs"]:

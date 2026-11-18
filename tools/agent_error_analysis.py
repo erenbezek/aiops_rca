@@ -5,6 +5,7 @@ uyarlanmış soruları").
     python tools/agent_error_analysis.py dossier --out DIR    # satır başına okuma dosyası (kayıtlardan)
     python tools/agent_error_analysis.py sample               # Eren doğrulaması için 10 satır (tohum 20261104)
     python tools/agent_error_analysis.py summary [--check]    # results/p2c_error_summary.md / .json
+    python tools/agent_error_analysis.py <komut> --set test   # P2d 6. madde B: test (`agent_report.TEST_RUNS`)
 
 Kapsam: dev, resmî dosya koşuları (`agent_report.DEV_RUNS`: Gemini 1. koşu, 4B), top-1'i ıskalayan satırlar; kodla
 sayılan tuzaklar ayrıca 18 vakanın tümünde bilgi olarak. Çok etiketli. "Girdi" = ajanın o vakada gördüğü bütün araç
@@ -20,7 +21,14 @@ Telemetri türü (T5, T7): iz (`search_spans`, `get_trace`, `service_dependencie
 `errors` / `error_rate` / `p95_ms` / `p99_ms`), metrik (`metric_series` öteki metrikler), log (`search_logs`);
 `list_services` ve metriği olmayan `metric_series` (araç hatası) tür sayılmaz.
 
-Yalnız dev; test vakası okunmaz. Snapshot gerekmez (kayıtlar ve `incidents/` etiketleri); `summary --check` CI'da.
+Varsayılan dev. `--set test` (HANDOFF 2026-11-17, P2d): aynı sorular ve tohum test koşularına (`agent_report.TEST_RUNS`
+resmî dosya koşuları); etiketler `results/p2d_error_labels.json`, özet `results/p2d_error_summary.md` / `.json`. Snapshot
+gerekmez (kayıtlar ve `incidents/` etiketleri); `summary --check` CI'da.
+
+İkinci tur (Eren 2026-11-17, P2d 6. madde B): 1. tur (tohumlu 10 satır) yeniden etiketleme okursa, yeniden etiketlemeden
+sonra örneklem dışındaki satırların tümü Eren'e sorulur; işaretleri de `eren_check` olarak yazılır, özette
+`eren_check_2` (aynı eşik: ≥ 3 katılmıyorum → yeniden etiketleme). 1. tur yeniden etiketleme okumadıkça örneklem
+dışındaki `eren_check` hatadır. `sample` 2. turun satırlarını da listeler.
 """
 from __future__ import annotations
 
@@ -35,7 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import agent_report as ar  # noqa: E402
 
-from aiops_rca.error_analysis import SAMPLE_N, SEED, dev_labels, t3  # noqa: E402
+from aiops_rca.error_analysis import SAMPLE_N, SEED, dev_labels, set_labels, t3  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 RUN_KEYS = ("gemini_file", "qwen_file")  # resmî dosya koşuları
@@ -46,6 +54,10 @@ VALUES = ("yes", "no", "undetermined")
 DISAGREE_MAX = 2  # P1 ile aynı: 10 satırın ≥ 3'ünde katılmıyorum → yeniden etiketleme
 LABELS_FILE = Path("results") / "p2c_error_labels.json"
 SUMMARY_MD, SUMMARY_JSON = Path("results") / "p2c_error_summary.md", Path("results") / "p2c_error_summary.json"
+# set → (etiket dosyası, özet md, özet json); test P2d 6. madde B (HANDOFF 2026-11-17)
+FILES = {"dev": (LABELS_FILE, SUMMARY_MD, SUMMARY_JSON),
+         "test": (Path("results") / "p2d_error_labels.json", Path("results") / "p2d_error_summary.md",
+                  Path("results") / "p2d_error_summary.json")}
 TRACE_METRICS = frozenset({"requests", "errors", "error_rate", "p95_ms", "p99_ms"})
 QUESTIONS = (
     '**P2 hata analizi: 12 tuzağın ajana uyarlanmış soruları (dev koşusundan ve etiketlemeden önce; donar'
@@ -123,11 +135,19 @@ def _jsonl(path: Path) -> list[dict]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
-def load_run(run_dir: Path) -> dict:
-    """Koşunun dev vakaları: satır, puan, turlar, araç çıktıları."""
+def _runs(set_: str) -> dict:
+    return ar.DEV_RUNS if set_ == "dev" else ar.TEST_RUNS
+
+
+def _labels_of(set_: str) -> dict:
+    return dev_labels(REPO) if set_ == "dev" else set_labels(set_, REPO)
+
+
+def load_run(run_dir: Path, set_: str = "dev") -> dict:
+    """Koşunun `set_` vakaları: satır, puan, turlar, araç çıktıları."""
     meta = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     scores = {c["incident_id"]: c for c in json.loads((run_dir / "scores.json").read_text(encoding="utf-8"))["cases"]
-              if c["set"] == "dev"}
+              if c["set"] == set_}
     rows = {r["incident_id"]: r for r in _jsonl(run_dir / "responses.jsonl") if r["incident_id"] in scores}
     turns: dict[str, list[dict]] = {}
     for t in _jsonl(run_dir / "turns.jsonl"):
@@ -138,17 +158,18 @@ def load_run(run_dir: Path) -> dict:
             "outputs": {k: _jsonl(run_dir / "tool_outputs" / f"{k}.jsonl") for k in rows}}
 
 
-def select(runs: dict | None = None, eval_dir: Path | None = None, labels: dict | None = None) -> tuple[list, dict]:
+def select(runs: dict | None = None, eval_dir: Path | None = None, labels: dict | None = None,
+           set_: str = "dev") -> tuple[list, dict]:
     """(kapsamdaki satırlar, model → 18 vakanın kodla tuzak sayımları). Satırlar model, vaka sırasıyla."""
-    runs = runs or ar.DEV_RUNS
+    runs = runs or _runs(set_)
     eval_dir = eval_dir or ar.EVAL
-    labels = labels or dev_labels(REPO)
     missing = [k for k in RUN_KEYS if runs[k][0] is None]
     if missing:
-        raise SystemExit(f"error: DEV_RUNS not filled yet: {missing}")
+        raise SystemExit(f"error: {'DEV' if set_ == 'dev' else 'TEST'}_RUNS not filled yet: {missing}")
+    labels = labels or _labels_of(set_)
     rows, info = [], {}
     for key in RUN_KEYS:
-        run = load_run(eval_dir / runs[key][0])
+        run = load_run(eval_dir / runs[key][0], set_)
         counts = {t: dict.fromkeys(VALUES, 0) for t in CODED}
         for cid in sorted(run["rows"]):
             r, sc = run["rows"][cid], run["scores"][cid]
@@ -172,13 +193,13 @@ def sample(rows: list[dict], n: int = SAMPLE_N, seed: int = SEED) -> list[str]:
     return sorted(random.Random(seed).sample([r["key"] for r in rows], min(n, len(rows))))
 
 
-def dossier(out: Path, runs: dict | None = None, eval_dir: Path | None = None) -> list[dict]:
+def dossier(out: Path, runs: dict | None = None, eval_dir: Path | None = None, set_: str = "dev") -> list[dict]:
     """Satır başına okuma dosyası: etiket, kodla tuzaklar, her adımda gerekçe ve çağrı, araç çıktıları, son cevap."""
-    runs = runs or ar.DEV_RUNS
+    runs = runs or _runs(set_)
     eval_dir = eval_dir or ar.EVAL
-    labels = dev_labels(REPO)
-    rows, _ = select(runs, eval_dir, labels)
-    loaded = {k: load_run(eval_dir / runs[k][0]) for k in RUN_KEYS}
+    rows, _ = select(runs, eval_dir, None, set_)
+    labels = _labels_of(set_)
+    loaded = {k: load_run(eval_dir / runs[k][0], set_) for k in RUN_KEYS}
     by_model = {v["model"]: v for v in loaded.values()}
     out.mkdir(parents=True, exist_ok=True)
     index = []
@@ -215,12 +236,12 @@ def dossier(out: Path, runs: dict | None = None, eval_dir: Path | None = None) -
     return index
 
 
-def summary(repo: Path = REPO, runs: dict | None = None, eval_dir: Path | None = None) -> dict:
-    labels_path = repo / LABELS_FILE
+def summary(repo: Path = REPO, runs: dict | None = None, eval_dir: Path | None = None, set_: str = "dev") -> dict:
+    rows, info = select(runs, eval_dir, None, set_)
+    labels_path = repo / FILES[set_][0]
     doc = json.loads(labels_path.read_text(encoding="utf-8"))
     if doc["questions_sha256"] != questions_sha256() or doc["questions"] != QUESTIONS:
         raise ValueError("questions in the label file differ from QUESTIONS")
-    rows, info = select(runs, eval_dir)
     if [x["key"] for x in doc["rows"]] != [r["key"] for r in rows]:
         raise ValueError("label rows differ from the selection")
     for x, r in zip(doc["rows"], rows):
@@ -235,26 +256,36 @@ def summary(repo: Path = REPO, runs: dict | None = None, eval_dir: Path | None =
             traps[c]["n"] += 1
             for t in TRAPS:
                 traps[c][t][x[t]] += 1
-    checked = [x for x in doc["rows"] if "eren_check" in x]
-    if not {x["key"] for x in checked} <= set(sample(rows)):
-        raise ValueError("eren_check outside the sample")
+    first_keys = set(sample(rows))
+    checked = [x for x in doc["rows"] if "eren_check" in x and x["key"] in first_keys]
+    second = [x for x in doc["rows"] if "eren_check" in x and x["key"] not in first_keys]
     disagree = sum(x["eren_check"]["agree"] is False for x in checked)
     n_sample = min(SAMPLE_N, len(rows))
     reading = "pending" if len(checked) < n_sample else "relabel" if disagree > DISAGREE_MAX else "ok"
-    return {"labels_sha256": hashlib.sha256(labels_path.read_bytes()).hexdigest(),
-            "questions_sha256": questions_sha256(), "rows": len(doc["rows"]), "traps": traps, "info_all_cases": info,
-            "eren_check": {"n": n_sample, "checked": len(checked), "disagree": disagree, "reading": reading}}
+    if second and reading != "relabel":
+        raise ValueError("eren_check outside the sample")
+    res = {"labels_sha256": hashlib.sha256(labels_path.read_bytes()).hexdigest(),
+           "questions_sha256": questions_sha256(), "rows": len(doc["rows"]), "traps": traps, "info_all_cases": info,
+           "eren_check": {"n": n_sample, "checked": len(checked), "disagree": disagree, "reading": reading}}
+    if reading == "relabel":  # 2. tur: örneklem dışındaki satırların tümü
+        n2 = len(rows) - n_sample
+        d2 = sum(x["eren_check"]["agree"] is False for x in second)
+        r2 = "pending" if len(second) < n2 else "relabel" if d2 > DISAGREE_MAX else "ok"
+        res["eren_check_2"] = {"n": n2, "checked": len(second), "disagree": d2, "reading": r2}
+    return res
 
 
 READING_TEXT = {"pending": "bekliyor", "ok": "tamam (< 3 katılmıyorum)",
                 "relabel": "yeniden etiketleme (≥ 3 katılmıyorum)"}
 
 
-def summary_markdown(res: dict) -> str:
-    out = ["# P2c hata analizi özeti", "",
-           f"Üreten: `python tools/agent_error_analysis.py summary`. Etiketler `{LABELS_FILE.as_posix()}` sha256 "
+def summary_markdown(res: dict, set_: str = "dev") -> str:
+    title = "# P2c hata analizi özeti" if set_ == "dev" else "# P2d test hata analizi özeti"
+    cmd = "summary" if set_ == "dev" else f"summary --set {set_}"
+    out = [title, "",
+           f"Üreten: `python tools/agent_error_analysis.py {cmd}`. Etiketler `{FILES[set_][0].as_posix()}` sha256 "
            f"`{res['labels_sha256']}`, sorular sha256 `{res['questions_sha256']}` (tam metin etiket dosyasında; "
-           f"DECISIONS 2026-11-14). Kapsam: dev, resmî dosya koşuları (Gemini 1. koşu, 4B), top-1'i ıskalayan "
+           f"DECISIONS 2026-11-14). Kapsam: {set_}, resmî dosya koşuları (Gemini 1. koşu, 4B), top-1'i ıskalayan "
            f"{res['rows']} satır. T10 uygulanamaz.", "",
            "## 1. Tuzaklar, ıskalanan satırlar (evet / hayır / belirlenemez)", "",
            "| Model | n | " + " | ".join(TRAPS) + " |", "|---" * (len(TRAPS) + 2) + "|"]
@@ -269,42 +300,55 @@ def summary_markdown(res: dict) -> str:
     out += ["", "## 3. Eren doğrulaması", "",
             f"Örneklem {e['n']} satır (tohum {SEED}); işaretlenen {e['checked']}, katılmıyorum {e['disagree']}. "
             f"Okuma: {READING_TEXT[e['reading']]}.", ""]
+    if "eren_check_2" in res:
+        e2 = res["eren_check_2"]
+        out += [f"2. tur (1. tur yeniden etiketleme okudu; yeniden etiketlemeden sonra örneklem dışındaki {e2['n']} "
+                f"satırın tümü): işaretlenen {e2['checked']}, katılmıyorum {e2['disagree']}. "
+                f"Okuma: {READING_TEXT[e2['reading']]}.", ""]
     return "\n".join(out)
 
 
-def summary_render(repo: Path = REPO) -> tuple[str, str]:
-    res = summary(repo)
-    return summary_markdown(res), json.dumps(res, ensure_ascii=False, indent=1) + "\n"
+def summary_render(repo: Path = REPO, set_: str = "dev") -> tuple[str, str]:
+    res = summary(repo, set_=set_)
+    return summary_markdown(res, set_), json.dumps(res, ensure_ascii=False, indent=1) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="agent_error_analysis.py", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("select")
-    d = sub.add_parser("dossier")
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--set", dest="set_", choices=sorted(FILES), default="dev",
+                        help="dev (default) or test (P2d); heldout is never allowed")
+    sub.add_parser("select", parents=[common])
+    d = sub.add_parser("dossier", parents=[common])
     d.add_argument("--out", type=Path, required=True)
-    sub.add_parser("sample")
-    sm = sub.add_parser("summary")
+    sub.add_parser("sample", parents=[common])
+    sm = sub.add_parser("summary", parents=[common])
     sm.add_argument("--check", action="store_true", help="regenerate and compare with the files in the repo")
     args = p.parse_args(argv)
+    _, md_path, js_path = FILES[args.set_]
     if args.cmd == "select":
-        rows, info = select()
+        rows, info = select(set_=args.set_)
         print(json.dumps({"rows": rows, "info_all_cases": info}, ensure_ascii=False, indent=1))
     elif args.cmd == "dossier":
-        print(f"{len(dossier(args.out))} files -> {args.out}")
+        print(f"{len(dossier(args.out, set_=args.set_))} files -> {args.out}")
     elif args.cmd == "sample":
-        rows, _ = select()
-        print("\n".join(sample(rows)))
+        rows, _ = select(set_=args.set_)
+        first = sample(rows)
+        print("\n".join(first))
+        if (REPO / FILES[args.set_][0]).exists() and "eren_check_2" in summary(REPO, set_=args.set_):
+            print("# 2. tur")
+            print("\n".join(r["key"] for r in rows if r["key"] not in first))
     else:
-        md, js = summary_render()
+        md, js = summary_render(REPO, args.set_)
         if args.check:
-            same = (REPO / SUMMARY_MD).read_text(encoding="utf-8") == md and \
-                (REPO / SUMMARY_JSON).read_text(encoding="utf-8") == js
+            same = (REPO / md_path).read_text(encoding="utf-8") == md and \
+                (REPO / js_path).read_text(encoding="utf-8") == js
             print("same" if same else "different")
             return 0 if same else 1
-        (REPO / SUMMARY_MD).write_text(md, encoding="utf-8")
-        (REPO / SUMMARY_JSON).write_text(js, encoding="utf-8")
-        print(f"-> {SUMMARY_MD}")
+        (REPO / md_path).write_text(md, encoding="utf-8")
+        (REPO / js_path).write_text(js, encoding="utf-8")
+        print(f"-> {md_path}")
     return 0
 
 

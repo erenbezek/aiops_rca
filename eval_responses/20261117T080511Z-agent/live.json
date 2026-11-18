@@ -1,0 +1,1064 @@
+{
+ "inc-01e8bcf7": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T080514Z-replay-case-inc-01e8bcf7",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T08:05:11Z",
+    "agent_s": 276.7,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1168.4,
+     "otel-replay-prometheus-1": 123.1,
+     "otel-replay-opensearch-1": 1007.0
+    },
+    "mem_available_min_mib": 7906.5,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1883.1,
+     "end": 3125.2
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-0383450c": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T081327Z-replay-case-inc-0383450c",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T08:13:24Z",
+    "agent_s": 295.9,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1100.8,
+     "otel-replay-prometheus-1": 61.7,
+     "otel-replay-opensearch-1": 895.9
+    },
+    "mem_available_min_mib": 7821.2,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3065.9
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-240a614f": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T082134Z-replay-case-inc-240a614f",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T08:21:31Z",
+    "agent_s": 508.4,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1103.9,
+     "otel-replay-prometheus-1": 57.9,
+     "otel-replay-opensearch-1": 857.7
+    },
+    "mem_available_min_mib": 7445.9,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "schema_answer",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3634.2
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-27e7ae46": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T083350Z-replay-case-inc-27e7ae46",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T08:33:46Z",
+    "agent_s": 340.5,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1188.9,
+     "otel-replay-prometheus-1": 49.8,
+     "otel-replay-opensearch-1": 891.5
+    },
+    "mem_available_min_mib": 7786.9,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1877.0,
+     "end": 3118.1
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-402b4b2d": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T084317Z-replay-case-inc-402b4b2d",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T08:43:14Z",
+    "agent_s": 577.1,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1109.0,
+     "otel-replay-prometheus-1": 62.5,
+     "otel-replay-opensearch-1": 860.9
+    },
+    "mem_available_min_mib": 7403.0,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3700.7
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-4508a3f4": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T085652Z-replay-case-inc-4508a3f4",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T08:56:49Z",
+    "agent_s": 277.0,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1024.0,
+     "otel-replay-prometheus-1": 67.5,
+     "otel-replay-opensearch-1": 898.4
+    },
+    "mem_available_min_mib": 7873.0,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1877.0,
+     "end": 3119.1
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-6a0eb829": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T090401Z-replay-case-inc-6a0eb829",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T09:03:58Z",
+    "agent_s": 342.4,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1116.2,
+     "otel-replay-prometheus-1": 56.1,
+     "otel-replay-opensearch-1": 866.4
+    },
+    "mem_available_min_mib": 7568.2,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3214.3
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-7d5db017": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T091350Z-replay-case-inc-7d5db017",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T09:13:47Z",
+    "agent_s": 362.6,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1275.9,
+     "otel-replay-prometheus-1": 59.6,
+     "otel-replay-opensearch-1": 861.7
+    },
+    "mem_available_min_mib": 7412.5,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3313.7
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-810ca9d1": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T092352Z-replay-case-inc-810ca9d1",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T09:23:49Z",
+    "agent_s": 369.0,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1105.9,
+     "otel-replay-prometheus-1": 55.5,
+     "otel-replay-opensearch-1": 874.7
+    },
+    "mem_available_min_mib": 7817.9,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1873.9,
+     "end": 3117.1
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-901ecfb4": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T093355Z-replay-case-inc-901ecfb4",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T09:33:51Z",
+    "agent_s": 336.9,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1163.3,
+     "otel-replay-prometheus-1": 46.9,
+     "otel-replay-opensearch-1": 849.6
+    },
+    "mem_available_min_mib": 7549.3,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1872.9,
+     "end": 3315.7
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-986ae88a": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T094301Z-replay-case-inc-986ae88a",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T09:42:58Z",
+    "agent_s": 312.9,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1041.4,
+     "otel-replay-prometheus-1": 40.4,
+     "otel-replay-opensearch-1": 862.7
+    },
+    "mem_available_min_mib": 7810.5,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3060.7
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-a519be4f": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T095326Z-replay-case-inc-a519be4f",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T09:53:23Z",
+    "agent_s": 257.2,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1052.7,
+     "otel-replay-prometheus-1": 44.2,
+     "otel-replay-opensearch-1": 886.7
+    },
+    "mem_available_min_mib": 7691.8,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1876.0,
+     "end": 3068.9
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-b4ceb83b": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T100527Z-replay-case-inc-b4ceb83b",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T10:05:24Z",
+    "agent_s": 266.7,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 825.8,
+     "otel-replay-prometheus-1": 43.8,
+     "otel-replay-opensearch-1": 854.8
+    },
+    "mem_available_min_mib": 7844.1,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "schema_answer",
+    "llm_mem_mib": {
+     "start": 1871.9,
+     "end": 3067.9
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-c6ae4086": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T101514Z-replay-case-inc-c6ae4086",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T10:15:11Z",
+    "agent_s": 352.7,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1022.0,
+     "otel-replay-prometheus-1": 41.8,
+     "otel-replay-opensearch-1": 866.2
+    },
+    "mem_available_min_mib": 7592.5,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3214.3
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-d3869549": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T102536Z-replay-case-inc-d3869549",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T10:25:33Z",
+    "agent_s": 364.4,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1131.5,
+     "otel-replay-prometheus-1": 39.6,
+     "otel-replay-opensearch-1": 851.8
+    },
+    "mem_available_min_mib": 7683.9,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1877.0,
+     "end": 3221.5
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-d70ec1a9": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T103713Z-replay-case-inc-d70ec1a9",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T10:37:09Z",
+    "agent_s": 290.2,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1081.3,
+     "otel-replay-prometheus-1": 43.0,
+     "otel-replay-opensearch-1": 861.1
+    },
+    "mem_available_min_mib": 7622.6,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3213.3
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-e4d29c6d": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T104946Z-replay-case-inc-e4d29c6d",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T10:49:43Z",
+    "agent_s": 281.9,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1170.4,
+     "otel-replay-prometheus-1": 40.5,
+     "otel-replay-opensearch-1": 859.5
+    },
+    "mem_available_min_mib": 7567.8,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3213.3
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ },
+ "inc-e763eeaf": {
+  "replayed": true,
+  "attempts": [
+   {
+    "attempt": 1,
+    "replay_dir": "/home/eren/cerebrum2/storage_runs/20261117T105907Z-replay-case-inc-e763eeaf",
+    "replay_valid": true,
+    "server_started_utc": "2026-11-17T10:59:04Z",
+    "agent_s": 300.4,
+    "mem_peak_mib": {
+     "otel-replay-jaeger-1": 1243.1,
+     "otel-replay-prometheus-1": 57.7,
+     "otel-replay-opensearch-1": 874.3
+    },
+    "mem_available_min_mib": 7339.7,
+    "containers": {
+     "otel-replay-jaeger-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-prometheus-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-opensearch-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     },
+     "otel-replay-otel-collector-1": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "exited",
+      "exit_code": 0
+     },
+     "aiops-llm": {
+      "restarts": 0,
+      "oom_killed": false,
+      "status": "running",
+      "exit_code": 0
+     }
+    },
+    "containers_ok": true,
+    "end_reason": "step_limit",
+    "llm_mem_mib": {
+     "start": 1870.8,
+     "end": 3213.3
+    },
+    "down_exit": 0,
+    "replay_volumes_left": [],
+    "valid": true
+   }
+  ]
+ }
+}

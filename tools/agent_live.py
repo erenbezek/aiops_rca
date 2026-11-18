@@ -2,7 +2,7 @@
 oynatmada birden çok model (HANDOFF 2026-11-14 "P2c kartı 1. madde: öneri", (d)); P2c canlı kararı (DECISIONS
 2026-11-15): yerel sunucu her oynatmadan önce yeniden açılır, başta takas denetimi.
 
-    python tools/agent_live.py --model <etiket>[,<etiket>] --cases <id>,<id> [--root llm_cache]
+    python tools/agent_live.py --model <etiket>[,<etiket>] --cases <id>,<id> [--final-test] [--root llm_cache]
 
 Başta: boş takas `scenario_runner.MIN_SWAP_FREE_START_GB`'ın (2 GB) altındaysa hiçbir vakaya başlanmaz (çıkış 2).
 
@@ -24,9 +24,11 @@ adreste yeniden açılır. Başka yerel model reddedilir.
 Kayıt biçimi dosya moduyla aynı (`evaluate.append_agent_case`): model başına `<root>/<UTC>-agent/` içinde `run.json`
 (`settings.store` = `LiveStore`), `responses.jsonl` (+ `replay_dir`, `attempts_live`, `jaeger_peak_mib`),
 `turns.jsonl`, `tool_outputs/`; ayrıca `live.json` (vaka başına o modelin deneme kayıtları; her denemede
-`server_started_utc` ve oynatma geçtiyse `llm_mem_mib` {start: ilk modelden önce, end: son modelden sonra}). Yalnız
-`load_cases()` vakaları (pilot, dev); test ve heldout reddedilir. Uyku ve kapak kilitleri altında kendini yeniden
-çalıştırır. Çıkış kodu: 0 bütün vakalar her modelde oynatıldı, 1 en az biri oynatılamadı, 2 kullanım hatası ya da
+`server_started_utc` ve oynatma geçtiyse `llm_mem_mib` {start: ilk modelden önce, end: son modelden sonra}). Varsayılan
+yalnız `load_cases()` vakaları (pilot, dev); `--final-test` (P2d, HANDOFF 2026-11-17) yalnız test vakalarını açar
+(`load_cases(("test",), final_test=True)`, kayıtta set `test`); heldout her durumda reddedilir. Koşucu doğruluk basmaz
+(vaka başına yalnız oynatma durumu ve bitiş nedeni); puanlama ayrı (`evaluate score`). Uyku ve kapak kilitleri altında
+kendini yeniden çalıştırır. Çıkış kodu: 0 bütün vakalar her modelde oynatıldı, 1 en az biri oynatılamadı, 2 kullanım hatası ya da
 takas yetersiz.
 """
 from __future__ import annotations
@@ -81,7 +83,7 @@ def _open_server(stack: ExitStack) -> str:
     return stack.enter_context(LocalServer(MODELS[TOKENIZER].gguf)).base
 
 
-def run(models: list[str], cases: list, root: Path) -> int:
+def run(models: list[str], cases: list, root: Path, sets: tuple[str, ...] = ("pilot", "dev")) -> int:
     swap = sr.swap_free_gb()
     if swap is None or swap < sr.MIN_SWAP_FREE_START_GB:
         print(f"error: swap free {swap} GB < {sr.MIN_SWAP_FREE_START_GB} GB; no case started", file=sys.stderr)
@@ -93,7 +95,7 @@ def run(models: list[str], cases: list, root: Path) -> int:
             spec = MODELS[model]
             ask, settings = stack.enter_context(agent_method(model, LiveStore, base=base))
             asks[model] = ask
-            run_dirs[model] = new_run("agent", ("pilot", "dev"), len(cases), root=root, model_id=spec.model_id,
+            run_dirs[model] = new_run("agent", sets, len(cases), root=root, model_id=spec.model_id,
                                       provider=spec.provider, temperature=0,
                                       settings={"model": model, "store": "LiveStore",
                                                 "cases": [c.incident_id for c in cases], **settings})
@@ -187,7 +189,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--model", required=True,
                     help="comma-separated model labels, run in this order on each replay (e.g. "
                          "gemini-3.5-flash-lite,qwen3.5-4b)")
-    ap.add_argument("--cases", required=True, help="comma-separated incident ids (pilot / dev only)")
+    ap.add_argument("--cases", required=True, help="comma-separated incident ids (pilot / dev; test with --final-test)")
+    ap.add_argument("--final-test", action="store_true", help="test cases only (P2d); heldout is never allowed")
     ap.add_argument("--root", type=Path, default=REPO / "llm_cache")
     args = ap.parse_args(argv)
     models = [x for x in args.model.split(",") if x]
@@ -197,18 +200,19 @@ def main(argv: list[str]) -> int:
         print(f"error: models must be distinct labels from MODELS; the only local model is {TOKENIZER}: "
               f"{bad_models or models}", file=sys.stderr)
         return 2
-    known = {c.incident_id: c for c in load_cases()}
+    sets = ("test",) if args.final_test else ("pilot", "dev")
+    known = {c.incident_id: c for c in load_cases(sets, final_test=args.final_test)}
     ids = [x for x in args.cases.split(",") if x]
     bad = [i for i in ids if i not in known]
     if bad or not ids:
-        print(f"error: not valid pilot/dev cases: {bad or ids}", file=sys.stderr)
+        print(f"error: not valid {'/'.join(sets)} cases: {bad or ids}", file=sys.stderr)
         return 2
     if os.environ.get("SCENARIO_RUNNER_INHIBITED") != "1":
         env = dict(os.environ, SCENARIO_RUNNER_INHIBITED="1")
         cmd = [*sr.GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
                "--who=aiops_rca agent_live", "--why=storage card P2b agent live", sys.executable, *sys.argv]
         return subprocess.run(cmd, env=env).returncode  # neden metni scenario_runner.inhibited()'in tanıdığı ifadeyle
-    return run(models, [known[i] for i in ids], args.root)
+    return run(models, [known[i] for i in ids], args.root, sets)
 
 
 if __name__ == "__main__":

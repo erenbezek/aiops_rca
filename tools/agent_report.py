@@ -1,7 +1,7 @@
 """P2b pilot dumanı raporu (HANDOFF 2026-11-13, 5. madde; Eren onaylı ad), P2c-0 pilot tasarım turu raporu ve P2c
-dev raporu.
+dev raporu; P2d test raporu.
 
-    python tools/agent_report.py [--report p2b|p2c0|p2c_dev] [--check]
+    python tools/agent_report.py [--report p2b|p2c0|p2c_dev|p2d] [--check]
 
 `REPORTS` rapor adını çıktıya, koşulara ve 4B kuralının koşusuna bağlar; `--report` verilmezse `p2b`.
 - `p2b`: `eval_responses/`'teki üç pilot koşusu (`RUNS`; `responses.jsonl`, `turns.jsonl`, `scores.json`). Çıktı
@@ -12,6 +12,13 @@ dev raporu.
   2026-11-14 "P2c dosya ↔ canlı okuma kuralı" + düzeltme, "P2c ajan ↔ P1 okuma kuralı"); çağrı düzeyi sınıflar
   `results/p2c_dev_calls.json`'dan (`tools/agent_compare.py`). Çıktı `results/p2c_dev.json` ve `.md`. Yalnız dev
   satırları okunur; P1 tarafı `results/p1_runs.json`'daki dev koşuları (test koşuları okunmaz).
+- `p2d`: test koşuları (`TEST_RUNS`, anahtarlar dev'deki gibi; teknik kesintiler `TEST_INTERRUPTED`), aynı iki okuma
+  kuralı ve dev–test okuması (DECISIONS 2026-11-16: yalnız iki dosya satırı, top-3, P1e'nin `results.dev_test_reading`
+  Fisher testi); çağrı düzeyi sınıflar `results/p2d_test_calls.json`'dan. Sonuç tablosu ajan ve P1 satırları dev ve test
+  yan yana (P1 gpt-oss ve 9B bilgi olarak, `p1_info`). Çıktı `results/p2d_test.json` ve `.md`. **Yalnız toplamlar**
+  (HANDOFF 2026-11-16 P2d kartı; planlama kontrolü 2026-11-17 şart 3): vaka tablosu yok; vaka kimliği listeleri
+  (açıklanamayan çağrılar, "model ayrıştı", "oynatılamadı", işaret testinin `only_*_cases`'i, koşu özetinin vaka
+  satırları) testte sayıya iner ya da düşer. `TEST_RUNS` dolmadan rapor üretilmez (çıkış hatası).
 `--check`: yeniden üretir ve repodakiyle bayt aynı mı bakar (CI; snapshot gerekmez).
 
 İçerik: koşu başına bitiş nedenleri, araç / istek / token / süre, kırpma, tekrarlanan çağrı, araç hatası, kesilen
@@ -57,11 +64,22 @@ DEV_INTERRUPTED = [("20261115T132147Z-agent", "20261115T132149Z-agent", 5,
                     "takas koruması (boş takas < 1 GB) kalan 13 vakayı oynatmadı"),
                    ("20261115T141055Z-agent", "20261115T141057Z-agent", 2,
                     "durduruldu (yerel sunucunun istem önbelleği vaka başına büyüyordu)")]
+# P2d test koşuları (kart 4. madde); klasörler koşulardan sonra yazılır (5. madde). Anahtarlar ve etiketler dev'deki gibi.
+TEST_RUNS = {"gemini_file": ("20261116T230248Z-agent", "Gemini, dosya, 1. koşu (resmî)"),
+             "gemini_file_2": ("20261117T000232Z-agent", "Gemini, dosya, 2. koşu (gürültü tabanı)"),
+             "qwen_file": ("20261117T003612Z-agent", "qwen3.5-4b, dosya"),
+             "gemini_live": ("20261117T080509Z-agent", "Gemini, canlı"),
+             "qwen_live": ("20261117T080511Z-agent", "qwen3.5-4b, canlı")}
+# Test koşularının teknik kesintileri (kart 4. madde; puanlamadan önce yazılır): (Gemini klasörü, 4B klasörü, iki modelde
+# oynatılan vaka, neden).
+TEST_INTERRUPTED: list[tuple[str, str, int, str]] = []
 REPORTS = {"p2b": {"out": REPO / "results" / "p2b_pilot", "rule_4b": RULE_4B},
            "p2c0": {"out": REPO / "results" / "p2c0_pilot",
                     "rule_4b": {**RULE_4B, "run": "20261113T182857Z-agent"}},
            "p2c_dev": {"out": REPO / "results" / "p2c_dev", "calls": REPO / "results" / "p2c_dev_calls.json",
-                       "p1_runs": REPO / "results" / "p1_runs.json"}}
+                       "p1_runs": REPO / "results" / "p1_runs.json"},
+           "p2d": {"out": REPO / "results" / "p2d_test", "calls": REPO / "results" / "p2d_test_calls.json",
+                   "p1_runs": REPO / "results" / "p1_runs.json"}}
 ALPHA = 0.05  # DECISIONS 2026-11-14: iki yönlü p < 0,05
 
 
@@ -296,38 +314,44 @@ def retries(run_dir: Path) -> dict:
             "transport_no_answer": sum(1 for r in rows if r["end_reason"] == "no_answer" and r["incident_id"] in failed)}
 
 
-def _known(run_dir: Path, key: str, cases: set[str] | None = None) -> dict[str, bool]:
-    """Dev vakaları → `key` (top1 / top3) bildi mi; `scores.json`'dan (geçerli cevabı olmayan bilinmemiş)."""
+def _known(run_dir: Path, key: str, cases: set[str] | None = None, set_: str = "dev") -> dict[str, bool]:
+    """`set_` vakaları → `key` (top1 / top3) bildi mi; `scores.json`'dan (geçerli cevabı olmayan bilinmemiş)."""
     sc = json.loads((run_dir / "scores.json").read_text(encoding="utf-8"))
-    out = {c["incident_id"]: bool(c[key]) for c in sc["cases"] if c["set"] == "dev"}
+    out = {c["incident_id"]: bool(c[key]) for c in sc["cases"] if c["set"] == set_}
     return {k: v for k, v in out.items() if cases is None or k in cases}
 
 
-def _dev_table(run_dir: Path) -> dict:
-    t = json.loads((run_dir / "scores.json").read_text(encoding="utf-8"))["table"]["dev"]
+def _dev_table(run_dir: Path, set_: str = "dev") -> dict:
+    t = json.loads((run_dir / "scores.json").read_text(encoding="utf-8"))["table"][set_]
     return {k: t.get(k) for k in ("n", "top1", "top3", "schema_invalid", "no_answer", "evidence_valid", "brier",
                                   "duration_s_total", "tokens_input", "tokens_output")}
 
 
-def p1_dev_rows(p1_runs: Path, model: str) -> dict[str, Path]:
-    """P1'in dev satırları (kural, BARO, daraltma referansı, modelin ham / özet / daraltma): ad → koşu klasörü."""
+def p1_dev_rows(p1_runs: Path, model: str, set_: str = "dev") -> dict[str, Path]:
+    """P1'in `set_` satırları (kural, BARO, daraltma referansı, modelin ham / özet / daraltma): ad → koşu klasörü."""
     spec = json.loads(p1_runs.read_text(encoding="utf-8"))
     base = p1_runs.resolve().parents[1]  # yollar repo köküne göre (results/p1_runs.json)
     out = {}
     for r in spec["rows"]:
         name = r["method"] if r["method"] != "llm" else r["level"] if r["model"] == model else None
         if name and not r["info"]:
-            out[name] = base / r["runs"]["dev"]
+            out[name] = base / r["runs"][set_]
     return out
 
 
 def build_p2c_dev(runs: dict = DEV_RUNS, eval_dir: Path = EVAL, calls_path: Path | None = None,
                   p1_runs: Path | None = None) -> dict:
     cfg = REPORTS["p2c_dev"]
-    calls_path, p1_runs = calls_path or cfg["calls"], p1_runs or cfg["p1_runs"]
+    return _build_agent_set(runs, eval_dir, calls_path or cfg["calls"], p1_runs or cfg["p1_runs"], "dev",
+                            DEV_INTERRUPTED, "DEV_RUNS")
+
+
+def _build_agent_set(runs: dict, eval_dir: Path, calls_path: Path, p1_runs: Path, set_: str, interrupted: list,
+                     runs_name: str) -> dict:
+    """Dev ve test raporunun ortak hesabı (set adına göre); test için vaka kimliği listeleri `build_p2d`'de düşer."""
     missing = [k for k, (d, _) in runs.items() if d is None]
     if missing:
-        raise SystemExit(f"error: DEV_RUNS not filled yet: {missing}")
+        raise SystemExit(f"error: {runs_name} not filled yet: {missing}")
     dirs = {k: eval_dir / d for k, (d, _) in runs.items()}
     summ = {k: {"label": runs[k][1], **summarize(dirs[k]), "retry": retries(dirs[k])} for k in runs}
     calls = json.loads(calls_path.read_text(encoding="utf-8"))
@@ -336,31 +360,32 @@ def build_p2c_dev(runs: dict = DEV_RUNS, eval_dir: Path = EVAL, calls_path: Path
                                              "reopen": s["budget_endings"] > s["n_cases"] / 2}
                                          for k, s in summ.items()},
            "calls_file": {"sha256": hashlib.sha256(calls_path.read_bytes()).hexdigest()},
-           "interrupted": [{"gemini": g, "qwen": q, "cases": n, "reason": why} for g, q, n, why in DEV_INTERRUPTED],
+           "interrupted": [{"gemini": g, "qwen": q, "cases": n, "reason": why} for g, q, n, why in interrupted],
            "models": {}}
+    known = lambda d, key, cases=None: _known(d, key, cases, set_)  # noqa: E731
     for model, (fkey, lkey) in DEV_MODELS.items():
-        live_cases = set(_known(dirs[lkey], "top3"))
-        file_top3 = _known(dirs[fkey], "top3")
+        live_cases = set(known(dirs[lkey], "top3"))
+        file_top3 = known(dirs[fkey], "top3")
         c = by_live.get(runs[lkey][0])
         if c is None:
             raise SystemExit(f"error: {calls_path.name} has no entry for {runs[lkey][0]}")
         m = {"call_level": {"totals": c["totals"],
                             "unexplained": [{"incident_id": cid, **d} for cid, v in sorted(c["cases"].items())
                                             for d in v["diffs"] if d["class"] == "unexplained"]},
-             "file_vs_live_top3": {**paired(_known(dirs[fkey], "top3", live_cases), _known(dirs[lkey], "top3"),
+             "file_vs_live_top3": {**paired(known(dirs[fkey], "top3", live_cases), known(dirs[lkey], "top3"),
                                             "dosya", "canlı"),
                                    "not_replayed": sorted(set(file_top3) - live_cases)}}
         if c.get("divergence") is not None:
             m["call_level"]["model_diverged"] = sorted(k for k, v in c["divergence"].items() if v["model_diverged"])
-        p1 = p1_dev_rows(p1_runs, model)
+        p1 = p1_dev_rows(p1_runs, model, set_)
         m["agent_vs_p1"] = {
-            "raw_top3": paired(_known(dirs[fkey], "top3"), _known(p1["raw"], "top3"), "ajan", "ham"),
-            "narrowed_top1": paired(_known(dirs[fkey], "top1"), _known(p1["narrowed"], "top1"), "ajan", "daraltma")}
-        m["p1_rows"] = {name: {"run": d.name, **_dev_table(d)} for name, d in p1.items()}
-        m["agent_rows"] = {k: {"run": dirs[k].name, **_dev_table(dirs[k])} for k in (fkey, lkey)}
+            "raw_top3": paired(known(dirs[fkey], "top3"), known(p1["raw"], "top3"), "ajan", "ham"),
+            "narrowed_top1": paired(known(dirs[fkey], "top1"), known(p1["narrowed"], "top1"), "ajan", "daraltma")}
+        m["p1_rows"] = {name: {"run": d.name, **_dev_table(d, set_)} for name, d in p1.items()}
+        m["agent_rows"] = {k: {"run": dirs[k].name, **_dev_table(dirs[k], set_)} for k in (fkey, lkey)}
         rep["models"][model] = m
-    g1, g2 = _known(dirs["gemini_file"], "top3"), _known(dirs["gemini_file_2"], "top3")
-    gl = _known(dirs["gemini_live"], "top3")
+    g1, g2 = known(dirs["gemini_file"], "top3"), known(dirs["gemini_file_2"], "top3")
+    gl = known(dirs["gemini_live"], "top3")
     rep["noise_floor"] = {"file_vs_file_differ": sum(g1[k] != g2[k] for k in g1),
                           "file_vs_live_differ": sum(g1[k] != gl[k] for k in gl), "n_file": len(g1), "n_live": len(gl)}
     return rep
@@ -441,13 +466,152 @@ def render_p2c_dev(rep: dict) -> str:
     return "\n".join(L)
 
 
+# --- P2d test ----------------------------------------------------------------------------------------------------
+
+def _table_dev_test(dev_dir: Path, test_dir: Path) -> dict:
+    return {"dev": {"run": dev_dir.name, **_dev_table(dev_dir, "dev")},
+            "test": {"run": test_dir.name, **_dev_table(test_dir, "test")}}
+
+
+def build_p2d(runs: dict | None = None, eval_dir: Path = EVAL, calls_path: Path | None = None,
+              p1_runs: Path | None = None, dev_runs: dict = DEV_RUNS, dev_eval_dir: Path | None = None) -> dict:
+    """Test raporu: dev raporunun hesabı test setinde + dev–test okuması (iki dosya satırı) + dev ve test yan yana
+    sonuç tablosu. Vaka kimliği taşıyan bütün alanlar düşer ya da sayıya iner (planlama kontrolü 2026-11-17 şart 3)."""
+    from aiops_rca.results import dev_test_reading
+
+    runs = TEST_RUNS if runs is None else runs
+    cfg = REPORTS["p2d"]
+    calls_path, p1_runs = calls_path or cfg["calls"], p1_runs or cfg["p1_runs"]
+    dev_eval_dir = dev_eval_dir or eval_dir
+    rep = _build_agent_set(runs, eval_dir, calls_path, p1_runs, "test", TEST_INTERRUPTED, "TEST_RUNS")
+    for s in rep["runs"].values():
+        s.pop("cases")
+    for model, (fkey, _) in DEV_MODELS.items():
+        m = rep["models"][model]
+        m["call_level"].pop("unexplained")
+        m["call_level"].pop("model_diverged", None)
+        f = m["file_vs_live_top3"]
+        f["not_replayed"] = len(f["not_replayed"])
+        for cell in (f, *m["agent_vs_p1"].values()):
+            cell.pop("only_left_cases")
+            cell.pop("only_right_cases")
+        dev3 = _known(dev_eval_dir / dev_runs[fkey][0], "top3", set_="dev")
+        test3 = _known(eval_dir / runs[fkey][0], "top3", set_="test")
+        m["dev_test_reading"] = dev_test_reading(sum(dev3.values()), len(dev3), sum(test3.values()), len(test3))
+        keys = [k for k in runs if rep["runs"][k]["model"] == model]
+        m["agent_rows"] = {k: _table_dev_test(dev_eval_dir / dev_runs[k][0], eval_dir / runs[k][0]) for k in keys}
+        p1_dev, p1_test = p1_dev_rows(p1_runs, model, "dev"), p1_dev_rows(p1_runs, model, "test")
+        m["p1_rows"] = {name: _table_dev_test(p1_dev[name], p1_test[name]) for name in p1_dev}
+    spec = json.loads(p1_runs.read_text(encoding="utf-8"))
+    base = p1_runs.resolve().parents[1]
+    rep["p1_info"] = {f"{r['model']} {r['level']}": _table_dev_test(base / r["runs"]["dev"], base / r["runs"]["test"])
+                      for r in spec["rows"] if r["method"] == "llm" and r["model"] not in DEV_MODELS}
+    return rep
+
+
+def _reach(dev: int, n_dev: int, n_test: int) -> str:
+    """Dev top-3'üne göre "fark" okuması veren test top-3 değerleri (önceden hesaplanabilir güç)."""
+    from aiops_rca.results import dev_test_reading
+
+    ts = [t for t in range(n_test + 1) if dev_test_reading(dev, n_dev, t, n_test)["reading"] != "none"]
+    lo = [t for t in ts if t * n_dev < dev * n_test]
+    hi = [t for t in ts if t * n_dev > dev * n_test]
+    parts = ([f"≤ {max(lo)}"] if lo else []) + ([f"≥ {min(hi)}"] if hi else [])
+    return " ya da ".join(parts) or "yok"
+
+
+def render_p2d(rep: dict) -> str:
+    from aiops_rca.results import READING_TEXT as DT_TEXT
+
+    L = ["# P2d test koşuları", "",
+         "Komutla üretilir: `python tools/agent_report.py --report p2d` (kaynak `eval_responses/`'teki test ve dev "
+         "koşuları, `results/p2d_test_calls.json` sha256 `" + rep["calls_file"]["sha256"] + "`, `results/p1_runs.json`'"
+         "daki P1 koşuları). Tasarım donmuş (DECISIONS 2026-11-14); okuma kuralları koşudan önce yazıldı (DECISIONS "
+         "2026-11-14, 2026-11-16). **Resmî sonuç budur.** Testte yalnız toplamlar: vaka başına sonuç yok.", "",
+         "## Koşular", "", _COLS.replace("(iyimser)", "(test)") + " Yeniden deneme (istek / bekleme sn) | "
+         "Taşıma hatasıyla cevapsız |", "|" + "---|" * 19]
+    for s in rep["runs"].values():
+        r = s["retry"]
+        L.append(_run_row(s["label"], s) + f" {r['requests_retried']} / {r['retry_wait_s']} | "
+                                           f"{r['transport_no_answer']} |")
+    L += ["", "Süre sütunu kayıttaki `duration_s` (yeniden deneme beklemesi içinde; istek aralığı beklemesi hariç); "
+              "yeniden deneme beklemesi ayrı sütunda.", "",
+          "- **Bütçe yeniden açma kuralı** (DECISIONS 2026-11-09; testte yalnız sayılır, tasarım donmuş): " +
+          "; ".join(f"{rep['runs'][k]['label']} {v['budget_endings']}/{v['n_cases']}"
+                    for k, v in rep["budget_rule"].items()) +
+          f" → {'tetiklenirdi' if any(v['reopen'] for v in rep['budget_rule'].values()) else 'tetiklenmedi'}.",
+          "- **Kod:** " + "; ".join(f"{s['label']} `{s['repo_commit'][:7]}`" for s in rep["runs"].values()) +
+          "; istem " + ", ".join(sorted({f"`{s['prompt_sha256'][:8]}`" for s in rep["runs"].values()})) + ".",
+          f"- **Teknik kesinti:** {len(rep['interrupted'])}" +
+          (" (puanlanmadı; koşu baştan koşuldu): " + "; ".join(
+              f"`{i['gemini']}` / `{i['qwen']}`, {i['cases']} vaka, {i['reason']}" for i in rep["interrupted"])
+           if rep["interrupted"] else "") + ".",
+          "- **Okuma notu (sonuçtan önce yazıldı, DECISIONS 2026-11-15):** 4B dosya koşusunda yerel sunucunun istem "
+          "önbelleği önceki vakalardan doluydu, canlıda her vaka boş önbellekle başladı; \"çıktı aynı, model "
+          "ayrıştı\" çıkarsa sayılır ve bu fark olası neden olarak sınırlamalara yazılır.",
+          "", "## Dosya ↔ canlı (DECISIONS 2026-11-14, üç katman)", ""]
+    for model, m in rep["models"].items():
+        t = m["call_level"]["totals"]
+        L += [f"### {model}", "",
+              f"- **(1) Çağrı düzeyi:** {t['calls']} canlı çağrı ({t['cases']} vaka): aynı {t.get('same', 0)}, "
+              f"bilinen tür (`zero_duration`) {t.get('zero_duration', 0)}, **açıklanamayan "
+              f"{t.get('unexplained', 0)}** (beklenen 0; ayrıntı yalnız hata analizi maddesinde)."]
+        if "divergence" in t:
+            d = t["divergence"]
+            L.append(f"- **4B denetimi:** {d['cases_paired']} vakada çıktı aynıyken model ayrıştı: "
+                     f"{d['model_diverged']}; bir araç çıktısı farklı: {d['output_differs']}; baştan sona aynı: "
+                     f"{d['identical']}.")
+        f = m["file_vs_live_top3"]
+        L += [f"- **(2) Sonuç düzeyi, top-3 (eşleştirilmiş kesin işaret testi):** {_cell(f, 'dosya', 'canlı')}."
+              + (f" Oynatılamadı (çiftten düştü): {f['not_replayed']} vaka." if f["not_replayed"] else ""), ""]
+    nf = rep["noise_floor"]
+    L += [f"- **(3) Gürültü tabanı (Gemini, betimsel):** top-3 sonucu ayrışan vaka: dosya 1 ↔ dosya 2 "
+          f"{nf['file_vs_file_differ']} / {nf['n_file']}, dosya 1 ↔ canlı {nf['file_vs_live_differ']} / {nf['n_live']}.",
+          "", "## Ajan ↔ P1 (DECISIONS 2026-11-14, model başına iki hücre)", "",
+          "Ajan tarafı dosya modunun ilk koşusu; P1 tarafı aynı modelin test koşuları (P1e). Geçerli cevabı olmayan "
+          "vaka bilinmemiş. Dört hücrede çoklu karşılaştırma düzeltmesi yok.", ""]
+    for model, m in rep["models"].items():
+        a = m["agent_vs_p1"]
+        L += [f"- **{model}, (a) ajan ↔ ham, top-3:** {_cell(a['raw_top3'], 'ajan', 'ham')}.",
+              f"- **{model}, (b) ajan ↔ daraltma, top-1:** {_cell(a['narrowed_top1'], 'ajan', 'daraltma')}."]
+    L += ["", "## Dev–test (DECISIONS 2026-11-16: yalnız iki dosya satırı, top-3, iki yönlü Fisher)", ""]
+    for model, m in rep["models"].items():
+        d = m["dev_test_reading"]
+        L.append(f"- **{model}, ajan dosya (1. koşu):** dev {d['dev_top3']} / {d['n_dev']}, test {d['test_top3']} / "
+                 f"{d['n_test']}; p = {d['p']} → **{DT_TEXT[d['reading']]}** (\"fark\" için test "
+                 f"{_reach(d['dev_top3'], d['n_dev'], d['n_test'])}).")
+    L += ["", "Öteki satırlarda dev ve test yalnız sayı (aşağıdaki tablo).", "",
+          "## Sonuç tablosu (dev ve test yan yana; öteki ölçüler testte, yalnız sayı)", "",
+          "| Model | Satır | Koşu (test) | dev top-1 | dev top-3 | test top-1 | test top-3 | Şema dışı | Cevapsız | "
+          "Kanıt geçerli | Brier | Süre toplam (sn) | Token giriş / çıkış |", "|" + "---|" * 13]
+
+    def row(model, label, r):
+        d, t = r["dev"], r["test"]
+        return (f"| {model} | {label} | `{t['run']}` | {d['top1']} / {d['n']} | {d['top3']} / {d['n']} | "
+                f"{t['top1']} / {t['n']} | {t['top3']} / {t['n']} | {t['schema_invalid']} | {t['no_answer']} | "
+                f"{t['evidence_valid']} | {t['brier']} | {t['duration_s_total']} | {t['tokens_input']} / "
+                f"{t['tokens_output']} |")
+
+    for model, m in rep["models"].items():
+        for name, r in m["agent_rows"].items():
+            L.append(row(model, "ajan, " + rep["runs"][name]["label"], r))
+        for name, r in m["p1_rows"].items():
+            L.append(row(model, f"P1 {name}", r))
+    for cell, r in rep["p1_info"].items():
+        model, level = cell.rsplit(" ", 1)
+        L.append(row(model, f"P1 {level} (bilgi)", r))
+    L.append("")
+    return "\n".join(L)
+
+
 def main(argv: list[str]) -> int:
     name = argv[argv.index("--report") + 1] if "--report" in argv else "p2b"
     if name not in REPORTS:
         print(f"unknown report {name!r}; one of {sorted(REPORTS)}")
         return 2
     OUT = REPORTS[name]["out"]
-    builders = {"p2b": (build, render), "p2c0": (build_p2c0, render_p2c0), "p2c_dev": (build_p2c_dev, render_p2c_dev)}
+    builders = {"p2b": (build, render), "p2c0": (build_p2c0, render_p2c0), "p2c_dev": (build_p2c_dev, render_p2c_dev),
+                "p2d": (build_p2d, render_p2d)}
     rep = builders[name][0]()
     text_json = json.dumps(rep, ensure_ascii=False, indent=1) + "\n"
     text_md = builders[name][1](rep)

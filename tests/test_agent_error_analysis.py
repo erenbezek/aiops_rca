@@ -1,6 +1,6 @@
 """`tools/agent_error_analysis.py` (P2c 2. ve 6. madde): soru metni DECISIONS'la aynı, kodla sayılan tuzaklar, seçim ve
 özet denetimleri sahte kayıtlarla; gerçek etiket dosyasındaki Eren doğrulaması ve repodaki özetin kayıtlardan aynen
-üretilmesi gerçek dev kayıtlarıyla."""
+üretilmesi gerçek dev kayıtlarıyla. P2d 2. madde: `--set test` sahte test kayıtlarıyla; boş `TEST_RUNS`."""
 from __future__ import annotations
 
 import json
@@ -75,7 +75,7 @@ def test_t7_counts_only_first_candidate_calls():
 
 # --- seçim ve özet, sahte koşularla ---
 
-def _run(d: Path, model: str, cases: dict):
+def _run(d: Path, model: str, cases: dict, set_: str = "dev"):
     d.mkdir(parents=True)
     (d / "run.json").write_text(json.dumps({"settings": {"model": model}}))
     (d / "tool_outputs").mkdir()
@@ -85,7 +85,7 @@ def _run(d: Path, model: str, cases: dict):
         rows.append({"incident_id": cid, "end_reason": "answer" if valid else "schema_answer", "schema_valid": valid,
                      "answer": ans})
         turns.append({"incident_id": cid, **turn(0, "search_spans", service="cart")})
-        scores.append({"incident_id": cid, "set": "dev", "top1": top1, "top3": top1,
+        scores.append({"incident_id": cid, "set": set_, "top1": top1, "top3": top1,
                        "matched": ["cart"] if valid else []})
         (d / "tool_outputs" / f"{cid}.jsonl").write_text(json.dumps({"turn": 0, "text": "x"}) + "\n")
     (d / "responses.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
@@ -93,14 +93,18 @@ def _run(d: Path, model: str, cases: dict):
     (d / "scores.json").write_text(json.dumps({"cases": scores}))
 
 
-@pytest.fixture
-def world(tmp_path):
+def _world(tmp_path, set_):
     ids = [f"inc-{i:08x}" for i in range(4)]
     _run(tmp_path / "g", "gemini-3.5-flash-lite", {ids[0]: (True, True), ids[1]: (False, True), ids[2]: (False, False),
-                                                   ids[3]: (True, True)})
-    _run(tmp_path / "q", "qwen3.5-4b", {i: (False, True) for i in ids})
+                                                   ids[3]: (True, True)}, set_)
+    _run(tmp_path / "q", "qwen3.5-4b", {i: (False, True) for i in ids}, set_)
     runs = {"gemini_file": ("g", "G"), "qwen_file": ("q", "Q")}
     return runs, tmp_path, {i: LABEL for i in ids}
+
+
+@pytest.fixture
+def world(tmp_path):
+    return _world(tmp_path, "dev")
 
 
 def test_select_scope(world):
@@ -121,12 +125,13 @@ def _labels_doc(rows, **override):
     return {"questions": ea.QUESTIONS, "questions_sha256": ea.questions_sha256(), "rows": out}
 
 
-def _summary(tmp_path, world, doc, monkeypatch):
+def _summary(tmp_path, world, doc, monkeypatch, set_="dev"):
     runs, ev, labels = world
     (tmp_path / "results").mkdir(exist_ok=True)
-    (tmp_path / ea.LABELS_FILE).write_text(json.dumps(doc))
+    (tmp_path / ea.FILES[set_][0]).write_text(json.dumps(doc))
     monkeypatch.setattr(ea, "dev_labels", lambda repo: labels)
-    return ea.summary(tmp_path, runs, ev)
+    monkeypatch.setattr(ea, "set_labels", lambda s, repo: labels if s == "test" else pytest.fail("dev via set_labels"))
+    return ea.summary(tmp_path, runs, ev, set_)
 
 
 def test_summary_counts_and_checks(tmp_path, world, monkeypatch):
@@ -154,6 +159,140 @@ def test_summary_rejects_changed_questions(tmp_path, world, monkeypatch):
     doc["questions"] = doc["questions"] + " "
     with pytest.raises(ValueError, match="questions"):
         _summary(tmp_path, world, doc, monkeypatch)
+
+
+# --- P2d: --set test (HANDOFF 2026-11-17) ---
+
+def test_files_by_set():
+    assert ea.FILES["dev"] == (ea.LABELS_FILE, ea.SUMMARY_MD, ea.SUMMARY_JSON)
+    assert [p.as_posix() for p in ea.FILES["test"]] == ["results/p2d_error_labels.json", "results/p2d_error_summary.md",
+                                                         "results/p2d_error_summary.json"]
+
+
+def test_select_and_summary_on_test_set(tmp_path, monkeypatch):
+    w = _world(tmp_path, "test")
+    runs, ev, labels = w
+    rows, info = ea.select(runs, ev, labels, "test")
+    assert [r["key"].split()[0] for r in rows] == ["gemini-3.5-flash-lite"] * 2 + ["qwen3.5-4b"] * 4
+    dev_rows, dev_info = ea.select(runs, ev, labels, "dev")  # set süzgeci: test satırı dev'e girmez
+    assert dev_rows == [] and all(v["n"] == 0 for v in dev_info.values()) and info["qwen3.5-4b"]["n"] == 4
+    assert ea.sample(rows) == ea.sample(rows, seed=20261104)  # tohum aynı
+    res = _summary(tmp_path, w, _labels_doc(rows), monkeypatch, "test")
+    assert res["rows"] == 6 and res["eren_check"]["reading"] == "pending"
+    md = ea.summary_markdown(res, "test")
+    assert md.startswith("# P2d test hata analizi özeti") and "summary --set test" in md
+    assert "results/p2d_error_labels.json" in md and "Kapsam: test," in md
+
+
+def test_test_runs_empty_until_runs(monkeypatch):
+    """Boş `TEST_RUNS` kapısı: koşular girdikten sonra da (P2d 5. madde) boş durumda hata verir."""
+    monkeypatch.setattr(ea.ar, "TEST_RUNS", {k: (None, n) for k, (_, n) in ea.ar.TEST_RUNS.items()})
+    with pytest.raises(SystemExit, match="TEST_RUNS not filled"):
+        ea.select(set_="test")
+    with pytest.raises(SystemExit, match="TEST_RUNS not filled"):
+        ea.main(["summary", "--set", "test", "--check"])
+
+
+def _world14(tmp_path):
+    """14 ıskalanan satır (7 + 7): tohumlu örneklem 10, örneklem dışı 4."""
+    ids = [f"inc-{i:08x}" for i in range(7)]
+    _run(tmp_path / "g", "gemini-3.5-flash-lite", {i: (False, True) for i in ids}, "test")
+    _run(tmp_path / "q", "qwen3.5-4b", {i: (False, True) for i in ids}, "test")
+    return {"gemini_file": ("g", "G"), "qwen_file": ("q", "Q")}, tmp_path, {i: LABEL for i in ids}
+
+
+def _marks(rows, first_disagree, second_disagree=None):
+    """1. tur örneklemin tümü işaretli (ilk `first_disagree` katılmıyorum); 2. tur verilirse örneklem dışı da."""
+    first = ea.sample(rows)
+    rest = [r["key"] for r in rows if r["key"] not in first]
+    marks = {k: {"agree": i >= first_disagree} for i, k in enumerate(first)}
+    if second_disagree is not None:
+        marks.update({k: {"agree": i >= second_disagree} for i, k in enumerate(rest)})
+    return {k: {"eren_check": {**v, "T1": "no", "T6": "no", "T8": "no"}} for k, v in marks.items()}
+
+
+def test_second_round_only_after_relabel(tmp_path, monkeypatch):
+    w = _world14(tmp_path)
+    rows, _ = ea.select(*w, "test")
+    assert len(rows) == 14 and len(ea.sample(rows)) == 10
+    res = _summary(tmp_path, w, _labels_doc(rows, **_marks(rows, 2)), monkeypatch, "test")
+    assert res["eren_check"]["reading"] == "ok" and "eren_check_2" not in res
+    assert "2. tur" not in ea.summary_markdown(res, "test")
+    with pytest.raises(ValueError, match="outside the sample"):  # 1. tur tamam okurken örneklem dışı işaret
+        _summary(tmp_path, w, _labels_doc(rows, **_marks(rows, 2, 0)), monkeypatch, "test")
+
+
+@pytest.mark.parametrize("second, want", [
+    (None, {"n": 4, "checked": 0, "disagree": 0, "reading": "pending"}),
+    (2, {"n": 4, "checked": 4, "disagree": 2, "reading": "ok"}),
+    (3, {"n": 4, "checked": 4, "disagree": 3, "reading": "relabel"}),
+])
+def test_second_round_reading(tmp_path, monkeypatch, second, want):
+    w = _world14(tmp_path)
+    rows, _ = ea.select(*w, "test")
+    res = _summary(tmp_path, w, _labels_doc(rows, **_marks(rows, 3, second)), monkeypatch, "test")
+    assert res["eren_check"] == {"n": 10, "checked": 10, "disagree": 3, "reading": "relabel"}
+    assert res["eren_check_2"] == want
+    assert f"satırın tümü): işaretlenen {want['checked']}, katılmıyorum {want['disagree']}" in \
+        ea.summary_markdown(res, "test")
+
+
+def test_sample_lists_second_round_on_test(capsys):
+    # Gerçek test etiketleri: 1. tur 10 satırda 4 katılmıyorum (Eren 2026-11-17) → 2. tur örneklem dışı 12 satır.
+    rows, _ = ea.select(set_="test")
+    assert ea.main(["sample", "--set", "test"]) == 0
+    out = capsys.readouterr().out.splitlines()
+    first = ea.sample(rows)
+    assert out[:10] == first and out[10] == "# 2. tur"
+    assert sorted(out[11:]) == sorted(r["key"] for r in rows if r["key"] not in first) and len(out[11:]) == 12
+
+
+# --- gerçek test kayıtları (P2d 6. madde B) ---
+
+def test_eren_check_in_test_labels_file():
+    # Eren 2026-11-17 1. tur: 10 satırda 4 katılmıyorum. Dördü de etiketleyicinin soru dışı ölçüt (2. / 3. aday) önerisi;
+    # etiket donmuş metne göre ilk hâlinde kaldı (2026-11-18, notlu). Yeniden etiketlemede tek değişiklik: 4B
+    # inc-d3869549 T8 evet (Eren'in 1. tur cevabı 'hayır', notlu). 2. tur: örneklem dışı 12 satır, 12'si katılıyorum.
+    rows, _ = ea.select(set_="test")
+    doc = json.loads((ea.REPO / ea.FILES["test"][0]).read_text(encoding="utf-8"))
+    first = ea.sample(rows)
+    checked = {x["key"]: x for x in doc["rows"] if "eren_check" in x}
+    assert sorted(checked) == sorted(x["key"] for x in doc["rows"]) and len(checked) == 22
+    for x in checked.values():
+        e = x["eren_check"]
+        assert set(e) <= {"agree", "T1", "T6", "T8", "note"} and all(e[t] in ea.VALUES for t in ea.READ)
+    g, q = "gemini-3.5-flash-lite", "qwen3.5-4b"
+    # Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37): 4 satırda birer alan hayır → evet; Eren dördüne de katıldı,
+    # eren_check'te o alan yeni cevapla (agree, yani 1. / 2. tur kaydı, değişmez); eski cevap satır notunda.
+    reread = {f"{g} inc-0383450c": "T1", f"{g} inc-402b4b2d": "T1", f"{q} inc-7d5db017": "T6", f"{q} inc-a519be4f": "T8"}
+    for k, t in reread.items():
+        x = checked[k]
+        assert x[t] == "yes" == x["eren_check"][t] and x["note"].startswith("Okuma düzeltmesi (DECISIONS 2026-11-18")
+        assert "Eren okuma düzeltmesi (2026-11-18" in x["eren_check"]["note"] and f"önceki cevabı: {t} no." in x["note"]
+    assert sum("Eren okuma düzeltmesi" in (x["eren_check"].get("note") or "") for x in checked.values()) == 4
+    same = lambda k, t: checked[k]["eren_check"][t] == checked[k][t]
+    off = {f"{g} inc-e763eeaf", f"{q} inc-986ae88a", f"{q} inc-a519be4f", f"{q} inc-e4d29c6d"}
+    assert {k for k, x in checked.items() if x["eren_check"]["agree"] is False} == off and off <= set(first)
+    for k in off:  # etiket ilk hâlinde: Eren'in cevabından tam bir okumada ayrılıyor
+        x = checked[k]
+        assert sum(not same(k, t) for t in ea.READ) == 1 and "soru dışı" in x["eren_check"]["note"]
+    fixed = checked[f"{q} inc-d3869549"]
+    assert fixed["T8"] == "yes" and fixed["eren_check"]["T8"] == "no" and fixed["eren_check"]["agree"] is True
+    for k, x in checked.items():  # öteki satırlarda Eren'in okuması etiketle aynı
+        if k not in off | {fixed["key"]}:
+            assert x["eren_check"]["agree"] is True and all(same(k, t) for t in ea.READ)
+    res = ea.summary(set_="test")
+    assert res["eren_check"] == {"n": 10, "checked": 10, "disagree": 4, "reading": "relabel"}
+    assert res["eren_check_2"] == {"n": 12, "checked": 12, "disagree": 0, "reading": "ok"}
+
+
+def test_test_summary_files_match_records():
+    # CI: test özeti repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
+    md, js = ea.summary_render(set_="test")
+    _, md_path, js_path = ea.FILES["test"]
+    assert (ea.REPO / md_path).read_text(encoding="utf-8") == md
+    assert (ea.REPO / js_path).read_text(encoding="utf-8") == js
+    assert ea.main(["summary", "--set", "test", "--check"]) == 0
 
 
 # --- gerçek dev kayıtları ---

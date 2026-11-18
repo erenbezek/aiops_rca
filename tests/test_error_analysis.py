@@ -217,9 +217,182 @@ def test_eren_check_in_labels_file():
     assert ea.summary()["eren_check"] == {"n": 10, "checked": 10, "disagree": 1, "reading": "ok"}
 
 
+
+def _round_marks(first_disagree, second_disagree=None):
+    """Dev satırları: 1. tur örneklemin tümü (ilk `first_disagree` katılmıyorum); 2. tur verilirse örneklem dışı da."""
+    rows = ea.select()[0]
+    first = ea.sample(rows)
+    marks = {k: i >= first_disagree for i, k in enumerate(first)}
+    if second_disagree is not None:
+        rest = [r["key"] for r in rows if r["key"] not in first]
+        marks.update({k: i >= second_disagree for i, k in enumerate(rest)})
+    return marks
+
+
+def test_second_round_only_after_relabel(tmp_path):
+    import pytest
+    res = ea.summary(checked_repo(tmp_path / "a", _round_marks(2)))
+    assert res["eren_check"]["reading"] == "ok" and "eren_check_2" not in res
+    assert "2. tur" not in ea.summary_markdown(res)
+    with pytest.raises(ValueError, match="outside the sample"):     # 1. tur tamam okurken örneklem dışı işaret
+        ea.summary(checked_repo(tmp_path / "b", _round_marks(2, 0)))
+
+
+def test_second_round_reading(tmp_path):
+    n2 = len(ea.select()[0]) - ea.SAMPLE_N                            # dev: 29 − 10 = 19
+    for d, second, want in (("a", None, {"n": n2, "checked": 0, "disagree": 0, "reading": "pending"}),
+                            ("b", 2, {"n": n2, "checked": n2, "disagree": 2, "reading": "ok"}),
+                            ("c", 3, {"n": n2, "checked": n2, "disagree": 3, "reading": "relabel"})):
+        res = ea.summary(checked_repo(tmp_path / d, _round_marks(3, second)))
+        assert res["eren_check"] == {"n": 10, "checked": 10, "disagree": 3, "reading": "relabel"}
+        assert res["eren_check_2"] == want
+        assert f"satırın tümü): işaretlenen {want['checked']}, katılmıyorum {want['disagree']}" in \
+            ea.summary_markdown(res)
+
+
+def test_sample_lists_second_round_on_test(capsys):
+    # Gerçek test etiketleri: 1. tur 10 satırda 4 katılmıyorum (DECISIONS 2026-11-18 A) → 2. tur örneklem dışı 44 satır.
+    rows, _ = ea.select(set_="test")
+    assert ea.main(["sample", "--set", "test"]) == 0
+    out = capsys.readouterr().out.splitlines()
+    first = ea.sample(rows)
+    assert out[:10] == first and out[10] == "# 2. tur"
+    assert sorted(out[11:]) == sorted(r["key"] for r in rows if r["key"] not in first) and len(out[11:]) == 44
+    assert ea.summary(set_="test")["eren_check_2"]["n"] == 44
+
 def test_summary_files_match_records():
     # CI: özet repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
     md, js = ea.summary_render()
     assert (ea.REPO / ea.SUMMARY_MD).read_text(encoding="utf-8") == md
     assert (ea.REPO / ea.SUMMARY_JSON).read_text(encoding="utf-8") == js
     assert ea.main(["summary", "--check"]) == 0
+
+
+# --- P2d 6. madde A: --set test (HANDOFF 2026-11-17); sahte test koşularıyla, gerçek test kaydı okunmaz ---
+
+def test_files_and_frozen_questions():
+    assert ea.FILES["dev"] == (ea.LABELS_FILE, ea.SUMMARY_MD, ea.SUMMARY_JSON)
+    assert [p.as_posix() for p in ea.FILES["test"]] == ["results/p1_test_error_labels.json",
+                                                         "results/p1_test_error_summary.md",
+                                                         "results/p1_test_error_summary.json"]
+    doc = json.loads((ea.REPO / ea.LABELS_FILE).read_text(encoding="utf-8"))
+    assert doc["questions_sha256"] == ea.QUESTIONS_SHA256 and ea.SEED == 20261104
+
+
+def test_heldout_labels_refused():
+    import pytest
+    with pytest.raises(PermissionError):
+        ea.set_labels("heldout")
+
+
+TIDS = [f"inc-{i + 100:08x}" for i in range(4)]
+
+
+def fake_test_repo(tmp_path, monkeypatch):
+    """`results/p1_runs.json` + sahte test koşuları (vaka 0: isabet, 1 ve 3: ıskalama, 2: şema dışı)."""
+    rows = []
+    for m in ea.MODELS_IN:
+        for lv in ea.LEVELS:
+            d = tmp_path / "eval_responses" / f"{m}-{lv}"
+            d.mkdir(parents=True)
+            cases = [{"incident_id": TIDS[0], "set": "test", "input_status": "ok", "no_answer": False,
+                      "schema_valid": True, "top1": True, "top3": True, "matched": ["payment"]},
+                     {"incident_id": TIDS[1], "set": "test", "input_status": "ok", "no_answer": False,
+                      "schema_valid": True, "top1": False, "top3": False, "matched": ["checkout"]},
+                     {"incident_id": TIDS[2], "set": "test", "input_status": "ok", "no_answer": False,
+                      "schema_valid": False, "top1": False, "top3": False, "matched": []},
+                     {"incident_id": TIDS[3], "set": "test", "input_status": "ok", "no_answer": False,
+                      "schema_valid": True, "top1": False, "top3": True, "matched": ["cart", "payment"]}]
+            (d / "scores.json").write_text(json.dumps({"cases": cases}))
+            (d / "responses.jsonl").write_text("".join(json.dumps({"incident_id": c}) + "\n" for c in TIDS))
+            rows.append({"method": "llm", "model": m, "level": lv, "info": False,
+                         "runs": {"dev": "eval_responses/DO-NOT-READ", "test": f"eval_responses/{m}-{lv}"}})
+    (tmp_path / "results").mkdir()
+    (tmp_path / "results" / "p1_runs.json").write_text(json.dumps({"note": "", "rows": rows}))
+    labels = {c: lab("payment", [["payment", "checkout"]]) for c in TIDS}
+    monkeypatch.setattr(ea, "set_labels", lambda s, repo=None: labels if s == "test" else {})
+    monkeypatch.setattr(ea, "name_misses", lambda repo: {})
+    return tmp_path
+
+
+def test_select_on_test_set(tmp_path, monkeypatch):
+    repo = fake_test_repo(tmp_path, monkeypatch)
+    rows, auto = ea.select(repo, "test")
+    assert [r["key"] for r in rows] == [f"{m} {lv} {c}" for m in ea.MODELS_IN for lv in ea.LEVELS
+                                        for c in (TIDS[1], TIDS[3])]
+    assert [r["t3"] for r in rows[:2]] == ["yes", "no"] and all(r["run_dir"].endswith(f"{r['model']}-{r['level']}")
+                                                                 for r in rows)
+    assert all((c["top1_hit"], c["in_scope"], c["schema_invalid"]) == (1, 2, 1) for c in auto.values())
+    assert ea.sample(rows) == ea.sample(rows, seed=20261104) and len(ea.sample(rows)) == 10
+
+
+def _test_doc(rows, questions):
+    out = [{"key": r["key"], "model": r["model"], "level": r["level"], "incident_id": r["incident_id"],
+            "root_visibility": "direct", "direct_signals": ["p95_ms"], "top3": r["top3"], "T1": "no", "T2": "yes",
+            "T3": r["t3"], "T4": "no", "T5": "no", "T6": "no", "reason": "x", "note": ""} for r in rows]
+    return {"questions": questions, "questions_sha256": ea.QUESTIONS_SHA256, "rows": out}
+
+
+def test_summary_on_test_set(tmp_path, monkeypatch):
+    import pytest
+    repo = fake_test_repo(tmp_path, monkeypatch)
+    rows, _ = ea.select(repo, "test")
+    questions = json.loads((ea.REPO / ea.LABELS_FILE).read_text(encoding="utf-8"))["questions"]
+    (repo / ea.FILES["test"][0]).write_text(json.dumps(_test_doc(rows, questions)))
+    res = ea.summary(repo, "test")
+    assert res["rows"] == 18 and res["traps"]["all"]["T3"]["yes"] == 9 and res["eren_check"]["n"] == 10
+    md = ea.summary_markdown(res, "test")
+    assert md.startswith("# P1 test hata analizi özeti") and "summary --set test" in md and "(test, satır" in md
+    assert "inc-" not in md
+    (repo / ea.FILES["test"][0]).write_text(json.dumps(_test_doc(rows, questions[:-1] + [questions[-1] + " "])))
+    with pytest.raises(ValueError, match="frozen P1e questions"):
+        ea.summary(repo, "test")
+
+
+# --- P2d 6. madde A: gerçek test etiketleri (Eren kontrolü 2026-11-18) ---
+
+def test_eren_check_in_test_labels_file():
+    # 1. tur (DECISIONS 2026-11-18 A): kontrol öncesi etiketlere göre (e333a83) 10 satırda 4 katılmıyorum, dördü de T1
+    # (Eren evet, etiket hayır) → yeniden etiketleme. İkisi kontrol sırasında etiketleyicinin önerdiği düzeltme (notlu).
+    # Yeniden etiketleme yalnız T1: 694a898 (A okuması) 7 satır hayır → evet; okuma düzeltmesiyle (8b54f37) 2 satır
+    # evet → hayır, biri örneklemde ("erişilemez" örneği geri alındı). 1. tur kaydı değişmez.
+    # 2. tur (2026-11-18): örneklem dışı 44 satırın tümü, 44'ü katılıyorum, Eren'in T1 / T5 / T6'sı etiketle aynı.
+    rows, _ = ea.select(set_="test")
+    doc = json.loads((ea.REPO / ea.FILES["test"][0]).read_text(encoding="utf-8"))
+    assert doc["questions_sha256"] == ea.QUESTIONS_SHA256 and len(doc["rows"]) == 54
+    marked = {x["key"]: x for x in doc["rows"] if "eren_check" in x}
+    assert len(marked) == 54
+    second = {k: x for k, x in marked.items() if k not in ea.sample(rows)}
+    assert len(second) == 44 and all(x["eren_check"]["agree"] is True and set(x["eren_check"]) == {"agree", "T1", "T5", "T6"}
+                                     and all(x["eren_check"][t] == x[t] for t in ("T1", "T5", "T6"))
+                                     for x in second.values())
+    checked = {k: x for k, x in marked.items() if k not in second}
+    assert sorted(checked) == ea.sample(rows)
+    for x in checked.values():
+        e = x["eren_check"]
+        assert set(e) <= {"agree", "T1", "T5", "T6", "note"} and all(e[t] in ("yes", "no") for t in ("T1", "T5", "T6"))
+    o, q = "gpt-oss-120b", "qwen3.5-4b"
+    off = {f"{o} narrowed inc-a519be4f", f"{o} raw inc-402b4b2d", f"{o} summary inc-c6ae4086", f"{q} raw inc-a519be4f"}
+    assert {k for k, x in checked.items() if x["eren_check"]["agree"] is False} == off
+    assert all(checked[k]["eren_check"]["T1"] == "yes" for k in off)
+    assert all("kontrol sırasında" in checked[k]["eren_check"]["note"]
+               for k in (f"{o} summary inc-c6ae4086", f"{q} raw inc-a519be4f"))
+    now = [(k, t) for k, x in checked.items() for t in ("T1", "T5", "T6") if x["eren_check"][t] != x[t]]
+    assert now == [(f"{o} raw inc-402b4b2d", "T1")]                  # etiket hayır (okuma düzeltmesi), Eren evet
+    note = lambda x: x.get("note") or ""
+    relabeled = [x for x in doc["rows"] if "Yeniden etiketleme (DECISIONS 2026-11-18 A" in note(x)]
+    fixed = [x for x in doc["rows"] if note(x).startswith("Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37)")]
+    assert len(relabeled) == 7 and len(fixed) == 2 and {x["key"] for x in fixed} <= {x["key"] for x in relabeled}
+    assert all(x["T1"] == "no" for x in fixed) and all(x["T1"] == "yes" for x in relabeled if x not in fixed)
+    res = ea.summary(set_="test")
+    assert res["eren_check"] == {"n": 10, "checked": 10, "disagree": 4, "reading": "relabel"}
+    assert res["eren_check_2"] == {"n": 44, "checked": 44, "disagree": 0, "reading": "ok"}
+
+
+def test_test_summary_files_match_records():
+    # CI: test özeti repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
+    md, js = ea.summary_render(set_="test")
+    _, md_path, js_path = ea.FILES["test"]
+    assert (ea.REPO / md_path).read_text(encoding="utf-8") == md
+    assert (ea.REPO / js_path).read_text(encoding="utf-8") == js
+    assert ea.main(["summary", "--set", "test", "--check"]) == 0

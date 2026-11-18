@@ -1,5 +1,6 @@
 """`tools/agent_report.py --report p2c_dev` (P2c 2. madde): işaret testi, eşleştirme, yeniden deneme beklemesi ve
-raporun sahte dev koşularıyla kurulması (gerçek dev koşusu henüz yok)."""
+raporun sahte dev koşularıyla kurulması; `--report p2d` (P2d 2. madde) sahte test koşularıyla: yalnız toplamlar, dev–test
+okuması, boş `TEST_RUNS`."""
 from __future__ import annotations
 
 import json
@@ -47,7 +48,8 @@ def test_retry_wait_by_provider(provider, n, wait):
 
 # --- sahte dev koşuları ---
 
-def _write_run(d: Path, model: str, store: str, known: dict[str, tuple[bool, bool]], attempts=None, sets=("dev",)):
+def _write_run(d: Path, model: str, store: str, known: dict[str, tuple[bool, bool]], attempts=None, sets=("dev",),
+               set_="dev"):
     d.mkdir(parents=True)
     (d / "run.json").write_text(json.dumps({"settings": {"model": model, "store": store, "prompt_sha256": "p"},
                                             "repo_commit": "c", "sets": list(sets)}))
@@ -61,11 +63,11 @@ def _write_run(d: Path, model: str, store: str, known: dict[str, tuple[bool, boo
                    "call": "list_services()", "attempts": [{"status": 200}], "error": None},
                   {"incident_id": cid, "turn": 1, "kind": "answer", "input_tokens_local": 200, "dropped": [],
                    "attempts": att, "error": "busy" if failed else None}]
-        cases.append({"incident_id": cid, "set": "dev", "top1": t1, "top3": t3})
+        cases.append({"incident_id": cid, "set": set_, "top1": t1, "top3": t3})
     tab = {"n": len(known), "top1": sum(v[0] for v in known.values()), "top3": sum(v[1] for v in known.values()),
            "schema_invalid": 0, "no_answer": 0, "evidence_valid": 0, "brier": None, "duration_s_total": 1.0,
            "tokens_input": 1, "tokens_output": 1}
-    (d / "scores.json").write_text(json.dumps({"table": {"dev": tab, "all": tab}, "cases": cases}))
+    (d / "scores.json").write_text(json.dumps({"table": {set_: tab, "all": tab}, "cases": cases}))
     (d / "responses.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
     (d / "turns.jsonl").write_text("".join(json.dumps(t) + "\n" for t in turns))
 
@@ -175,3 +177,114 @@ def test_p1_dev_rows_model_filter(tmp_path):
         got = {k: v.name for k, v in ar.p1_dev_rows(p, model).items()}
         assert got == {"rule": "rule", "baro": "baro", "narrowing": "narrowing", "raw": f"{model}-raw",
                        "summary": f"{model}-summary", "narrowed": f"{model}-narrowed"}
+
+
+# --- P2d: sahte test koşuları (dev koşuları `world`'deki) ---
+
+TCASES = [f"inc-{i + 100:08x}" for i in range(18)]
+
+
+@pytest.fixture
+def test_world(world, tmp_path):
+    ev = world["eval_dir"]
+    g, q = "gemini-3.5-flash-lite", "qwen3.5-4b"
+    all_ = lambda t1, t3: {k: (t1(i), t3(i)) for i, k in enumerate(TCASES)}  # noqa: E731
+    w = lambda name, model, store, known: _write_run(ev / name, model, store, known, sets=("test",),  # noqa: E731
+                                                     set_="test")
+    w("tgf1", g, "FileStore", all_(lambda i: i < 5, lambda i: i < 6))
+    w("tgf2", g, "FileStore", all_(lambda i: i < 5, lambda i: i < 7))
+    w("tgl", g, "LiveStore", {k: v for k, v in all_(lambda i: i < 5, lambda i: i < 6).items() if k != TCASES[9]})
+    w("tqf", q, "FileStore", all_(lambda i: i < 3, lambda i: i < 9))
+    w("tql", q, "LiveStore", all_(lambda i: i < 3, lambda i: i < 9))
+    spec = json.loads(world["p1_runs"].read_text())
+    p1 = {"rule": all_(lambda i: i < 4, lambda i: i < 8), "baro": all_(lambda i: False, lambda i: i < 2),
+          "narrowing": all_(lambda i: True, lambda i: True)}
+    for m in (g, q, "gpt-oss-120b"):
+        for lv, f in (("raw", lambda i: i < 6), ("summary", lambda i: i < 6), ("narrowed", lambda i: i < 12)):
+            p1[f"{m}-{lv}"] = all_(f, f)
+    for name, known in p1.items():
+        w(f"tp1-{name}", "x", "-", known)
+    for m in ("gpt-oss-120b",):
+        for lv in ("raw", "summary", "narrowed"):
+            _write_run(ev / f"p1-{m}-{lv}", "x", "-", {k: (False, False) for k in CASES})
+            spec["rows"].append({"method": "llm", "model": m, "level": lv, "info": False,
+                                 "runs": {"dev": f"eval_responses/p1-{m}-{lv}"}})
+    for r in spec["rows"]:
+        name = r["method"] if r["method"] != "llm" else f"{r['model']}-{r['level']}"
+        if r["model"] == "qwen3.5-9b":
+            _write_run(ev / "p1-9b", "x", "-", {k: (True, True) for k in CASES})
+            w("tp1-9b", "x", "-", all_(lambda i: True, lambda i: True))
+            r["runs"] = {"dev": "eval_responses/p1-9b", "test": "eval_responses/tp1-9b"}
+        else:
+            r["runs"]["test"] = f"eval_responses/tp1-{name}"
+    world["p1_runs"].write_text(json.dumps(spec))
+    calls = {"runs": [
+        {"model": g, "live": {"dir": "tgl"}, "file": None, "totals": {"cases": 17, "calls": 40, "same": 39,
+                                                                      "unexplained": 1},
+         "cases": {TCASES[3]: {"diffs": [{"turn": 2, "call": "get_trace(SECRET)", "class": "unexplained",
+                                          "diagnosis": None}]}}},
+        {"model": q, "live": {"dir": "tql"}, "file": {"dir": "tqf"},
+         "totals": {"cases": 18, "calls": 50, "same": 50,
+                    "divergence": {"cases_paired": 18, "model_diverged": 1, "output_differs": 0, "identical": 17}},
+         "cases": {}, "divergence": {TCASES[2]: {"model_diverged": True}}}]}
+    cp = world["calls_path"].parent / "p2d_test_calls.json"
+    cp.write_text(json.dumps(calls))
+    runs = {"gemini_file": ("tgf1", "G1"), "gemini_file_2": ("tgf2", "G2"), "qwen_file": ("tqf", "QF"),
+            "gemini_live": ("tgl", "GL"), "qwen_live": ("tql", "QL")}
+    return {"runs": runs, "eval_dir": ev, "calls_path": cp, "p1_runs": world["p1_runs"], "dev_runs": world["runs"]}
+
+
+def test_build_p2d(test_world):
+    rep = ar.build_p2d(**test_world)
+    g, q = rep["models"]["gemini-3.5-flash-lite"], rep["models"]["qwen3.5-4b"]
+    assert g["dev_test_reading"] == {"dev_top3": 14, "test_top3": 6, "n_dev": 18, "n_test": 18, "p": 0.0176,
+                                     "reading": "down"}
+    assert q["dev_test_reading"]["reading"] == "none" and q["dev_test_reading"]["dev_top3"] == 7
+    assert g["call_level"]["totals"]["unexplained"] == 1 and "unexplained" not in g["call_level"]
+    assert "model_diverged" not in q["call_level"] and q["call_level"]["totals"]["divergence"]["model_diverged"] == 1
+    assert g["file_vs_live_top3"]["not_replayed"] == 1 and g["file_vs_live_top3"]["n"] == 17
+    assert set(g["agent_rows"]) == {"gemini_file", "gemini_file_2", "gemini_live"}
+    assert set(q["agent_rows"]) == {"qwen_file", "qwen_live"}
+    assert g["agent_rows"]["gemini_file"]["dev"]["top3"] == 14 and g["agent_rows"]["gemini_file"]["test"]["top3"] == 6
+    assert g["p1_rows"]["raw"]["dev"]["run"] == "p1-gemini-3.5-flash-lite-raw"
+    assert g["p1_rows"]["raw"]["test"]["run"] == "tp1-gemini-3.5-flash-lite-raw"
+    assert sorted(rep["p1_info"]) == ["gpt-oss-120b narrowed", "gpt-oss-120b raw", "gpt-oss-120b summary",
+                                      "qwen3.5-9b raw"]
+    assert all("cases" not in s for s in rep["runs"].values())
+    a = g["agent_vs_p1"]["raw_top3"]
+    assert (a["left"], a["right"], a["only_left"], a["only_right"]) == (6, 6, 0, 0)
+
+
+def test_p2d_has_no_case_ids(test_world):
+    """Planlama kontrolü 2026-11-17 şart 3: test raporunda (JSON ve md) vaka kimliği ve çağrı ayrıntısı yok."""
+    rep = ar.build_p2d(**test_world)
+    text = json.dumps(rep, ensure_ascii=False) + ar.render_p2d(rep)
+    assert not [c for c in TCASES + CASES if c in text]
+    assert "inc-" not in text and "SECRET" not in text and "get_trace" not in text
+
+
+def test_render_p2d(test_world):
+    md = ar.render_p2d(ar.build_p2d(**test_world))
+    assert "## Vakalar" not in md and "Oynatılamadı (çiftten düştü): 1 vaka." in md
+    assert "fark (düşüş)" in md and "**açıklanamayan 1**" in md and "(bilgi)" in md
+    assert "dev 14 / 18, test 6 / 18; p = 0.0176" in md
+
+
+def test_p2d_power_matches_card():
+    """P2d kartı (önceden yazılı güç): Gemini dev 14 → test ≤ 7; 4B dev 9 → test ≤ 2 ya da ≥ 16."""
+    assert ar._reach(14, 18, 18) == "≤ 7" and ar._reach(9, 18, 18) == "≤ 2 ya da ≥ 16"
+
+
+def test_p2d_report_reproduces():
+    """P2d 5. madde: `TEST_RUNS` dört test koşusuyla dolu (beş satır, boş satır yok), kesinti yok ve
+    `results/p2d_test.*` repodaki kayıtlardan bayt aynı yeniden üretilir."""
+    assert set(ar.TEST_RUNS) == set(ar.DEV_RUNS) and all(d for d, _ in ar.TEST_RUNS.values())
+    assert ar.TEST_INTERRUPTED == []
+    assert ar.main(["--report", "p2d", "--check"]) == 0
+
+
+def test_p2d_requires_test_runs(monkeypatch):
+    """Boş `TEST_RUNS` ile rapor üretilmez (planlama kontrolü 2026-11-17 şart 4)."""
+    monkeypatch.setattr(ar, "TEST_RUNS", {k: (None, n) for k, (_, n) in ar.TEST_RUNS.items()})
+    with pytest.raises(SystemExit, match="TEST_RUNS not filled"):
+        ar.main(["--report", "p2d", "--check"])
