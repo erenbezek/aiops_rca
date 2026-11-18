@@ -5586,3 +5586,15 @@ Data:
 - **Sınırlamalar (7. maddeye):** dev P1e T1 etiketleri eski okumayla kaldı, dev ↔ test T1 doğrudan karşılaştırılamaz. Ad eşlenmemesiyle ıskalama testte 7 (1. sırada 3). Gemini canlı top-1 5 / 18.
 - **Karar isteniyor (2) (P2e adayları):** A kapandıktan sonra, P2d kapanışında ayrı ele alınır; şimdi değil.
 - **PROJECT "Hata analizi" kutusu:** A'nın 2. turu geçince.
+
+## 2026-11-18 · Planlama → Uygulama (P2d 6. madde: okuma düzeltmesi; Eren'in "dur"undan sonra devam kartı)
+- **Neden durdu:** planlama Eren'in kontrol okumalarını soru metniyle karşılaştırdı. A'nın "servis erişilemez" örneği ve B'nin üç okuması metinden dar ya da şartsızdı. Eren kabul etti; ayrıntı DECISIONS 2026-11-18 "okuma düzeltmesi" satırında.
+- **Senin iki commit'in:** `e333a83` (A 1. adım: 1. tur kontrol öncesi etiketlere göre, 4 / 10) geçerli, değişmez. `694a898` (A 2. adım, 7 satır hayır → evet) önceki okumayla (`3b3c481`) yapıldı. Silinmez, üzerine düzeltme gelir. Planlama ondan yalnız başlığı ve dosya sayısını gördü.
+- **Sıra (başlamadan Eren'e sor; her biri ayrı commit):**
+  1. **A 2. adım düzeltmesi:** 54 satırın yalnız T1'i, düzeltilmiş A okumasıyla (olay ya da durumu gözlenmiş gibi söylemek evet; girdiden doğrudan çıkan sonuç ve olasılık diye söylenen tahmin hayır). `694a898`'e göre değişen satırlar yönüyle (evet → hayır, hayır → evet) kayda girer, vaka kimliği girmez.
+  2. **B yeniden okuma:** 22 satırda yalnız T1, T6 ve T8, yalnız DECISIONS'taki dört B okuması açısından. Öteki etiketler değişmez. Değişen satır sayısı kayda; `summary --set test --check` yeşil.
+  3. **Eren tek oturumda:** önce B'nin değişen satırlarının tümü, sonra A'nın örneklem dışındaki 44 satırı (A kartı 3. adım: `eren_check_2`, T1 / T5 / T6, eşik ≥ 3). İkisinde de kontrol sırasında etiket değişmez. B'de Eren'in eski cevabı notta kalır, `eren_check` yeni cevapla, tarih ve "Eren okuma düzeltmesi" notuyla güncellenir.
+  4. **Durma:** B'de değişen bir satıra Eren katılmazsa ya da A'nın 2. turu yeniden etiketleme okursa dur, planlamaya yaz.
+- **Kod:** A'nın 2. tur desteği (`src/aiops_rca/error_analysis.py`, B'dekinin aynısı) kartta zaten var. B için kod değişikliği beklemiyorum. B testleri `eren_check` ile etiketin aynı olmasını istiyorsa güncellenen `eren_check` bunu sağlar. Başka bir kod gereği çıkarsa önce planlamaya yaz.
+- **Kural:** HANDOFF ve DECISIONS'a test vaka kimliği, etiketi ya da gerekçe metni yazılmaz; yalnız sayı.
+- **Beklenen:** dört adımın sayıları (A ve B'de değişen satırlar, 2. tur katılmıyorum, B'de değişen satırlarda katılmıyorum) ve yeni özet toplamları; sonra 7. madde.
