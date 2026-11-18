@@ -309,8 +309,8 @@ def test_summary_on_test_set(tmp_path, monkeypatch):
 # --- P2d 6. madde A: gerçek test etiketleri (Eren kontrolü 2026-11-18) ---
 
 def test_eren_check_in_test_labels_file():
-    # Tohumlu 10 satır: 8 katılıyor, 2 katılmıyor (gpt-oss daraltma a519be4f ve ham 402b4b2d, ikisi de T1: Eren evet)
-    # → yeniden etiketleme yok. Kontrol sırasında 3 satırda T1 hayır → evet düzeltildi (emsal; notlu).
+    # 1. tur (DECISIONS 2026-11-18 A): kontrol öncesi etiketlere göre 10 satırda 4 katılmıyorum, dördü de T1 (Eren
+    # evet, etiket hayır) → yeniden etiketleme. İkisi kontrol sırasında etiketleyicinin önerdiği düzeltme (notlu).
     rows, _ = ea.select(set_="test")
     doc = json.loads((ea.REPO / ea.FILES["test"][0]).read_text(encoding="utf-8"))
     assert doc["questions_sha256"] == ea.QUESTIONS_SHA256 and len(doc["rows"]) == 54
@@ -320,13 +320,14 @@ def test_eren_check_in_test_labels_file():
         e = x["eren_check"]
         assert set(e) <= {"agree", "T1", "T5", "T6", "note"} and all(e[t] in ("yes", "no") for t in ("T1", "T5", "T6"))
         assert e["agree"] == all(e[t] == x[t] for t in ("T1", "T5", "T6"))
-    o = "gpt-oss-120b"
+    o, q = "gpt-oss-120b", "qwen3.5-4b"
     off = [(k, t) for k, x in checked.items() for t in ("T1", "T5", "T6") if x["eren_check"][t] != x[t]]
-    assert sorted(off) == [(f"{o} narrowed inc-a519be4f", "T1"), (f"{o} raw inc-402b4b2d", "T1")]
-    fixed = {"qwen3.5-4b summary inc-c6ae4086", f"{o} summary inc-c6ae4086", "qwen3.5-4b raw inc-a519be4f"}
-    by_key = {x["key"]: x for x in doc["rows"]}
-    assert all(by_key[k]["T1"] == "yes" and "düzeltildi" in by_key[k]["note"] for k in fixed)
-    assert ea.summary(set_="test")["eren_check"] == {"n": 10, "checked": 10, "disagree": 2, "reading": "ok"}
+    assert sorted(off) == [(f"{o} narrowed inc-a519be4f", "T1"), (f"{o} raw inc-402b4b2d", "T1"),
+                           (f"{o} summary inc-c6ae4086", "T1"), (f"{q} raw inc-a519be4f", "T1")]
+    assert all(checked[k]["T1"] == "no" and checked[k]["eren_check"]["T1"] == "yes" for k, _ in off)
+    assert all("kontrol sırasında" in checked[k]["eren_check"]["note"]
+               for k in (f"{o} summary inc-c6ae4086", f"{q} raw inc-a519be4f"))
+    assert ea.summary(set_="test")["eren_check"] == {"n": 10, "checked": 10, "disagree": 4, "reading": "relabel"}
 
 
 def test_test_summary_files_match_records():

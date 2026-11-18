@@ -38,20 +38,20 @@
    "root_visibility": "absent",
    "direct_signals": [],
    "top3": false,
-   "T1": "yes",
+   "T1": "no",
    "T2": "undetermined",
    "T3": "yes",
    "T4": "undetermined",
    "T5": "no",
    "T6": "no",
-   "reason": "Kök cart girdide hiç geçmiyor (absent). Gerekçe 'causing timeouts' diyor; girdide süre / zaman aşımı bilgisi yok (girdide olmayan veri iddiası, T1).",
-   "note": "Eren kontrolü (satır 9) sonrası düzeltildi: önce mekanizma iddiası sayılıp T1 hayır yazılmıştı. Çağrı yönü ters (frontend'in checkout'a yaydığı); T1'e girmez.",
+   "reason": "Kök cart girdide hiç geçmiyor (absent). 1. adayın gerekçesi checkout akışındaki hata span'lerine dayanıyor (girdide var).",
+   "note": "'causing timeouts': girdide süre / zaman aşımı bilgisi yok; mekanizma iddiası sayıldı, veri iddiası değil (T1 hayır, tartışmalı).",
    "eren_check": {
-    "agree": true,
+    "agree": false,
     "T1": "yes",
     "T5": "no",
     "T6": "no",
-    "note": "T1 kontrol sırasında hayır→evet düzeltildi (Eren onayı; satır 3 ölçüsü: girdide olmayan olay türü uydurmadır)."
+    "note": "Etiketleyici kontrol sırasında T1 evet önerdi (\"causing timeouts\": girdide süre yok; Eren'in 3. satır ölçüsü), Eren katıldı; DECISIONS 2026-11-18 A: kontrol öncesi etikete göre katılmıyorum."
    }
   },
   {
@@ -220,14 +220,14 @@
    "root_visibility": "absent",
    "direct_signals": [],
    "top3": false,
-   "T1": "yes",
+   "T1": "no",
    "T2": "undetermined",
    "T3": "yes",
    "T4": "undetermined",
    "T5": "no",
    "T6": "no",
-   "reason": "Gerekçe 'diğer bütün servisler stabil' diyor; product-catalog belleği 12→15 MB (sinyal, güç 1,25) (T1). Gerekçe checkout p95 44,1→258,3'e dayanıyor; checkout'un belleği de değişmiş (11→14, sinyal), T6 hayır. Kök currency'nin satırı var, sinyali yok (absent).",
-   "note": "Eren kontrolü (satır 6) sonrası dev emsaline göre düzeltildi: önce 'küçük mutlak değişim' diye T1 sayılmamıştı."
+   "reason": "Gerekçe checkout p95 44,1→258,3'e dayanıyor (doğru); checkout'un belleği de değişmiş (11→14, sinyal), T6 hayır. Kök currency'nin satırı var, sinyali yok (absent).",
+   "note": "'Diğer bütün servisler stabil': product-catalog belleği 12→15 MB (sinyal, güç 1,25); küçük mutlak değişim, T1 sayılmadı."
   },
   {
    "key": "qwen3.5-4b summary inc-d3869549",
@@ -602,20 +602,20 @@
    "root_visibility": "absent",
    "direct_signals": [],
    "top3": false,
-   "T1": "yes",
+   "T1": "no",
    "T2": "undetermined",
    "T3": "yes",
    "T4": "undetermined",
    "T5": "no",
    "T6": "no",
-   "reason": "Gerekçe 'diğer bütün servisler stabil' diyor; product-catalog belleği 12→15 MB (sinyal, güç 1,25) (T1). Gerekçe checkout p95 44→258'e dayanıyor; checkout belleği de değişmiş (T6 hayır). Kök currency'nin satırı var, sinyali yok (absent).",
-   "note": "Eren kontrolü (satır 6) sonrası dev emsaline göre düzeltildi: önce 'küçük mutlak değişim' diye T1 sayılmamıştı.",
+   "reason": "Gerekçe checkout p95 44→258'e dayanıyor (doğru); checkout belleği de değişmiş (T6 hayır). Kök currency'nin satırı var, sinyali yok (absent).",
+   "note": "'Diğer bütün servisler stabil': product-catalog belleği 12→15 MB (sinyal, güç 1,25); küçük mutlak değişim, T1 sayılmadı.",
    "eren_check": {
-    "agree": true,
+    "agree": false,
     "T1": "yes",
     "T5": "no",
     "T6": "no",
-    "note": "T1 kontrol sırasında dev emsaline göre hayır→evet düzeltildi (Eren onayı); aynı düzeltme 4B özet c6ae4086."
+    "note": "Etiketleyici kontrol sırasında dev emsaline göre T1 evet önerdi (\"diğer bütün servisler stabil\" iddiası başka bir servisteki sinyalle çelişiyor), Eren katıldı; DECISIONS 2026-11-18 A: kontrol öncesi etikete göre katılmıyorum."
    }
   },
   {
