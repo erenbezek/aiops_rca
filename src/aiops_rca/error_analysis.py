@@ -34,6 +34,11 @@ görünürlüğüne göre T3, Eren doğrulamasının durumu (`eren_check.agree`;
 etiketleme) ve ad eşlenmemesi: kök, ilk 3'te eşlenmemiş bir adla (`name_key` aynı) geçtiği hâlde ıskalama sayılan
 satırlar, dev ve test, LLM satırları. Test burada yalnız `scores.json` ve etiketin kök adıyla, hücre başına sayım
 olarak okunur; vaka kimliği çıktıya girmez. Puanlama değişmez.
+
+İkinci tur (DECISIONS 2026-11-18, P2d 6. madde A; B'dekinin aynısı): 1. tur (tohumlu 10 satır) yeniden etiketleme
+okursa, yeniden etiketlemeden sonra örneklem dışındaki satırların tümü Eren'e sorulur; işaretleri de `eren_check`
+olarak yazılır, özette `eren_check_2` (aynı eşik: ≥ 3 katılmıyorum → yeniden etiketleme). 1. tur yeniden etiketleme
+okumadıkça örneklem dışındaki `eren_check` hatadır. `sample` 2. turun satırlarını da listeler.
 """
 from __future__ import annotations
 
@@ -252,15 +257,23 @@ def summary(repo: Path = REPO, set_: str = "dev") -> dict:
                 traps[c][t][x[t]] += 1
         vis[x["root_visibility"]]["n"] += 1
         vis[x["root_visibility"]]["T3"][x["T3"]] += 1
-    checked = [x for x in doc["rows"] if "eren_check" in x]
-    if not {x["key"] for x in checked} <= set(sample(rows)):
-        raise ValueError("eren_check outside the sample")
+    first_keys = set(sample(rows))
+    checked = [x for x in doc["rows"] if "eren_check" in x and x["key"] in first_keys]
+    second = [x for x in doc["rows"] if "eren_check" in x and x["key"] not in first_keys]
     disagree = sum(x["eren_check"]["agree"] is False for x in checked)
     reading = "pending" if len(checked) < SAMPLE_N else "relabel" if disagree > DISAGREE_MAX else "ok"
-    return {"labels_sha256": hashlib.sha256(labels_path.read_bytes()).hexdigest(),
-            "questions_sha256": doc["questions_sha256"], "rows": len(doc["rows"]), "auto": auto, "traps": traps,
-            "visibility": vis, "name_misses": name_misses(repo),
-            "eren_check": {"n": SAMPLE_N, "checked": len(checked), "disagree": disagree, "reading": reading}}
+    if second and reading != "relabel":
+        raise ValueError("eren_check outside the sample")
+    res = {"labels_sha256": hashlib.sha256(labels_path.read_bytes()).hexdigest(),
+           "questions_sha256": doc["questions_sha256"], "rows": len(doc["rows"]), "auto": auto, "traps": traps,
+           "visibility": vis, "name_misses": name_misses(repo),
+           "eren_check": {"n": SAMPLE_N, "checked": len(checked), "disagree": disagree, "reading": reading}}
+    if reading == "relabel":  # 2. tur: örneklem dışındaki satırların tümü
+        n2 = len(rows) - SAMPLE_N
+        d2 = sum(x["eren_check"]["agree"] is False for x in second)
+        r2 = "pending" if len(second) < n2 else "relabel" if d2 > DISAGREE_MAX else "ok"
+        res["eren_check_2"] = {"n": n2, "checked": len(second), "disagree": d2, "reading": r2}
+    return res
 
 
 LEVEL_TEXT = {"raw": "ham", "summary": "özet", "narrowed": "daraltma"}
@@ -319,6 +332,11 @@ def summary_markdown(res: dict, set_: str = "dev") -> str:
     out += ["", "## 5. Eren doğrulaması", "",
             f"Örneklem {e['n']} satır (tohum {SEED}); işaretlenen {e['checked']}, katılmıyorum {e['disagree']}. "
             f"Okuma: {READING_TEXT[e['reading']]}.", ""]
+    if "eren_check_2" in res:
+        e2 = res["eren_check_2"]
+        out += [f"2. tur (1. tur yeniden etiketleme okudu; yeniden etiketlemeden sonra örneklem dışındaki {e2['n']} "
+                f"satırın tümü): işaretlenen {e2['checked']}, katılmıyorum {e2['disagree']}. "
+                f"Okuma: {READING_TEXT[e2['reading']]}.", ""]
     return "\n".join(out)
 
 
@@ -396,7 +414,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "select":
         print(json.dumps({"rows": [r["key"] for r in rows], "auto": auto}, ensure_ascii=False, indent=1))
     elif args.cmd == "sample":
-        print("\n".join(sample(rows)))
+        first = sample(rows)
+        print("\n".join(first))
+        if (REPO / FILES[args.set_][0]).exists() and "eren_check_2" in summary(REPO, args.set_):
+            print("# 2. tur")
+            print("\n".join(r["key"] for r in rows if r["key"] not in first))
     else:
         index = dossier(args.out, REPO, args.set_)
         print(f"{len(index)} files, input sha256 equal to the records: {args.out}")

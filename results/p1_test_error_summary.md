@@ -62,3 +62,5 @@ Kök ilk 3'te eşlenmemiş bir adla geçiyor (`name_key` aynı: küçük harf, s
 ## 5. Eren doğrulaması
 
 Örneklem 10 satır (tohum 20261104); işaretlenen 10, katılmıyorum 4. Okuma: yeniden etiketleme (≥ 3 katılmıyorum).
+
+2. tur (1. tur yeniden etiketleme okudu; yeniden etiketlemeden sonra örneklem dışındaki 44 satırın tümü): işaretlenen 0, katılmıyorum 0. Okuma: bekliyor.

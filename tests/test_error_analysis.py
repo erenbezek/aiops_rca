@@ -217,6 +217,49 @@ def test_eren_check_in_labels_file():
     assert ea.summary()["eren_check"] == {"n": 10, "checked": 10, "disagree": 1, "reading": "ok"}
 
 
+
+def _round_marks(first_disagree, second_disagree=None):
+    """Dev satırları: 1. tur örneklemin tümü (ilk `first_disagree` katılmıyorum); 2. tur verilirse örneklem dışı da."""
+    rows = ea.select()[0]
+    first = ea.sample(rows)
+    marks = {k: i >= first_disagree for i, k in enumerate(first)}
+    if second_disagree is not None:
+        rest = [r["key"] for r in rows if r["key"] not in first]
+        marks.update({k: i >= second_disagree for i, k in enumerate(rest)})
+    return marks
+
+
+def test_second_round_only_after_relabel(tmp_path):
+    import pytest
+    res = ea.summary(checked_repo(tmp_path / "a", _round_marks(2)))
+    assert res["eren_check"]["reading"] == "ok" and "eren_check_2" not in res
+    assert "2. tur" not in ea.summary_markdown(res)
+    with pytest.raises(ValueError, match="outside the sample"):     # 1. tur tamam okurken örneklem dışı işaret
+        ea.summary(checked_repo(tmp_path / "b", _round_marks(2, 0)))
+
+
+def test_second_round_reading(tmp_path):
+    n2 = len(ea.select()[0]) - ea.SAMPLE_N                            # dev: 29 − 10 = 19
+    for d, second, want in (("a", None, {"n": n2, "checked": 0, "disagree": 0, "reading": "pending"}),
+                            ("b", 2, {"n": n2, "checked": n2, "disagree": 2, "reading": "ok"}),
+                            ("c", 3, {"n": n2, "checked": n2, "disagree": 3, "reading": "relabel"})):
+        res = ea.summary(checked_repo(tmp_path / d, _round_marks(3, second)))
+        assert res["eren_check"] == {"n": 10, "checked": 10, "disagree": 3, "reading": "relabel"}
+        assert res["eren_check_2"] == want
+        assert f"satırın tümü): işaretlenen {want['checked']}, katılmıyorum {want['disagree']}" in \
+            ea.summary_markdown(res)
+
+
+def test_sample_lists_second_round_on_test(capsys):
+    # Gerçek test etiketleri: 1. tur 10 satırda 4 katılmıyorum (DECISIONS 2026-11-18 A) → 2. tur örneklem dışı 44 satır.
+    rows, _ = ea.select(set_="test")
+    assert ea.main(["sample", "--set", "test"]) == 0
+    out = capsys.readouterr().out.splitlines()
+    first = ea.sample(rows)
+    assert out[:10] == first and out[10] == "# 2. tur"
+    assert sorted(out[11:]) == sorted(r["key"] for r in rows if r["key"] not in first) and len(out[11:]) == 44
+    assert ea.summary(set_="test")["eren_check_2"] == {"n": 44, "checked": 0, "disagree": 0, "reading": "pending"}
+
 def test_summary_files_match_records():
     # CI: özet repodaki kayıtlardan yeniden üretilir, repodaki dosyalarla bayt aynı olmalı.
     md, js = ea.summary_render()
