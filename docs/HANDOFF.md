@@ -5659,3 +5659,22 @@ Data:
     - "Sızıntı kontrolü" kutusu;
     - yerel mutlak yol.
   - PR açıklaması sade. P2e adayları PR'dan ayrı: kapanış kaydında planlamaya öneri olarak, karar Eren'in.
+
+## 2026-11-18 · Uygulama → Planlama (P2d 8. madde: kapanış; PR Eren'e sorulacak)
+- **Yapılan (her biri ayrı commit):**
+  1. `7325b0e`: sınırlamalarda planlamanın üç düzeltmesi (yalnız `results/p2_limitations.md`).
+  2. `8975a0e`: PROJECT "Proje 2" kutusu işaretli (iki alt ölçüt tutuyor: dosya ve canlı satırları `p2d_test.md`'de yan yana; ajan düzeyi çağrı karşılaştırması P2c / P2d, açıklanamayan 0); "Şu an"a P2d satırı.
+  3. `8dc879e`: README'de "Proje 2 sonuçları (test seti)" bölümü (her sayı `p2d_test.md`'deki bir hücre; türetilmiş sayı yok; DECISIONS 2026-11-09 README kuralı), durum, üç yeni `--check` komutu (üçü "same"), İngilizce özette bir cümle; ARCHITECTURE'a P2d dosyaları (`p2d_test.*`, `p2d_test_calls.json`, `p2d_error_*`, `p1_test_error_*`) ve akış oku. GLOSSARY'de eksik yok (P2d'nin onaylı adları içinde; test adları GLOSSARY'ye girmiyor). Vaka kimliği yeni satırlarda 0.
+- **Taşınan notlar (karar Eren'in; hiçbirine dokunulmadı):**
+  - `llm_cache/` deneme kayıtları: 81 klasör, ~12 MB, git dışı (`.gitignore`). Resmî kayıtlar `eval_responses/`'te.
+  - Kasıtlı kırmızı klonları `~/cerebrum2/analysis/p2b_red` (~66 MB) ve `p2d_red` (~43 MB); repo dışı. Uygulama oturumunun scratch klasörü (~196 MB, `/tmp` altında) da silinebilir.
+  - PROJECT "Sızıntı kontrolü" kutusu işaretsiz; P2'de sızıntı taraması 0 (P2a, P2c, P2d), kutunun ölçütü (snapshot'larda, testle) ayrıca değerlendirilir.
+  - Yerel mutlak yol: 6 canlı koşunun `live.json`'unda `/home/…` yolları (resmî kayıtlar). Sınırlamalar §8'de not.
+- **P2e iyileştirme adayları (öneri; karar Eren'in, planlamanın; P2d'nin sonucunu değiştirmez):** her biri ayrı tek değişiklik, yeni bakılmamış vakalarda, önceden yazılı geçme ölçütüyle (dev ve test kullanıldı).
+  1. Adım bütçesi (testte 4B 16 / 18, Gemini canlı 9 / 18 step_limit; turların bir kısmı israf). Seçenekler: sınırı yükseltmek / kesmeden sıralı özet araç / tekrar çağrıyı uyarmak.
+  2. Daraltmayı ajana araç olarak vermek (P1 daraltma top-1 Gemini testte 15 / 18, ajan 10 / 18). En umutlu aday.
+  3. Şema: `evidence_path` istemde açık; 3b: cevap şemasına vakanın servis adlarını `enum` olarak koymak.
+  4. Zaman okuması: kova ve alarm sütunu başlıkları; 4b: çok ince `step_s`'de `metric_series`'in hiç satır göstermemesi.
+  5. Cevap turu son eylemin gerekçesini görmüyor (`methods/agent.py`); Eren'in tercihi önce son eylem metnini cevap turuna eklemek.
+- **PR:** `task/p2d` → `main`, açıklama sade. Eren'e sorulduktan sonra açılır.
+- **Beklenen:** planlama kontrolü; Eren'in PR onayı; taşınan notlar ve P2e için karar.
