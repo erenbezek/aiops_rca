@@ -311,7 +311,8 @@ def test_summary_on_test_set(tmp_path, monkeypatch):
 def test_eren_check_in_test_labels_file():
     # 1. tur (DECISIONS 2026-11-18 A): kontrol öncesi etiketlere göre (e333a83) 10 satırda 4 katılmıyorum, dördü de T1
     # (Eren evet, etiket hayır) → yeniden etiketleme. İkisi kontrol sırasında etiketleyicinin önerdiği düzeltme (notlu).
-    # Yeniden etiketleme yalnız T1, aynı DECISIONS okumasıyla: 7 satır hayır → evet (dördü bu örneklem satırları).
+    # Yeniden etiketleme yalnız T1: 694a898 (A okuması) 7 satır hayır → evet; okuma düzeltmesiyle (8b54f37) 2 satır
+    # evet → hayır, biri örneklemde ("erişilemez" örneği geri alındı). 1. tur kaydı değişmez.
     rows, _ = ea.select(set_="test")
     doc = json.loads((ea.REPO / ea.FILES["test"][0]).read_text(encoding="utf-8"))
     assert doc["questions_sha256"] == ea.QUESTIONS_SHA256 and len(doc["rows"]) == 54
@@ -320,14 +321,19 @@ def test_eren_check_in_test_labels_file():
     for x in checked.values():
         e = x["eren_check"]
         assert set(e) <= {"agree", "T1", "T5", "T6", "note"} and all(e[t] in ("yes", "no") for t in ("T1", "T5", "T6"))
-        assert all(e[t] == x[t] for t in ("T1", "T5", "T6"))     # yeniden etiketlemeden sonra Eren'in okumasıyla aynı
     o, q = "gpt-oss-120b", "qwen3.5-4b"
     off = {f"{o} narrowed inc-a519be4f", f"{o} raw inc-402b4b2d", f"{o} summary inc-c6ae4086", f"{q} raw inc-a519be4f"}
     assert {k for k, x in checked.items() if x["eren_check"]["agree"] is False} == off
+    assert all(checked[k]["eren_check"]["T1"] == "yes" for k in off)
     assert all("kontrol sırasında" in checked[k]["eren_check"]["note"]
                for k in (f"{o} summary inc-c6ae4086", f"{q} raw inc-a519be4f"))
-    relabeled = [x for x in doc["rows"] if (x.get("note") or "").startswith("Yeniden etiketleme (DECISIONS 2026-11-18 A")]
-    assert len(relabeled) == 7 and all(x["T1"] == "yes" for x in relabeled) and off <= {x["key"] for x in relabeled}
+    now = [(k, t) for k, x in checked.items() for t in ("T1", "T5", "T6") if x["eren_check"][t] != x[t]]
+    assert now == [(f"{o} raw inc-402b4b2d", "T1")]                  # etiket hayır (okuma düzeltmesi), Eren evet
+    note = lambda x: x.get("note") or ""
+    relabeled = [x for x in doc["rows"] if "Yeniden etiketleme (DECISIONS 2026-11-18 A" in note(x)]
+    fixed = [x for x in doc["rows"] if note(x).startswith("Okuma düzeltmesi (DECISIONS 2026-11-18, 8b54f37)")]
+    assert len(relabeled) == 7 and len(fixed) == 2 and {x["key"] for x in fixed} <= {x["key"] for x in relabeled}
+    assert all(x["T1"] == "no" for x in fixed) and all(x["T1"] == "yes" for x in relabeled if x not in fixed)
     assert ea.summary(set_="test")["eren_check"] == {"n": 10, "checked": 10, "disagree": 4, "reading": "relabel"}
 
 

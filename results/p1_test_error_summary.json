@@ -1,5 +1,5 @@
 {
- "labels_sha256": "dfcf5ca7662771c36039b0f8a2e746aa4ef7ddf2cd1a6880717729a53fc92d9a",
+ "labels_sha256": "51d637d9e794e4ae9da57b68472b50b6bc27fbd6ab6deaee54a8b0eaa91740b7",
  "questions_sha256": "dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7",
  "rows": 54,
  "auto": {
@@ -122,8 +122,8 @@
   "qwen3.5-4b summary": {
    "n": 11,
    "T1": {
-    "yes": 7,
-    "no": 4,
+    "yes": 6,
+    "no": 5,
     "undetermined": 0
    },
    "T2": {
@@ -188,8 +188,8 @@
   "gpt-oss-120b raw": {
    "n": 6,
    "T1": {
-    "yes": 2,
-    "no": 4,
+    "yes": 1,
+    "no": 5,
     "undetermined": 0
    },
    "T2": {
@@ -386,8 +386,8 @@
   "all": {
    "n": 54,
    "T1": {
-    "yes": 17,
-    "no": 37,
+    "yes": 15,
+    "no": 39,
     "undetermined": 0
    },
    "T2": {

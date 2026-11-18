@@ -1,6 +1,6 @@
 # P1 test hata analizi özeti (P2d)
 
-Üreten: `python -m aiops_rca.error_analysis summary --set test`. Etiketler `results/p1_test_error_labels.json` sha256 `dfcf5ca7662771c36039b0f8a2e746aa4ef7ddf2cd1a6880717729a53fc92d9a`, sorular sha256 `dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7` (tam metin etiket dosyasında). Kapsam: test, P1e test koşuları, 4B / gpt-oss / Gemini × ham / özet / daraltma; girdi sorulmuş, şema içi, top-1'i ıskalayan 54 satır.
+Üreten: `python -m aiops_rca.error_analysis summary --set test`. Etiketler `results/p1_test_error_labels.json` sha256 `51d637d9e794e4ae9da57b68472b50b6bc27fbd6ab6deaee54a8b0eaa91740b7`, sorular sha256 `dc58d84a1ea8e092b507c905be0573d2efc2bb176c72d53688de03bf77b687f7` (tam metin etiket dosyasında). Kapsam: test, P1e test koşuları, 4B / gpt-oss / Gemini × ham / özet / daraltma; girdi sorulmuş, şema içi, top-1'i ıskalayan 54 satır.
 
 ## 1. Otomatik türler (test, satır başına 18 vaka)
 
@@ -21,15 +21,15 @@
 | Satır | n | T1 | T2 | T3 | T4 | T5 | T6 |
 |---|---|---|---|---|---|---|---|
 | qwen3.5-4b ham | 3 | 1/2/0 | 1/1/1 | 3/0/0 | 0/0/3 | 0/3/0 | 0/3/0 |
-| qwen3.5-4b özet | 11 | 7/4/0 | 4/4/3 | 11/0/0 | 0/8/3 | 0/11/0 | 3/8/0 |
+| qwen3.5-4b özet | 11 | 6/5/0 | 4/4/3 | 11/0/0 | 0/8/3 | 0/11/0 | 3/8/0 |
 | qwen3.5-4b daraltma | 8 | 4/4/0 | 1/5/2 | 8/0/0 | 0/6/2 | 0/8/0 | 2/6/0 |
-| gpt-oss-120b ham | 6 | 2/4/0 | 4/1/1 | 3/0/3 | 0/1/5 | 0/6/0 | 0/6/0 |
+| gpt-oss-120b ham | 6 | 1/5/0 | 4/1/1 | 3/0/3 | 0/1/5 | 0/6/0 | 0/6/0 |
 | gpt-oss-120b özet | 6 | 1/5/0 | 0/2/4 | 4/2/0 | 0/2/4 | 0/6/0 | 1/5/0 |
 | gpt-oss-120b daraltma | 5 | 1/4/0 | 0/3/2 | 4/1/0 | 0/3/2 | 0/5/0 | 1/4/0 |
 | gemini-3.5-flash-lite ham | 4 | 0/4/0 | 3/0/1 | 2/0/2 | 0/0/4 | 0/4/0 | 0/4/0 |
 | gemini-3.5-flash-lite özet | 8 | 1/7/0 | 3/1/4 | 6/2/0 | 0/4/4 | 0/8/0 | 1/7/0 |
 | gemini-3.5-flash-lite daraltma | 3 | 0/3/0 | 0/1/2 | 3/0/0 | 0/1/2 | 0/3/0 | 0/3/0 |
-| toplam | 54 | 17/37/0 | 16/18/20 | 44/5/5 | 0/25/29 | 0/54/0 | 8/46/0 |
+| toplam | 54 | 15/39/0 | 16/18/20 | 44/5/5 | 0/25/29 | 0/54/0 | 8/46/0 |
 
 ## 3. Kökün görünürlüğüne göre T3
 
