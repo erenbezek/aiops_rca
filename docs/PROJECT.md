@@ -45,6 +45,8 @@ kök neden analizinde ne kadar iş görür?
   - Aynı araç çağrılarının dosya ve canlı çıktıları karşılaştırıldı, farklar açıklandı
     - Araç düzeyi tamam (P2a, 2026-11-12; `results/p2a_compare.md`): pilot 25 + dev 18 vakada çağrıların hepsi eşit; kalan tek fark Jaeger'in sıfır süreli span'e 1 ns eklemesi (DECISIONS 2026-11-11), `error="true"` çevirisi okuyucuda geri alınıyor (DECISIONS 2026-11-12). Ajan düzeyi P2c'de.
     - Ajan düzeyi tamam (P2c dev, P2d test; `results/p2c_dev.md`, `results/p2d_test.md`): testte canlı çağrıların hepsi dosyayla aynı (Gemini 123 / 123, 4B 143 / 143; bilinen tür `zero_duration` 0, açıklanamayan 0); top-3'te dosya ↔ canlı ayırt edilemedi (Gemini 14 / 12, 4B 7 / 7). Dosya ve canlı satırları dev ve test yan yana `p2d_test.md` sonuç tablosunda. Sınırlamalar `results/p2_limitations.md`.
+- [ ] P2e (ajan iyileştirmesi): en sonda, ama yapılacak (Eren kararı, DECISIONS 2026-11-18)
+  - Yeni, bakılmamış vakalarda tek değişiklik; geçme ölçütü koşudan önce yazılır; P2d'nin test sonucu değişmez, P2e ayrı satır
 
 ### DevOps kontrol listesi
 Proje sonunda her satır için: gerçekten yaptım mı?
