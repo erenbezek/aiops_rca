@@ -5756,3 +5756,21 @@ Data:
 - **(g) Yeni adlar (Eren onaylı değil; listede):** `tools/live_demo.py` (`run`, `serve`), `MAIN_ENDS`, `NEXT_STEPS`, `~/cerebrum2/demo_runs/<UTC>-demo/` (git dışı), `deploy/otel-demo/grafana/`, `demo` (pyproject grubu). GLOSSARY kod commit'inden sonra.
 - **(h) Kabul koşusu:** Gemini ile 4 hata: `containerStop` recommendation, `containerPause` cart, `networkDelay` quote (kendi servis yolu), `paymentFailure` (flag); 4B ile 1: `containerStop` recommendation. `cpuThrottle` product-catalog yok (tabanı 2. maddeye bağlı). Ölçütler (sonuçtan önce): uçtan uca biter; hata geri alınır ve doğrulanır (`verified` / flag eski hâli); rapor bütün alanlarla; sızıntı 0; OOM ve beklenmeyen yeniden başlama 0; her panel belirti penceresinde hedef servis için en az bir değer; en az bir koşu web arayüzünden. İsabet yalnız bilgi.
 - **Beklenen:** planlama kontrolü; sonra 2. madde (product-catalog sınaması, Eren'e sorarak).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 1. madde kontrolü: geçti, beş düzeltmeyle; 2. madde için iki eksik)
+- **Genel:** öneri kartla ve DECISIONS 2026-11-18 ile uyumlu. Okuyucu değişmiyor, ajan donmuş, enjeksiyon koşucudan, gerçek cevap ajandan sonra. Kod okumamla doğruladığım noktalar:
+  - `REPLAY_ENDS` ve `LiveStore(case, ends=...)` var;
+  - Grafana compose'da var, portu kapalı;
+  - vakalarda normal dönem 600–840 sn, hata dönemi 600 sn (`scenario_runner.py`);
+  - `ALL_SERVICES_STEP_S` 300.
+- **Eren kararı (DECISIONS 2026-11-19):** belirti süresi **10 dk** (5 dk'nın yerine). Gerekçe: ajan P2'de alarm sonrası 10 dk gördü; 5 dk'da servissiz tabloda alarm sonrası tek kova kalır, o da kısmi olabilir.
+- **Düzeltmeler (3. maddeden önce, öneriye ek; kod yok):**
+  1. **`NEXT_STEPS`'in girdisi veriden gelsin.** Ajanın çağırdığı aracın türü kanıt değildir: ajan CPU'ya bakıp normal bulduysa 2. satır yanlış öneri verir. DECISIONS 2026-11-18 "kanıtının türleri" diyor. Öneri: 1. adayın satırı canlı veriden kurulur (istek, hata oranı, p95, CPU, bellek, log; önce / sonra, pencere aynı). Satıra P1'in sinyal tanımı (`signals.signals`, güç ≥ 1; error_analysis'teki `direct` hesabının yolu) uygulanır. Tablo yanan sinyallere bakar. Satırların sırası ve metinleri aynen kalabilir. Store arayüzüyle kurulamıyorsa planlamaya yaz. Rapor, önerinin hangi sinyalden geldiğini yazar.
+  2. **Web arayüzünde siteler arası istek koruması.** `127.0.0.1` yetmez: tarayıcıdaki başka bir sayfa yerel porta POST atıp hata enjekte ettirebilir. `serve` açılışta rastgele bir belirteç üretir ve terminale basar. Başlatma isteği belirteci (ya da `Origin` / `Host` denetimini) ister. Hata ve hedef yalnız kabul listesinden. Testlerde belirteçsiz istek reddedilir.
+  3. **Panel ölçütü (5. madde):** `containerStop` ve `containerPause`'ta hedef servisin alarm sonrası verisi olmaz. Ölçüt: her panel pencere boyunca (önce ve sonra) veri döndürür; hedef servis ya da çağıranlarından en az birinde değişim görünür.
+  4. **4B + ana yığın belleği:** 23 konteyner, Jaeger 2.500M ve yerel model birlikte 16 GB'ta ilk kez çalışacak. Kabulde en düşük `MemAvailable` ve swap tepesi kayda girer; OOM 0 ölçütü aynen. Yerel sunucu P2'deki gibi koşu başında açılır.
+  5. **Yeni adlar:** listedeki adlar (`tools/live_demo.py`, `run`, `serve`, `MAIN_ENDS`, `NEXT_STEPS`, `demo_runs/`, `deploy/otel-demo/grafana/`, `demo` grubu) 3. maddenin kodundan önce Eren'e sorulur. GLOSSARY onaydan sonra. Paket sürümleri sabit; FastAPI, uvicorn ve httpx için en az iki haftalık sürümler.
+- **2. madde için eksikler (önerinin (a)–(h)'sinde yok; kart 2. madde istiyordu):**
+  - product-catalog bellek sınırı için önerilen değer (şimdiki sınır ve gerekçe);
+  - ölçüm betiğinin yeri ve yolu (taban ölçüsüyle aynı: 10 dk normal dönem, frontend ve product-catalog p95). Sınamanın adımları kartta aynen.
+- **Beklenen:** 2. maddenin iki eksiği HANDOFF'ta; sonra 2. madde, Eren'e sorarak (yığın açılır, uzun koşu; şarj eşiği 80, iki kilit).
