@@ -6070,4 +6070,38 @@ Data:
 - **`next_step` durma kuralı (planlama 3. madde kontrolü):** ilk demodan (D1) sonra rapora bakılır. Geçer: `assessment`'ta hata yok, `next_step` dolu ve 1. aday eşlendiyse `row` kurulmuş (önce yarıda `requests_before` > 0) ve `next_step.signals` en az bir sinyal içeriyor (ya da kural `database` / `human`). D1'de 1. aday eşlenmediyse (kural `human`, satır yok) kontrol D2'de yapılır; listede hiçbir demoda eşlenmezse liste sonunda planlamaya. Kural tutmazsa durulur, planlamaya yazılır, kalan demolar koşulmaz.
 - **Durma (öteki):** bir demo ölçüt 2 (geri alma) ya da 4 (sızıntı) ya da 5'i (OOM) tutmazsa durulur, planlamaya; yığın kapatılır. Öteki ölçütlerde demo kayda, liste sürer, oturum sonunda planlamaya.
 - **Beklenen:** planlama kontrolü; Eren onayı; sonra O1 (Eren'e sorarak).
+<<<<<<< Updated upstream
 - **Ek (2026-11-19, koşudan önce):** Eren ölçütleri ve planı onayladı ("onaylı"); koşu planlama kontrolünden sonra. Panel betiği yazıldı, koşulmadı: `~/cerebrum2/analysis/demo_panels_check.py` sha256 `173a6282451bdbf5…` (yukarıdaki P1 / P2 tanımı aynen; çıktı demo klasöründe `panels_check.json`; çıkış 0 tuttu, 1 tutmadı, 2 kullanım).
+=======
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 5. madde ölçüt kontrolü: bir düzeltme panoda, üç netleştirme; koşu düzeltmeden sonra)
+- **Doğrulanan:**
+  - Dört anahtar kabul listesinde.
+  - Hedef ve çağıranlar gerçek cevabın yollarıyla aynı:
+    - recommendation → frontend;
+    - cart → frontend, checkout;
+    - quote → quote-gateway;
+    - payment → checkout.
+  - `NORMAL_S` = `FLAG_S` = 600.
+  - Panel eşikleri P1 tanımıyla aynı: `ratio_delta` `max(oran × önce, önce + fark)`; istek ≤ önce / 2 = `request_drop` güç 1; hata +0,05; p95 × 1,5 / +20 ms; bellek × 1,2.
+  - Durma kuralları kartla uyumlu.
+- **Düzeltme (zorunlu; koşudan önce): CPU paneli yanlış metrikte.**
+  - Pano `container_cpu_utilization_ratio` kullanıyor. Proje bu metriği bu collector sürümünde anlık bulmamıştı: açılıştan beri birikmiş ortalama gibi davranıyor. HANDOFF zor deneme kaydında `ad` %404 iken 0,03 → 3,44 doğrusal arttı. `tools/trial_summary.py` ve PROJECT aynı notu taşır.
+  - P1 ve ajan CPU'yu birikimli sayaçtan alıyor: `container.cpu.usage.total`, hız × 100 = bir çekirdeğin yüzdesi (`query.py` `cpu_pct`).
+  - Bu metrikle panel önce / sonra farkını göstermez. Ölçütteki "+0,05" eşiği de bu metriğin birimine göre yazılmış.
+  - İstenen:
+    - CPU paneli aynı sayacın hızı: `rate(<sayacın Prometheus adı>[3m]) * 100` (`/1e9`, birim ns ise).
+    - Ad yığından ya da yeniden oynatma Prometheus'undan okunur. Değer bir konteynerde `docker stats` ile karşılaştırılır, aynı büyüklük düzeyinde olmalı; sayı kayda.
+    - Panel ölçütünde CPU eşiği P1'in aynısı: sonra ≥ max(1,5 × önce, önce + 5) (yüzde puan).
+    - Pano testi (`test_dashboard_file`) sorguyu sabitler.
+  - Bu 3. maddenin panosu. 3. madde kontrolünde ben de kaçırmıştım.
+- **Netleştirmeler (kayıtta yazılır, kod yok):**
+  1. **Ölçüt 5, yeniden başlama:**
+     - Cümle iki türlü okunuyor. Önerim: 23 konteynerde `OOMKilled` false kalır ve `RestartCount` değişmez. `StartedAt` yalnız `containerStop`'un hedefinde değişebilir.
+     - Okuma koşucunun konteyner durumu ve `sr.split_restarts`'la yapılır, ad hoc `docker inspect` ile değil.
+     - Başta ve sonda kim, hangi komutla okuyor, yazılır. D4 arayüzden koşacağı için orada da aynı okuma yapılır.
+  2. **Demolar arası 10 dk:** önceki demonun `reverted` anından sonraki demonun alarm anına en az 10 dk. Ajanın penceresi (alarm − 10 dk) önceki hatayı içermez. Gerekirse taban ölçüsünden önce beklenir.
+  3. **Panel betiği:** `~/cerebrum2/analysis/demo_panels_check.py` O1'den önce yazılır, sha kayda. Planlama O1'den önce okur. Panonun dosyadaki sorgularını okur, kopya sorgu tutmaz; CPU düzeltmesi böylece betiğe de geçer.
+- **Not:** O1 ≈ 100 dk, O2 ≈ 70 dk; her biri Eren'e sorularak. Gemini'nin 10:00–11:00 kuralı kayda uygun.
+- **Beklenen:** CPU paneli düzeltmesi, metrik adı ve karşılaştırma sayısı, panel betiği ve sha'sı, netleştirmeler HANDOFF'ta. Planlama kontrol eder, Eren onaylar, sonra O1.
+>>>>>>> Stashed changes
