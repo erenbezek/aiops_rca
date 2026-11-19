@@ -4,6 +4,7 @@ ajan ana izleme yığınından araştırır → kayıt → hata geri alınır.
     python tools/live_demo.py run --fault <hata> --target <servis> [--model <etiket>]
     python tools/live_demo.py run --scenario <flag senaryosu> [--model <etiket>]
     python tools/live_demo.py list                      # kabul listesi (hatalar ve senaryolar)
+    python tools/live_demo.py serve [--port 8765]       # web arayüzü (yalnız 127.0.0.1; adresi belirteçle basar)
 
 Demo yığını açık olmalı (`tools/otel_demo.sh up`, en az `NORMAL_S` normal dönem): komut yığını açmaz, kapatmaz.
 Sıra: korumalar (`scenario_runner.guards()`; demo konteynerleri burada beklenir, yalnız hata kalıntısı sorun) → taban
@@ -51,6 +52,12 @@ from aiops_rca.methods.llm import TOKENIZER  # noqa: E402
 from aiops_rca.scoring import evidence, match_service  # noqa: E402
 from aiops_rca.signals import DB_SERVICES, SEVERITY_WARN, Window, normalize, service_rows, signals, summarize  # noqa: E402,E501
 from aiops_rca.store_live import MAIN_ENDS, LiveStore  # noqa: E402
+
+try:  # web arayüzü isteğe bağlı (`demo` grubu); `run` onsuz çalışır. Modül düzeyinde: FastAPI tip adlarını burada çözer.
+    from fastapi import FastAPI, HTTPException, Request
+    from fastapi.responses import HTMLResponse
+except ImportError:  # pragma: no cover
+    FastAPI = HTTPException = Request = HTMLResponse = None
 
 DEMO_RUNS = Path.home() / "cerebrum2" / "demo_runs"
 NORMAL_S = sr.NORMAL_S  # ajanın penceresi alarmdan bu kadar önce başlar (P2 vakalarında normal dönem 600–840 sn)
@@ -483,6 +490,114 @@ def _finish(rec, d, spec, agent_out, factory, case, agent_start, code, save) -> 
     return code
 
 
+# --- Web arayüzü (`serve`; 4. madde, FastAPI, Eren kararı 2026-11-19) ---
+
+HOST = "127.0.0.1"  # yalnız bu makine (DECISIONS 2026-10-18)
+DEFAULT_PORT = 8765
+TOKEN_HEADER = "X-Demo-Token"
+PAGE = Path(__file__).resolve().parent / "live_demo_page.html"
+
+
+def spawn_run(key: str, model: str) -> subprocess.Popen:
+    """Demoyu ayrı python süreci olarak açar (`run`); kilitler `serve`'ün atalarında, bu yüzden yeniden sarılmaz.
+    Durdurma sinyali bu sürecin kendisine gider (planlama 2026-11-19)."""
+    spec = faults()[key]
+    args = (["--scenario", key] if spec["kind"] == "flag" else ["--fault", spec["fault"], "--target", spec["target"]])
+    env = dict(os.environ, SCENARIO_RUNNER_INHIBITED="1")
+    return subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "run", *args, "--model", model], env=env)
+
+
+def make_app(token: str, port: int, *, spawn=spawn_run, root: Path = DEMO_RUNS):
+    """FastAPI uygulaması. Okuma uçları belirteçsiz; başlatma ve durdurma belirteç, `Host` ve (varsa) `Origin`
+    denetimiyle (başka bir sayfanın yerel porta istek atıp hata enjekte ettirmesine karşı). Aynı anda tek demo."""
+    if FastAPI is None:
+        raise SystemExit("serve needs the demo extras: pip install -e '.[demo]'")
+    app = FastAPI(title="aiops_rca live demo", docs_url=None, redoc_url=None, openapi_url=None)
+    lock = threading.Lock()
+    cur: dict = {"proc": None, "key": None, "model": None, "started": None, "dir": None}
+    origin_ok = {f"http://{HOST}:{port}", f"http://localhost:{port}"}
+    host_ok = {f"{HOST}:{port}", f"localhost:{port}"}
+
+    def guard(req: Request) -> None:
+        if req.headers.get(TOKEN_HEADER) != token:
+            raise HTTPException(403, "bad or missing token")
+        if req.headers.get("host") not in host_ok:
+            raise HTTPException(403, "bad host")
+        origin = req.headers.get("origin")
+        if origin is not None and origin not in origin_ok:
+            raise HTTPException(403, "bad origin")
+
+    def running() -> bool:
+        return cur["proc"] is not None and cur["proc"].poll() is None
+
+    def run_dir() -> Path | None:
+        if cur["dir"] is None and cur["started"] is not None and root.is_dir():
+            new = [x for x in root.iterdir() if x.is_dir() and x.stat().st_mtime >= cur["started"] - 1]
+            cur["dir"] = max(new, key=lambda x: x.stat().st_mtime) if new else None
+        return cur["dir"]
+
+    @app.get("/", response_class=HTMLResponse)
+    def page() -> str:
+        return PAGE.read_text(encoding="utf-8")
+
+    @app.get("/api/faults")
+    def api_faults() -> dict:
+        return {"faults": [{"key": k, "kind": v["kind"]} for k, v in faults().items()], "models": list(DEMO_MODELS),
+                "default_model": DEFAULT_MODEL}
+
+    @app.get("/api/status")
+    def api_status() -> dict:
+        d = run_dir()
+        rec = json.loads((d / "run.json").read_text()) if d and (d / "run.json").is_file() else {}
+        return {"running": running(), "key": cur["key"], "model": cur["model"],
+                "exit": None if cur["proc"] is None or running() else cur["proc"].returncode,
+                "dir": str(d) if d else None, "times_utc": rec.get("times_utc"), "result": rec.get("result"),
+                "stopped": rec.get("stopped"), "error": rec.get("error"),
+                "report": bool(d and (d / "report.md").is_file()), "grafana": rec.get("grafana_url")}
+
+    @app.get("/api/report")
+    def api_report() -> dict:
+        d = run_dir()
+        if not d or not (d / "report.md").is_file():
+            raise HTTPException(404, "no report")
+        return {"markdown": (d / "report.md").read_text(encoding="utf-8"),
+                "report": json.loads((d / "report.json").read_text(encoding="utf-8"))}
+
+    @app.post("/api/run")
+    async def api_run(req: Request) -> dict:
+        guard(req)
+        body = await req.json()
+        key, model = body.get("key"), body.get("model", DEFAULT_MODEL)
+        if key not in faults() or model not in DEMO_MODELS:
+            raise HTTPException(400, "not in the accepted list")
+        with lock:
+            if running():
+                raise HTTPException(409, "a demo is already running")
+            cur.update(proc=spawn(key, model), key=key, model=model, started=time.time(), dir=None)
+        return {"started": True, "pid": cur["proc"].pid}
+
+    @app.post("/api/stop")
+    def api_stop(req: Request) -> dict:
+        guard(req)
+        with lock:
+            if not running():
+                raise HTTPException(409, "no demo running")
+            cur["proc"].send_signal(signal.SIGTERM)  # python demo sürecine; geri alma `run`'da
+        return {"stopping": True}
+
+    return app
+
+
+def serve(port: int) -> int:
+    import secrets
+
+    import uvicorn
+    token = secrets.token_urlsafe(24)
+    print(f"live demo UI: http://{HOST}:{port}/?t={token}", flush=True)
+    uvicorn.run(make_app(token, port), host=HOST, port=port, log_level="warning")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="live_demo.py", description="live demo: inject a fault, run the agent live")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -492,20 +607,25 @@ def main(argv: list[str]) -> int:
     r.add_argument("--target")
     r.add_argument("--scenario")
     r.add_argument("--model", default=DEFAULT_MODEL, choices=DEMO_MODELS)
+    s = sub.add_parser("serve")
+    s.add_argument("--port", type=int, default=DEFAULT_PORT)
     args = ap.parse_args(argv)
     if args.cmd == "list":
         for k, v in faults().items():
             print(k, v["kind"])
         return 0
-    key = args.scenario if args.scenario else f"{args.fault}:{args.target}"
-    if (args.scenario is None) == (args.fault is None) or key not in faults():
-        print(f"error: give --scenario or --fault/--target from `list`; not accepted: {key}", file=sys.stderr)
-        return 2
+    if args.cmd == "run":
+        key = args.scenario if args.scenario else f"{args.fault}:{args.target}"
+        if (args.scenario is None) == (args.fault is None) or key not in faults():
+            print(f"error: give --scenario or --fault/--target from `list`; not accepted: {key}", file=sys.stderr)
+            return 2
     if os.environ.get("SCENARIO_RUNNER_INHIBITED") != "1":
         env = dict(os.environ, SCENARIO_RUNNER_INHIBITED="1")
         cmd = [*sr.GNOME_INHIBIT, "systemd-inhibit", "--what=sleep:idle:handle-lid-switch",
                "--who=aiops_rca live_demo", f"--why={INHIBIT_WHY}", sys.executable, *sys.argv]
         return subprocess.run(cmd, env=env).returncode
+    if args.cmd == "serve":
+        return serve(args.port)
     return run(key, args.model)
 
 
