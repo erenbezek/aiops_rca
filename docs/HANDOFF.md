@@ -6070,9 +6070,7 @@ Data:
 - **`next_step` durma kuralı (planlama 3. madde kontrolü):** ilk demodan (D1) sonra rapora bakılır. Geçer: `assessment`'ta hata yok, `next_step` dolu ve 1. aday eşlendiyse `row` kurulmuş (önce yarıda `requests_before` > 0) ve `next_step.signals` en az bir sinyal içeriyor (ya da kural `database` / `human`). D1'de 1. aday eşlenmediyse (kural `human`, satır yok) kontrol D2'de yapılır; listede hiçbir demoda eşlenmezse liste sonunda planlamaya. Kural tutmazsa durulur, planlamaya yazılır, kalan demolar koşulmaz.
 - **Durma (öteki):** bir demo ölçüt 2 (geri alma) ya da 4 (sızıntı) ya da 5'i (OOM) tutmazsa durulur, planlamaya; yığın kapatılır. Öteki ölçütlerde demo kayda, liste sürer, oturum sonunda planlamaya.
 - **Beklenen:** planlama kontrolü; Eren onayı; sonra O1 (Eren'e sorarak).
-<<<<<<< Updated upstream
 - **Ek (2026-11-19, koşudan önce):** Eren ölçütleri ve planı onayladı ("onaylı"); koşu planlama kontrolünden sonra. Panel betiği yazıldı, koşulmadı: `~/cerebrum2/analysis/demo_panels_check.py` sha256 `173a6282451bdbf5…` (yukarıdaki P1 / P2 tanımı aynen; çıktı demo klasöründe `panels_check.json`; çıkış 0 tuttu, 1 tutmadı, 2 kullanım).
-=======
 
 ## 2026-11-19 · Planlama → Uygulama (Canlı demo 5. madde ölçüt kontrolü: bir düzeltme panoda, üç netleştirme; koşu düzeltmeden sonra)
 - **Doğrulanan:**
@@ -6101,7 +6099,12 @@ Data:
      - Okuma koşucunun konteyner durumu ve `sr.split_restarts`'la yapılır, ad hoc `docker inspect` ile değil.
      - Başta ve sonda kim, hangi komutla okuyor, yazılır. D4 arayüzden koşacağı için orada da aynı okuma yapılır.
   2. **Demolar arası 10 dk:** önceki demonun `reverted` anından sonraki demonun alarm anına en az 10 dk. Ajanın penceresi (alarm − 10 dk) önceki hatayı içermez. Gerekirse taban ölçüsünden önce beklenir.
-  3. **Panel betiği:** `~/cerebrum2/analysis/demo_panels_check.py` O1'den önce yazılır, sha kayda. Planlama O1'den önce okur. Panonun dosyadaki sorgularını okur, kopya sorgu tutmaz; CPU düzeltmesi böylece betiğe de geçer.
+  3. **Panel betiği (`e24a0cd`, sha `173a6282…`, kayıt sırasında geldi):**
+     - Okudum. Sorguları panonun dosyasından alıyor (kopya yok); CPU sorgusu düzeltmesi betiğe kendiliğinden geçer.
+     - Eşik satırında CPU `b + 0.05` sabit (satır 57). Yüzde puana göre `b + 5` olur, sha değişir; yeni sha kayda.
+- **Eren onayı (`e24a0cd`):**
+  - Ölçütler bu kontrolden önce onaylandı. CPU eşiği (0,05 → 5 yüzde puan) ve CPU sorgusu bu kontrolle değişiyor.
+  - Bu iki değişiklik Eren'e yeniden sorulur. Ötekiler onaylı haliyle kalır; netleştirmeler 1 ve 2 ölçütü değiştirmez, yalnız okumayı belirler.
+- **Kayıt düzeltmesi:** bu kaydın ilk push'u (`1a5f4e3`) çakışma işaretleriyle gitti (planlamanın hatası); bir sonraki commit işaretleri kaldırır ve betik / onay maddelerini ekler.
 - **Not:** O1 ≈ 100 dk, O2 ≈ 70 dk; her biri Eren'e sorularak. Gemini'nin 10:00–11:00 kuralı kayda uygun.
-- **Beklenen:** CPU paneli düzeltmesi, metrik adı ve karşılaştırma sayısı, panel betiği ve sha'sı, netleştirmeler HANDOFF'ta. Planlama kontrol eder, Eren onaylar, sonra O1.
->>>>>>> Stashed changes
+- **Beklenen:** CPU paneli düzeltmesi, metrik adı ve karşılaştırma sayısı, betiğin yeni sha'sı, netleştirmeler HANDOFF'ta; CPU değişikliğine Eren onayı. Planlama kontrol eder, sonra O1 (Eren'e sorarak).
