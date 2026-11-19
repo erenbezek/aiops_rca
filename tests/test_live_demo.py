@@ -273,3 +273,9 @@ def test_run_records_assessment_after_agent(monkeypatch, tmp_path):
     code, rec, _ = w.run()
     assert code == 0 and rec["assessment"]["next_step"]["rule"] == "human"
     assert [c[0] for c in w.calls] == ["apply", "sleep", "agent", "revert", "assess"]
+
+
+def test_next_step_needs_strength_one():
+    # hata oranı 0 → 0,03: güç 0,6 (< 1) → yanmaz; 0 → 0,05: güç 1 → yanar
+    assert ld.next_step("cart", {**BASE_ROW, "error_rate_after": 0.03})["rule"] == "human"
+    assert ld.next_step("cart", {**BASE_ROW, "error_rate_after": 0.05})["rule"] == "error"
