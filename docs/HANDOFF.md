@@ -6030,3 +6030,23 @@ Data:
 - **Kasıtlı kırmızı (scratch):** ara katmanın denetimini kaldırmak → 5, kilidi almamak → 1 test kırmızı.
 - **Süreç notu (planlamanın tespiti, kabul):** üç ad onaydan önce koddaydı; bundan sonra yeni ad koddan önce sorulur (bu düzeltmede `.lock` önce soruldu).
 - **Beklenen:** planlama kontrolü; sonra 5. madde (kabul koşusu; panel ölçütü ve `next_step` durma kuralı önce HANDOFF'a, Eren'e sorarak).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 4. madde düzeltme kontrolü: geçti; 4. madde bitti, 5. madde önce ölçütlerle)
+- **Bağımsız doğrulama (scratch, `a12ef8f`):** pytest 878 yeşil; beş `--check` çıkış 0; `src/` ve `results/` değişmemiş.
+- **Kendi denemelerim:**
+  - `serve_probe.py` (`Host: evil.example:8765`): `GET /`, `/api/faults`, `/api/status` → 403; `POST /api/run` → 403. `[1]` gövdesi → 400 (önce 500).
+  - `lock_probe.py`: başka bir süreç `.lock`'u tutarken `run` → 2, iç koşu çağrılmadı. Süreç bitince `run` → 0, çağrıldı. Kilit süreçler arası çalışıyor.
+- **Okuma:** kilit `run`'ın en başında, işleyicilerden önce alınıyor, `finally`'de bırakılıyor. `serve`'ün klasör taraması `.lock`'u atlıyor (`is_dir`). `.lock` adı koddan önce soruldu; GLOSSARY'de.
+- **Not (düzeltme istenmiyor):** `compare_digest` ASCII olmayan başlıkta `TypeError` verir. İstek yine reddedilir, ama 403 yerine 500 döner.
+- **4. madde bitti.** Sıradaki 5. madde (kabul koşusu). Koşudan önce HANDOFF'a yazılıp Eren'e sorulacaklar:
+  - **Panel ölçütü (sayıyla):**
+    - Panonun beş sorgusu `[alarm − 10 dk, ajan başlangıcı)` boyunca Prometheus API'siyle çalıştırılır.
+    - "Veri döndürür": her panelde pencerenin önce ve sonra yarısında en az bir değer.
+    - "Değişim": hedef servis ya da çağıranlarından en az birinde önce / sonra farkı, eşiğiyle.
+    - Betik ve yeri; sonuç kayda.
+  - **`next_step` durma kuralı:** ilk demonun raporunda `next_step` ve `signals` dolu değilse (1. adayın satırı gerçek `LiveStore`'dan kurulamadıysa) durulur, planlamaya yazılır.
+  - **Koşu planı:** 1. maddedeki liste aynen (Gemini ile `containerStop` recommendation, `containerPause` cart, `networkDelay` quote, `paymentFailure`; 4B ile `containerStop` recommendation). En az biri web arayüzünden. Kaç oturuma bölüneceği yazılır.
+  - **Süre:** demo başına ~20–25 dk + yığın açılışı ve 10 dk normal dönem. > 15 dk olduğu için her oturum Eren'e sorulur. Şarj eşiği 80, iki kilit.
+  - **4B:** `MemAvailable` en düşüğü ve takas tepesi kayda; OOM 0.
+  - Ölçütler 1. madde (h) ve düzeltmeleriyle aynı, sonuçtan önce; isabet yalnız bilgi.
+- **Beklenen:** 5. maddenin ölçüt ve plan kaydı HANDOFF'ta (kod yok, ya da yalnız panel betiği). Planlama kontrol eder, Eren onaylar, sonra koşu.
