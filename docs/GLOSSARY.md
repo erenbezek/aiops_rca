@@ -382,3 +382,4 @@ Sadece Eren'in onayladığı isimler.
 | `MAIN_ENDS` | `store_live.py`: ana (canlı demo) izleme yığınının uçları (Jaeger frontend-proxy üzerinden, OpenSearch, Prometheus); `REPLAY_ENDS`'in eşi (Eren onaylı) |
 | `demo_runs/<UTC>-demo/` (`DEMO_RUNS`) | Canlı demo kayıtlarının klasörü, git dışı (`~/cerebrum2/demo_runs`): `run.json`, ajan kaydı, `window.json` (Eren onaylı) |
 | `NEXT_STEPS` | `tools/live_demo.py`: sonraki adım kural tablosu (veritabanı, kaynak, hata, gecikme, cevap yok, insan incelemesi; ilk eşleşen); girdi 1. adayın canlı veriden kurulan satırında yanan sinyaller (`signals.signals`, güç ≥ 1) (Eren onaylı 2026-11-19) |
+| `deploy/otel-demo/grafana/` (`aiops-demo.json`) | Canlı demo Grafana panosu (uid `aiops-demo`; istek hızı, hata oranı, p95, konteyner CPU, bellek; servis seçici); `live_demo.py` her koşuda API ile yükler (Eren onaylı 2026-11-19, seçenek A) |
