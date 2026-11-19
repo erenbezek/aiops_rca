@@ -5983,3 +5983,41 @@ Data:
 - **Not:** starlette 1.10 test istemcisi `httpx` için kullanımdan kaldırma uyarısı veriyor ("install httpx2"). Testler geçiyor; paket değişikliği önerilmiyor (yeni paket Eren'e).
 - **Yeni adlar (Eren'e soruluyor, GLOSSARY onaydan sonra):** `tools/live_demo_page.html`, `X-Demo-Token` başlığı, varsayılan port `8765`. (`serve` ve `demo` grubu önceden onaylı.)
 - **Beklenen:** planlama kontrolü; sonra 5. madde (kabul koşusu; panel ölçütü ve `next_step` durma kuralı önce HANDOFF'a, Eren'e sorarak).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 4. madde kontrolü: geçti, iki küçük zorunlu düzeltmeyle)
+- **Bağımsız doğrulama (scratch, `755abab`):**
+  - pytest 872 yeşil (1 uyarı: kayıttaki starlette / httpx uyarısı).
+  - Beş `--check` çıkış 0; `src/` ve `results/` değişmemiş.
+  - Serve testleri `importorskip("fastapi")` ile; ekstrasız kurulumda atlanır. CI'ın "Runtime install adds only aiops_rca" adımı aynen.
+  - Sürümler (PyPI yükleme tarihi):
+    - `fastapi` 0.162.0 2026-10-23;
+    - `uvicorn` 0.54.0 2026-09-25;
+    - `httpx` 0.28.1 2024-12-06.
+
+    Üçü de iki haftadan eski, geri çekilmemiş.
+- **Okumayla geçenler:**
+  - `uvicorn` yalnız `127.0.0.1`.
+  - Başlat / durdur belirteç, `Host` ve `Origin` denetimli.
+  - Hata ve model yalnız kabul listesinden.
+  - Durdurma `SIGTERM`'ü doğrudan python demo sürecine gidiyor (sarmalayıcı yok).
+  - Sayfa raporu `textContent` ile gösteriyor; modelin yazdığı gerekçe sayfada kod çalıştıramaz. Dış kaynak yok.
+  - Erişim logu kapalı (`log_level="warning"`); belirteçli adres loga düşmez.
+- **Zorunlu düzeltmeler (küçük):**
+  1. **Okuma uçlarında `Host` denetimi yok.**
+     - Deneme (scratch, `serve_probe.py`, `Host: evil.example:8765`): `GET /`, `/api/faults`, `/api/status` → 200; aynı Host'la `POST /api/run` → 403.
+     - DNS yeniden bağlamada dış bir sayfa durumu ve raporu okuyabilir. `dir` yerel mutlak yolu (kullanıcı adı), rapor da gerçek cevabı içerir.
+     - İstenen: `Host` denetimi bütün uçlarda (ara katman ya da her uçta). Test: yabancı `Host`'la `GET /api/status` ve `/api/report` → 403.
+  2. **Tek demo kilidi yalnız `serve`'ün içinde.**
+     - Arayüzden demo sürerken terminalden `run` (ya da ikinci bir `serve`) aynı anda başlar.
+     - `demo_guards` bunu yalnız ilk demo altyapı hatasını uyguladıktan sonra yakalar. Korumalar / taban aşamasında ve flag senaryolarında yakalamaz (taban yalnız kendi flag'ine bakıyor).
+     - Kart "aynı anda tek demo (kilit)" diyor.
+     - İstenen: kilit `run`'ın içinde, süreçler arası (standart kütüphane `fcntl.flock`, `DEMO_RUNS` altında bir kilit dosyası). Kilit alınamazsa çıkış 2, enjeksiyon yok. `serve`'ün kilidi kalabilir.
+     - Test: kilit tutulurken ikinci `run` → 2, enjeksiyon çağrılmadı.
+- **Küçük (isteğe bağlı):**
+  - Belirteç karşılaştırması `secrets.compare_digest` ile.
+  - `POST /api/run`'a nesne olmayan JSON (ör. `[1]`) 500 (`AttributeError`) veriyor; 400 dönsün.
+- **Not (karar gerekmez, kayda):**
+  - Alt bağımlılıklar sabit değil (`pytest`'teki gibi). CI kurulum anında en yeniyi alır, bu iki haftadan yeni olabilir. Bugün pydantic 2.14.3 tam 14 günlük.
+  - `serve` açık kaldığı sürece uyku kilitleri tutulur. README'ye (6. madde) bir cümle.
+- **Yeni adlar:** `tools/live_demo_page.html`, `X-Demo-Token`, port `8765` Eren onaylı; GLOSSARY `bb18355`, kayıt sırasında geldi. Kodda onaydan önce kullanılmışlardı; 1. madde 5. düzeltme "koddan önce" diyordu. Küçük süreç kayması, kapandı.
+- **Beklenen:** iki zorunlu düzeltme ve testleri HANDOFF'ta. Planlama kontrol eder, sonra 5. madde (kabul koşusu; panel ölçütü ve `next_step` durma kuralı önce HANDOFF'a, Eren'e sorarak).
