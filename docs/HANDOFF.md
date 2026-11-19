@@ -6228,3 +6228,14 @@ Data:
 - **Orkestratör (scratch `session2.py`, sha256 `15afb65a0735516a…`):** 900 sn sonunda konteyner sayısını loga yazar (bilgi).
 - **Not:** düzeltmeden önceki bir test koşusunda alt süreç testi gerçek `docker restart otel-collector`'ı çağırdı; konteyner yoktu (0), etkisiz.
 - **Beklenen:** planlama kontrolü; sonra O2 (~70 dk, yeniden başlatma olursa ~+10 dk), Eren'e sorarak.
+
+## 2026-11-20 · Planlama → Uygulama (O2 öncesi düzeltme kontrolü: geçti; O2 Eren'e sorularak)
+- **Doğrulama (planlama, scratch klon `75b2c74`, `PYTHONPATH` klonun `src`'si, `aiops_rca.__file__` klonda):**
+  - Kod okundu: `ensure_containers` panodan sonra, taban ölçüsünden önce; 23 → hiçbir şey; değilse tek `docker restart otel-collector`, 10 sn yoklama, en çok 240 sn; gelmezse çıkış 2 ve enjeksiyon yok; gelirse `containers_ready`'den `NORMAL_S` beklenir, taban ölçüsü beklemeden sonra tek kez. Bekleme `signals_deferred` dışında: sinyal `Stopped` → "stopped before injection", çıkış 1; kilit ve işleyiciler `run`'ın `finally`'sinde. Ölçüt 1–6 ve 8 kodda var.
+  - Ölçüt 4 okuması: 10 dk kuralı bugünkü gibi reddeder (beklemez); yeniden başlatma olduysa bekleme zaten ≥ 600 sn, kural kendiliğinden tutar. Benim "birlikte beklenir" yazımın anlamı buydu; davranış doğru.
+  - Dört yeni test okundu, ölçüt 7'deki dört durumu doğrudan iddia ediyor (22→23'te `alarm − containers_ready ≥ 600 sn` ve taban ölçüsü beklemeden sonra).
+  - `pytest` 885 geçti; beş `--check` (`agent_report` p2b / p2c0 / p2c_dev / p2d, `agent_error_analysis summary --set test`) çıkış 0.
+  - Kasıtlı kırmızı (kendim): yeniden başlatma satırı `pass` → 3 test kırmızı (22→23, 22→22, durdurma), 46 geçti; geri alındı, dosya özdeş.
+  - Arayüz: seçim kutusu ve seçenekler `var(--bg)` / `var(--fg)`, `color-scheme: light dark`; iki yeni adım satırı var olan `times_utc` gösterimiyle. Okunurluk O2'de Eren'in sözüyle.
+- **Not:** CI yalnız PR'da ve main push'ta koşuyor; bu dalın PR'ı yok, ölçüt 7'nin "CI yeşil" kısmı kapanış PR'ında görülür. Küçük: `docker restart`'ın dönüş kodu okunmuyor; başarısızsa 240 sn sonra çıkış 2 (güvenli yön), değişiklik istenmiyor.
+- **Sonuç:** GEÇTİ. O2 başlatılabilir: uygulama önce Eren'e sorar (~70 dk, yeniden başlatma olursa ~+10 dk; şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez). D4 arayüzden Gemini, D5 4B; ölçütler O1'deki gibi, D4'te ölçüt 8, D5'te ölçüt 7 (bellek, OOM 0).
