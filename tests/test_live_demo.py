@@ -485,3 +485,19 @@ def test_ten_minutes_after_previous_revert(monkeypatch, tmp_path):
     assert ld.run("adFailure_on", "gemini-3.5-flash-lite", root=w.root, base="x", sleep=w.sleep) == 2
     w.now += 120 * 10**9                                        # 11 dk
     assert ld.run("adFailure_on", "gemini-3.5-flash-lite", root=w.root, base="x", sleep=w.sleep) == 0
+
+
+
+def test_containers_end_error_recorded(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+    reads = iter([{}, OSError("docker down")])
+
+    def containers():
+        x = next(reads)
+        if isinstance(x, Exception):
+            raise x
+        return x
+    monkeypatch.setattr(sr, "containers", containers)
+    code, rec, _ = w.run()
+    assert code == 1 and "docker down" in rec["restarts"]["error"] and rec["revert"]["verified"] is True
+    assert "memory" in rec

@@ -485,10 +485,14 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
             mark("reverted")
             if not rec["revert"].get("verified"):
                 code = 1
-        rec["containers_end"] = sr.containers()
-        expected = {spec["target"]} if spec["kind"] == "infra" and spec["fault"] in EXPECTED_CHANGE else set()
-        unexpected, seen = sr.split_restarts(rec["containers_start"], rec["containers_end"], expected)
-        rec["restarts"] = {"unexpected": unexpected, "expected": seen}
+        try:  # geri alma bitti; Docker okuması hata verirse kayda yazılır, kayıt ve örnekleyici yine kapanır
+            rec["containers_end"] = sr.containers()
+            expected = {spec["target"]} if spec["kind"] == "infra" and spec["fault"] in EXPECTED_CHANGE else set()
+            unexpected, seen = sr.split_restarts(rec["containers_start"], rec["containers_end"], expected)
+            rec["restarts"] = {"unexpected": unexpected, "expected": seen}
+        except Exception as e:  # noqa: BLE001
+            rec["restarts"] = {"error": f"{type(e).__name__}: {e}"}
+            unexpected = True
         if unexpected:
             code = 1
         stop.set()
