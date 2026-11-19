@@ -6050,3 +6050,23 @@ Data:
   - **4B:** `MemAvailable` en düşüğü ve takas tepesi kayda; OOM 0.
   - Ölçütler 1. madde (h) ve düzeltmeleriyle aynı, sonuçtan önce; isabet yalnız bilgi.
 - **Beklenen:** 5. maddenin ölçüt ve plan kaydı HANDOFF'ta (kod yok, ya da yalnız panel betiği). Planlama kontrol eder, Eren onaylar, sonra koşu.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 5. madde: kabul koşusunun ölçütleri ve planı; sonuçtan önce, kod yok)
+- **Koşu listesi (1. madde (h) aynen):** Gemini: D1 `containerStop:recommendation`, D2 `containerPause:cart`, D3 `networkDelay:quote`, D4 `paymentFailure_10pct` (flag); 4B: D5 `containerStop:recommendation`. D4 web arayüzünden (`serve`), ötekiler `run`. Hedef ve çağıranları (gerçek cevabın yolundan, kök → x kenarlarının x'leri): D1/D5 recommendation + frontend; D2 cart + checkout, frontend; D3 quote + quote-gateway; D4 payment + checkout.
+- **Oturumlar (her biri Eren'e sorularak; > 15 dk; şarj eşiği 80, iki kilit; Gemini hiçbir oturumda 10:00–11:00 yereli kesmez):** O1: yığın açılışı + 15 dk (ısınma ve normal dönem) → D1, D2, D3 (her demo arasında en az 10 dk normal dönem: taban ölçüsü son 10 dk'ya bakıyor) ≈ 100 dk. O2: aynı kuralla D4 (arayüzden) + D5 (4B) ≈ 70 dk. Oturum sonunda yığın kapanır (`down`), isimli volume'lere dokunulmaz.
+- **Kabul ölçütleri (demo başına; 1. madde (h) ve düzeltmeler; isabet ölçüt değil, yalnız bilgi):**
+  1. Uçtan uca biter: `run.json` `result` "ok" (çıkış 0).
+  2. Hata geri alınır ve doğrulanır: `revert.verified` true.
+  3. Rapor bütün alanlarla: `report.json`'da `candidates`, `tool_calls`, `next_step`, `note`, `grafana`, `true_answer_after_agent` dolu (geçerli cevap yoksa `candidates` boş olabilir, alan var).
+  4. Sızıntı 0 (`leakage.findings` 0).
+  5. OOM ve beklenmeyen yeniden başlama 0: demo başında ve sonunda `docker inspect` (`OOMKilled`, `RestartCount`) 23 konteynerde; artış yalnız hedefte ve yalnız `containerStop`'ta beklenir (durdurma / başlatma `RestartCount`'u artırmaz; artarsa kayda, ölçüt kalır).
+  6. Paneller (sayıyla, aşağıda P1 ve P2).
+  7. D5'te `memory.mem_available_min_mib` ve `swap_used_peak_mib` kayda; OOM 0 (5. madde).
+  8. En az bir demo arayüzden (D4).
+- **Panel ölçütü (planlama 2026-11-19 3. düzeltme ve 4. madde kontrolü):** repo dışı betik `~/cerebrum2/analysis/demo_panels_check.py <demo klasörü>` (yeni ad yok; v3c_baseline gibi; sha kayda). Panonun beş sorgusu (`$service` → `.*`) Prometheus `query_range` ile `[alarm − 10 dk, ajan başlangıcı)` boyunca, adım 60 sn. Önce yarı = [alarm − 10 dk, alarm), sonra yarı = [alarm, ajan başlangıcı).
+  - **P1 veri:** her panelde iki yarının her birinde en az bir sayısal (NaN olmayan) değer (herhangi bir seride).
+  - **P2 değişim:** hedef ve çağıranlarından en az birinde, en az bir panelde önce / sonra farkı. Ortalama yarı içinde; eşikler P1 sinyal tanımından (`signals.signals`), panel birimlerine çevrilmiş: istek hızı sonra ≤ önce / 2 ya da sonra yarıda serinin hiç değeri yok (önce varken); hata oranı sonra ≥ önce + 0,05; p95 sonra ≥ max(1,5 × önce, önce + 20 ms); CPU sonra ≥ max(1,5 × önce, önce + 0,05); bellek sonra ≥ 1,2 × önce.
+  - Çıktı: panel başına iki yarının değer sayısı; S'deki her servis için önce / sonra ortalaması ve hangi eşiğin tuttuğu.
+- **`next_step` durma kuralı (planlama 3. madde kontrolü):** ilk demodan (D1) sonra rapora bakılır. Geçer: `assessment`'ta hata yok, `next_step` dolu ve 1. aday eşlendiyse `row` kurulmuş (önce yarıda `requests_before` > 0) ve `next_step.signals` en az bir sinyal içeriyor (ya da kural `database` / `human`). D1'de 1. aday eşlenmediyse (kural `human`, satır yok) kontrol D2'de yapılır; listede hiçbir demoda eşlenmezse liste sonunda planlamaya. Kural tutmazsa durulur, planlamaya yazılır, kalan demolar koşulmaz.
+- **Durma (öteki):** bir demo ölçüt 2 (geri alma) ya da 4 (sızıntı) ya da 5'i (OOM) tutmazsa durulur, planlamaya; yığın kapatılır. Öteki ölçütlerde demo kayda, liste sürer, oturum sonunda planlamaya.
+- **Beklenen:** planlama kontrolü; Eren onayı; sonra O1 (Eren'e sorarak).
