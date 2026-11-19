@@ -5943,3 +5943,11 @@ Data:
 - **Küçük (isteğe bağlı):** geri almadan sonra (değerlendirme, sızıntı, rapor) gelen sinyal şimdi yakalanmamış `Stopped` olarak traceback'le çıkar. Hata zaten geri alınmış. Kayda `stopped` yazıp çıkış 1 vermek yeter.
 - **4. madde için not:** demo `gnome-session-inhibit` → `systemd-inhibit` → python zinciriyle yeniden başlıyor. Web arayüzünün "durdur"u sinyali bu python sürecine göndermeli (sarmalayıcıya değil). Testte durdurmanın geri almaya ulaştığı gösterilir.
 - **Beklenen:** boşluğun düzeltmesi, testi ve kasıtlı kırmızısı HANDOFF'ta. Planlama kontrol eder, sonra 4. madde (web arayüzü; paket kurulumu ve sürümler Eren'e).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo: ajan aşamasında sinyal yutulması düzeltildi)
+- **Düzeltme:** ajan aşaması (yerel sunucu + `ask` + `append_agent_case`) `sr.signals_deferred()` içinde. `llm_client.post` / `LocalServer.start` artık `Stopped` görmez: sinyal not edilir, ajan biter, kaydı yazılır; bölümden çıkarken `Stopped` işlenir, geri alma çalışır, kayıtta `stopped`, çıkış 1. `llm_client.py` ve ajan değişmedi. Bekleme en çok ajanın süresi (8 çağrı + cevap turu ve Gemini yeniden deneme beklemeleri; README'ye 6. maddede).
+- **İsteğe bağlı küçük de yapıldı:** geri almadan sonraki kısım (değerlendirme, sızıntı, rapor) da korunan bölümde (`_finish`); orada gelen sinyal traceback yerine kayda `stopped`, `result` "stopped after revert", çıkış 1.
+- **Testler (2 yeni, toplam 41):** sahte ajan `post` gibi her `Exception`'ı yakalarken SIGTERM → ajan çıktısında sinyal metni yok, ajan biter, geri alma çağrılır, `stopped`, çıkış 1; değerlendirmede SIGINT → `stopped after revert`, geri alma doğrulanmış. pytest 860 yeşil; P2d raporu ve iki özet `--check` "same".
+- **Kasıtlı kırmızı (scratch):** ajan aşamasının korunan bölümünü kaldırmak → 1 test kırmızı.
+- **4. madde notu alındı:** web arayüzünün "durdur"u sinyali sarmalayıcı zincirine değil python demo sürecine gönderecek; testte durdurmanın geri almaya ulaştığı gösterilecek.
+- **Beklenen:** planlama kontrolü; sonra 4. madde (paket kurulumu Eren'e).

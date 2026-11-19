@@ -384,7 +384,7 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
         save()
         return 2
 
-    code, low, stop, agent_out = 0, {}, threading.Event(), None
+    code, low, stop, agent_out, case, agent_start = 0, {}, threading.Event(), None, None, None
     # Enjeksiyondan önceki durum: enjeksiyon hata fırlatsa da geri alma bununla denenir (planlama 2026-11-19, (b)).
     state = ({"kind": "infra", "fault": spec["fault"], "target": spec["target"], "param": spec["param"],
               "before": sr._inspect(spec["target"]), "applied_ok": False}
@@ -405,18 +405,22 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
         rec["grafana_url"] = dashboard_url(alarm - NORMAL_S * 10**9, agent_start)
         write_window(d, alarm - NORMAL_S * 10**9, agent_start)
         case = Case(incident_id=f"demo-{stamp}", view=d, alarm_ns=alarm)
-        with ExitStack() as stack:
-            if base is None:
-                base = stack.enter_context(LocalServer(MODELS[TOKENIZER].gguf)).base
-            ask, settings = stack.enter_context(agent_method(model, factory, base=base))
-            rec["agent_settings"] = settings
-            out = ask(case)
-        append_agent_case(d, case.incident_id, out)
-        agent_out = out
-        rec["agent"] = {"end_reason": out["row"]["end_reason"], "schema_valid": out["row"]["schema_valid"],
-                        "n_tool_calls": out["row"]["n_tool_calls"], "duration_s": out["row"]["duration_s"],
-                        "tokens": out["row"]["tokens"]}
-        mark("agent_end")
+        # Ajan aşaması korunan bölümde: `llm_client.post` ve `LocalServer.start` her `Exception`'ı yakaladığı için
+        # `Stopped` orada yutulurdu (planlama 2026-11-19). Sinyal not edilir, ajan biter, kaydı yazılır; bölümden
+        # çıkarken `Stopped` işlenir ve geri alma çalışır. Bekleme en çok ajanın süresi.
+        with sr.signals_deferred():
+            with ExitStack() as stack:
+                if base is None:
+                    base = stack.enter_context(LocalServer(MODELS[TOKENIZER].gguf)).base
+                ask, settings = stack.enter_context(agent_method(model, factory, base=base))
+                rec["agent_settings"] = settings
+                out = ask(case)
+            append_agent_case(d, case.incident_id, out)
+            agent_out = out
+            rec["agent"] = {"end_reason": out["row"]["end_reason"], "schema_valid": out["row"]["schema_valid"],
+                            "n_tool_calls": out["row"]["n_tool_calls"], "duration_s": out["row"]["duration_s"],
+                            "tokens": out["row"]["tokens"]}
+            mark("agent_end")
     except sr.Stopped as e:  # SIGTERM / SIGINT: demo durur, geri alma yine çalışır
         rec["stopped"] = str(e)
         code = 1
@@ -442,6 +446,20 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
         sampler.join(timeout=5)
         rec["memory"] = low
         save()
+    try:  # geri almadan sonraki kısım da korunan bölümde; sinyal gelirse kayda `stopped`, çıkış 1
+        with sr.signals_deferred():
+            code = _finish(rec, d, spec, agent_out, factory, case, agent_start, code, save)
+    except sr.Stopped as e:
+        rec["stopped"] = rec.get("stopped") or str(e)
+        rec["result"] = "stopped after revert"
+        save()
+        return 1
+    if code != 3:
+        print(d)
+    return code
+
+
+def _finish(rec, d, spec, agent_out, factory, case, agent_start, code, save) -> int:
     if agent_out is not None:
         try:
             ans = agent_out["row"]["answer"] if agent_out["row"]["schema_valid"] else None
@@ -462,7 +480,6 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
         (d / "report.md").write_text(report_md(r), encoding="utf-8")
     rec["result"] = "ok" if code == 0 else "finished with problems"
     save()
-    print(d)
     return code
 
 

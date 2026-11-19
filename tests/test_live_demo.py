@@ -402,3 +402,42 @@ def test_netem_leftover_stops_guards(monkeypatch):
     g = ld.demo_guards()
     assert g["netem_leftovers"] == ["cart"] and any(p.startswith("netem rule left on: cart") for p in g["problems"])
     assert sorted(asked) == ["cart", "quote"]                    # yalnız çalışan netem hedefleri; ad değil
+
+
+
+def test_sigterm_during_agent_is_deferred(monkeypatch, tmp_path):
+    """Ajan aşamasında sinyal ajanın hata yakalayıcısına (`llm_client.post`) düşmez: not edilir, ajan biter, kaydı
+    yazılır, sonra durdurma işlenir ve geri alma çalışır."""
+    import os
+    import signal
+    w = World(monkeypatch, tmp_path)
+
+    @contextmanager
+    def agent_method(label, factory, base=None):
+        def ask(case):
+            w.log("agent", label)
+            try:  # llm_client.post gibi: her Exception'ı yakalar
+                os.kill(os.getpid(), signal.SIGTERM)
+                text = "ok"
+            except Exception as e:  # noqa: BLE001
+                text = f"swallowed {e}"
+            return {"row": {"end_reason": "answer", "schema_valid": False, "n_tool_calls": 1, "duration_s": 1.0,
+                            "tokens": {"input": 1, "output": 1}, "answer": None},
+                    "turns": [], "tool_outputs": [{"turn": 0, "tool": "list_services", "text": text}]}
+        yield ask, {}
+    monkeypatch.setattr(ld, "agent_method", agent_method)
+    code, rec, d = w.run()
+    outs = (d / "tool_outputs").read_text() if (d / "tool_outputs").is_file() else \
+        "".join(p.read_text() for p in (d / "tool_outputs").iterdir())
+    assert code == 1 and rec["stopped"] == "stopped by SIGTERM" and "swallowed" not in outs and '"ok"' in outs
+    assert [c[0] for c in w.calls] == ["apply", "sleep", "agent", "revert"] and rec["agent"]["end_reason"] == "answer"
+
+
+def test_signal_after_revert_recorded(monkeypatch, tmp_path):
+    import os
+    import signal
+    w = World(monkeypatch, tmp_path)
+    monkeypatch.setattr(ld, "assess", lambda *a: os.kill(os.getpid(), signal.SIGINT) or {"next_step": {}})
+    code, rec, _ = w.run()
+    assert code == 1 and rec["stopped"] == "stopped by SIGINT" and rec["result"] == "stopped after revert"
+    assert rec["revert"]["verified"] is True
