@@ -6138,3 +6138,25 @@ Data:
   - D1'den sonra `next_step` durma kuralı uygulanır.
   - Oturum sonunda `down`, isimli volume'lere dokunulmaz.
   - Sonuçlar (ölçüt başına tuttu / tutmadı, panel betiğinin çıktısı, sha'lar) HANDOFF'a. İsabet yalnız bilgi.
+
+## 2026-11-20 · Uygulama → Planlama (Canlı demo 5. madde O1 sonuçları: D1, D2, D3 bütün ölçütler tuttu)
+- **Oturum (Eren onayıyla "başlat"):** 19.11 23:19 – 20.11 00:33 yerel; iki kilit, şarj eşiği 80, AC takılı. Gemini (`gemini-3.5-flash-lite`) 23:35–00:31 arası; 10:00–11:00 kesilmedi. Orkestratör scratch betiği (sha256 `bf778ba02a6cfed0…`): yığın `up` → 900 sn → D1, D2, D3 `run` → her demodan sonra panel betiği (sha256 `7cba947a5e0d9751…`, kayıttakiyle aynı) → `down`. Kayıt: `~/cerebrum2/demo_runs/session_20261119T201932Z.log`; demo klasörleri `20261119T203458Z-demo`, `20261119T205644Z-demo`, `20261119T211929Z-demo`. Oturum sonunda konteyner 0; isimli volume'lere dokunulmadı.
+- **Demolar arası (netleştirme 2):** önceki `reverted` → sonraki alarm: D1→D2 617 sn, D2→D3 615 sn (≥ 600).
+- **Ölçütler (demo başına; D1 / D2 / D3):**
+  1. `result` "ok", çıkış 0: tuttu / tuttu / tuttu.
+  2. `revert.verified` true: tuttu / tuttu / tuttu.
+  3. Rapor alanları dolu (`candidates`, `tool_calls`, `next_step`, `note`, `grafana`, `true_answer_after_agent`): tuttu / tuttu / tuttu.
+  4. Sızıntı 0: tuttu / tuttu / tuttu.
+  5. Beklenmeyen yeniden başlama / OOM: `restarts.unexpected` boş, üçünde de. Beklenen: D1'de yalnız recommendation (`StartedAt` değişti, `RestartCount` 0 kaldı, OOM yok); D2'de (pause) değişen yok. Tuttu / tuttu / tuttu.
+  6. Paneller: P1 ve P2 tuttu / tuttu / tuttu (aşağıda).
+  7. ve 8. O2'de (D5 bellek, D4 arayüz).
+- **Panel betiği (P1 her panelde iki yarıda değer var, üçünde de; P2 isabetleri):**
+  - D1: istek hızı recommendation 0,81 → 0,15; hata oranı frontend 0 → 0,10.
+  - D2: istek hızı cart 1,42 → 0,20, checkout 0,042 → 0,006; p95 frontend 35 → 2556 ms.
+  - D3: p95 quote-gateway 7,6 → 90,5 ms (quote'un kendi p95'i değişmedi: gecikme giden çağrıda görünür).
+  - CPU ve bellek panelleri üçünde de eşik altında (beklenen: bu üç hata CPU / bellek hatası değil).
+- **`next_step` durma kuralı:** D1'de 1. aday eşlendi; kural `down` (istek düşüşü sinyali, güç 1,98); satır kurulu (`requests_before` 484 > 0). Geçti, D1'de kapandı. Bilgi: D2 ve D3'te kural `latency` (p95 sinyali).
+- **İsabet (yalnız bilgi, ölçüt değil):** 1. aday doğru 1/3 (D1). D2 ve D3'te gerçek kök ilk üçte yok (D3'te kökün çağıranı 3. sırada); ikisi de adım sınırında bitti (8 araç çağrısı), D1 cevapla (6 çağrı). Süre 23 / 89 / 83 sn.
+- **Kayda değer:** D2'de `next_step` satırındaki p95 (izlerden) sonra yarıda ≈ 301 sn: pause'ta bekleyen istekler uzun süren izler bırakıyor; panel p95'i histogramdan 2,6 sn. İki kaynağın farkı README'ye yazılacak nottaki gibi.
+- **Not:** sahipsiz Docker volume sayısı 13 (önceki 6 + yığın açılışları). Silme Eren kararı, bekliyor.
+- **Beklenen:** planlama kontrolü; sonra O2 (D4 arayüzden `paymentFailure_10pct`, D5 4B `containerStop:recommendation`; ~70 dk; Eren'e sorarak).
