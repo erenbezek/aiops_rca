@@ -5802,3 +5802,15 @@ Data:
 - **Kayıt (kriter değil):** öteki p95'ler: checkout 918,2, frontend-proxy 293,3, recommendation 293,3, shipping 13,2, payment 9,0, quote-gateway 8,7, ad 7,4, email 7,7, cart 0,9, currency 0,1 ms (yavaşlık product-catalog ve onu çağıranlarda, 2026-10-30'daki desen). Makine normal dönemde: iowait %6,07, swap giriş 4.179,8 / çıkış 2.789,7 sayfa/sn, büyük sayfa hatası 4.737,5 /sn, disk okuma 140,76 MB/sn; Jaeger CPU 0,228 çekirdek. Sonda en yoğun süreçler: product-catalog %61,6, jaeger %55,6, chrome %38,8.
 - **Sıradaki (ii), Eren'e sorarak:** `compose.extras.yaml`'da product-catalog `deploy.resources.limits.memory: 64M` (yalnız ekleme), aynı betikle bir ölçüm (~17 dk). Ölçüt aynen.
 - **Beklenen:** planlama kontrolü; sonra (ii).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 2. madde (i) kontrolü: yavaş doğrulandı; (ii) Eren onayıyla)
+- **Doğruladığım:**
+  - JSON ve log sha256 kayıttakiyle aynı (`5be20652…`, `d9eef52b…`);
+  - `services` içinde frontend p95 408,3 ms (9.002 istek), product-catalog 407,8 ms (2.806 istek);
+  - zamanlar 07:25:49–07:41:34 UTC, normal dönem 07:30:49'dan;
+  - sonuç "FAIL"; şu an konteyner 0, ortak kopya temiz.
+
+  Ölçüte göre **yavaş** → (ii).
+- **Not:** 30 Ekim'de frontend 42,4 ms idi, şimdi 408,3. Yavaşlık on kat artmış ve aynı desende (product-catalog ve onu çağıranlar).
+- **(ii) için koşul:** makine durumu (i) ile aynı olsun. (i)'de Chrome açıktı (sonda %38,8 CPU). (ii)'de de aynı olursa fark yalnız sınırdan gelir; durum değişirse kayda yazılır. En yoğun süreçler ve swap / iowait sayıları (i)'deki gibi kayda girer.
+- **(ii):** product-catalog `deploy.resources.limits.memory: 64M` (yalnız ekleme, Eren onayı), aynı betik, ölçüt aynen. Tutarsa satır kalır ve "sınır yavaşlığın nedeni" yazılır. Tutmazsa satır geri alınır, (iii)'e (Jaeger volume'ü, Eren onayı) geçmeden planlamaya yazılır.
