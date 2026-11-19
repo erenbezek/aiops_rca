@@ -5909,3 +5909,37 @@ Data:
 - **Testler (4 yeni, toplam 39):** belirti sırasında SIGTERM → geri alma, `stopped`, eski işleyici geri kuruldu; enjeksiyon sırasında SIGINT bekletilir, enjeksiyon kaydı tutulur, sonra geri alma; enjeksiyon uyguladıktan sonra hata → önceki durumla geri alma; çalışan netem hedefinde kalıntı → korumalar durur (yalnız çalışan netem hedefleri sorulur). pytest 858 yeşil; P2d raporu ve iki özet `--check` "same".
 - **Kasıtlı kırmızı (scratch):** işleyiciyi kaldırmak → pytest süreci SIGTERM'le öldü (çıkış 143; demonun gerçekte geri almadan ölmesinin aynısı); korunan bölümü kaldırmak → 1 test kırmızı.
 - **Beklenen:** planlama kontrolü; sonra 4. madde (web arayüzü; paket kurulumu Eren'e).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 3. madde düzeltme kontrolü: (a)–(c) geçti; ajan aşamasında bir boşluk, 4. maddeden önce)
+- **Bağımsız doğrulama (scratch, `0595fb2`):** pytest 858 yeşil; beş `--check` çıkış 0; `src/` ve `results/` değişmemiş. Dört yeni test kayıttaki gibi.
+- **(a)–(c) okumayla geçti:**
+  - İşleyici koşu başında kuruluyor, sonda geri alınıyor; sınıf durumu sıfırlanıyor.
+  - Enjeksiyon ve geri alma korunan bölümde. Geri alma sırasında gelen sinyal geri almayı kesmiyor.
+  - Önceki durum enjeksiyondan önce okunuyor; `apply_fault` hata fırlatırsa geri alma bununla deneniyor.
+  - netem kalıntısı yalnız çalışan netem hedeflerinde aranıyor; elle temizlik komutu yazılıyor.
+  - Yorum yerinde.
+- **Boşluk (zorunlu, küçük): ajan aşamasında gelen sinyal yutuluyor.**
+  - `llm_client.post` (`llm_client.py:164`) her `Exception`'ı yakalayıp `(-1, metin)` döndürüyor. `sr.Stopped` de `Exception`. Ajanın zamanının çoğu bu çağrıda geçer.
+  - Deneme (scratch, `sig_probe.py`; işleyici kurulu, yavaş yerel sunucuya `post`, 1. sn'de SIGTERM):
+    - dönüş `(-1, 'Stopped: stopped by SIGTERM')`;
+    - `signals_deferred.raised` True, `signals` `['SIGTERM']`;
+    - `Stopped` dışarı çıkmadı.
+  - Sonuç:
+    - Durdurma ajanın kaydına sahte bağlantı hatası olarak giriyor; ajan yeniden denemeyle sürüyor.
+    - `raised` True olduğu için sonraki sinyaller ve `check()` artık durdurmuyor. Demo ajan bitene kadar sürüyor ve kayıtta `stopped` yok.
+    - Geri alma yine sonda çalışıyor; kalıntı riski yok. Sorun kaydın doğruluğu ve 4. maddedeki durdurma.
+  - Aynı şey `LocalServer.start`'ın sağlık döngüsünde de olur (`llm_client.py:314`).
+  - İstenen:
+    - Ajan aşaması (yerel sunucu + `ask`) `sr.signals_deferred()` içinde çalışır. Sinyal yalnız not edilir, ajan bittikten sonra `Stopped` işlenir, geri alma çalışır, kayıtta `stopped` olur.
+    - Ajanın kaydı (`append_agent_case`) yine yazılır; durdurma ajan bitince işlendiği için kayda öyle yazılır.
+    - `llm_client.py` ve ajan donmuş, değişmez.
+    - Bekleme ajanın süresiyle sınırlı: 8 çağrı + cevap turu ve Gemini yeniden deneme beklemeleri. Bu süre README'ye (6. madde) bir cümle olarak girer.
+  - Test: sahte ajan çalışırken SIGTERM →
+    - ajan kaydında sinyal metni yok;
+    - ajan biter, geri alma çağrılır;
+    - kayıtta `stopped`, çıkış 1.
+
+    Kasıtlı kırmızı: korunan bölümü kaldır → kırmızı.
+- **Küçük (isteğe bağlı):** geri almadan sonra (değerlendirme, sızıntı, rapor) gelen sinyal şimdi yakalanmamış `Stopped` olarak traceback'le çıkar. Hata zaten geri alınmış. Kayda `stopped` yazıp çıkış 1 vermek yeter.
+- **4. madde için not:** demo `gnome-session-inhibit` → `systemd-inhibit` → python zinciriyle yeniden başlıyor. Web arayüzünün "durdur"u sinyali bu python sürecine göndermeli (sarmalayıcıya değil). Testte durdurmanın geri almaya ulaştığı gösterilir.
+- **Beklenen:** boşluğun düzeltmesi, testi ve kasıtlı kırmızısı HANDOFF'ta. Planlama kontrol eder, sonra 4. madde (web arayüzü; paket kurulumu ve sürümler Eren'e).
