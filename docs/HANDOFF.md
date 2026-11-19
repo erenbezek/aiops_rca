@@ -6202,3 +6202,20 @@ Data:
   2. Ya da `live_demo`'ya `scenario_runner`'daki gibi taban ölçüsünden önce sayı 23 değilse collector'ı yeniden başlatıp bekleme eklemek (normal dönem penceresi yeniden başlatmadan sonra dolmalı; 10 dk kayar).
   Benim önerim 2: arayüzde tıklayan kişi için sessiz bir 22 sorunu sık görülürse demo güvenilmez. Ayrıca 1 için: orkestratör yığını açtıktan sonra 900 sn'nin sonunda sayıyı loga yazsın, Eren'den tıklama ancak 23 ise istensin.
 - **Beklenen:** planlama kararı (1 ya da 2) ve arayüz notu; sonra O2 Eren'e sorarak.
+
+## 2026-11-20 · Planlama → Uygulama (Canlı demo O2 kontrolü: 22 konteyner bilinen açılış yarışı; düzeltme `run`'da, Eren seçeneği "demo kendisi düzeltsin")
+- **Doğrulama (planlama, bağımsız):** `20261119T223028Z-demo/run.json`: `result` "baseline: container count 22, want 23", `times_utc` boş (enjeksiyon yok), korumalar temiz (`problems` [], netem kalıntısı yok, iki kilit, şarj eşiği 80), `leftovers` 26 çalışan konteyner (flagd, flagd-ui, load-generator süzülünce 23; duraklatılmış yok), frontend p95 24,1 ms (geçer). O1'in üç demosunda sayı 23. Oturum logu kayıtla aynı; şimdi konteyner 0. Kod tasarlandığı gibi davrandı.
+- **Kök:** yeni değil. DECISIONS 2026-10-25: konteyner metrik alıcısı açılışta collector'dan hemen sonra başlayan konteyneri kaçırıyor ve **sonra da görmüyor** (V1a 4 açılışta 1, C2 19'da 13); vaka hattı bu yüzden her `up`'tan sonra collector'ı bir kez yeniden başlatıyor. **Planlama hatası:** demo kartı (2026-11-18, (a)) "23 konteyner" kontrolünü yazdı, yeniden başlatma adımını yazmadı. Seçenek 1 (aynı haliyle yeniden koşmak) bu yüzden elendi: sayı kendiliğinden düzelmez.
+- **Karar (Eren, 2026-11-20): seçenek 2.** `live_demo run` taban ölçüsünde sayı 23 değilse collector'ı kendisi bir kez yeniden başlatır.
+- **Ölçütler (koddan önce; değişmez):**
+  1. Sayı ilk ölçüde 23 ise yeniden başlatma yok, akış bugünkü gibi.
+  2. 23 değilse: `docker restart otel-collector` **bir kez**; en çok `sr.WAIT_CONTAINERS_S[1]` (240 sn) 23 beklenir. Gelmezse enjeksiyon yok, çıkış 2, sonuç "container count <n> after collector restart".
+  3. 23 gelirse: sayının 23'e ulaştığı andan `NORMAL_S` (600 sn) geçmeden enjeksiyon yok (normal dönem penceresi yeniden başlatmadan sonraki veriyle dolar); sonra taban ölçüsü **baştan** (p95, sayı, zamanlayıcı) yapılır, kalırsa çıkış 2.
+  4. Önceki demonun `reverted`'ından 10 dk kuralı ayrı ve aynen; ikisi birlikte beklenir (hangisi geçse).
+  5. Bekleme sırasında durdurma (SIGTERM / arayüzdeki durdur): enjeksiyon olmadan temiz çıkış 1, kilit bırakılır, geri alınacak şey yok.
+  6. Yeniden başlatma `run.json`'a yazılır (zaman, önceki sayı, 23'e ulaşma zamanı). **Alanın adı yeni isim:** uygulama koddan önce Eren'e önerir, onaydan sonra GLOSSARY.
+  7. Testler (docker, saat ve Prometheus taklitli): 23 → yeniden başlatma yok; 22→23 → tek yeniden başlatma, bekleme, ikinci taban ölçüsü, akış sürer; 22→22 → çıkış 2, enjeksiyon yok; bekleme sırasında durdurma → çıkış 1, enjeksiyon yok. Kasıtlı kırmızı: yeniden başlatma satırı çıkarılınca 22→23 testi kırmızı. `pytest` hepsi yeşil, beş `--check` çıkış 0, CI yeşil.
+  8. Arayüz beklemede "çalışıyor" görünür ve takılmış gibi durmaz (var olan durum gösterimiyle; yeni alan gerekirse önce Eren'e).
+- **Arayüz notu (Eren'in bildirdiği seçenek okunurluğu):** bu düzeltmeyle aynı turda; seçeneklerin zemin ve yazı rengi iki temada okunur olur. Ölçüt: O2'de Eren seçenekleri zorlanmadan okur (Eren söyler). Davranış değişmez.
+- **Orkestratör (scratch):** 900 sn ısınmanın sonunda konteyner sayısını loga yazar (bilgi; tıklama artık sayıya bağlı değil).
+- **O2:** düzeltme geçtikten ve planlama kontrol ettikten sonra, aynı plan (D4 `paymentFailure_10pct` arayüzden Gemini; D5 `containerStop:recommendation` 4B). Süre ~70 dk, yeniden başlatma olursa ~+10 dk; başlatmadan önce Eren'e sorulur; şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez.
