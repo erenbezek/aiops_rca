@@ -79,6 +79,7 @@ REPO = Path(__file__).resolve().parents[1]
 DASHBOARD = REPO / "deploy" / "otel-demo" / "grafana" / "aiops-demo.json"
 GRAFANA = "http://127.0.0.1:8080/grafana"  # frontend-proxy üzerinden (Grafana'nın kendi portu kapalı)
 NETEM_FAULTS = ("networkDelay", "packetLoss")
+EXPECTED_CHANGE = ("containerStop", "containerPause")  # hedefin durumu (başlama zamanı, dondurma) değişebilir
 
 
 def faults() -> dict[str, dict]:
@@ -343,6 +344,23 @@ def dashboard_url(lo_ns: int, hi_ns: int) -> str:
     return f"{GRAFANA}/d/{uid}?from={lo_ns // 10**6}&to={hi_ns // 10**6}"
 
 
+def last_reverted(root: Path, exclude: Path | None = None) -> int | None:
+    """Önceki demoların en son geri alma anı (ns); yoksa None."""
+    best = None
+    for p in root.glob("*-demo/run.json"):
+        if exclude is not None and p.parent == exclude:
+            continue
+        try:
+            t = json.loads(p.read_text()).get("times_utc", {}).get("reverted")
+        except (OSError, ValueError):
+            continue
+        if t:
+            from datetime import datetime
+            v = int(datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp()) * 10**9
+            best = v if best is None or v > best else best
+    return best
+
+
 def write_window(view: Path, lo_ns: int, hi_ns: int) -> None:
     fmt = lambda ns: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ns // 10**9))  # noqa: E731
     (view / "window.json").write_text(json.dumps({"start": fmt(lo_ns), "end": fmt(hi_ns)}) + "\n")
@@ -372,7 +390,7 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
 
 def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | None, sleep) -> int:
     spec = faults()[spec_key]
-    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(sr.utc_ns() // 10**9))
     d = root / f"{stamp}-demo"
     d.mkdir(parents=True)
     rec: dict = {"demo": spec_key, "model": model, "spec": {k: v for k, v in spec.items() if k != "answer"},
@@ -393,7 +411,12 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
         save()
         return 2
     rec["dashboard"] = load_dashboard()
-    rec["baseline"] = baseline(sr.utc_ns())
+    now = sr.utc_ns()
+    rec["baseline"] = baseline(now)
+    last = last_reverted(root, exclude=d)
+    if last is not None and now - last < NORMAL_S * 10**9:  # planlama 2026-11-19, netleştirme 2
+        rec["baseline"]["problems"].append(
+            f"previous demo reverted {round((now - last) / 1e9)} s ago; wait until {NORMAL_S} s have passed")
     if spec["kind"] == "flag":
         before = sr.resolve(sr.BY_ID[spec["scenario"]])
         if not isinstance(before, dict) or before.get("variant") != "off":
@@ -411,6 +434,7 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
     factory = store_factory or (lambda c: LiveStore(c, ends=MAIN_ENDS))
     sampler = threading.Thread(target=_mem_sample, args=(low, stop), daemon=True)
     sampler.start()
+    rec["containers_start"] = sr.containers()  # ölçüt 5: koşucunun okuması (OOM, yeniden başlama, durma)
     try:
         alarm = mark("alarm")
         with sr.signals_deferred():  # uygulanmış ama kaydı tutulmamış hata kalmasın (koşucunun korunan bölümü)
@@ -461,6 +485,12 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
             mark("reverted")
             if not rec["revert"].get("verified"):
                 code = 1
+        rec["containers_end"] = sr.containers()
+        expected = {spec["target"]} if spec["kind"] == "infra" and spec["fault"] in EXPECTED_CHANGE else set()
+        unexpected, seen = sr.split_restarts(rec["containers_start"], rec["containers_end"], expected)
+        rec["restarts"] = {"unexpected": unexpected, "expected": seen}
+        if unexpected:
+            code = 1
         stop.set()
         sampler.join(timeout=5)
         rec["memory"] = low

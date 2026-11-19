@@ -143,7 +143,7 @@
   {
    "id": 4,
    "type": "timeseries",
-   "title": "Konteyner CPU",
+   "title": "Konteyner CPU (bir çekirdeğin %'si)",
    "datasource": {
     "type": "prometheus",
     "uid": "webstore-metrics"
@@ -156,7 +156,7 @@
    },
    "fieldConfig": {
     "defaults": {
-     "unit": "percentunit"
+     "unit": "percent"
     },
     "overrides": []
    },
@@ -167,7 +167,7 @@
       "type": "prometheus",
       "uid": "webstore-metrics"
      },
-     "expr": "container_cpu_utilization_ratio{container_name=~\"$service\"}",
+     "expr": "rate(container_cpu_usage_nanoseconds_total{container_name=~\"$service\"}[3m]) / 1e9 * 100",
      "legendFormat": "{{container_name}}"
     }
    ]

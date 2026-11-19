@@ -68,6 +68,8 @@ class World:
         monkeypatch.setattr(ld, "assess", lambda store, ans, a, b: {"next_step": {"rule": "human"}})  # ağ yok
         monkeypatch.setattr(ld, "load_dashboard", lambda: {"uid": "aiops-demo", "ok": True})
         monkeypatch.setattr(sr, "_inspect", lambda target: {"running": True, "target": target})
+        self.containers = [{"cart": {"restarts": 0, "oom": False, "running": True, "started": "a", "paused": False}}]
+        monkeypatch.setattr(sr, "containers", lambda: self.containers[min(len(self.calls) and 1, len(self.containers) - 1)])
         self.agent_error, self.leak, self.root = agent_error, leak, tmp_path / "runs"
 
     def utc(self):
@@ -327,9 +329,13 @@ def test_dashboard_file():
     exprs = [t["expr"] for p in d["panels"] for t in p["targets"]]
     assert all(p["datasource"]["uid"] == "webstore-metrics" for p in d["panels"])
     metrics = {"traces_span_metrics_calls_total", "traces_span_metrics_duration_milliseconds_bucket",
-               "container_cpu_utilization_ratio", "container_memory_usage_total_bytes"}
+               "container_cpu_usage_nanoseconds_total", "container_memory_usage_total_bytes"}
     assert all(any(m in e for m in metrics) for e in exprs)
-    assert sum("histogram_quantile(0.95" in e for e in exprs) == 1 and sum("rate(" in e for e in exprs) == 3
+    assert sum("histogram_quantile(0.95" in e for e in exprs) == 1 and sum("rate(" in e for e in exprs) == 4
+    # CPU birikimli sayacın hızı, bir çekirdeğin yüzdesi (P1 / ajan `cpu_pct` ile aynı birim; planlama 2026-11-19).
+    # `container_cpu_utilization_ratio` bu collector sürümünde açılıştan beri ortalama: kullanılmaz.
+    assert exprs[3] == 'rate(container_cpu_usage_nanoseconds_total{container_name=~"$service"}[3m]) / 1e9 * 100'
+    assert not any("utilization_ratio" in e for e in exprs)
     assert d["templating"]["list"][0]["name"] == "service" and all("$service" in e for e in exprs)
 
 
@@ -454,3 +460,28 @@ def test_second_run_blocked_by_process_lock(monkeypatch, tmp_path):
         assert w.calls == [] and not [x for x in w.root.iterdir() if x.is_dir()]
     code, _, _ = w.run()                                           # kilit bırakılınca çalışır
     assert code == 0
+
+
+
+def test_restarts_recorded_and_unexpected_fails(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+    ok = {"cart": {"restarts": 0, "oom": False, "running": True, "started": "a", "paused": False},
+          "recommendation": {"restarts": 0, "oom": False, "running": True, "started": "a", "paused": False}}
+    after = {**ok, "recommendation": {**ok["recommendation"], "started": "b"}}        # durdur / başlat: beklenen
+    w.containers = [ok, after]
+    code, rec, _ = w.run()
+    assert code == 0 and rec["restarts"]["unexpected"] == [] and len(rec["restarts"]["expected"]) == 1
+    w2 = World(monkeypatch, tmp_path / "b")
+    w2.containers = [ok, {**ok, "cart": {**ok["cart"], "restarts": 1, "oom": True}}]  # başka konteynerde OOM
+    code, rec, _ = w2.run()
+    assert code == 1 and rec["restarts"]["unexpected"][0]["container"] == "cart"
+
+
+def test_ten_minutes_after_previous_revert(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+    code, rec, _ = w.run()
+    assert code == 0
+    w.now += (ld.NORMAL_S - 60) * 10**9                         # önceki geri almadan 9 dk sonra
+    assert ld.run("adFailure_on", "gemini-3.5-flash-lite", root=w.root, base="x", sleep=w.sleep) == 2
+    w.now += 120 * 10**9                                        # 11 dk
+    assert ld.run("adFailure_on", "gemini-3.5-flash-lite", root=w.root, base="x", sleep=w.sleep) == 0
