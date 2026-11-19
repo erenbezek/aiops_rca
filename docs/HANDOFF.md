@@ -5814,3 +5814,12 @@ Data:
 - **Not:** 30 Ekim'de frontend 42,4 ms idi, şimdi 408,3. Yavaşlık on kat artmış ve aynı desende (product-catalog ve onu çağıranlar).
 - **(ii) için koşul:** makine durumu (i) ile aynı olsun. (i)'de Chrome açıktı (sonda %38,8 CPU). (ii)'de de aynı olursa fark yalnız sınırdan gelir; durum değişirse kayda yazılır. En yoğun süreçler ve swap / iowait sayıları (i)'deki gibi kayda girer.
 - **(ii):** product-catalog `deploy.resources.limits.memory: 64M` (yalnız ekleme, Eren onayı), aynı betik, ölçüt aynen. Tutarsa satır kalır ve "sınır yavaşlığın nedeni" yazılır. Tutmazsa satır geri alınır, (iii)'e (Jaeger volume'ü, Eren onayı) geçmeden planlamaya yazılır.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 2. madde (ii): sınır 64M → ölçüt tuttu; sınır yavaşlığın nedeni)
+- **Değişiklik (Eren onayı "64M onaylı"):** `deploy/otel-demo/compose.extras.yaml` product-catalog'a `deploy.resources.limits.memory: 64M` (yalnız ekleme, yorumlu). `tools/otel_demo.sh config` çözümü: `67108864` bayt.
+- **Koşu:** aynı betik (`608dbe74…`); 07:45:49–08:01:34 UTC (10:45–11:01 yerel). Korumalar geçti, sorun yok. Normal dönem 07:50:49'dan 600 sn. Sonda konteyner 0, anonim volume 1 silindi (koşunun kendi), kalıntı yok.
+- **Kayıt:** `~/cerebrum2/analysis/v3c_baseline_20261119T0745Z.json` (sha256 `6bd81adc99d580d5…`), `.log` (`850aca9cce374475…`).
+- **Sonuç (ölçüt, DECISIONS 2026-10-30):** frontend p95 **24,3 ms** (≤ 30), product-catalog p95 **13,8 ms** (13–17 içinde) → **tuttu: product-catalog'un bellek sınırı yavaşlığın nedeni.** Satır kalır.
+- **Kayıt (kriter değil), (i) ↔ (ii):** checkout 918,2 → 70,8; frontend-proxy 293,3 → 21,5; recommendation 293,3 → 7,0; öteki servisler değişmedi ya da azaldı. Makine: iowait %6,07 → 0,39; swap giriş 4.179,8 → 156,1, çıkış 2.789,7 → 99,4 sayfa/sn; büyük sayfa hatası 4.737,5 → 189,6 /sn; disk okuma 140,76 → 2,69 MB/sn; Jaeger CPU 0,228 → 0,046 çekirdek. Makine durumu aynı: Chrome açık (sonda %36,0; (i)'de %38,8), başka değişiklik yok.
+- **Kapsam notu:** tetikleyici (2026-10-30'dan önce 36 temiz vakada aynı sınırla yavaşlık yoktu) bilinmiyor; müdahale mekanizmayı doğruladı. checkout da 20M (2026-10-30'da doluluk 0,974); bu sınamada dokunulmadı, checkout p95 70,8 ms (vakalarda normal ~40–65).
+- **Sonraki:** 2. madde bitti ((iii) gerekmedi). PROJECT DevOps "Dağıtık sistemde sorun giderme" satırı kapanışta (kart 6. madde). Sıradaki 3. madde: kod öncesi yeni adlar ve paket sürümleri Eren'e.
