@@ -383,3 +383,6 @@ Sadece Eren'in onayladığı isimler.
 | `demo_runs/<UTC>-demo/` (`DEMO_RUNS`) | Canlı demo kayıtlarının klasörü, git dışı (`~/cerebrum2/demo_runs`): `run.json`, ajan kaydı, `window.json` (Eren onaylı) |
 | `NEXT_STEPS` | `tools/live_demo.py`: sonraki adım kural tablosu (veritabanı, kaynak, hata, gecikme, cevap yok, insan incelemesi; ilk eşleşen); girdi 1. adayın canlı veriden kurulan satırında yanan sinyaller (`signals.signals`, güç ≥ 1) (Eren onaylı 2026-11-19) |
 | `deploy/otel-demo/grafana/` (`aiops-demo.json`) | Canlı demo Grafana panosu (uid `aiops-demo`; istek hızı, hata oranı, p95, konteyner CPU, bellek; servis seçici); `live_demo.py` her koşuda API ile yükler (Eren onaylı 2026-11-19, seçenek A) |
+| `serve` (`tools/live_demo.py`), `tools/live_demo_page.html` | Canlı demo web arayüzü (FastAPI, yalnız `127.0.0.1`, varsayılan port `8765`) / arayüzün tek sayfası (dış kaynak yok) (Eren onaylı 2026-11-19) |
+| `X-Demo-Token` | `serve`'ün başlatma ve durdurma uçlarının istediği belirteç başlığı (açılışta rastgele, adreste `?t=`) (Eren onaylı) |
+| `demo` (pyproject grubu) | Web arayüzünün isteğe bağlı paketleri: `fastapi==0.162.0`, `uvicorn==0.54.0`, `httpx==0.28.1`; CI `.[dev,demo]` ile kurar (Eren onaylı) |
