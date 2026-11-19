@@ -134,6 +134,7 @@ CHILD = textwrap.dedent('''
     ld.baseline = lambda now: {{"pass": True, "problems": []}}
     ld.load_dashboard = lambda: {{"ok": True}}
     sr._inspect = lambda t: {{"running": True}}
+    sr.container_count = lambda: sr.CONTAINERS
     sr.apply_fault = lambda f, t, p: {{"fault": f, "target": t, "param": p, "before": {{"running": True}},
                                       "applied_ok": True}}
     sr.revert_fault = lambda st: {{**st, "verified": True, "reverted_by": "child"}}

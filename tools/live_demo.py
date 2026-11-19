@@ -144,6 +144,33 @@ def baseline(now_ns: int) -> dict:
     return {**check, "containers": n, "scheduler": sched, "measured_at": sr.iso(now_ns), "problems": problems}
 
 
+def ensure_containers(rec: dict, mark, sleep) -> str | None:
+    """Konteyner sayısı 23 değilse collector bir kez yeniden başlatılır (açılış yarışı: metrik alıcısı collector'dan
+    hemen sonra başlayan konteyneri kaçırır ve sonra da görmez; DECISIONS 2026-10-25). En çok
+    `sr.WAIT_CONTAINERS_S[1]` sn 23 beklenir; gelirse normal dönem penceresi yeniden başlatmadan sonraki veriyle dolsun
+    diye 23'e ulaşma anından `NORMAL_S` beklenir (planlama 2026-11-20). Sorun varsa metni döner, yoksa None."""
+    n = sr.container_count()
+    if n == sr.CONTAINERS:
+        return None
+    rec["collector_restart"] = {"count_before": n, "count_after": None}
+    mark("collector_restart")
+    subprocess.run(["docker", "restart", "otel-collector"], capture_output=True)
+    deadline = sr.utc_ns() + sr.WAIT_CONTAINERS_S[1] * 10**9
+    while True:
+        n = sr.container_count()
+        rec["collector_restart"]["count_after"] = n
+        if n == sr.CONTAINERS or sr.utc_ns() >= deadline:
+            break
+        sleep(10)
+    if n != sr.CONTAINERS:
+        return f"container count {n} after collector restart"
+    ready = mark("containers_ready")
+    left = NORMAL_S - (sr.utc_ns() - ready) / 1e9
+    if left > 0:
+        sleep(left)
+    return None
+
+
 def _mem_sample(low: dict, stop: threading.Event) -> None:
     """`MemAvailable` en düşüğü ve takas kullanımının tepesi (MiB; planlama 2026-11-19, 4. düzeltme)."""
     while True:
@@ -411,7 +438,17 @@ def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | No
         save()
         return 2
     rec["dashboard"] = load_dashboard()
-    now = sr.utc_ns()
+    try:  # bekleme korunmasız: durdurma enjeksiyondan önce temiz çıkış
+        short = ensure_containers(rec, mark, sleep)
+    except sr.Stopped as e:
+        rec["stopped"], rec["result"] = str(e), "stopped before injection"
+        save()
+        return 1
+    if short:
+        rec["result"] = "baseline: " + short
+        save()
+        return 2
+    now = sr.utc_ns()  # taban ölçüsü (yeniden başlatma olduysa beklemeden sonra, baştan)
     rec["baseline"] = baseline(now)
     last = last_reverted(root, exclude=d)
     if last is not None and now - last < NORMAL_S * 10**9:  # planlama 2026-11-19, netleştirme 2

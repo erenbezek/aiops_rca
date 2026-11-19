@@ -58,7 +58,14 @@ class World:
         self.now = T0
         monkeypatch.setattr(sr, "utc_ns", self.utc)
         monkeypatch.setattr(ld, "demo_guards", lambda: {"problems": []})
-        monkeypatch.setattr(ld, "baseline", lambda now: {"pass": True, "problems": []})
+        monkeypatch.setattr(ld, "baseline", lambda now: self.baselines.append(now) or {"pass": True, "problems": []})
+        self.baselines = []
+        self.counts = [sr.CONTAINERS]                              # sırayla okunur; son değer kalır
+        monkeypatch.setattr(sr, "container_count", lambda: self.counts.pop(0) if len(self.counts) > 1
+                            else self.counts[0])
+        real_run = ld.subprocess.run
+        monkeypatch.setattr(ld.subprocess, "run", lambda cmd, **kw: self.log("restart", cmd[-1])
+                            if cmd[:2] == ["docker", "restart"] else real_run(cmd, **kw))
         monkeypatch.setattr(sr, "apply_fault", lambda f, t, p: self.log("apply", f, t, p) or {
             "fault": f, "target": t, "param": p, "before": {"running": True}, "applied_ok": applied})
         monkeypatch.setattr(sr, "revert_fault", lambda st: self.log("revert", st["fault"]) or {**st, "verified": verified})
@@ -501,3 +508,51 @@ def test_containers_end_error_recorded(monkeypatch, tmp_path):
     code, rec, _ = w.run()
     assert code == 1 and "docker down" in rec["restarts"]["error"] and rec["revert"]["verified"] is True
     assert "memory" in rec
+
+
+# --- konteyner sayısı 23 değilse collector yeniden başlatma (planlama 2026-11-20, Eren kararı) ---
+
+def test_count_23_no_restart(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+    code, rec, _ = w.run()
+    assert code == 0 and "collector_restart" not in rec and "restart" not in [c[0] for c in w.calls]
+    assert "collector_restart" not in rec["times_utc"]
+
+
+def test_count_22_then_23_restarts_once_waits_and_remeasures(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+    w.counts = [22, 22, 22, sr.CONTAINERS]                         # ilk ölçü 22; yeniden başlatmadan sonra 2 yoklama
+    code, rec, _ = w.run()
+    names = [c[0] for c in w.calls]
+    assert code == 0 and names.count("restart") == 1 and w.calls[0] == ("restart", "otel-collector")
+    assert names[:4] == ["restart", "sleep", "sleep", "sleep"] and names[4] == "apply"
+    assert w.calls[1:3] == [("sleep", 10), ("sleep", 10)] and w.calls[3][1] > ld.NORMAL_S - 5   # 10 dk normal
+    assert rec["collector_restart"] == {"count_before": 22, "count_after": sr.CONTAINERS}
+    t = {k: sr_iso_back(v) for k, v in rec["times_utc"].items()}
+    assert t["collector_restart"] < t["containers_ready"] and t["alarm"] - t["containers_ready"] >= ld.NORMAL_S * 10**9
+    assert len(w.baselines) == 1 and w.baselines[0] - t["containers_ready"] >= ld.NORMAL_S * 10**9  # taban baştan
+
+
+def test_count_stays_22_no_injection(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+    w.counts = [22]
+    code, rec, _ = w.run()
+    names = [c[0] for c in w.calls]
+    assert code == 2 and names.count("restart") == 1 and "apply" not in names and w.baselines == []
+    assert rec["result"] == "baseline: container count 22 after collector restart"
+    assert "containers_ready" not in rec["times_utc"] and "alarm" not in rec["times_utc"]
+    assert sum(c[1] for c in w.calls if c[0] == "sleep") <= sr.WAIT_CONTAINERS_S[1]
+
+
+def test_stop_during_wait_no_injection(monkeypatch, tmp_path):
+    import os
+    import signal
+    w = World(monkeypatch, tmp_path)
+    w.counts = [22, sr.CONTAINERS]
+    monkeypatch.setattr(w, "sleep", lambda s: w.log("sleep", s) or os.kill(os.getpid(), signal.SIGTERM))
+    code, rec, _ = w.run()
+    names = [c[0] for c in w.calls]
+    assert code == 1 and rec["stopped"] == "stopped by SIGTERM" and rec["result"] == "stopped before injection"
+    assert names == ["restart", "sleep"] and "alarm" not in rec["times_utc"] and w.baselines == []
+    assert signal.getsignal(signal.SIGTERM) is not sr.signals_deferred.handle
+    assert ld.run("adFailure_on", "gemini-3.5-flash-lite", root=w.root, base="x", sleep=lambda s: None) == 0  # kilit
