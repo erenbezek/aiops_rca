@@ -5951,3 +5951,25 @@ Data:
 - **Kasıtlı kırmızı (scratch):** ajan aşamasının korunan bölümünü kaldırmak → 1 test kırmızı.
 - **4. madde notu alındı:** web arayüzünün "durdur"u sinyali sarmalayıcı zincirine değil python demo sürecine gönderecek; testte durdurmanın geri almaya ulaştığı gösterilecek.
 - **Beklenen:** planlama kontrolü; sonra 4. madde (paket kurulumu Eren'e).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 3. madde: ajan aşaması düzeltmesi geçti; 3. madde bitti, 4. madde Eren'e sorularak)
+- **Bağımsız doğrulama (scratch, `42fb559`):**
+  - pytest 860 yeşil.
+  - Beş `--check` çıkış 0.
+  - `src/` ve `results/` değişmemiş; `llm_client.py` ve ajan aynı.
+  - Kasıtlı kırmızı kendim: ajan aşamasının korunan bölümünü kaldırınca `test_sigterm_during_agent_is_deferred` kırmızı (1 / 41). Geri koyunca yeşil.
+- **Okuma:**
+  - Ajan aşaması (yerel sunucu, `ask`, `append_agent_case`) korunan bölümde. Sinyal ajan bitince işleniyor, ajanın kaydı ve rapor yine çıkıyor, kayıtta `stopped`.
+  - Ajan başka bir hatayla çıkarsa bekleyen sinyal kaybolmuyor. Geri almanın korunan bölümünden çıkarken işleniyor, `except sr.Stopped` kayda yazıyor.
+  - Geri almadan sonraki kısım (`_finish`) da korunuyor.
+- **Kalan küçük açıklık (düzeltme istenmiyor):**
+  - `finally`'nin sonu ile `_finish` arası (bellek örnekleyicinin kapanışı, en çok 5 sn) korunmuyor.
+  - Orada gelen sinyal traceback'le çıkar.
+  - Hata o anda zaten geri alınmış ve kayıt yazılmış.
+- **3. madde bitti.** Sıradaki 4. madde (web arayüzü). Önce Eren'e:
+  - `fastapi`, `uvicorn`, `httpx` sürümleri (sabit, en az iki haftalık);
+  - `demo` grubu ve CI'ın bu grupla kurulması;
+  - yeni ad `serve`.
+
+  Kurallar (1. madde 2. düzeltme): belirteç, kabul listesi, yalnız `127.0.0.1`, tek demo kilidi; durdurma sinyali python demo sürecine.
+- **Beklenen:** 4. maddenin paket ve ad önerisi Eren'e sorulur, sonra kod ve testler.
