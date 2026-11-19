@@ -38,6 +38,10 @@ from aiops_rca.signals import MESSAGE_KEYS
 # Yeniden oynatma yığınının uçları (deploy/replay/compose.yaml)
 REPLAY_ENDS = {"jaeger": "http://127.0.0.1:16686/jaeger/ui/api/v3", "opensearch": "http://127.0.0.1:19200",
                "prometheus": "http://127.0.0.1:19090"}
+# Ana (canlı demo) yığının uçları (deploy/otel-demo/compose.extras.yaml; Jaeger frontend-proxy üzerinden). Canlı demo
+# kartı (HANDOFF 2026-11-19): okuyucu aynı, yalnız uçlar.
+MAIN_ENDS = {"jaeger": "http://127.0.0.1:8080/jaeger/ui/api/v3", "opensearch": "http://127.0.0.1:9200",
+             "prometheus": "http://127.0.0.1:9090"}
 SLICE_NS = 60 * 10**9
 SEARCH_DEPTH = 1000
 PAGE_SIZE = 10_000  # OpenSearch'ün varsayılan `max_result_window`'u
