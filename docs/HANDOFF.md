@@ -6160,3 +6160,33 @@ Data:
 - **Kayda değer:** D2'de `next_step` satırındaki p95 (izlerden) sonra yarıda ≈ 301 sn: pause'ta bekleyen istekler uzun süren izler bırakıyor; panel p95'i histogramdan 2,6 sn. İki kaynağın farkı README'ye yazılacak nottaki gibi.
 - **Not:** sahipsiz Docker volume sayısı 13 (önceki 6 + yığın açılışları). Silme Eren kararı, bekliyor.
 - **Beklenen:** planlama kontrolü; sonra O2 (D4 arayüzden `paymentFailure_10pct`, D5 4B `containerStop:recommendation`; ~70 dk; Eren'e sorarak).
+
+## 2026-11-20 · Planlama → Uygulama (Canlı demo O1 kontrolü: D1–D3 geçti; O2 Eren'e sorularak)
+- **Bağımsız okuma** (`demo_runs/` üç klasör ve oturum logu; `o1_check.py`, scratch):
+  - Üçünde `result` "ok", hata ve `stopped` yok.
+  - `revert.verified` true, sızıntı 0, `restarts.unexpected` 0, OOM 0. Beklenen değişiklik yalnız D1'de recommendation.
+  - Pano yüklendi.
+  - Rapor alanları dolu. "Gerçek cevap" bölümü raporun en sonunda.
+  - Panel betiği sha `7cba947a…`, kayıttakiyle aynı. `panels_check.json` üçünde de P1 ve P2 true.
+- **Panel isabetlerini logdan eşiklerle yeniden hesapladım; hepsi eşiği geçiyor:**
+  - D1:
+    - recommendation istek hızı 0,81 → 0,15 (≤ 0,40);
+    - frontend hata oranı 0 → 0,103 (≥ 0,05).
+  - D2:
+    - cart istek hızı 1,42 → 0,20 (≤ 0,71);
+    - checkout istek hızı 0,042 → 0,006 (≤ 0,021);
+    - frontend p95 35 → 2.556 ms (≥ 55).
+  - D3: quote-gateway p95 7,6 → 90,5 ms (≥ 27,6).
+- **Süreler:**
+  - Demolar arası `reverted` → alarm: 617 sn ve 615 sn (≥ 600).
+  - Alarm → ajan başı: 610 / 600 / 601 sn.
+- **`next_step` durma kuralı D1'de geçti:** 1. aday eşlendi (recommendation), kural `down`, sinyal `request_drop`, `requests_before` 484.
+- **Bellek (Gemini; yerel tokenizer sunucusu açık):** `MemAvailable` en düşük 6.438–6.638 MiB, takas tepesi 2.803–2.926 MiB. D5 (4B) için pay var; ölçüt 7 O2'de.
+- **Kod (`c2fd754`):** bitişteki konteyner okuması `try` içinde; hata kayda, beklenmeyen sayılır (çıkış 1). pytest 881 yeşil, beş `--check` 0.
+- **İsabet (bilgi):** 1. aday 1/3. Sonuç tablolarına girmez; demoya bakarak ajan değişmez (kart).
+- **Eren'in kararı bekleyen (bu kartın dışında):** sahipsiz Docker volume'leri 13.
+- **Beklenen:** O2, Eren'e sorarak.
+  - D4 `paymentFailure_10pct` web arayüzünden (Gemini).
+  - D5 `containerStop:recommendation` 4B ile.
+  - ~70 dk; şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez.
+  - D5'te `memory` (ölçüt 7) kayda, ölçüt 8 D4'le.
