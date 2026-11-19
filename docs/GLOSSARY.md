@@ -381,3 +381,4 @@ Sadece Eren'in onayladığı isimler.
 | `tools/live_demo.py` (`run`, `list`) | Canlı demo komutu: kabul listesindeki hata ya da senaryoyu ana yığına enjekte eder, 10 dk sonra ajanı canlı uçlarla çalıştırır, hatayı geri alır, sızıntıyı tarar / kabul listesi (Eren onaylı 2026-11-19; `serve` 4. maddede) |
 | `MAIN_ENDS` | `store_live.py`: ana (canlı demo) izleme yığınının uçları (Jaeger frontend-proxy üzerinden, OpenSearch, Prometheus); `REPLAY_ENDS`'in eşi (Eren onaylı) |
 | `demo_runs/<UTC>-demo/` (`DEMO_RUNS`) | Canlı demo kayıtlarının klasörü, git dışı (`~/cerebrum2/demo_runs`): `run.json`, ajan kaydı, `window.json` (Eren onaylı) |
+| `NEXT_STEPS` | `tools/live_demo.py`: sonraki adım kural tablosu (veritabanı, kaynak, hata, gecikme, cevap yok, insan incelemesi; ilk eşleşen); girdi 1. adayın canlı veriden kurulan satırında yanan sinyaller (`signals.signals`, güç ≥ 1) (Eren onaylı 2026-11-19) |
