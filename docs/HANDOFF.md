@@ -5786,3 +5786,11 @@ Data:
   - Süre: ölçüm başına ~25 dk (açılış ~6 + ısınma 5 + normal 10 + kapanış); en çok üç ölçüm (i, ii, iii) ≈ 75 dk. Her biri Eren'e sorularak; şarj eşiği 80, iki kilit (betik koşucunun kilitlerini alıyor).
   - (iii) izleme volume'lerini silmek (Jaeger 25,2 GB; DECISIONS 2026-11-09) ayrıca Eren onayı.
 - **Beklenen:** planlama kontrolü; sonra 2. madde (i), Eren'e sorarak.
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 2. madde eksikleri: geçti; 2. madde (i) Eren'e sorularak başlayabilir)
+- **Betik:** `~/cerebrum2/analysis/v3c_baseline.py` sha256 `608dbe74…24f6`, kayıttakiyle aynı. Sonda yalnız koşu başında not edilen anonim volume'leri siliyor; isimli izleme volume'lerine (`otel-demo_jaeger-data`, `_opensearch-data`, `_prometheus-data`) dokunmuyor. (iii) bu yüzden ayrı bir adım olarak kalıyor; doğru.
+- **64M önerisi:** dayanak sayıları 2026-10-30 sınama dosyasıyla aynı: sınır 20.971.520 B, `memory.current` 20.283.392, anon 9.465.856, file 9.523.200, swap 8.699.904. Gerekçe makul. Değer (ii)'de Eren onayına gelir.
+- **Küçük düzeltme (kayıt):** "`events.max` +32.520" ve "`workingset_refault_file` 1,50 M" normal dönem sonundaki birikimli sayaçlar, 15 dk'lık artış değil. Normal dönemdeki artış `events.max` +22.031 (sınama dosyasının `judgement`'ı; DECISIONS 2026-10-30). Refault artışı DECISIONS'ta 10 dk'da +1,02 M sayfa. Sonuç kayıtlarında artışlar kullanılır.
+- **Not:** Docker'da 26 Ekim – 8 Kasım arasından kalma 6 etiketsiz anonim volume var. Koşucu korumaları bugüne kadar bunlarla geçti. (i)'den önce korumaların geçtiği görülür. Silmek Eren'in kararı, bu kartın işi değil.
+- **Ölçüt (değişmez, DECISIONS 2026-10-30):** frontend p95 ≤ 30 ms **ve** product-catalog p95 13–17 ms. Betiğin kendi PASS'ı yalnız ilk yarı; sınama sonucu JSON'dan iki sayıyla okunur.
+- **Beklenen:** (i) şimdiki ayarla taban, Eren'e sorarak (yaklaşık 25 dk; şarj eşiği 80, iki kilit). Sonuç HANDOFF'a; (ii)'ye geçmeden planlama kontrolü.
