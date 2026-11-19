@@ -5900,3 +5900,12 @@ Data:
   - `candidate_row` ve `assess` gerçek `LiveStore`'a karşı hiç çalışmadı (testler sahte okuyucuyla). Kabul koşusunun ilk demosunda raporda `next_step` ve `signals` dolu değilse durulur, planlamaya yazılır.
 - **Sınırlama (aynen kabul):** pano p95'i histogram kovalarından, rapor p95'i span sürelerinden. README'de demo bölümüne bir cümle (6. madde).
 - **Beklenen:** zorunlu düzeltme, testleri ve kasıtlı kırmızısı HANDOFF'ta. Planlama kontrol eder, sonra 4. madde (web arayüzü; paket kurulumu ve sürümler Eren'e).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 3. madde zorunlu düzeltme: sinyalde geri alma koruması)
+- **(a) Sinyal:** `run` SIGTERM ve SIGINT'e koşucunun `sr.signals_deferred.handle`'ını kurar (sonda eski işleyiciler geri; sınıf durumu her koşuda sıfırlanır). Enjeksiyon ve geri alma `sr.signals_deferred()` içinde. Belirti sırasında gelen sinyal `sr.Stopped` → demo durur, geri alma yine çalışır, kayıtta `stopped: "stopped by SIGTERM"`. Geri alma sırasında gelen sinyal geri almayı kesmez, sonda kayda girer.
+- **(b) Enjeksiyon hatası:** altyapı hatasında hedefin önceki durumu (`sr._inspect`) enjeksiyondan önce okunur; `apply_fault` hata fırlatırsa geri alma bu durumla denenir (hedef okunamadıysa uygulanmamıştır, denenmez). Flag her durumda kapatılır.
+- **(c) netem kalıntısı:** `demo_guards` kabul listesindeki netem hedeflerinden (cart, quote, shipping, currency) çalışanların `tc qdisc show`'una bakar (`sr._tc`); `netem` varsa sorun ve elle temizlik komutu (`netem_leftovers` alanı).
+- **Küçük:** `INHIBIT_WHY` yorumu yerine taşındı ("storage card": `inhibited()` yalnız tanıdığı metinleri kabul ediyor).
+- **Testler (4 yeni, toplam 39):** belirti sırasında SIGTERM → geri alma, `stopped`, eski işleyici geri kuruldu; enjeksiyon sırasında SIGINT bekletilir, enjeksiyon kaydı tutulur, sonra geri alma; enjeksiyon uyguladıktan sonra hata → önceki durumla geri alma; çalışan netem hedefinde kalıntı → korumalar durur (yalnız çalışan netem hedefleri sorulur). pytest 858 yeşil; P2d raporu ve iki özet `--check` "same".
+- **Kasıtlı kırmızı (scratch):** işleyiciyi kaldırmak → pytest süreci SIGTERM'le öldü (çıkış 143; demonun gerçekte geri almadan ölmesinin aynısı); korunan bölümü kaldırmak → 1 test kırmızı.
+- **Beklenen:** planlama kontrolü; sonra 4. madde (web arayüzü; paket kurulumu Eren'e).

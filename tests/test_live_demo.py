@@ -46,6 +46,7 @@ def _guards(left):
 ])
 def test_demo_guards_allow_running_demo_only(monkeypatch, left, bad):
     monkeypatch.setattr(sr, "guards", lambda: _guards(left))
+    monkeypatch.setattr(ld, "netem_leftovers", lambda running: [])
     assert bool(ld.demo_guards()["problems"]) is bad
 
 
@@ -66,6 +67,7 @@ class World:
         monkeypatch.setattr(ld, "agent_method", self.agent_method)
         monkeypatch.setattr(ld, "assess", lambda store, ans, a, b: {"next_step": {"rule": "human"}})  # ağ yok
         monkeypatch.setattr(ld, "load_dashboard", lambda: {"uid": "aiops-demo", "ok": True})
+        monkeypatch.setattr(sr, "_inspect", lambda target: {"running": True, "target": target})
         self.agent_error, self.leak, self.root = agent_error, leak, tmp_path / "runs"
 
     def utc(self):
@@ -345,3 +347,58 @@ def test_load_dashboard_posts_overwrite(monkeypatch):
 def test_dashboard_url_window():
     u = ld.dashboard_url(T0, T0 + 600 * 10**9)
     assert u.startswith("http://127.0.0.1:8080/grafana/d/aiops-demo?") and f"from={T0 // 10**6}" in u
+
+
+
+# --- sinyal koruması ve kalıntılar (planlama 2026-11-19, zorunlu düzeltme) ---
+
+def test_sigterm_during_symptom_still_reverts(monkeypatch, tmp_path):
+    import os
+    import signal
+    w = World(monkeypatch, tmp_path)
+    monkeypatch.setattr(w, "sleep", lambda s: w.log("sleep", s) or os.kill(os.getpid(), signal.SIGTERM))
+    code, rec, _ = w.run()
+    assert code == 1 and rec["stopped"] == "stopped by SIGTERM"
+    assert [c[0] for c in w.calls] == ["apply", "sleep", "revert"] and rec["revert"]["verified"] is True
+    assert signal.getsignal(signal.SIGTERM) is not sr.signals_deferred.handle   # eski işleyici geri kuruldu
+
+
+def test_signal_during_injection_is_deferred(monkeypatch, tmp_path):
+    import os
+    import signal
+    w = World(monkeypatch, tmp_path)
+
+    def apply(f, t, p):
+        os.kill(os.getpid(), signal.SIGINT)            # korunan bölümde: yalnız not edilir
+        w.log("apply", f, t, p)
+        return {"fault": f, "target": t, "param": p, "before": {"running": True}, "applied_ok": True}
+    monkeypatch.setattr(sr, "apply_fault", apply)
+    code, rec, _ = w.run()
+    assert code == 1 and rec["stopped"] == "stopped by SIGINT" and rec["injection"]["applied_ok"] is True
+    assert [c[0] for c in w.calls] == ["apply", "revert"]
+
+
+def test_injection_error_after_apply_reverts_with_prior_state(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+
+    def apply(f, t, p):
+        w.log("apply", f, t, p)
+        raise OSError("tc show timed out")             # uygulandı, sonra hata
+    monkeypatch.setattr(sr, "apply_fault", apply)
+    seen = {}
+    monkeypatch.setattr(sr, "revert_fault", lambda st: seen.update(st) or w.log("revert") or {**st, "verified": True})
+    code, rec, _ = w.run("networkDelay:quote")
+    assert code == 1 and "tc show timed out" in rec["error"] and [c[0] for c in w.calls] == ["apply", "revert"]
+    assert seen["fault"] == "networkDelay" and seen["target"] == "quote" and seen["before"] == {"running": True,
+                                                                                               "target": "quote"}
+
+
+def test_netem_leftover_stops_guards(monkeypatch):
+    left = [{"name": n, "state": "running", "paused": False, "nano_cpus": 0} for n in ("cart", "quote", "ad")]
+    monkeypatch.setattr(sr, "guards", lambda: _guards(left))
+    shown = {"cart": "qdisc netem 8001: root refcnt 2 limit 1000 delay 50ms", "quote": "qdisc noqueue 0: root"}
+    asked = []
+    monkeypatch.setattr(sr, "_tc", lambda t, *a: asked.append(t) or type("P", (), {"stdout": shown.get(t, "")})())
+    g = ld.demo_guards()
+    assert g["netem_leftovers"] == ["cart"] and any(p.startswith("netem rule left on: cart") for p in g["problems"])
+    assert sorted(asked) == ["cart", "quote"]                    # yalnız çalışan netem hedefleri; ad değil

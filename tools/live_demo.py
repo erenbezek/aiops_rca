@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -63,10 +64,12 @@ INFRA_PARAMS = {("containerPause", "cart"): "on", ("containerPause", "quote"): "
                 ("networkDelay", "cart"): "50ms", ("networkDelay", "quote"): "50ms",
                 ("packetLoss", "currency"): "10%", ("packetLoss", "shipping"): "10%"}
 SAMPLE_S = 30
+# Neden metni "storage card" içerir: `scenario_runner.inhibited()` yalnız tanıdığı metinleri (`INHIBIT_WHY`) kabul eder.
 INHIBIT_WHY = "storage card live demo"
 REPO = Path(__file__).resolve().parents[1]
 DASHBOARD = REPO / "deploy" / "otel-demo" / "grafana" / "aiops-demo.json"
-GRAFANA = "http://127.0.0.1:8080/grafana"  # frontend-proxy üzerinden (Grafana'nın kendi portu kapalı)  # `scenario_runner.inhibited()`'in tanıdığı neden metni
+GRAFANA = "http://127.0.0.1:8080/grafana"  # frontend-proxy üzerinden (Grafana'nın kendi portu kapalı)
+NETEM_FAULTS = ("networkDelay", "packetLoss")
 
 
 def faults() -> dict[str, dict]:
@@ -98,7 +101,19 @@ def demo_guards() -> dict:
            or c["state"] != "running"]
     if bad:
         problems.append(f"fault leftovers: {', '.join(bad)}")
-    return {**g, "problems": problems}
+    netem = netem_leftovers({c["name"] for c in left if c["state"] == "running"})
+    if netem:
+        problems.append("netem rule left on: " + ", ".join(netem) + "; clean up by hand: " + "".join(
+            f"docker run --rm --network container:{n} --cap-add NET_ADMIN {sr.NETEM_IMAGE} tc qdisc del dev eth0 root; "
+            for n in netem))
+    return {**g, "problems": problems, "netem_leftovers": netem}
+
+
+def netem_leftovers(running: set[str]) -> list[str]:
+    """Kabul listesindeki netem hedeflerinde (`networkDelay` / `packetLoss`) kalan netem kuralı. Kural konteynerle
+    yaşar; koşucu bunu `down` ile siliyordu, demo yığını kapatmadığı için burada bakılır (planlama 2026-11-19)."""
+    targets = sorted({t for f, t in INFRA_PARAMS if f in NETEM_FAULTS} & running)
+    return [t for t in targets if "netem" in sr._tc(t, "qdisc", "show", "dev", "eth0").stdout]
 
 
 def baseline(now_ns: int) -> dict:
@@ -326,6 +341,17 @@ def write_window(view: Path, lo_ns: int, hi_ns: int) -> None:
 
 def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None, base: str | None = None,
         sleep=time.sleep) -> int:
+    """SIGTERM / SIGINT koşucunun işleyicisiyle (`signals_deferred.handle`); eski işleyiciler sonda geri kurulur."""
+    old = {sig: signal.signal(sig, sr.signals_deferred.handle) for sig in (signal.SIGTERM, signal.SIGINT)}
+    sr.signals_deferred.signals, sr.signals_deferred.depth, sr.signals_deferred.raised = [], 0, False
+    try:
+        return _run(spec_key, model, root=root, store_factory=store_factory, base=base, sleep=sleep)
+    finally:
+        for sig, h in old.items():
+            signal.signal(sig, h)
+
+
+def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | None, sleep) -> int:
     spec = faults()[spec_key]
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     d = root / f"{stamp}-demo"
@@ -358,15 +384,20 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
         save()
         return 2
 
-    code, state, low, stop, agent_out = 0, None, {}, threading.Event(), None
+    code, low, stop, agent_out = 0, {}, threading.Event(), None
+    # Enjeksiyondan önceki durum: enjeksiyon hata fırlatsa da geri alma bununla denenir (planlama 2026-11-19, (b)).
+    state = ({"kind": "infra", "fault": spec["fault"], "target": spec["target"], "param": spec["param"],
+              "before": sr._inspect(spec["target"]), "applied_ok": False}
+             if spec["kind"] == "infra" else {"kind": "flag", "scenario": spec["scenario"], "applied_ok": False})
     factory = store_factory or (lambda c: LiveStore(c, ends=MAIN_ENDS))
     sampler = threading.Thread(target=_mem_sample, args=(low, stop), daemon=True)
     sampler.start()
     try:
         alarm = mark("alarm")
-        state = inject(spec)
-        rec["injection"] = state
-        save()
+        with sr.signals_deferred():  # uygulanmış ama kaydı tutulmamış hata kalmasın (koşucunun korunan bölümü)
+            state = inject(spec)
+            rec["injection"] = state
+            save()
         if not state.get("applied_ok"):
             raise RuntimeError("injection not applied")
         sleep(SYMPTOM_S)
@@ -386,16 +417,24 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
                         "n_tool_calls": out["row"]["n_tool_calls"], "duration_s": out["row"]["duration_s"],
                         "tokens": out["row"]["tokens"]}
         mark("agent_end")
+    except sr.Stopped as e:  # SIGTERM / SIGINT: demo durur, geri alma yine çalışır
+        rec["stopped"] = str(e)
+        code = 1
     except Exception as e:  # noqa: BLE001  her durumda geri alınır; hata kayda
         rec["error"] = f"{type(e).__name__}: {e}"
         code = 1
     finally:
         # Altyapıda hedef önceden okunamadıysa (`before` yok) hiçbir şey uygulanmadı; flag her durumda kapatılır.
-        if state is not None and (spec["kind"] == "flag" or state.get("before") is not None):
+        if spec["kind"] == "flag" or state.get("before") is not None:
             try:
-                rec["revert"] = revert(spec, state)
-            except Exception as e:  # noqa: BLE001  geri alma hatası kayda; demo "doğrulanmadı" biter
-                rec["revert"] = {"error": f"{type(e).__name__}: {e}", "verified": False}
+                with sr.signals_deferred():  # geri alma sinyalle kesilmez
+                    try:
+                        rec["revert"] = revert(spec, state)
+                    except Exception as e:  # noqa: BLE001  geri alma hatası kayda; demo "doğrulanmadı" biter
+                        rec["revert"] = {"error": f"{type(e).__name__}: {e}", "verified": False}
+            except sr.Stopped as e:  # sinyal geri alma sırasında geldi: geri alma bitti, durdurma kayda
+                rec["stopped"] = str(e)
+                code = 1
             mark("reverted")
             if not rec["revert"].get("verified"):
                 code = 1
