@@ -65,6 +65,7 @@ class World:
         monkeypatch.setattr(sr, "set_flag", lambda s, v: self.log("flag", s["flag"], v) or (self.utc(), self.utc(), {}))
         monkeypatch.setattr(ld, "agent_method", self.agent_method)
         monkeypatch.setattr(ld, "assess", lambda store, ans, a, b: {"next_step": {"rule": "human"}})  # ağ yok
+        monkeypatch.setattr(ld, "load_dashboard", lambda: {"uid": "aiops-demo", "ok": True})
         self.agent_error, self.leak, self.root = agent_error, leak, tmp_path / "runs"
 
     def utc(self):
@@ -316,3 +317,31 @@ def test_no_report_on_leakage(monkeypatch, tmp_path):
     w = World(monkeypatch, tmp_path, leak=True)
     code, _, d = w.run()
     assert code == 3 and not (d / "report.md").exists()
+
+
+def test_dashboard_file():
+    d = json.loads(ld.DASHBOARD.read_text(encoding="utf-8"))
+    assert d["uid"] == "aiops-demo" and len(d["panels"]) == 5
+    exprs = [t["expr"] for p in d["panels"] for t in p["targets"]]
+    assert all(p["datasource"]["uid"] == "webstore-metrics" for p in d["panels"])
+    metrics = {"traces_span_metrics_calls_total", "traces_span_metrics_duration_milliseconds_bucket",
+               "container_cpu_utilization_ratio", "container_memory_usage_total_bytes"}
+    assert all(any(m in e for m in metrics) for e in exprs)
+    assert sum("histogram_quantile(0.95" in e for e in exprs) == 1 and sum("rate(" in e for e in exprs) == 3
+    assert d["templating"]["list"][0]["name"] == "service" and all("$service" in e for e in exprs)
+
+
+def test_load_dashboard_posts_overwrite(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(sr, "http", lambda m, u, b=None: seen.update(m=m, u=u, b=b) or
+                        {"status": "success", "url": "/grafana/d/aiops-demo/x"})
+    r = ld.load_dashboard()
+    assert r["ok"] and seen["m"] == "POST" and seen["u"] == "http://127.0.0.1:8080/grafana/api/dashboards/db"
+    assert seen["b"]["overwrite"] is True and seen["b"]["dashboard"]["uid"] == "aiops-demo"
+    monkeypatch.setattr(sr, "http", lambda *a, **k: (_ for _ in ()).throw(OSError("refused")))
+    assert ld.load_dashboard()["ok"] is False
+
+
+def test_dashboard_url_window():
+    u = ld.dashboard_url(T0, T0 + 600 * 10**9)
+    assert u.startswith("http://127.0.0.1:8080/grafana/d/aiops-demo?") and f"from={T0 // 10**6}" in u

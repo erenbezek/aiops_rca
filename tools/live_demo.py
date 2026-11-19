@@ -63,7 +63,10 @@ INFRA_PARAMS = {("containerPause", "cart"): "on", ("containerPause", "quote"): "
                 ("networkDelay", "cart"): "50ms", ("networkDelay", "quote"): "50ms",
                 ("packetLoss", "currency"): "10%", ("packetLoss", "shipping"): "10%"}
 SAMPLE_S = 30
-INHIBIT_WHY = "storage card live demo"  # `scenario_runner.inhibited()`'in tanıdığı neden metni
+INHIBIT_WHY = "storage card live demo"
+REPO = Path(__file__).resolve().parents[1]
+DASHBOARD = REPO / "deploy" / "otel-demo" / "grafana" / "aiops-demo.json"
+GRAFANA = "http://127.0.0.1:8080/grafana"  # frontend-proxy üzerinden (Grafana'nın kendi portu kapalı)  # `scenario_runner.inhibited()`'in tanıdığı neden metni
 
 
 def faults() -> dict[str, dict]:
@@ -264,13 +267,15 @@ def report(rec: dict, out: dict) -> dict:
             "next_step": a.get("next_step"), "first_candidate_matched": a.get("matched"),
             "duration_s": row["duration_s"], "tokens": row["tokens"], "note": NOTE,
             "revert_verified": (rec.get("revert") or {}).get("verified"),
+            "grafana": rec.get("grafana_url"),
             "true_answer_after_agent": rec["answer"]}
 
 
 def report_md(r: dict) -> str:
     out = [f"# Canlı demo raporu: {r['demo']}", "",
            f"Model `{r['model']}`; alarm (enjeksiyon) {r['alarm_utc']}; ajan başlangıcı {r['agent_start_utc']}; "
-           f"bitiş `{r['end_reason']}`; süre {r['duration_s']} sn; token {r['tokens']}.", "", f"> {r['note']}", "",
+           f"bitiş `{r['end_reason']}`; süre {r['duration_s']} sn; token {r['tokens']}.", "",
+           f"Grafana panosu (ajanın penceresi): {r.get('grafana')}", "", f"> {r['note']}", "",
            "## Adaylar", ""]
     if not r["candidates"]:
         out.append("Geçerli cevap yok.")
@@ -295,6 +300,23 @@ def report_md(r: dict) -> str:
             + ", ".join(" → ".join(e) for e in t["propagation_path"]) + ".",
             f"Hata geri alındı ve doğrulandı: {r['revert_verified']}.", ""]
     return "\n".join(out)
+
+
+def load_dashboard() -> dict:
+    """Panoyu Grafana API'sine yükler (üzerine yazar; Eren kararı 2026-11-19, seçenek A: upstream'e ve compose'a
+    dokunmadan). Döner: kayıt (uid, durum ya da hata)."""
+    dash = json.loads(DASHBOARD.read_text(encoding="utf-8"))
+    try:
+        r = sr.http("POST", f"{GRAFANA}/api/dashboards/db", {"dashboard": {**dash, "id": None}, "overwrite": True})
+    except Exception as e:  # noqa: BLE001  pano yüklenemezse demo sürer; kayda (kabul ölçütü ayrıca bakar)
+        return {"uid": dash["uid"], "ok": False, "error": f"{type(e).__name__}: {e}"}
+    ok = isinstance(r, dict) and r.get("status") == "success"
+    return {"uid": dash["uid"], "ok": ok, "response": r if not ok else {"status": r["status"], "url": r.get("url")}}
+
+
+def dashboard_url(lo_ns: int, hi_ns: int) -> str:
+    uid = json.loads(DASHBOARD.read_text(encoding="utf-8"))["uid"]
+    return f"{GRAFANA}/d/{uid}?from={lo_ns // 10**6}&to={hi_ns // 10**6}"
 
 
 def write_window(view: Path, lo_ns: int, hi_ns: int) -> None:
@@ -325,6 +347,7 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
         rec["result"] = "guards: " + "; ".join(rec["guards"]["problems"])
         save()
         return 2
+    rec["dashboard"] = load_dashboard()
     rec["baseline"] = baseline(sr.utc_ns())
     if spec["kind"] == "flag":
         before = sr.resolve(sr.BY_ID[spec["scenario"]])
@@ -348,6 +371,7 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
             raise RuntimeError("injection not applied")
         sleep(SYMPTOM_S)
         agent_start = mark("agent_start")
+        rec["grafana_url"] = dashboard_url(alarm - NORMAL_S * 10**9, agent_start)
         write_window(d, alarm - NORMAL_S * 10**9, agent_start)
         case = Case(incident_id=f"demo-{stamp}", view=d, alarm_ns=alarm)
         with ExitStack() as stack:
