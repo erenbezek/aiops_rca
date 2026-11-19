@@ -64,6 +64,7 @@ class World:
         monkeypatch.setattr(sr, "resolve", lambda s: {"variant": "off"})
         monkeypatch.setattr(sr, "set_flag", lambda s, v: self.log("flag", s["flag"], v) or (self.utc(), self.utc(), {}))
         monkeypatch.setattr(ld, "agent_method", self.agent_method)
+        monkeypatch.setattr(ld, "assess", lambda store, ans, a, b: {"next_step": {"rule": "human"}})  # ağ yok
         self.agent_error, self.leak, self.root = agent_error, leak, tmp_path / "runs"
 
     def utc(self):
@@ -179,3 +180,96 @@ def test_cli_rejects_unknown_fault(capsys):
     assert ld.main(["run", "--fault", "containerStop", "--target", "frontend"]) == 2
     assert ld.main(["run", "--scenario", "adFailure_on", "--fault", "containerStop", "--target", "cart"]) == 2
     assert ld.main(["run", "--scenario", "x", "--model", "gemini-3.5-flash-lite"]) == 2
+
+
+# --- NEXT_STEPS ve değerlendirme (planlama 2026-11-19, 1. düzeltme) ---
+
+BASE_ROW = {"requests_before": 600, "requests_after": 600, "error_rate_before": 0.0, "error_rate_after": 0.0,
+            "p95_ms_before": 10.0, "p95_ms_after": 10.0, "cpu_pct_before": 2.0, "cpu_pct_after": 2.0,
+            "mem_mb_before": 50.0, "mem_mb_after": 50.0, "new_warn_top": (0, None)}
+
+
+@pytest.mark.parametrize("service, change, rule", [
+    ("valkey-cart", {}, "database"),
+    ("cart", {"cpu_pct_after": 30.0}, "resource"),
+    ("cart", {"mem_mb_after": 80.0}, "resource"),
+    ("cart", {"error_rate_after": 0.2}, "error"),
+    ("cart", {"new_warn_top": (40, "redis down")}, "error"),
+    ("cart", {"p95_ms_after": 400.0}, "latency"),
+    ("cart", {"requests_after": 10}, "down"),
+    ("cart", {"requests_after": None, "p95_ms_after": None, "error_rate_after": None}, "down"),
+    ("cart", {}, "human"),
+    (None, {}, "human"),
+])
+def test_next_step_rules(service, change, rule):
+    ns = ld.next_step(service, {**BASE_ROW, **change} if service else None)
+    assert ns["rule"] == rule and ns["text"] == dict((r[0], r[2]) for r in ld.NEXT_STEPS)[rule]
+    if rule in ("resource", "error", "latency"):
+        assert ns["signals"] and all(v["strength"] >= ld.FIRE for v in ns["signals"].values())
+
+
+def test_next_step_order_resource_before_error():
+    ns = ld.next_step("cart", {**BASE_ROW, "cpu_pct_after": 30.0, "error_rate_after": 0.5})
+    assert ns["rule"] == "resource" and set(ns["signals"]) == {"cpu_pct"}
+
+
+class FakeStore:
+    """`query.Store` arayüzü: cart'a frontend'den istek; alarmdan sonra cart'ın p95'i yükselir."""
+
+    def __init__(self, alarm):
+        from aiops_rca.query import LogRecord, Span
+        self.alarm, self.sp, self.lg = alarm, [], []
+        lo = alarm - ld.NORMAL_S * 10**9
+        for k in range(1200):
+            t = lo + k * 10**9
+            slow = t >= alarm
+            pid = f"p{k}"
+            self.sp.append(Span("t", pid, None, "frontend", "GET", 2, t, t + 30 * 10**6, 0, None, None, None))
+            self.sp.append(Span("t", f"c{k}", pid, "cart", "GetCart", 2, t + 1, t + (500 if slow else 5) * 10**6,
+                                0, None, None, None))
+        for k in range(20):
+            self.lg.append(LogRecord(alarm + k * 10**9, "cart", 17, "ERROR", "Wasn't able to connect to redis", None))
+
+    def window(self):
+        return self.alarm - 3600 * 10**9, self.alarm + 3600 * 10**9
+
+    def names(self):
+        return {"spans": {"frontend", "cart"}, "logs": {"cart"}, "metrics": {"cart", "frontend"}}
+
+    def spans(self, lo, hi, service=None):
+        return [s for s in self.sp if lo <= s.start_ns < hi and (service is None or s.service == service)]
+
+    def logs(self, lo, hi, service=None):
+        return [r for r in self.lg if lo <= r.time_ns < hi and (service is None or r.service == service)]
+
+    def metric_points(self, name, lo, hi, container=None):
+        return []
+
+    def trace(self, trace_id):
+        return []
+
+
+def test_assess_from_live_data():
+    alarm = T0
+    st = FakeStore(alarm)
+    ans = {"candidates": [{"service": "Cart", "confidence": 0.9, "evidence_path": ["cart", "frontend"],
+                           "rationale": "x"},
+                          {"service": "frontend", "confidence": 0.1, "evidence_path": ["frontend"], "rationale": "y"}],
+           "unsure": False}
+    a = ld.assess(st, ans, alarm, alarm + ld.SYMPTOM_S * 10**9)
+    assert a["matched"] == "cart" and a["row"]["requests_before"] == 600 and a["row"]["requests_after"] == 600
+    assert a["row"]["p95_ms_after"] > 400 and a["row"]["new_warn_top"] == (20, "Wasn't able to connect to redis")
+    assert a["next_step"]["rule"] == "error" and "new_warn_log" in a["next_step"]["signals"]
+    assert a["evidence"][0]["valid"] is True and a["evidence"][1]["valid"] is None
+    unknown = ld.assess(st, {**ans, "candidates": [{**ans["candidates"][0], "service": "oteldemo.CartService"}]},
+                        alarm, alarm + ld.SYMPTOM_S * 10**9)
+    assert unknown["matched"] is None and unknown["next_step"]["rule"] == "human"
+    assert ld.assess(st, None, alarm, alarm + 1)["next_step"]["rule"] == "human"
+
+
+def test_run_records_assessment_after_agent(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+    monkeypatch.setattr(ld, "assess", lambda store, ans, a, b: w.log("assess") or {"next_step": {"rule": "human"}})
+    code, rec, _ = w.run()
+    assert code == 0 and rec["assessment"]["next_step"]["rule"] == "human"
+    assert [c[0] for c in w.calls] == ["apply", "sleep", "agent", "revert", "assess"]

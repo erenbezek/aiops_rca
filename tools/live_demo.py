@@ -31,6 +31,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -39,13 +40,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import incident_checks as ic  # noqa: E402
 import scenario_runner as sr  # noqa: E402
 
+from aiops_rca import query  # noqa: E402
 from aiops_rca.cases import Case  # noqa: E402
 from aiops_rca.evaluate import append_agent_case  # noqa: E402
 from aiops_rca.leakage import scan_model_view  # noqa: E402
 from aiops_rca.llm_client import MODELS, LocalServer  # noqa: E402
 from aiops_rca.methods.agent import agent_method  # noqa: E402
 from aiops_rca.methods.llm import TOKENIZER  # noqa: E402
-from aiops_rca.signals import Window, service_rows, summarize  # noqa: E402
+from aiops_rca.scoring import evidence, match_service  # noqa: E402
+from aiops_rca.signals import DB_SERVICES, SEVERITY_WARN, Window, normalize, service_rows, signals, summarize  # noqa: E402,E501
 from aiops_rca.store_live import MAIN_ENDS, LiveStore  # noqa: E402
 
 DEMO_RUNS = Path.home() / "cerebrum2" / "demo_runs"
@@ -151,6 +154,87 @@ def revert(spec: dict, state: dict) -> dict:
             "reverted_answer": answer, "verified": verified is not None}
 
 
+# --- Sonraki adım ve kanıt (planlama 2026-11-19, 1. düzeltme: girdi ajanın çağırdığı araç değil, verinin kendisi) ---
+
+# (kural, koşul, öneri); ilk eşleşen. Koşul 1. adayın canlı veriden kurulan satırında yanan sinyallere bakar
+# (`signals.signals`, güç ≥ 1; P1 tanımı). Metinler HANDOFF 2026-11-19 (1. madde önerisi (d)).
+NEXT_STEPS = (
+    ("database", "aday veritabanı", "Veritabanı bağlantısını ve kaynaklarını kontrol edin."),
+    ("resource", "CPU ya da bellek sinyali", "Konteynerin kaynak sınırlarını ve son değişikliklerini kontrol edin."),
+    ("error", "hata oranı ya da yeni WARN+ log sinyali",
+     "Servisin hata mesajını ve son ayar / dağıtım değişikliğini inceleyin."),
+    ("latency", "gecikme sinyali (p95)", "Servisin bağımlılıklarına giden çağrıların süresine bakın; ağ ve kaynak."),
+    ("down", "istek düşüşü ya da alarm sonrası veri yok",
+     "Konteyner çalışıyor mu, sağlık durumu ve yeniden başlama sayısı?"),
+    ("human", "eşleşme yok", "İnsan incelemesi."),
+)
+FIRE = 1.0  # signals.signals gücü ≥ 1: sinyal yandı
+
+
+def _one(store, service: str, metric: str, lo: int, hi: int):
+    """[lo, hi) aralığında tek kova değeri."""
+    step = max(1, (hi - lo) // 10**9)
+    pts = query.metric_series(store, service, metric, lo, lo + step * 10**9, step_s=step)["points"]
+    return pts[0][1] if pts else None
+
+
+def candidate_row(store, service: str, alarm_ns: int, end_ns: int) -> dict:
+    """1. adayın satırı (`signals.signals` alan adları): istek, hata oranı, p95, CPU, bellek; önce = [alarm −
+    `NORMAL_S`, alarm), sonra = [alarm, `end_ns`); yeni WARN+ log mesajı (önce 0, sonra en çok)."""
+    lo = alarm_ns - NORMAL_S * 10**9
+    row = {}
+    for metric, key in (("requests", "requests"), ("error_rate", "error_rate"), ("p95_ms", "p95_ms"),
+                        ("cpu_pct", "cpu_pct"), ("mem_mb", "mem_mb")):
+        for side, (a, b) in (("before", (lo, alarm_ns)), ("after", (alarm_ns, end_ns))):
+            row[f"{key}_{side}"] = _one(store, service, metric, a, b)
+    counts = {}
+    for side, (a, b) in (("before", (lo, alarm_ns)), ("after", (alarm_ns, end_ns))):
+        for r in query.search_logs(store, a, b, service, min_severity=SEVERITY_WARN, limit=None)["logs"]:
+            counts.setdefault(normalize(r["message"]), {"before": 0, "after": 0})[side] += 1
+    new = [(c["after"], m) for m, c in counts.items() if c["before"] == 0 and c["after"] > 0]
+    row["new_warn_top"] = max(new) if new else (0, None)
+    return row
+
+
+def next_step(service: str | None, row: dict | None) -> dict:
+    """`NEXT_STEPS`'ten ilk eşleşen satır ve dayandığı sinyaller."""
+    def pick(rule: str, fired: dict) -> dict:
+        _, cond, text = next(r for r in NEXT_STEPS if r[0] == rule)
+        return {"rule": rule, "condition": cond, "text": text, "signals": fired}
+    if service is None or row is None:
+        return pick("human", {})
+    if service in DB_SERVICES:
+        return pick("database", {})
+    sig, _ = signals(row, only_resources=False)
+    fired = {k: v for k, v in sig.items() if v["strength"] >= FIRE}
+    for rule, keys in (("resource", ("cpu_pct", "mem_mb")), ("error", ("error_rate", "new_warn_log")),
+                       ("latency", ("p95_ms",))):
+        hit = {k: fired[k] for k in keys if k in fired}
+        if hit:
+            return pick(rule, hit)
+    if "request_drop" in fired or not row.get("requests_after"):
+        return pick("down", {k: fired[k] for k in ("request_drop",) if k in fired})
+    return pick("human", {})
+
+
+def assess(store, answer: dict | None, alarm_ns: int, end_ns: int) -> dict:
+    """Ajandan sonra: 1. adayın eşlenmiş adı, satırı, sonraki adım, kanıt geçerliliği (P1'in `scoring.evidence`'ı;
+    kenarlar canlı izlerin çağrı grafiğinden, pencere [alarm − `NORMAL_S`, `end_ns`))."""
+    names = store.names()
+    known = set().union(*names.values())
+    if not answer or not answer.get("candidates"):
+        return {"candidate": None, "matched": None, "row": None, "next_step": next_step(None, None),
+                "evidence": None}
+    first = answer["candidates"][0]
+    matched = match_service(first["service"], known)
+    row = candidate_row(store, matched, alarm_ns, end_ns) if matched and matched not in DB_SERVICES else None
+    deps = query.service_dependencies(store, alarm_ns - NORMAL_S * 10**9, end_ns)["edges"]
+    edges = Counter({(e["caller"], e["callee"]): e["calls"] for e in deps})
+    ev = [evidence(tuple(c["evidence_path"]), edges, known) for c in answer["candidates"]]
+    return {"candidate": first["service"], "matched": matched, "row": row,
+            "next_step": next_step(matched, row) if matched else next_step(None, None), "evidence": ev}
+
+
 def write_window(view: Path, lo_ns: int, hi_ns: int) -> None:
     fmt = lambda ns: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ns // 10**9))  # noqa: E731
     (view / "window.json").write_text(json.dumps({"start": fmt(lo_ns), "end": fmt(hi_ns)}) + "\n")
@@ -189,7 +273,8 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
         save()
         return 2
 
-    code, state, low, stop = 0, None, {}, threading.Event()
+    code, state, low, stop, agent_out = 0, None, {}, threading.Event(), None
+    factory = store_factory or (lambda c: LiveStore(c, ends=MAIN_ENDS))
     sampler = threading.Thread(target=_mem_sample, args=(low, stop), daemon=True)
     sampler.start()
     try:
@@ -203,7 +288,6 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
         agent_start = mark("agent_start")
         write_window(d, alarm - NORMAL_S * 10**9, agent_start)
         case = Case(incident_id=f"demo-{stamp}", view=d, alarm_ns=alarm)
-        factory = store_factory or (lambda c: LiveStore(c, ends=MAIN_ENDS))
         with ExitStack() as stack:
             if base is None:
                 base = stack.enter_context(LocalServer(MODELS[TOKENIZER].gguf)).base
@@ -211,6 +295,7 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
             rec["agent_settings"] = settings
             out = ask(case)
         append_agent_case(d, case.incident_id, out)
+        agent_out = out
         rec["agent"] = {"end_reason": out["row"]["end_reason"], "schema_valid": out["row"]["schema_valid"],
                         "n_tool_calls": out["row"]["n_tool_calls"], "duration_s": out["row"]["duration_s"],
                         "tokens": out["row"]["tokens"]}
@@ -232,6 +317,12 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
         sampler.join(timeout=5)
         rec["memory"] = low
         save()
+    if agent_out is not None:
+        try:
+            ans = agent_out["row"]["answer"] if agent_out["row"]["schema_valid"] else None
+            rec["assessment"] = assess(factory(case), ans, case.alarm_ns, agent_start)
+        except Exception as e:  # noqa: BLE001  değerlendirme hatası kayda; demo sonucu değişmez
+            rec["assessment"] = {"error": f"{type(e).__name__}: {e}"}
     rec["answer"] = spec["answer"]  # gerçek cevap ajandan sonra
     outputs = d / "tool_outputs"
     findings = scan_model_view(outputs) if outputs.is_dir() and any(outputs.iterdir()) else []
