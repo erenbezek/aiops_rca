@@ -279,3 +279,40 @@ def test_next_step_needs_strength_one():
     # hata oranı 0 → 0,03: güç 0,6 (< 1) → yanmaz; 0 → 0,05: güç 1 → yanar
     assert ld.next_step("cart", {**BASE_ROW, "error_rate_after": 0.03})["rule"] == "human"
     assert ld.next_step("cart", {**BASE_ROW, "error_rate_after": 0.05})["rule"] == "error"
+
+
+def test_report_fields_and_order(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path)
+    ans = {"candidates": [{"service": "recommendation", "confidence": 0.8, "evidence_path": ["recommendation",
+                                                                                              "frontend"],
+                           "rationale": "errors on ListRecommendations"}], "unsure": False}
+    turns = [{"kind": "action", "call": "list_services()", "action": {"reason": "start"}},
+             {"kind": "answer", "call": None}]
+    outs = [{"turn": 0, "call": "list_services()", "text": "18 services\nad: spans=yes\ncart: spans=yes\nx"}]
+
+    @contextmanager
+    def agent_method(label, factory, base=None):
+        yield (lambda case: {"row": {"end_reason": "answer", "schema_valid": True, "n_tool_calls": 1,
+                                     "duration_s": 2.0, "tokens": {"input": 5, "output": 3}, "answer": ans},
+                             "turns": turns, "tool_outputs": outs}), {}
+    monkeypatch.setattr(ld, "agent_method", agent_method)
+    monkeypatch.setattr(ld, "assess", lambda store, a, x, y: {
+        "matched": "recommendation", "evidence": [{"valid": True}],
+        "next_step": {"rule": "down", "condition": "c", "text": ld.NEXT_STEPS[4][2],
+                      "signals": {"request_drop": {"before": 600, "after": 0, "strength": 2.0}}}})
+    code, rec, d = w.run()
+    r = json.loads((d / "report.json").read_text())
+    assert code == 0 and r["candidates"][0]["evidence_valid"] is True and r["next_step"]["rule"] == "down"
+    assert r["tool_calls"] == [{"turn": 0, "reason": "start", "call": "list_services()",
+                                "output_head": ["18 services", "ad: spans=yes", "cart: spans=yes"]}]
+    assert r["note"] == ld.NOTE and r["revert_verified"] is True
+    md = (d / "report.md").read_text()
+    i = md.index("## Gerçek cevap")
+    assert md.index("## Adaylar") < md.index("## Sonraki adım") < md.index("## Araç çağrıları") < i
+    assert "recommendation" in md[i:] and "request_drop: önce 600, sonra 0, güç 2.0" in md
+
+
+def test_no_report_on_leakage(monkeypatch, tmp_path):
+    w = World(monkeypatch, tmp_path, leak=True)
+    code, _, d = w.run()
+    assert code == 3 and not (d / "report.md").exists()

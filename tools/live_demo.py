@@ -15,7 +15,7 @@ ends=MAIN_ENDS)`; istem ve sınırlar P2'deki gibi donmuş) → geri alma ve do�
 
 Ajanın `Case`'i: kimlik `demo-<UTC>`, görünüm klasörü demo klasörü (yalnız `window.json`: [alarm − `NORMAL_S`, ajan
 başlangıcı)), alarm anı. Ajan gerçek cevabı görmez; gerçek cevap (`INFRA_ANSWERS` / `SCENARIOS`) yalnız ajandan sonra
-kayda girer. Kayıt `DEMO_RUNS/<UTC>-demo/`: `run.json` (korumalar, taban, enjeksiyon ve geri alma durumu, bellek,
+kayda girer. Kayıt `DEMO_RUNS/<UTC>-demo/`: `report.md` / `report.json` (sızıntı yoksa), `run.json` (korumalar, taban, enjeksiyon ve geri alma durumu, bellek,
 sızıntı, sonuç, gerçek cevap), ajan kaydı (`evaluate.append_agent_case`: `responses.jsonl`, `turns.jsonl`,
 `tool_outputs/`). Git dışı; `incidents/`, `snapshots/`, `eval_responses/`'e yazılmaz.
 
@@ -235,6 +235,68 @@ def assess(store, answer: dict | None, alarm_ns: int, end_ns: int) -> dict:
             "next_step": next_step(matched, row) if matched else next_step(None, None), "evidence": ev}
 
 
+# --- Rapor (1. madde önerisi (c)) ---
+
+NOTE = "Ajan önerir, uygulamaz: bu rapor bir araştırma özetidir; hiçbir değişiklik otomatik yapılmadı."
+OUTPUT_LINES = 3
+
+
+def report(rec: dict, out: dict) -> dict:
+    """Rapor alanları: adaylar (kanıt yolu, gerekçe, kanıt geçerliliği), araç çağrıları (gerekçe, çağrı, çıktının ilk
+    satırları), sonraki adım (dayandığı sinyaller), süre ve token, not; en sonda ayrı ve etiketli gerçek cevap."""
+    row, a = out["row"], rec.get("assessment") or {}
+    ev = a.get("evidence") or []
+    answer = row["answer"] if row["schema_valid"] else None
+    cands = [{"rank": i + 1, "service": c["service"], "confidence": c["confidence"],
+              "evidence_path": c["evidence_path"], "rationale": c["rationale"],
+              "evidence_valid": ev[i]["valid"] if i < len(ev) else None}
+             for i, c in enumerate((answer or {}).get("candidates") or [])]
+    outputs = {o.get("turn"): o for o in out["tool_outputs"]}
+    calls = []
+    for i, t in enumerate(x for x in out["turns"] if x.get("kind") == "action"):
+        act = t.get("action") or {}
+        o = outputs.get(i) or {}
+        calls.append({"turn": i, "reason": act.get("reason"), "call": t.get("call"),
+                      "output_head": (o.get("text") or "").splitlines()[:OUTPUT_LINES]})
+    return {"demo": rec["demo"], "model": rec["model"], "alarm_utc": rec["times_utc"].get("alarm"),
+            "agent_start_utc": rec["times_utc"].get("agent_start"), "unsure": (answer or {}).get("unsure"),
+            "end_reason": row["end_reason"], "candidates": cands, "tool_calls": calls,
+            "next_step": a.get("next_step"), "first_candidate_matched": a.get("matched"),
+            "duration_s": row["duration_s"], "tokens": row["tokens"], "note": NOTE,
+            "revert_verified": (rec.get("revert") or {}).get("verified"),
+            "true_answer_after_agent": rec["answer"]}
+
+
+def report_md(r: dict) -> str:
+    out = [f"# Canlı demo raporu: {r['demo']}", "",
+           f"Model `{r['model']}`; alarm (enjeksiyon) {r['alarm_utc']}; ajan başlangıcı {r['agent_start_utc']}; "
+           f"bitiş `{r['end_reason']}`; süre {r['duration_s']} sn; token {r['tokens']}.", "", f"> {r['note']}", "",
+           "## Adaylar", ""]
+    if not r["candidates"]:
+        out.append("Geçerli cevap yok.")
+    else:
+        out += ["| # | Servis | Güven | Kanıt yolu | Kanıt geçerli | Gerekçe |", "|---|---|---|---|---|---|"]
+        for c in r["candidates"]:
+            out.append(f"| {c['rank']} | {c['service']} | {c['confidence']} | {' → '.join(c['evidence_path'])} | "
+                       f"{c['evidence_valid']} | {c['rationale']} |")
+        out += ["", f"Emin değil: {r['unsure']}."]
+    ns = r.get("next_step") or {}
+    out += ["", "## Sonraki adım", "", f"**{ns.get('text', '-')}** (kural `{ns.get('rule', '-')}`: "
+            f"{ns.get('condition', '-')}; 1. aday `{r['first_candidate_matched']}`)."]
+    for k, v in (ns.get("signals") or {}).items():
+        out.append(f"- {k}: önce {v.get('before')}, sonra {v.get('after')}, güç {v.get('strength')}")
+    out += ["", "## Araç çağrıları", ""]
+    for c in r["tool_calls"]:
+        out += [f"{c['turn'] + 1}. **{c['call']}**: {c['reason']}"]
+        out += [f"   `{line}`" for line in c["output_head"]]
+    t = r["true_answer_after_agent"]
+    out += ["", "## Gerçek cevap (ajandan sonra eklendi; ajan görmedi)", "",
+            f"Kök `{t['root_cause_service']}`, hata türü `{t['fault_type']}`, kategoriler {t['categories']}, yol "
+            + ", ".join(" → ".join(e) for e in t["propagation_path"]) + ".",
+            f"Hata geri alındı ve doğrulandı: {r['revert_verified']}.", ""]
+    return "\n".join(out)
+
+
 def write_window(view: Path, lo_ns: int, hi_ns: int) -> None:
     fmt = lambda ns: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ns // 10**9))  # noqa: E731
     (view / "window.json").write_text(json.dumps({"start": fmt(lo_ns), "end": fmt(hi_ns)}) + "\n")
@@ -331,6 +393,10 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
         rec["result"] = f"leakage: {len(findings)} finding(s); demo stopped"
         save()
         return 3
+    if agent_out is not None:
+        r = report(rec, agent_out)
+        (d / "report.json").write_text(json.dumps(r, ensure_ascii=False, indent=1) + "\n")
+        (d / "report.md").write_text(report_md(r), encoding="utf-8")
     rec["result"] = "ok" if code == 0 else "finished with problems"
     save()
     print(d)
