@@ -5856,3 +5856,47 @@ Data:
 - **Testler:** `tests/test_live_demo.py` 35 test (sahte koşucu, sahte ajan, sahte okuyucu; ağ yok). pytest 854 yeşil; P2d raporu ve iki özet `--check` "same". Kasıtlı kırmızı (scratch, 5 deneme): geri almayı kaldırmak, gerçek cevabı ajandan önce yazmak, eşiği 0,5'e indirmek (ilk denemede yakalanmadı → sınır testi eklendi, sonra kırmızı), log sinyalini tablodan çıkarmak, gerçek cevabı rapor başına taşımak: hepsi kırmızı.
 - **Sınırlama (kayda):** pano p95'i histogram kovalarından (`histogram_quantile`), ajanın ve raporun p95'i span sürelerinden; iki sayı birebir aynı değil (frontend 39,2 ↔ taban ölçüsünde 24,3 ms).
 - **Beklenen:** planlama kontrolü; sonra 4. madde (web arayüzü, FastAPI; paket kurulumu Eren'e).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 3. madde kontrolü: geçti, bir zorunlu düzeltmeyle; 4. madde düzeltmeden sonra)
+- **Bağımsız doğrulama (scratch klon, `facdd32`):**
+  - pytest 854 yeşil.
+  - README'deki beş `--check` çıkış 0.
+  - `results/`, `eval_responses/`, `methods/`, `llm_client.py` `a59b91e`'den beri değişmemiş.
+  - `src/` farkı yalnız `MAIN_ENDS` (4 satır).
+  - `MAIN_ENDS` 1. adımın kaydındaki adreslerle aynı.
+  - 64M kaydı alındı (`HostConfig.Memory` 67108864); 2. maddenin zayıf noktası kapandı.
+- **Okumayla doğruladıklarım:**
+  - Akış kartla ve 1. madde düzeltmeleriyle uyumlu.
+  - Ajanın `Case`'i yalnız alarm anı ve `window.json`; `LiveStore` görünüm klasöründen yalnız `window.json` okuyor. `run.json` aynı klasörde ama okunmuyor.
+  - Gerçek cevap ajandan ve geri almadan sonra kayda giriyor. Sızıntı taraması ajanın gördüğü `tool_outputs/` üzerinde.
+  - `NEXT_STEPS` satırı P1 tanımıyla aynı birimlerde:
+    - `metric_series`'in `requests`'i kovadaki span sayısı, `error_rate` kesir. `signals.signals`'ın `rb ≥ 20` ve `+0,05` eşikleri bu birimlerde anlamlı.
+    - Önce ve sonra pencereleri eşit (600 sn).
+  - `containerStop` / `containerPause`'ta CPU, hata oranı ve p95 değersiz kalır, `request_drop` yanar. Kural `down` çıkar; beklenen bu.
+  - Gemini koşusunda da yerel sunucu açılıyor (tokenizer). P2'deki gibi; bellek örneklemesi her koşuda var, doğru.
+- **Zorunlu düzeltme (4. maddeden önce): sinyalde geri alma korumasız.**
+  - Koşucu hata uygulama, flag açma / kapama ve geri almayı `signals_deferred` içinde yapıyor; SIGTERM ve SIGINT'e işleyici kuruyor. `live_demo.py` bunların hiçbirini kullanmıyor.
+  - Koşucuda sonda `down` her kalıntıyı siliyordu. Demo yığını kapatmadığı için kalıntı yığında kalır.
+  - Senaryo 1: SIGTERM'in varsayılan davranışı süreci `finally` çalışmadan öldürür. Belirti sırasında gelirse hata uygulanmış kalır. 4. maddede web arayüzü demoyu durdurabilir; durdurmanın yolu büyük olasılıkla budur.
+  - Senaryo 2: `apply_fault` uygulamadan sonra hata fırlatırsa (ör. ikinci `tc show` zaman aşımı) ya da Ctrl-C tam o anda gelirse `state` `None` kalır ve geri alma çalışmaz.
+  - netem kuralı hedef konteynerde yaşar, `aiops-netem` silinmiş olur. `demo_guards` bunu görmez, sonraki demo kalıntıyla başlar. Koşucunun kalıntı notu: "netem kuralı konteynerle yaşar"; koşucu bunu `down` ile çözüyordu.
+  - İstenen (kod koşucudan, kopya yok):
+    - (a) `main` / `run` SIGTERM ve SIGINT'e `sr.signals_deferred.handle`'ı kurar. Enjeksiyon ve geri alma `sr.signals_deferred()` içinde çalışır. Durdurulan demo kayda "stopped by …" yazar.
+    - (b) Altyapı hatasında enjeksiyon hata fırlatırsa, hedef önceden okunabildiyse geri alma yine denenir (önceki okumayla kurulan durumla).
+    - (c) `demo_guards` kabul listesindeki netem hedeflerinin (`networkDelay` / `packetLoss`) qdisc'ine bakar. `netem` varsa sorun sayılır, elle temizlik yazılır.
+  - Testler:
+    - belirti sırasında SIGTERM → geri alma çağrılır, kayıtta stopped;
+    - enjeksiyon uyguladıktan sonra hata fırlatır → geri alma çağrılır;
+    - hedefte netem kalıntısı → korumalar durur.
+
+    Kasıtlı kırmızı scratch'te (işleyiciyi kaldır, korunan bölümü kaldır): ikisi de kırmızı.
+- **Küçük:** `GRAFANA` satırının sonundaki "`scenario_runner.inhibited()`'in tanıdığı neden metni" yorumu `INHIBIT_WHY`'a ait; yerine taşınsın. Metindeki "storage card", `inhibited()` yalnız tanıdığı metinleri kabul ettiği için seçilmiş. Yorumda bu nedeni yazmak yeter; koşucu değişmez.
+- **5. madde için (sonuçtan önce yazılır, şimdi kod yok):**
+  - Panel ölçütü (1. madde, 3. düzeltme) nasıl ölçülecek, 5. maddenin başında HANDOFF'a yazılır:
+    - panonun beş sorgusu pencere boyunca Prometheus API'siyle çalıştırılır;
+    - "veri döndürür" ve "hedef ya da çağıranlarından en az birinde değişim" sayıyla tanımlanır (önce / sonra oranı ya da eşik).
+
+    Ekran görüntüsü ölçüt değildir.
+  - `candidate_row` ve `assess` gerçek `LiveStore`'a karşı hiç çalışmadı (testler sahte okuyucuyla). Kabul koşusunun ilk demosunda raporda `next_step` ve `signals` dolu değilse durulur, planlamaya yazılır.
+- **Sınırlama (aynen kabul):** pano p95'i histogram kovalarından, rapor p95'i span sürelerinden. README'de demo bölümüne bir cümle (6. madde).
+- **Beklenen:** zorunlu düzeltme, testleri ve kasıtlı kırmızısı HANDOFF'ta. Planlama kontrol eder, sonra 4. madde (web arayüzü; paket kurulumu ve sürümler Eren'e).
