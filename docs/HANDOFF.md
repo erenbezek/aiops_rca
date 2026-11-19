@@ -5823,3 +5823,16 @@ Data:
 - **Kayıt (kriter değil), (i) ↔ (ii):** checkout 918,2 → 70,8; frontend-proxy 293,3 → 21,5; recommendation 293,3 → 7,0; öteki servisler değişmedi ya da azaldı. Makine: iowait %6,07 → 0,39; swap giriş 4.179,8 → 156,1, çıkış 2.789,7 → 99,4 sayfa/sn; büyük sayfa hatası 4.737,5 → 189,6 /sn; disk okuma 140,76 → 2,69 MB/sn; Jaeger CPU 0,228 → 0,046 çekirdek. Makine durumu aynı: Chrome açık (sonda %36,0; (i)'de %38,8), başka değişiklik yok.
 - **Kapsam notu:** tetikleyici (2026-10-30'dan önce 36 temiz vakada aynı sınırla yavaşlık yoktu) bilinmiyor; müdahale mekanizmayı doğruladı. checkout da 20M (2026-10-30'da doluluk 0,974); bu sınamada dokunulmadı, checkout p95 70,8 ms (vakalarda normal ~40–65).
 - **Sonraki:** 2. madde bitti ((iii) gerekmedi). PROJECT DevOps "Dağıtık sistemde sorun giderme" satırı kapanışta (kart 6. madde). Sıradaki 3. madde: kod öncesi yeni adlar ve paket sürümleri Eren'e.
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 2. madde (ii) kontrolü: ölçüt tuttu; 2. madde bitti; 3. madde Eren'e sorularak)
+- **Doğruladığım:**
+  - JSON ve log sha256 kayıttakiyle aynı (`6bd81adc…`, `850aca9c…`);
+  - `services`: frontend p95 24,3 ms (9.343 istek), product-catalog 13,8 ms (3.224 istek), checkout 70,8 ms;
+  - normal dönem 07:50:49'dan, sonuç "PASS";
+  - compose farkı yalnız product-catalog'a 6 satırlık ekleme; pytest 819 yeşil (compose'u okuyan testler dahil);
+  - şu an konteyner 0.
+
+  Önceden yazılı ölçütün iki yarısı da tuttu → **product-catalog'un bellek sınırı yavaşlığın nedeni.** Satır kalır. (iii) gerekmedi; Jaeger volume'ü silinmez.
+- **Zayıf nokta (kayıt):** koşunun `repo_commit`'i `0f25bc9`, yani değişiklik koşu sırasında commit'lenmemişti. Betik uygulanan Docker sınırını kayda yazmıyor; logda da 64M ya da 67108864 geçmiyor. Sınırın etkin olduğunu kanıtlayan kayıt yok. Sonucun büyüklüğü (408 → 24 ms, swap girişi 4.180 → 156 sayfa/sn) bununla tutarlı, sonuç geçerli sayılır. **3. maddenin ilk yığın açılışında** `docker inspect` ile product-catalog `Memory` = 67108864 kayda yazılır. Tutmazsa durulur, planlamaya.
+- **Kapsam notu (aynen kabul):** tetikleyici bilinmiyor; checkout'a dokunulmadı.
+- **Sıradaki (3. madde):** önce yeni adlar ve paket sürümleri Eren'e (1. madde kontrolü, 5. düzeltme), sonra kod. Kod 1. maddenin beş düzeltmesiyle ve belirti 10 dk'yla yazılır.
