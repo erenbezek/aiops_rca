@@ -378,3 +378,6 @@ Sadece Eren'in onayladığı isimler.
 | `results/p1_test_error_labels.json`, `results/p1_test_error_summary` (`.md`, `.json`) | P2d P1 test hata analizinin etiketleri ve özeti (Eren onaylı) |
 | `set_labels`, `QUESTIONS_SHA256`, `FILES` | `error_analysis`: bir setin etiketleri (test yalnız açıkça) / P1e sorularının donmuş sha256'sı / set → etiket ve özet dosyaları (ajan aracında da `FILES`) (Eren onaylı) |
 | `dev_test_reading`, `p1_info` | `p2d` rapor JSON alanları: iki dosya satırının dev–test Fisher okuması (`results.dev_test_reading`) / P1 gpt-oss ve 9B bilgi satırları (Eren onaylı) |
+| `tools/live_demo.py` (`run`, `list`) | Canlı demo komutu: kabul listesindeki hata ya da senaryoyu ana yığına enjekte eder, 10 dk sonra ajanı canlı uçlarla çalıştırır, hatayı geri alır, sızıntıyı tarar / kabul listesi (Eren onaylı 2026-11-19; `serve` 4. maddede) |
+| `MAIN_ENDS` | `store_live.py`: ana (canlı demo) izleme yığınının uçları (Jaeger frontend-proxy üzerinden, OpenSearch, Prometheus); `REPLAY_ENDS`'in eşi (Eren onaylı) |
+| `demo_runs/<UTC>-demo/` (`DEMO_RUNS`) | Canlı demo kayıtlarının klasörü, git dışı (`~/cerebrum2/demo_runs`): `run.json`, ajan kaydı, `window.json` (Eren onaylı) |
