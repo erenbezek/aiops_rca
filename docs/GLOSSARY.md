@@ -386,3 +386,4 @@ Sadece Eren'in onayladığı isimler.
 | `serve` (`tools/live_demo.py`), `tools/live_demo_page.html` | Canlı demo web arayüzü (FastAPI, yalnız `127.0.0.1`, varsayılan port `8765`) / arayüzün tek sayfası (dış kaynak yok) (Eren onaylı 2026-11-19) |
 | `X-Demo-Token` | `serve`'ün başlatma ve durdurma uçlarının istediği belirteç başlığı (açılışta rastgele, adreste `?t=`) (Eren onaylı) |
 | `demo` (pyproject grubu) | Web arayüzünün isteğe bağlı paketleri: `fastapi==0.162.0`, `uvicorn==0.54.0`, `httpx==0.28.1`; CI `.[dev,demo]` ile kurar (Eren onaylı) |
+| `demo_runs/.lock` (`LOCK_NAME`) | Canlı demonun süreçler arası kilidi (`fcntl.flock`): aynı anda tek `run`; alınamazsa çıkış 2, enjeksiyon yok (Eren onaylı 2026-11-19) |
