@@ -5794,3 +5794,11 @@ Data:
 - **Not:** Docker'da 26 Ekim – 8 Kasım arasından kalma 6 etiketsiz anonim volume var. Koşucu korumaları bugüne kadar bunlarla geçti. (i)'den önce korumaların geçtiği görülür. Silmek Eren'in kararı, bu kartın işi değil.
 - **Ölçüt (değişmez, DECISIONS 2026-10-30):** frontend p95 ≤ 30 ms **ve** product-catalog p95 13–17 ms. Betiğin kendi PASS'ı yalnız ilk yarı; sınama sonucu JSON'dan iki sayıyla okunur.
 - **Beklenen:** (i) şimdiki ayarla taban, Eren'e sorarak (yaklaşık 25 dk; şarj eşiği 80, iki kilit). Sonuç HANDOFF'a; (ii)'ye geçmeden planlama kontrolü.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 2. madde (i): şimdiki ayarla taban; yavaş → (ii))
+- **Koşu (Eren onayıyla):** `~/cerebrum2/analysis/v3c_baseline.py` (sha256 `608dbe74…`) aynen; 07:25:09–07:41:34 UTC (10:25–10:41 yerel). Korumalar geçti (AC, şarj eşiği 80, disk 235,1 GB, izleme 25,36 GB, takas boş 3,08 GB, iki kilit, kalıntı yok). Demo açılış 07:25:49, collector yeniden başlatma 07:25:52, normal dönem 07:30:49'dan 600 sn. Sonda demo kapalı, konteyner 0, anonim volume 1 silindi (koşunun kendi), kalıntı yok. Çıkış 1 (betiğin PASS'ı tutmadı).
+- **Kayıt:** `~/cerebrum2/analysis/v3c_baseline_20261119T0725Z.json` (sha256 `5be206520c980247…`), `.log` (`d9eef52b9ea78277…`).
+- **Sonuç (ölçüt, DECISIONS 2026-10-30):** frontend p95 **408,3 ms** (> 30), product-catalog p95 **407,8 ms** (13–17 dışında) → **yavaş**; kart gereği (ii)'ye geçilir.
+- **Kayıt (kriter değil):** öteki p95'ler: checkout 918,2, frontend-proxy 293,3, recommendation 293,3, shipping 13,2, payment 9,0, quote-gateway 8,7, ad 7,4, email 7,7, cart 0,9, currency 0,1 ms (yavaşlık product-catalog ve onu çağıranlarda, 2026-10-30'daki desen). Makine normal dönemde: iowait %6,07, swap giriş 4.179,8 / çıkış 2.789,7 sayfa/sn, büyük sayfa hatası 4.737,5 /sn, disk okuma 140,76 MB/sn; Jaeger CPU 0,228 çekirdek. Sonda en yoğun süreçler: product-catalog %61,6, jaeger %55,6, chrome %38,8.
+- **Sıradaki (ii), Eren'e sorarak:** `compose.extras.yaml`'da product-catalog `deploy.resources.limits.memory: 64M` (yalnız ekleme), aynı betikle bir ölçüm (~17 dk). Ölçüt aynen.
+- **Beklenen:** planlama kontrolü; sonra (ii).
