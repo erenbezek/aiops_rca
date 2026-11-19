@@ -6108,3 +6108,13 @@ Data:
 - **Kayıt düzeltmesi:** bu kaydın ilk push'u (`1a5f4e3`) çakışma işaretleriyle gitti (planlamanın hatası); bir sonraki commit işaretleri kaldırır ve betik / onay maddelerini ekler.
 - **Not:** O1 ≈ 100 dk, O2 ≈ 70 dk; her biri Eren'e sorularak. Gemini'nin 10:00–11:00 kuralı kayda uygun.
 - **Beklenen:** CPU paneli düzeltmesi, metrik adı ve karşılaştırma sayısı, betiğin yeni sha'sı, netleştirmeler HANDOFF'ta; CPU değişikliğine Eren onayı. Planlama kontrol eder, sonra O1 (Eren'e sorarak).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 5. madde öncesi düzeltmeler: CPU paneli, konteyner durumu, 10 dk; Eren onayı)
+- **Eren onayı ("onaylı"):** CPU sorgusu ve CPU eşiği değişikliği; öteki ölçütler onaylı haliyle.
+- **CPU paneli (`e598f44`):** `rate(container_cpu_usage_nanoseconds_total{container_name=~"$service"}[3m]) / 1e9 * 100` (bir çekirdeğin %'si; P1 / ajan `cpu_pct` birimi; sayacın Prometheus adı `query.METRIC_NAMES`'teki `container.cpu.usage.total` eşi, 1. adımda yığında görülmüştü). `test_dashboard_file` sorguyu sabitler, `utilization_ratio`'nun kullanılmadığını denetler.
+- **Yığında karşılaştırma (Eren onayıyla, 15:15–15:20 yerel; enjeksiyon ve ajan yok):** Prometheus sorgusu (pencere dolduktan sonra, 15:19:11) ↔ `docker stats` 3 dk ortalaması (89 okuma): frontend 7,50 ↔ 8,52; product-catalog 10,75 ↔ 11,23; otel-collector 6,99 ↔ 7,45; jaeger 3,54 ↔ 3,36; cart 1,30 ↔ 1,77 (%). Aynı büyüklük düzeyi. Açılıştan hemen sonra (pencere dolmadan, 15:16) Prometheus 0,5–1,8, `docker stats` anlık 1–22: 3 dk pencere açılıştan sonraki ilk dakikalarda düşük okur; demolar en az 10 dk normal dönemden sonra başladığı için etkisi yok. Sonda demo kapalı, kilitler bırakıldı.
+- **Panel betiği:** CPU eşiği `max(1,5 × önce, önce + 5)` (yüzde puan); yeni sha256 `7cba947a5e0d9751…` (eski `173a6282…`).
+- **Netleştirme 1 (ölçüt 5):** `run` konteyner durumunu enjeksiyondan önce ve geri almadan sonra koşucunun `sr.containers()`'ıyla okur, `sr.split_restarts(start, end, beklenen)` ile ayırır; beklenen yalnız `containerStop` / `containerPause` hedefi. Kayıt `run.json` `containers_start`, `containers_end`, `restarts` {`unexpected`, `expected`}; beklenmeyen varsa çıkış 1. D4 (arayüz) aynı `run`'ı koşar, okuma aynı.
+- **Netleştirme 2:** `run` önceki demoların en son `reverted` anına bakar (`last_reverted`); 600 sn dolmadıysa taban sorunu ("wait"), çıkış 2, enjeksiyon yok. Arayüzde de geçerli.
+- **Testler:** 3 yeni (demo testleri 61); pytest 880 yeşil; P2d raporu ve iki özet `--check` "same". Kasıtlı kırmızı (scratch): 10 dk kuralını, beklenmeyen değişiklik denetimini ve CPU sabitlemesini kaldırmak → her biri 1 test kırmızı.
+- **Beklenen:** planlama kontrolü; sonra O1 (Eren'e sorarak; ~100 dk, Gemini, 10:00–11:00 kesmez).
