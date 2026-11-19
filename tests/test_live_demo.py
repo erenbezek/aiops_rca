@@ -99,7 +99,7 @@ class World:
 
     def run(self, key="containerStop:recommendation", model="gemini-3.5-flash-lite"):
         code = ld.run(key, model, root=self.root, base="http://127.0.0.1:1", sleep=self.sleep)
-        d = next(self.root.iterdir())
+        d = next(x for x in self.root.iterdir() if x.is_dir())
         return code, json.loads((d / "run.json").read_text()), d
 
 
@@ -441,3 +441,16 @@ def test_signal_after_revert_recorded(monkeypatch, tmp_path):
     code, rec, _ = w.run()
     assert code == 1 and rec["stopped"] == "stopped by SIGINT" and rec["result"] == "stopped after revert"
     assert rec["revert"]["verified"] is True
+
+
+
+def test_second_run_blocked_by_process_lock(monkeypatch, tmp_path):
+    import fcntl
+    w = World(monkeypatch, tmp_path)
+    w.root.mkdir(parents=True)
+    with (w.root / ld.LOCK_NAME).open("a") as held:                # başka bir demo kilidi tutuyor
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        assert ld.run("adFailure_on", "gemini-3.5-flash-lite", root=w.root, base="x", sleep=w.sleep) == 2
+        assert w.calls == [] and not [x for x in w.root.iterdir() if x.is_dir()]
+    code, _, _ = w.run()                                           # kilit bırakılınca çalışır
+    assert code == 0

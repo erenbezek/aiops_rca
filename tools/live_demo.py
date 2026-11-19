@@ -26,6 +26,7 @@ verdi; 2 kullanım hatası, korumalar ya da taban (enjeksiyon yapılmadı); 3 s�
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import signal
@@ -71,6 +72,7 @@ INFRA_PARAMS = {("containerPause", "cart"): "on", ("containerPause", "quote"): "
                 ("networkDelay", "cart"): "50ms", ("networkDelay", "quote"): "50ms",
                 ("packetLoss", "currency"): "10%", ("packetLoss", "shipping"): "10%"}
 SAMPLE_S = 30
+LOCK_NAME = ".lock"  # DEMO_RUNS altında; süreçler arası tek demo (`fcntl.flock`; Eren onaylı 2026-11-19)
 # Neden metni "storage card" içerir: `scenario_runner.inhibited()` yalnız tanıdığı metinleri (`INHIBIT_WHY`) kabul eder.
 INHIBIT_WHY = "storage card live demo"
 REPO = Path(__file__).resolve().parents[1]
@@ -349,6 +351,14 @@ def write_window(view: Path, lo_ns: int, hi_ns: int) -> None:
 def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None, base: str | None = None,
         sleep=time.sleep) -> int:
     """SIGTERM / SIGINT koşucunun işleyicisiyle (`signals_deferred.handle`); eski işleyiciler sonda geri kurulur."""
+    root.mkdir(parents=True, exist_ok=True)
+    lock = (root / LOCK_NAME).open("a")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock.close()
+        print(f"error: another demo is running (lock {root / LOCK_NAME}); nothing injected", file=sys.stderr)
+        return 2
     old = {sig: signal.signal(sig, sr.signals_deferred.handle) for sig in (signal.SIGTERM, signal.SIGINT)}
     sr.signals_deferred.signals, sr.signals_deferred.depth, sr.signals_deferred.raised = [], 0, False
     try:
@@ -356,6 +366,8 @@ def run(spec_key: str, model: str, *, root: Path = DEMO_RUNS, store_factory=None
     finally:
         for sig, h in old.items():
             signal.signal(sig, h)
+        fcntl.flock(lock, fcntl.LOCK_UN)
+        lock.close()
 
 
 def _run(spec_key: str, model: str, *, root: Path, store_factory, base: str | None, sleep) -> int:
@@ -518,11 +530,18 @@ def make_app(token: str, port: int, *, spawn=spawn_run, root: Path = DEMO_RUNS):
     origin_ok = {f"http://{HOST}:{port}", f"http://localhost:{port}"}
     host_ok = {f"{HOST}:{port}", f"localhost:{port}"}
 
-    def guard(req: Request) -> None:
-        if req.headers.get(TOKEN_HEADER) != token:
-            raise HTTPException(403, "bad or missing token")
+    @app.middleware("http")
+    async def host_check(req: Request, call_next):
+        """Bütün uçlarda `Host` (DNS yeniden bağlamaya karşı; okuma uçları da yerel yol ve gerçek cevap taşır)."""
         if req.headers.get("host") not in host_ok:
-            raise HTTPException(403, "bad host")
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "bad host"}, status_code=403)
+        return await call_next(req)
+
+    def guard(req: Request) -> None:
+        import secrets
+        if not secrets.compare_digest(req.headers.get(TOKEN_HEADER, ""), token):
+            raise HTTPException(403, "bad or missing token")
         origin = req.headers.get("origin")
         if origin is not None and origin not in origin_ok:
             raise HTTPException(403, "bad origin")
@@ -566,7 +585,12 @@ def make_app(token: str, port: int, *, spawn=spawn_run, root: Path = DEMO_RUNS):
     @app.post("/api/run")
     async def api_run(req: Request) -> dict:
         guard(req)
-        body = await req.json()
+        try:
+            body = await req.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            raise HTTPException(400, "body must be a JSON object")
         key, model = body.get("key"), body.get("model", DEFAULT_MODEL)
         if key not in faults() or model not in DEMO_MODELS:
             raise HTTPException(400, "not in the accepted list")

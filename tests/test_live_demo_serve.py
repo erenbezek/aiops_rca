@@ -73,6 +73,18 @@ def test_run_rejects_bad_host(tmp_path):
     assert c.post("/api/run", json={"key": "containerStop:recommendation"}, headers=H).status_code == 403
 
 
+@pytest.mark.parametrize("path", ["/", "/api/faults", "/api/status", "/api/report"])
+def test_read_endpoints_check_host(tmp_path, path):
+    app = ld.make_app(TOKEN, PORT, spawn=lambda k, m: FakeProc(), root=tmp_path)
+    assert TestClient(app, base_url="http://evil.example:8765").get(path).status_code == 403
+
+
+def test_run_body_must_be_object(tmp_path):
+    c, spawned = client(tmp_path)
+    assert c.post("/api/run", json=[1], headers=H).status_code == 400
+    assert c.post("/api/run", content=b"not json", headers=H).status_code == 400 and spawned == []
+
+
 def test_run_accepted_list_and_lock(tmp_path):
     c, spawned = client(tmp_path)
     assert c.post("/api/run", json={"key": "rm -rf /"}, headers=H).status_code == 400
@@ -152,7 +164,7 @@ def test_stop_reaches_revert_in_real_process(tmp_path):
     time.sleep(0.5)                                                # belirti beklemesinde
     assert c.post("/api/stop", json={}, headers=H).status_code == 200
     assert procs[0].wait(timeout=30) == 1
-    rec = json.loads(next(root.iterdir()).joinpath("run.json").read_text())
+    rec = json.loads(next(x for x in root.iterdir() if x.is_dir()).joinpath("run.json").read_text())
     assert rec["stopped"] == "stopped by SIGTERM" and rec["revert"]["reverted_by"] == "child"
     assert rec["revert"]["verified"] is True and "agent_start" not in rec["times_utc"]
     s = c.get("/api/status").json()

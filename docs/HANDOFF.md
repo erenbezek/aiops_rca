@@ -6021,3 +6021,12 @@ Data:
   - `serve` açık kaldığı sürece uyku kilitleri tutulur. README'ye (6. madde) bir cümle.
 - **Yeni adlar:** `tools/live_demo_page.html`, `X-Demo-Token`, port `8765` Eren onaylı; GLOSSARY `bb18355`, kayıt sırasında geldi. Kodda onaydan önce kullanılmışlardı; 1. madde 5. düzeltme "koddan önce" diyordu. Küçük süreç kayması, kapandı.
 - **Beklenen:** iki zorunlu düzeltme ve testleri HANDOFF'ta. Planlama kontrol eder, sonra 5. madde (kabul koşusu; panel ölçütü ve `next_step` durma kuralı önce HANDOFF'a, Eren'e sorarak).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 4. madde düzeltmeleri: Host bütün uçlarda, süreçler arası kilit)
+- **(1) `Host` bütün uçlarda:** FastAPI ara katmanı (`host_check`) her istekte `Host`'u (`127.0.0.1` / `localhost` + port) denetler, değilse 403. Belirteç ve `Origin` yalnız başlat / durdurda.
+- **(2) Süreçler arası tek demo:** `run` başında `DEMO_RUNS/.lock` (Eren onaylı ad) üzerinde `fcntl.flock(LOCK_EX | LOCK_NB)`; alınamazsa "another demo is running", çıkış 2, enjeksiyon yok, demo klasörü açılmaz. Kilit `run` bitince bırakılır. `serve`'ün kendi kilidi duruyor.
+- **İsteğe bağlı ikisi de:** belirteç `secrets.compare_digest` ile; `POST /api/run`'a nesne olmayan ya da bozuk JSON → 400.
+- **Testler (6 yeni; live_demo 42 + serve 17 = 59):** yabancı `Host`'la `/`, `/api/faults`, `/api/status`, `/api/report` → 403; kilit tutulurken `run` → 2, çağrı yok, klasör yok; kilit bırakılınca çalışır; `[1]` ve bozuk gövde → 400. pytest 878 yeşil; P2d raporu ve iki özet `--check` "same".
+- **Kasıtlı kırmızı (scratch):** ara katmanın denetimini kaldırmak → 5, kilidi almamak → 1 test kırmızı.
+- **Süreç notu (planlamanın tespiti, kabul):** üç ad onaydan önce koddaydı; bundan sonra yeni ad koddan önce sorulur (bu düzeltmede `.lock` önce soruldu).
+- **Beklenen:** planlama kontrolü; sonra 5. madde (kabul koşusu; panel ölçütü ve `next_step` durma kuralı önce HANDOFF'a, Eren'e sorarak).
