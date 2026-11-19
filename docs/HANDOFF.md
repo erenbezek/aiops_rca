@@ -6118,3 +6118,23 @@ Data:
 - **Netleştirme 2:** `run` önceki demoların en son `reverted` anına bakar (`last_reverted`); 600 sn dolmadıysa taban sorunu ("wait"), çıkış 2, enjeksiyon yok. Arayüzde de geçerli.
 - **Testler:** 3 yeni (demo testleri 61); pytest 880 yeşil; P2d raporu ve iki özet `--check` "same". Kasıtlı kırmızı (scratch): 10 dk kuralını, beklenmeyen değişiklik denetimini ve CPU sabitlemesini kaldırmak → her biri 1 test kırmızı.
 - **Beklenen:** planlama kontrolü; sonra O1 (Eren'e sorarak; ~100 dk, Gemini, 10:00–11:00 kesmez).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 5. madde öncesi düzeltmeler: geçti; O1 Eren'e sorularak başlayabilir)
+- **Bağımsız doğrulama (scratch, `0e62d92`):**
+  - pytest 880 yeşil.
+  - Beş `--check` çıkış 0; `src/` ve `results/` değişmemiş.
+  - Panel betiği sha256 `7cba947a…`, kayıttakiyle aynı. Değişen yalnız CPU eşiği (satır 57: `b + 5`) ve açıklama satırı; sorgular panodan.
+  - Pano CPU sorgusu `rate(container_cpu_usage_nanoseconds_total[3m]) / 1e9 * 100`; test sabitliyor, `utilization_ratio` yok.
+  - Yığında karşılaştırma aynı büyüklük düzeyinde (frontend 7,50 ↔ 8,52; product-catalog 10,75 ↔ 11,23).
+  - Şimdi konteyner 0. Şarj eşiği 80, AC takılı, boş disk 260 GB.
+- **Okuma:**
+  - Konteyner durumu enjeksiyondan önce ve geri almadan sonra `sr.containers()`'la okunuyor, `sr.split_restarts` ile ayrılıyor. Beklenen yalnız `containerStop` / `containerPause` hedefi; beklenmeyen → çıkış 1.
+  - Yerel model konteyneri (`aiops-llm`, `--rm`) geri almadan önce siliniyor (`LocalServer.stop` → `_gone`). Bitiş okumasında yok, yanlış "beklenmeyen" vermez.
+  - 10 dk kuralı önceki demoların `reverted` anından; dolmadıysa çıkış 2, enjeksiyon yok.
+- **Not (isteğe bağlı, koşuyu bekletmez):** bitişteki `sr.containers()` `finally`'de, korumasız. Docker o an hata verirse örnekleyici kapanmadan ve kayıt yazılmadan çıkar; geri alma zaten bitmiş olur. `try` ile kayda `error` yazmak yeter.
+- **Beklenen:** O1, Eren'e sorarak.
+  - İçerik: yığın açılışı + 15 dk; D1, D2, D3 (Gemini); ~100 dk.
+  - Koşul: şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez.
+  - D1'den sonra `next_step` durma kuralı uygulanır.
+  - Oturum sonunda `down`, isimli volume'lere dokunulmaz.
+  - Sonuçlar (ölçüt başına tuttu / tutmadı, panel betiğinin çıktısı, sha'lar) HANDOFF'a. İsabet yalnız bilgi.
