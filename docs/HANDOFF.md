@@ -5774,3 +5774,15 @@ Data:
   - product-catalog bellek sınırı için önerilen değer (şimdiki sınır ve gerekçe);
   - ölçüm betiğinin yeri ve yolu (taban ölçüsüyle aynı: 10 dk normal dönem, frontend ve product-catalog p95). Sınamanın adımları kartta aynen.
 - **Beklenen:** 2. maddenin iki eksiği HANDOFF'ta; sonra 2. madde, Eren'e sorarak (yığın açılır, uzun koşu; şarj eşiği 80, iki kilit).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo: 1. madde düzeltmeleri alındı; 2. maddenin iki eksiği)
+- **Düzeltmeler (planlama 67a7364):** beşi de 3. maddenin koduna girer, değişiklik yok: belirti 10 dk (DECISIONS 2026-11-19); `NEXT_STEPS` girdisi 1. adayın canlı veriden kurulan satırına `signals.signals` (güç ≥ 1), rapor kaynağı yazar; `serve` belirteci + kabul listesi; panel ölçütü (pencere boyunca veri, hedef ya da çağıranlarında değişim); 4B'de `MemAvailable` ve swap tepesi kayda; yeni adlar ve sabit sürümler 3. maddeden önce Eren'e.
+- **(1) product-catalog bellek sınırı: öneri 64M** (şimdiki upstream 20M, `memswap_limit` yok).
+  - Dayanak: 2026-10-30 sınaması (`~/cerebrum2/analysis/pc_memory_probe_20261030T0933Z.json`), normal dönem sonunda: `memory.current` 20,28 MB / sınır 20,97 MB (doluluk 0,991), anon 9,47 MB, file 9,52 MB, swap'ta 8,70 MB; 15 dk'da `events.max` +32.520, `workingset_refault_file` 1,50 M sayfa. Sürecin kendi belleği (anon + swap) ≈ 18,2 MB, sınırda dosya önbelleğine ~1–2 MB kalıyor.
+  - 64M = anon + swap'ın ~3,5 katı; dosya önbelleğine ~45 MB pay. Makine toplamına etkisi ~44 MB (16 GB'ta önemsiz). Daha küçük değer (40M) sınırda yine geri kazanım riski; daha büyüğü gereksiz.
+  - Yer: `deploy/otel-demo/compose.extras.yaml`'da product-catalog'a `deploy.resources.limits.memory: 64M` (yalnız ekleme; Jaeger satırının biçimi). Bu satır yalnız (ii)'de ve yalnız ölçüt tutarsa kalır; tutmazsa geri alınır (commit geçmişinde).
+  - checkout da 20M ve aynı belirtide (doluluk 0,974); sınama yalnız product-catalog (kart aynen). Not olarak kayda.
+- **(2) Ölçüm betiği: yeni kod yok; onaylı taban betiği aynen** (`~/cerebrum2/analysis/v3c_baseline.py`, sha256 `608dbe74…24f6`, DECISIONS 2026-10-30). Demoyu koşucudaki gibi açar (collector yeniden başlatma, 23 konteyner, 5 dk ısınma, 10 dk normal), frontend p95'i koşucunun ölçüsüyle (`summarize` → `service_rows` → `baseline_check`) ve servis başına p95'i (`services`, product-catalog dahil) kayda yazar; sonda `down` ve anonim volume silme. Betiğin kendi PASS'ı yalnız frontend ≤ 30 ms; sınamanın ölçütü ikisi birlikte: frontend p95 ≤ 30 ms **ve** product-catalog p95 13–17 ms (DECISIONS 2026-10-30), JSON'dan okunur. Çıktı `~/cerebrum2/analysis/v3c_baseline_<UTC>.json` / `.log`; sha ve sayılar kayda.
+  - Süre: ölçüm başına ~25 dk (açılış ~6 + ısınma 5 + normal 10 + kapanış); en çok üç ölçüm (i, ii, iii) ≈ 75 dk. Her biri Eren'e sorularak; şarj eşiği 80, iki kilit (betik koşucunun kilitlerini alıyor).
+  - (iii) izleme volume'lerini silmek (Jaeger 25,2 GB; DECISIONS 2026-11-09) ayrıca Eren onayı.
+- **Beklenen:** planlama kontrolü; sonra 2. madde (i), Eren'e sorarak.
