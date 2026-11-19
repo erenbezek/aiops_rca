@@ -6190,3 +6190,15 @@ Data:
   - D5 `containerStop:recommendation` 4B ile.
   - ~70 dk; şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez.
   - D5'te `memory` (ölçüt 7) kayda, ölçüt 8 D4'le.
+
+## 2026-11-20 · Uygulama → Planlama (Canlı demo O2: D4 taban ölçüsünde durdu, enjeksiyon yok; D5 koşulmadı)
+- **Oturum (Eren onayıyla, seçenek a: D4'ü Eren arayüzden tıklar):** 00:56 – 01:31 yerel; iki kilit, şarj eşiği 80, AC. Orkestratör scratch `session2.py` (O1 betiği + arayüz adımı: `serve` açılır, adres Eren'e verilir, yeni demo klasörünün `result`'ı beklenir, `serve` kapanır). Kayıt: `~/cerebrum2/demo_runs/session_20261119T215645Z.log`; demo klasörü `20261119T223028Z-demo` (yalnız `run.json`).
+- **Ne oldu:** yığın 00:57'de açık, 900 sn sonra (01:12) arayüz hazır. Eren 01:30'da `paymentFailure_10pct`'i (Gemini) arayüzden başlattı. `run` taban ölçüsünde durdu: `result` "baseline: container count 22, want 23". Enjeksiyon yok, ajan yok, geri alınacak bir şey yok; korumalar ve kilit temiz. Orkestratör bunu sert durma saydı (`revert.verified` yok), D5 koşulmadı, yığın kapandı (konteyner 0).
+- **Okuma:** `docker ps` 26 konteyneri çalışır gösteriyordu (koruma kaydının `leftovers` listesi; duraklatılmış yok). Eksik olan Prometheus'taki sayı: `sr.container_count()` = `count(container_uptime_seconds)` 22; yani bir konteynerin docker_stats metrikleri collector'dan gelmiyordu. Hangisi olduğu okunamadı (yığın kapanmadan önce bakılmadı). `scenario_runner` aynı durumda normal dönemden önce collector'ı yeniden başlatıyor (`collector_restarted_before_normal`); `live_demo` `baseline` bunu yapmıyor, yalnız reddediyor. Kod tasarlandığı gibi çalıştı; O1'de üç demoda sayı 23'tü.
+- **Ölçüt 8 için olumlu:** arayüzden başlatma, belirteç, `spawn_run` ve sonuç okuma çalıştı (demo arayüzün açtığı süreçle koşup kaydını yazdı). Rapor oluşmadığı için ölçüt 8 tamamlanmış sayılmaz.
+- **Eren notu (arayüz):** hata / senaryo seçimindeki seçenekler zor okunuyor. Tahminim: `select`'in arka planı saydam, yazı rengi koyu temada açık; açılan seçenek listesi tarayıcının açık zemininde açık yazı kalıyor. Düzeltme küçük (seçeneklere zemin rengi); kapanışta ya da ayrı, planlamanın kararı.
+- **Öneri (planlamaya; kod yok):**
+  1. O2'yi aynı haliyle yeniden koşmak (sayı geçici olabilir).
+  2. Ya da `live_demo`'ya `scenario_runner`'daki gibi taban ölçüsünden önce sayı 23 değilse collector'ı yeniden başlatıp bekleme eklemek (normal dönem penceresi yeniden başlatmadan sonra dolmalı; 10 dk kayar).
+  Benim önerim 2: arayüzde tıklayan kişi için sessiz bir 22 sorunu sık görülürse demo güvenilmez. Ayrıca 1 için: orkestratör yığını açtıktan sonra 900 sn'nin sonunda sayıyı loga yazsın, Eren'den tıklama ancak 23 ise istensin.
+- **Beklenen:** planlama kararı (1 ya da 2) ve arayüz notu; sonra O2 Eren'e sorarak.
