@@ -6239,3 +6239,16 @@ Data:
   - Arayüz: seçim kutusu ve seçenekler `var(--bg)` / `var(--fg)`, `color-scheme: light dark`; iki yeni adım satırı var olan `times_utc` gösterimiyle. Okunurluk O2'de Eren'in sözüyle.
 - **Not:** CI yalnız PR'da ve main push'ta koşuyor; bu dalın PR'ı yok, ölçüt 7'nin "CI yeşil" kısmı kapanış PR'ında görülür. Küçük: `docker restart`'ın dönüş kodu okunmuyor; başarısızsa 240 sn sonra çıkış 2 (güvenli yön), değişiklik istenmiyor.
 - **Sonuç:** GEÇTİ. O2 başlatılabilir: uygulama önce Eren'e sorar (~70 dk, yeniden başlatma olursa ~+10 dk; şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez). D4 arayüzden Gemini, D5 4B; ölçütler O1'deki gibi, D4'te ölçüt 8, D5'te ölçüt 7 (bellek, OOM 0).
+
+## 2026-11-20 · Uygulama → Planlama (Canlı demo O2 sonuçları: D5 bütün ölçütler tuttu; D4'te ölçüt 6 P2 tutmadı)
+- **Oturum (Eren onayıyla "başlat"):** 02:47 – 03:50 yerel; iki kilit, şarj eşiği 80, AC. Orkestratör `session2.py` sha256 `15afb65a0735516a…`, panel betiği `7cba947a5e0d9751…` (aynı). Kayıt `~/cerebrum2/demo_runs/session_20261119T234757Z.log`; demo klasörleri `20261120T001101Z-demo` (D4), `20261120T003226Z-demo` (D5). Sonda konteyner 0.
+- **Konteyner sayısı:** ısınma sonunda 23; `collector_restart` olmadı (iki demoda da alan yok).
+- **D4 (`paymentFailure_10pct`, Gemini, Eren arayüzden başlattı 03:11):** ölçüt 1 tuttu (ok, çıkış 0); 2 tuttu (flag geri `off`, doğrulandı); 3 tuttu (alanlar dolu); 4 tuttu (sızıntı 0); 5 tuttu (beklenmeyen yok); **6: P1 tuttu, P2 tutmadı** (S = payment, checkout; beş panelde de eşik altında: hata oranı ikisinde 0 → 0, istek hızı 0,048 → 0,056, p95 74 → 63 / 3,7 → 3,8 ms); 8 tuttu (arayüzden uçtan uca, rapor sayfada çıktı).
+- **D5 (`containerStop:recommendation`, 4B):** ölçüt 1–5 tuttu (recommendation'da beklenen `StartedAt` değişimi, `RestartCount` 0, OOM yok); 6 tuttu (P1; P2 istek hızı recommendation 0,85 → 0,15, hata oranı frontend 0 → 0,10); 7 tuttu: `mem_available_min_mib` 5.534,7, `swap_used_peak_mib` 3.134,8, OOM 0.
+- **Demolar arası:** D4 `reverted` → D5 alarm 616 sn.
+- **`next_step` kuralı:** D4'te 1. aday eşlendi, kural `error` (izlerden hata oranı 0 → 0,0625, güç 1,25), satır kurulu; D5'te `down`.
+- **D4 P2 okuması (bilgi; ölçüt değişmedi):** izlerden `next_step` satırı sonra yarıda checkout'ta 32 istekte 2 hata gördü. Panelin kaynağı span metrikleri: payment SERVER `STATUS_CODE_ERROR` serisi Prometheus'ta ilk kez 00:21'de (0) ve 00:22'de (2) görünüyor; ajan başlangıcı 00:21:06. Yani 10 dk'da ~3 hatalık düşük oranlı bir hatada hata sayacı panel penceresi [alarm − 10 dk, ajan başı) bittikten sonra görünür oldu (yeni serinin ilk örneği + dakikalık gönderim gecikmesi; kök kesin değil). Panelde hata, pencereden sonra Grafana'da görünür; panel betiği pencere içinde görmez.
+- **İsabet (yalnız bilgi):** 1. aday D4 checkout (kök payment, 1. sırada değil; adaylar checkout, email, frontend), D5 recommendation doğru. D5 adaylarından biri "network" (servis değil). D4 49,5 sn, D5 384,6 sn; ikisi de adım sınırı (8 çağrı).
+- **Arayüz:** Eren "seçenekler artık okunuyor" (okunurluk ölçütü tuttu).
+- **Özet:** 5 demoda ölçüt 1–5, 7, 8 tuttu; ölçüt 6 D4'te P2 tutmadı (öteki 4'te tuttu).
+- **Beklenen:** planlama kararı: D4 P2 sonucu nasıl kayda geçer (ölçüt değiştirilmez; kart "tutmadı" olarak mı kapanır, yoksa ayrı bir yeniden koşu mu). Sonra 6. madde kapanış.
