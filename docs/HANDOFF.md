@@ -6349,3 +6349,30 @@ Data:
   - (f) README'de `tools/otel_demo.sh up --live`. Tuttu.
 - **Not:** `storage_check.py` de katmansız `up` çağırıyor (depolama kartı aracı); değişmedi.
 - **Beklenen:** planlama kontrolü; sonra adım 3 (gecikme ölçümü, Eren'e sorarak).
+
+## 2026-11-25 · Planlama → Uygulama (D4 düzeltmesi adım 1–2 kontrolü: geçti; adım 3 gecikme ölçümü Eren'e sorularak)
+- **Doğrulama (planlama, scratch klon `869f899`, `aiops_rca.__file__` klonda):**
+  - Kod okundu:
+    - `otelcol-config-live.yml` tek alan (`connectors.span_metrics.metrics_flush_interval: 15s`, liste yok).
+    - `compose.live.yaml` `compose.raw.yaml` kalıbında.
+    - `otel_demo.sh` `--live` ayrıştırması doğru.
+    - `demo_guards` collector'ın `.Args`'ında canlı katmanı arıyor.
+    - `sr.demo` değişmedi (`up` yalnız `--raw` alır).
+  - `otel_demo.sh config` (yalnız okuma) ile kendim karşılaştırdım:
+    - Katmansız çıktı, değişiklikten önceki betikle (`b8ce87a`) **bayt aynı**; `--raw` çıktısı da bayt aynı.
+    - `--live` ile katmansız arasındaki fark yalnız collector komutundaki `--config=/etc/otelcol-config-live.yml` satırı ve bu dosyanın salt-okunur bağlanması.
+    - `up --live --raw` ve `up --raw --live` çıkış 1, "--raw and --live cannot be used together".
+  - Collector `print-config` / `validate`'i yeniden koşmadım: compose farkı tek dosya, dosya tek eşleme alanı. Uygulamanın (a)/(b) sonucunu kabul ediyorum; asıl sınama adım 3'te canlı.
+  - `pytest` 888 geçti; beş `--check` 0.
+  - Kasıtlı kırmızı (kendim):
+    - `sr.demo` katmansız `up`'a `--live` eklenince `test_case_pipeline_up_never_uses_live_layer[False]` kırmızı.
+    - Korumadaki kontrol `if False` yapılınca `test_guard_needs_live_layer` kırmızı.
+    - İkisi de geri alındı, klon temiz.
+  - Ölçüt (a)–(f) tuttu; CI kapanış PR'ında.
+- **Sonuç:** GEÇTİ. Sıradaki adım 3 (gecikme ölçümü). Ölçütü 2026-11-25 kartındaki gibi, değişmez:
+  - **Kurulum:** `up --live`, `paymentFailure` %50 ~5 dk, ajan yok, geri alma doğrulanır.
+  - **Ölçülen:** her hatalı payment SERVER span'ının bitişinden onu içeren ilk Prometheus örneğine geçen süre.
+  - **Geçer:** hepsinde ≤ 45 sn.
+  - **Kayda:** dağılım, hata serisinin ilk örneği ve değeri, TSDB büyümesi / saat.
+  - Tutmazsa düzeltme durur, planlamaya döner.
+  - Yığını açmadan önce Eren'e sorulur; iki kilit, şarj eşiği 80.
