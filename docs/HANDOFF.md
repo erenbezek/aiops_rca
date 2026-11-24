@@ -6252,3 +6252,33 @@ Data:
 - **Arayüz:** Eren "seçenekler artık okunuyor" (okunurluk ölçütü tuttu).
 - **Özet:** 5 demoda ölçüt 1–5, 7, 8 tuttu; ölçüt 6 D4'te P2 tutmadı (öteki 4'te tuttu).
 - **Beklenen:** planlama kararı: D4 P2 sonucu nasıl kayda geçer (ölçüt değiştirilmez; kart "tutmadı" olarak mı kapanır, yoksa ayrı bir yeniden koşu mu). Sonra 6. madde kapanış.
+
+## 2026-11-24 · Planlama → Uygulama (O2 kontrolü: D5 geçti, D4 ölçüt 6 P2 tutmadı; Eren kararı: kök → pano düzeltmesi → D4 yeniden)
+- **Doğrulama (planlama, bağımsız; demo klasörleri `20261120T001101Z-demo`, `20261120T003226Z-demo`, oturum logu):**
+  - İki demoda `result` ok, çıkış 0, geri alma doğrulandı, sızıntı 0, beklenmeyen yeniden başlama 0 (D5'te beklenen yalnız recommendation), bitişte OOM 0, rapor alanları dolu, pano yüklendi. Alarm → ajan başı 601 / 610 sn; D4 `reverted` → D5 alarm 616 sn. `collector_restart` yok (ısınma sonunda sayı 23).
+  - Bellek (ölçüt 7, D5): `mem_available_min_mib` 5.534,7, `swap_used_peak_mib` 3.134,8, OOM 0. Tuttu.
+  - Ölçüt 8 (D4 arayüzden uçtan uca) tuttu; Eren okunurluğu onayladı.
+  - Panel P2'yi `panels_check.json` değerlerinden eşiklerle kendim yeniden hesapladım: D5 vuruşlar `requests:recommendation` (0,845 → 0,151), `error_rate:frontend` (0 → 0,103), dosyayla aynı. D4'te S = {payment, checkout}, on değerin hiçbiri eşikte değil (hata oranı ikisinde 0 → 0; istek 0,0475 → 0,0561; p95 74,4 → 63,0 / 3,66 → 3,85 ms; CPU +0,25 / +0,17 puan; bellek 1,04× / 1,14×). **D4 ölçüt 6: P1 tuttu, P2 tutmadı.** Ölçüt değişmez.
+  - İsabet (yalnız bilgi): D4 1. aday checkout, D5 doğru.
+- **Okuma:** belirti var ama çok seyrek: payment 10 dk'da ~30 istek, %10 → ~3 hata; ajanın `next_step` satırı izlerden checkout'ta 32 istekte 2 hata gördü. Uygulamanın okumasına göre span metriklerinde payment `STATUS_CODE_ERROR` serisi ilk kez ajan başlangıcından sonra görünüyor. Kök kesin değil. Olası mekanizmalar (doğrulanmadı):
+  - (i) Yeni doğan sayaç serisinin ilk artışı `rate` ile sayılmaz: önceki örnek yok, seri N'den başlar.
+  - (ii) Span metrikleri bağlayıcısının gönderim aralığı ya da Prometheus'a ulaşma gecikmesi.
+  - (iii) İkisi birden.
+- **Karar (Eren, 2026-11-24): önce kök bulunur, sonra pano düzeltilir, D4 bir kez yeniden koşulur.** Ölçüt 6 ve panel betiği (`7cba947a5e0d9751…`) değişmez.
+- **Adım 1 — kök incelemesi (kod ve pano değişmez; yalnız okuma):**
+  - Kaynak öncelikle **kayıtlı D4 verisi**. Saklama 7 gün: D4 penceresi ~2026-11-27 03:00 yerelde silinir, O1 (D1–D3) ~2026-11-26 23:00 yerelde. 2 GB boyut sınırı daha erken silebilir; ilk iş verinin hâlâ orada olduğunu görmek.
+  - Yığın açılır, enjeksiyon yok, ajan yok. Yığını açmadan önce Eren'e sorulur (kısa; iki kilit).
+  - Cevaplanacak sorular (sayıyla, UTC):
+    - **S1.** D4 penceresinde payment ve checkout'ta hatalı SERVER span'larının zamanları (Jaeger): kaç tane, ilki ne zaman.
+    - **S2.** `traces_span_metrics_calls_total{service_name="payment"|"checkout", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}` serisinin ham örnekleri (aralık sorgusu, `[…]` ile ham değerler): ilk örneğin zamanı ve değeri, sonraki artışlar.
+    - **S3.** S1'deki ilk hata ile S2'deki ilk örnek arasındaki süre. Aynı süre hatasız serilerde de var mı (normal istek serisinin örnek aralığı, gecikmesi)?
+    - **S4.** Panodaki hata oranı ifadesi pencere içindeki zamanlarda (`query` ile, `[3m]`) ne veriyor; S2'deki örneklerle bu sonucun nasıl çıktığı.
+    - **S5.** Collector'daki span metrikleri bağlayıcısının ayarı (gönderim aralığı, süre aşımı; upstream'den mi bizim katmandan mı) okunur, değiştirilmez.
+  - Kayıtlı veri soruları cevaplamaya yetmezse kontrollü yeniden üretim yalnız Eren'e sorulduktan sonra yapılır (`paymentFailure_10pct` kısa süre, ajan yok).
+  - Çıktı: S1–S5'in sayıları ve kök. Hangi mekanizma (i/ii/iii/başka) kanıtla, hangisi elendi.
+- **Adım 2 — düzeltme seçenekleri planlamaya (kod yok):** her seçenek için ne değişir, hangi mekanizmayı giderir, öteki panellere ve demolara etkisi. **Prometheus ya da collector ayarına dokunan seçenek mimari değişikliğidir**, Eren'e sorulur. Ölçüt koddan önce yazılır.
+- **Düzeltmenin kabulü için şimdiden şart (Eren'in seçimi ne olursa):**
+  - (a) Değişen pano ifadesi, D1–D3 ve D5'in kayıtlı pencerelerinde aynı panel betiğiyle yeniden değerlendirilir; P1 ve P2 dördünde de tutmaya devam eder. O1 verisi 26.11 ~23:00 yerelden önce okunmalı.
+  - (b) D4 canlı olarak **bir kez** yeniden koşulur; sonuç ne çıkarsa kayda girer. İkinci yeniden koşu ancak Eren kararıyla olur.
+  - (c) Gerekçe mekanizmaya dayanır. Yalnız D4'ü geçirmek için eşik ya da pencere oynamak düzeltme sayılmaz.
+- **Süre baskısı:** veri silinmeden önce adım 1 ve (a). Adım 1 kısa sürer ve uzun koşu değildir, ama yığın açıldığı için Eren'e sorulur.
