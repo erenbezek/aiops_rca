@@ -6301,3 +6301,33 @@ Data:
   3. **Değişiklik yok; D4'ü bir kez yeniden koşmak** ve gecikmeyi README / sınırlara yazmak. Mekanizma giderilmez; sonuç hatanın zamanlamasına bağlı (bu koşudaki gibi 2–3 hatanın hepsinin son 1–2 dk'ya düşme olasılığı küçük ama sıfır değil).
   - **Önerim 1** (mekanizmayı gideren tek seçenek); ölçütü planlama yazar, Eren onaylar; sonra (a) D1–D3 / D5 kayıtlı pencerede panel betiği (26.11 23:00 yerelden önce) ve (b) D4 bir kez canlı. Seçenek 1 seçilirse (a) yeni ayarı sınamaz; sınama (b)'de ve D4'le birlikte bir sürekli seri demosunda (ör. D1) olur — bu ek koşu planlamanın kararı.
 - **Beklenen:** planlama: seçenek ve ölçüt; Eren onayı (seçenek 1 mimari).
+
+## 2026-11-25 · Planlama → Uygulama (D4 kök kontrolü; Eren kararı: gönderim aralığı 15 sn yalnız demo yığınında)
+- **Doğrulama (planlama):** yığın kapalı olduğu için S1–S4'ün sayılarını yeniden sorgulamadım; ölçüm adımında bağımsız görülecek. Okunanlar:
+  - `run.json` (alarm 00:11:05Z, ajan başı 00:21:06Z) kayıtla aynı.
+  - Upstream `otelcol-config.yml`'de `span_metrics:` boş; bizim extras dokunmuyor.
+  - Traces pipeline'ında `batch` processor yok.
+  - Prometheus v3.13.1 bayraklarında sıfır örnek ekleyen özellik yok; saklama 7d / 2GB.
+- **Okumada açık kalan iki nokta:**
+  1. İlk hata 00:19:40Z, ondan 29 sn sonraki 00:20:09 örneği **0**, ancak 00:21:09'da 2 → ilk hatanın uçtan uca gecikmesi **89 sn**, bir gönderimi kaçırmış. "Bir gönderim (≤ 60 sn)" bunu açıklamıyor: ≥ 29 sn'lik ek bir gecikme var, kaynağı bilinmiyor. 15 sn aralık bu parçayı gidermeyebilir.
+  2. Hata serisinin 0 değeriyle doğması açıklanmadı (hata sayacı 0'la nasıl başlıyor).
+- **Seçenek 1'in yan etkisi:** `otelcol-config-extras.yml` vaka hattında da kullanılıyor. Aralık orada değişirse P2e'nin yeni vakaları test setinden farklı koşulda üretilir. Eren seçeneği: **ayar yalnız demo yığınına**; vaka hattı değişmez.
+- **Sıra (her adımdan sonra planlama kontrolü):**
+  1. **Adlar Eren'e (koddan önce):** demo katmanının dosya adı ve `otel_demo.sh`'ta onu seçen yol (bayrak vb.). GLOSSARY onaydan sonra.
+  2. **Kod + testler.** Ölçütler:
+     - (a) Demo katmanıyla birleşik ayarda (`print-config`) `span_metrics.metrics_flush_interval` 15s. Katmansız (vaka hattının `up`'ı) birleşik ayar bugünküyle **birebir aynı** (fark 0).
+     - (b) `validate` (0.159.0) iki durumda çıkış 0; `check_collector_pipelines.py` iki durumda eksik 0.
+     - (c) `scenario_runner`'ın `up` çağrısı katmanı **kullanmaz**; bunu iddia eden test.
+     - (d) Kasıtlı kırmızı: katman varsayılan `up`'a bağlanınca (c) kırmızı.
+     - (e) `pytest` yeşil, beş `--check` 0.
+     - (f) README'de demoyu açma komutu katmanlı biçimle.
+  3. **Gecikme ölçümü (canlı, kısa; ajan yok; Eren'e sorulur).** Demo katmanıyla yığın açılır, `paymentFailure` %50 yaklaşık 5 dk açık (tanı için çok hata; demo değil), kapatılır, geri alma doğrulanır.
+     - Her hatalı payment SERVER span'ı için span bitişi (Jaeger) → onu içeren ilk Prometheus örneği arasındaki süre ölçülür (ham örnekler).
+     - **Geçer: hataların hepsinde ≤ 45 sn** (15 sn gönderim + pay).
+     - Kayda: gecikme dağılımı (en az / ortanca / en çok); hata serisinin ilk örneği ve değeri (açık nokta 2); Prometheus TSDB büyümesi / saat (bilgi; 2 GB sınırı).
+     - Tutmazsa düzeltme durur, planlamaya döner: ek gecikmenin kaynağı ayrıca aranır.
+  4. **Canlı demolar (Eren'e sorulur):** D4 `paymentFailure_10pct` (Gemini) **bir kez**; yan etki için D1 `containerStop:recommendation` (Gemini) bir kez. Demo yığını katmanla açılır.
+     - Ölçütler O1/O2'deki gibi, değişmez; panel betiği `7cba947a5e0d9751…` aynı.
+     - Sonuç ne çıkarsa kayda girer. İkinci yeniden koşu ancak Eren kararıyla.
+     - Ajanın canlı okumaları daha sık örnekle değişebilir; isabet yalnız bilgi, ajan değişmez.
+- **Önceki kartın (a) şartı düşer:** pano değişmiyor, kayıtlı D1–D3 / D5 verisi eski aralıkla. Kayıtlı veride yeniden değerlendirme bir şey sınamaz; yerine 4. adımdaki D1 koşusu gelir. Silinme tarihi baskısı kalmadı.
