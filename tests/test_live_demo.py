@@ -33,6 +33,43 @@ def test_accepted_faults_from_runner_tables():
     assert "loadGeneratorFloodHomepage_on" not in f and "paymentFailure_10pct" in f
 
 
+LIVE_ARGS = '["--config=/etc/otelcol-config-extras.yml","--config=/etc/otelcol-config-live.yml"]'
+
+
+@pytest.fixture(autouse=True)
+def collector_live_layer(monkeypatch):
+    """Korumanın `docker inspect otel-collector` okuması: varsayılan yığın canlı katmanla açık."""
+    real = ld.subprocess.run
+    state = {"args": LIVE_ARGS}
+
+    def run(cmd, **kw):
+        if cmd[:3] == ["docker", "inspect", "otel-collector"]:
+            return type("P", (), {"stdout": state["args"] + "\n", "returncode": 0})()
+        return real(cmd, **kw)
+    monkeypatch.setattr(ld.subprocess, "run", run)
+    return state
+
+
+def test_guard_needs_live_layer(monkeypatch, collector_live_layer):
+    monkeypatch.setattr(sr, "guards", lambda: _guards([]))
+    monkeypatch.setattr(ld, "netem_leftovers", lambda running: [])
+    assert ld.demo_guards()["problems"] == []
+    collector_live_layer["args"] = '["--config=/etc/otelcol-config-extras.yml"]'      # `up` (katmansız)
+    assert any("up --live" in p for p in ld.demo_guards()["problems"])
+    collector_live_layer["args"] = ""                                                 # collector yok
+    assert any("live layer" in p for p in ld.demo_guards()["problems"])
+
+
+@pytest.mark.parametrize("raw", [True, False])
+def test_case_pipeline_up_never_uses_live_layer(monkeypatch, raw):
+    """Vaka hattının (`scenario_runner`) `up`'ı canlı demo katmanını yüklemez (Eren kararı 2026-11-25)."""
+    seen = []
+    monkeypatch.setattr(sr.subprocess, "run", lambda args, **kw: seen.append(args) or type(
+        "P", (), {"returncode": 0, "stdout": "", "stderr": ""})())
+    assert sr.demo("up", lambda m: None, raw=raw) == 0
+    assert seen[0][1] == "up" and "--live" not in seen[0] and ("--raw" in seen[0]) is raw
+
+
 def _guards(left):
     return {"problems": ["leftovers from a previous run: ..."] if left else [], "leftovers": left}
 

@@ -6,7 +6,8 @@ ajan ana izleme yığınından araştırır → kayıt → hata geri alınır.
     python tools/live_demo.py list                      # kabul listesi (hatalar ve senaryolar)
     python tools/live_demo.py serve [--port 8765]       # web arayüzü (yalnız 127.0.0.1; adresi belirteçle basar)
 
-Demo yığını açık olmalı (`tools/otel_demo.sh up`, en az `NORMAL_S` normal dönem): komut yığını açmaz, kapatmaz.
+Demo yığını canlı demo katmanıyla açık olmalı (`tools/otel_demo.sh up --live`: span metrikleri 15 sn; değilse korumada
+durur), en az `NORMAL_S` normal dönem: komut yığını açmaz, kapatmaz.
 Sıra: korumalar (`scenario_runner.guards()`; demo konteynerleri burada beklenir, yalnız hata kalıntısı sorun) → taban
 sağlık (23 konteyner, flagd zamanlayıcısı durmuş, senaryonun flag'i kapalı, frontend p95 koşucunun ölçüsüyle; dosya)
 → enjeksiyon (`scenario_runner.apply_fault` / `set_flag`; kopya yok); **alarm anı = enjeksiyon başlangıcı** →
@@ -116,6 +117,12 @@ def demo_guards() -> dict:
         problems.append("netem rule left on: " + ", ".join(netem) + "; clean up by hand: " + "".join(
             f"docker run --rm --network container:{n} --cap-add NET_ADMIN {sr.NETEM_IMAGE} tc qdisc del dev eth0 root; "
             for n in netem))
+    # Yığın canlı demo katmanıyla mı açık (span metrikleri 15 sn; Eren kararı 2026-11-25)? Collector'ın komutuna bakılır.
+    args = subprocess.run(["docker", "inspect", "otel-collector", "--format", "{{json .Args}}"], capture_output=True,
+                          text=True).stdout
+    if "--config=/etc/otelcol-config-live.yml" not in args:
+        problems.append("collector not started with the live layer (span metrics every 15 s): "
+                        "tools/otel_demo.sh down; tools/otel_demo.sh up --live")
     return {**g, "problems": problems, "netem_leftovers": netem}
 
 

@@ -1,0 +1,10 @@
+# Canlı demo katmanı (Eren kararı 2026-11-25; HANDOFF D4 kök incelemesi): yalnız `tools/otel_demo.sh up --live` ile,
+# bizim extras'tan sonra yüklenir. Vaka hattının `up`'ı bunu yüklemez (P2e vakaları test setiyle aynı koşulda kalır).
+#
+# Span metrikleri bağlayıcısı varsayılan 60 sn'de bir gönderiyor; yeni doğan bir hata serisi panelde (`rate`, iki
+# örnek) hatadan 1–2 dk sonra görünüyordu. 15 sn bu gecikmeyi kısaltır. Bedeli: span metriklerinde 4× örnek.
+# Liste yok, yalnız bir alan: katman birleştirmede upstream'in ve extras'ın listeleri değişmez.
+
+connectors:
+  span_metrics:
+    metrics_flush_interval: 15s

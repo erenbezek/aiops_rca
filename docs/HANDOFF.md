@@ -6331,3 +6331,21 @@ Data:
      - Sonuç ne çıkarsa kayda girer. İkinci yeniden koşu ancak Eren kararıyla.
      - Ajanın canlı okumaları daha sık örnekle değişebilir; isabet yalnız bilgi, ajan değişmez.
 - **Önceki kartın (a) şartı düşer:** pano değişmiyor, kayıtlı D1–D3 / D5 verisi eski aralıkla. Kayıtlı veride yeniden değerlendirme bir şey sınamaz; yerine 4. adımdaki D1 koşusu gelir. Silinme tarihi baskısı kalmadı.
+
+## 2026-11-25 · Uygulama → Planlama (D4 düzeltmesi adım 1–2: canlı demo katmanı `--live`, koruma; ölçüm öncesi)
+- **Eren onayı ("onaylı, korumayla"):** adlar `deploy/otel-demo/otelcol-config-live.yml`, `deploy/otel-demo/compose.live.yaml`, `tools/otel_demo.sh up --live` / `config --live`, `OTEL_COLLECTOR_CONFIG_LIVE`. Ek (Eren seçimi): `live_demo` korumaları yığın katmansız açıksa durur. GLOSSARY kapanışta.
+- **Kod:**
+  - `otelcol-config-live.yml`: yalnız `connectors.span_metrics.metrics_flush_interval: 15s` (liste yok).
+  - `compose.live.yaml`: `compose.raw.yaml` kalıbı; collector komutu upstream listesi + extras + live, dosya `OTEL_COLLECTOR_CONFIG_LIVE` ile bağlanır.
+  - `otel_demo.sh`: `LIVE=1` → `compose.live.yaml` en sona; `--raw` ile birlikte → hata (çıkış 1, "--raw and --live cannot be used together").
+  - `live_demo.demo_guards`: `docker inspect otel-collector` `.Args`'ta `--config=/etc/otelcol-config-live.yml` yoksa sorun ("collector not started with the live layer …; tools/otel_demo.sh down; tools/otel_demo.sh up --live"), enjeksiyon yok, çıkış 2. Modül açıklaması `up --live`.
+  - README "Tekrar üretme" altında canlı demo komutları (`up --live`, `serve` / `run`, `down`).
+- **Ölçütler:**
+  - (a) `print-config` (0.159.0, dört / beş katman, demonun `.env`'leri, boş `/hostfs`): katmansız `metrics_flush_interval` 60 sn (60000000000 ns, varsayılan), `--live` ile 15 sn; iki birleşik ayar arasında **tek fark** bu alan. Katmansız `docker compose config` çıktısı değişiklikten önceki betikle **bayt aynı** (`cmp`). Tuttu.
+  - (b) `validate` iki durumda çıkış 0; `check_collector_pipelines.py` upstream'e karşı iki durumda "logs, metrics, profiles, traces; problems: 0". Tuttu.
+  - (c) `test_case_pipeline_up_never_uses_live_layer` (raw True / False): `sr.demo("up")` argümanlarında `--live` yok. Tuttu.
+  - (d) Kasıtlı kırmızı (scratch klon): `sr.demo` katmansız `up`'a `--live` eklenince (c)'nin raw=False durumu kırmızı (1). Tuttu.
+  - (e) pytest 888 yeşil (+3: koruma testi, (c)×2; testlerde `docker inspect` otomatik taklit); README'deki beş `--check` çıkış 0. CI kapanış PR'ında.
+  - (f) README'de `tools/otel_demo.sh up --live`. Tuttu.
+- **Not:** `storage_check.py` de katmansız `up` çağırıyor (depolama kartı aracı); değişmedi.
+- **Beklenen:** planlama kontrolü; sonra adım 3 (gecikme ölçümü, Eren'e sorarak).

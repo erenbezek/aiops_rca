@@ -170,6 +170,15 @@ python -m pytest
 
 `--check` komutları sonuç tablolarını ve hata analizi özetlerini repodaki kayıtlardan yeniden üretip repodakilerle karşılaştırır; CI hepsini bayt aynı üretir. Snapshot, API anahtarı ve ağ gerekmez.
 
+Canlı demo, demo yığınını canlı demo katmanıyla ister (span metrikleri 15 sn'de bir; vaka hattının `up`'ı bu katmanı yüklemez, katmansız açılmış yığında demo korumada durur):
+
+```
+python -m pip install -e ".[dev,demo]"
+tools/otel_demo.sh up --live          # sonra en az 10 dk normal dönem
+python tools/live_demo.py serve       # ya da: python tools/live_demo.py run --fault containerStop --target recommendation
+tools/otel_demo.sh down
+```
+
 ## Repo haritası
 
 | Klasör | İçerik |
