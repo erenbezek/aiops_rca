@@ -6385,3 +6385,26 @@ Data:
 - **Açık nokta 2 (serinin 0'la doğması):** hata serisinin ilk örneği 00:13:36Z, **değer 0**, flag açıldıktan sonra. En büyük gecikme (33,9 sn) **ilk hata**; sonrakiler 7,5–19,0 sn. Yani bağlayıcı yeni seriyi ilk gönderimde 0 ile yayımlıyor, ilk hata bir sonraki gönderimde sayılıyor: yeni bir serinin ilk hatası **bir gönderim fazladan** gecikiyor. Bu, D4'teki açıklanmayan ≥ 29 sn'yi açıklar (60 sn aralıkta ilk hata 89 sn = iki gönderim; açık nokta 1). 15 sn aralıkta bu ek ≤ 15 sn.
 - **Prometheus volume'ü (bilgi, `docker system df -v`):** 13,35 → 14,0 MB, ≈ 5,5 MB / saat (kısa pencere, kaba; 2 GiB sınırına göre küçük).
 - **Beklenen:** planlama kontrolü; sonra adım 4 (D4 `paymentFailure_10pct` bir kez + D1 `containerStop:recommendation` bir kez, Gemini, `up --live`; Eren'e sorarak).
+
+## 2026-11-25 · Planlama → Uygulama (D4 düzeltmesi adım 3 kontrolü: gecikme ölçümü geçti; adım 4 Eren'e sorularak)
+- **Doğrulama (planlama):**
+  - Betik `~/cerebrum2/analysis/d4_flush_latency.py` sha256 `c2f784389090f50e…` kayıtla aynı. Dosyanın son değişikliği 25.11 02:59 yerel, koşu 03:07: ölçüt koşudan önce yazılmış (açıklamada ≤ 45 sn).
+  - Mantık okundu:
+    - collector `--live` denetimi, sayı 23;
+    - 300 sn normal, %50 ve doğrulama, 300 sn, `off` (`finally`), 120 sn;
+    - Jaeger'den hatalı payment SERVER span bitişleri; Prometheus'tan tek hata serisinin ham örnekleri;
+    - k. hata (bitişe göre) ↔ sayacın seri doğduğu değerden ≥ k olduğu ilk örnek.
+    - Eşleştirme sıralı bir yaklaşık; sayım eşit olduğu için (10 span, sayaçta 10) kayma yok.
+  - `latency.json`'dan kendim yeniden hesapladım: 10 gecikme, en az 7,5 / ortanca 18,0 / en çok 33,9 sn, hepsi ≤ 45; `off` doğrulandı. **GEÇTİ.**
+  - Hata serisinin ilk örneği 00:13:36Z, değer 0, flag açıldıktan sonra; en büyük gecikme ilk hatada.
+- **Açık noktalar:**
+  - **Nokta 2 (davranış):** yeni hata serisi ilk gönderimde 0 ile görünüyor, ilk hata bir sonraki gönderimde sayılıyor. Ölçümle kanıtlı.
+  - **Nokta 1:** D4'teki 89 sn bununla tutarlı (60 sn aralıkta iki gönderim). 0'ın kaynağı (bağlayıcı mı, Prometheus'un OTLP alımı mı) belirlenmedi; düzeltme için gerekmiyor.
+  - Panel açısından: seri 0 örneğiyle doğduğu için `rate` ilk artış örneğinde değer verir. Panelde görünme ≈ ölçülen gecikme (+ değerlendirme adımı).
+- **Kalan sınır (README'ye, kapanışta):** canlı katmanda bile ajan başlangıcından önceki son ~35 sn'deki hatalar panel penceresine girmeyebilir.
+- **Bilgi:** Prometheus volume ≈ 5,5 MB / saat (kısa pencere); yığın yalnız demoda açık, 2 GB sınırına etkisi küçük.
+- **Sıradaki: adım 4 (Eren'e sorulur).** Ölçütler 2026-11-25 kartındaki gibi:
+  - `up --live`; D4 `paymentFailure_10pct` (Gemini) bir kez, D1 `containerStop:recommendation` (Gemini) bir kez.
+  - O1/O2 ölçütleri değişmez; panel betiği `7cba947a5e0d9751…` aynı.
+  - Sonuç ne çıkarsa kayda; ikinci yeniden koşu ancak Eren kararıyla.
+  - İki kilit, şarj eşiği 80, 10:00–11:00 yerel kesilmez.
