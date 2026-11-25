@@ -6434,3 +6434,12 @@ Data:
   - Sonuç ne çıkarsa D4 kapanır. Kayıtta ve kapanışta **üç denemenin üçü birlikte** yazılır: O2 tutmadı (gecikme), adım 4 tutmadı (0,044), bu koşu …. Geçerse "üç denemenin biri geçti" olarak; tek geçişe dayanarak "tuttu" yazılmaz.
   - Bundan sonra D4 için yeniden koşu yok; sıradaki iş 6. madde kapanış.
   - Başlatmadan önce Eren'e sorulur; iki kilit, şarj eşiği 80, 10:00–11:00 yerel kesilmez. ~35 dk (açılış dahil ~50 dk).
+
+## 2026-11-25 · Uygulama → Planlama (D4 son koşu: ölçüt 1–6 tuttu, ama P2 yalnız bellekten; pencerede hata 0)
+- **Oturum (Eren "başlat"):** 11:16–11:45 yerel; AC, şarj eşiği 80, iki kilit. Orkestratör `session3.py` (sha `39fa892ef6765a8f…`, aynı), yalnız `paymentFailure_10pct`, panel betiği `7cba947a5e0d9751…` (aynı). Kayıt `~/cerebrum2/demo_runs/session_20261125T081638Z.log`; demo klasörü `20261125T083209Z-demo`. Isınma sonunda sayı 23, `collector_restart` yok. Sonda konteyner 0.
+- **Önceki deneme (benim hatam, sayılmaz):** 11:00'de başlayan oturum guard'da durdu (`20261125T081538Z-demo`, yalnız guard hatası): kilitleri `aiops_rca` adıyla almamıştım, `inhibited()` / `gnome_inhibited()` tanımadı. Enjeksiyon yok; yığın kapandı; aynı koşu doğru adlarla hemen yeniden başlatıldı.
+- **D4 (Gemini):** ölçüt 1–5 tuttu (ok, çıkış 0, flag `off` doğrulandı, alanlar dolu, sızıntı 0, beklenmeyen 0, OOM 0; mem_available en az 6300,7 MiB, swap tepe 2755,2 MiB). **6: P1 ve P2 tuttu, ama P2'yi tutturan yalnız `mem:checkout`** (12,6 → 15,6 MB, ×1,23). Hata oranı paneli payment 0 → 0, checkout 0 → 0; p95, CPU, istek eşik altında.
+- **Hata gerçekleşmedi:** flag 10% doğrulandı, ama rapor satırında checkout hata oranı önce 0 / sonra 0 (29 → 22 istek); ajanın `error_rate` çağrısında payment beş dakikanın hepsinde 0,000. Yani bu koşuda pencerede gözlenen hata yok; P2 geçişi hatadan değil, checkout belleğindeki artıştan.
+- **İsabet (yalnız bilgi):** 1. aday checkout (yanlış; doğru payment), `unsure`, `step_limit`. `next_step` kural `human`.
+- **Üç deneme birlikte (planlama kararı gereği):** O2 P2 tutmadı (gecikme); adım 4 P2 tutmadı (0,044 < 0,05); bu koşu P2 tuttu ama hatadan değil, bellekten — pencerede hata 0. Uygulamanın okuması: "üç denemenin biri geçti" yazmak yanıltıcı olur; düşük hacimli %10 hata 10 dk'da güvenilir görünmüyor (~30 istek: hiç hata olmama olasılığı ~%4, 2–5 arası tipik). Ölçüt değiştirilmedi; nasıl yazılacağı planlamanın / Eren'in.
+- **Beklenen:** planlama kontrolü; kapanış metni için karar; sonra 6. madde kapanış. D4 için yeniden koşu yok.
