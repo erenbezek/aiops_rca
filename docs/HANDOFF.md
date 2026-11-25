@@ -6408,3 +6408,14 @@ Data:
   - O1/O2 ölçütleri değişmez; panel betiği `7cba947a5e0d9751…` aynı.
   - Sonuç ne çıkarsa kayda; ikinci yeniden koşu ancak Eren kararıyla.
   - İki kilit, şarj eşiği 80, 10:00–11:00 yerel kesilmez.
+
+## 2026-11-25 · Uygulama → Planlama (D4 düzeltmesi adım 4: D1 bütün ölçütler tuttu; D4 yine ölçüt 6 P2 tutmadı, hata panelde görünür ama 0,044 < 0,05)
+- **Oturum (Eren onayıyla "başlat"):** 03:58–04:48 yerel; AC, şarj eşiği 80, iki kilit. Orkestratör scratch `session3.py` (sha256 `39fa892ef6765a8f…`; `session2.py` + `up --live`), panel betiği `7cba947a5e0d9751…` (aynı). Kayıt `~/cerebrum2/demo_runs/session_20261125T005837Z.log`; demo klasörleri `20261125T011403Z-demo` (D4), `20261125T013536Z-demo` (D1). Isınma sonunda sayı 23, `collector_restart` yok. Sonda konteyner 0. D4 `run` ile (arayüz ölçütü O2'de tuttu).
+- **Demolar arası:** D4 `reverted` → D1 alarm 615 sn.
+- **D4 (`paymentFailure_10pct`, Gemini):** ölçüt 1–5 tuttu (ok, flag `off` doğrulandı, alanlar dolu, sızıntı 0, beklenmeyen 0). **6: P1 tuttu, P2 tutmadı.** Hata oranı paneli artık pencerede değer veriyor: payment 0 → **0,0432**, checkout 0 → **0,0441** (eşik önce + 0,05); öteki paneller de eşik altında (p95 checkout 76 → 93 ms < 114; CPU checkout +0,66 puan; bellek ≤ 1,04×; istek ~aynı).
+- **D1 (`containerStop:recommendation`, Gemini):** ölçüt 1–6 tuttu (P2 istek hızı recommendation 0,83 → 0,16; hata oranı frontend 0 → 0,104).
+- **`next_step`:** D4 kural `error` (izlerden checkout sonra yarı **36 istekte 2 hata**, 0,056), D1 `down`.
+- **Okuma (bilgi; ölçüt değişmedi):** gecikme düzeltmesi hatayı pencereye soktu (O2'de hata oranı 0 → 0'dı, şimdi 0 → 0,043). P2'yi bu kez tutturmayan, bu koşudaki gerçekleşen hata oranı: flag %10, ama izlerde 36 istekte 2 hata (%5,6); panelin sonra yarı ortalaması bunun biraz altında (yarının başında hata yok, `[3m]` oranı). Eşik +0,05, %10'luk bir hatanın beklenen oranının yarısı; ~35 istekte gerçekleşen hata sayısı 2–5 arası oynar, eşik bu oynamanın içinde kalıyor. Düzeltme yapısal gecikmeyi giderdi (adım 3); kalan, düşük hacimli bir hatada örneklem küçüklüğü.
+- **İsabet (yalnız bilgi):** D4 1. aday **payment (doğru)**; D1 recommendation (doğru).
+- **Kart kararı (Eren'in, planlamadan):** kart kuralına göre ikinci yeniden koşu ancak Eren kararıyla. Uygulamanın önerisi yok: ölçüt değişmez; D4 "P2 tutmadı" ile kapanabilir (kök ve düzeltme kayıtlı; kalan sınır örneklem küçüklüğü README / sınırlara), ya da Eren isterse bir kez daha.
+- **Beklenen:** planlama kontrolü ve Eren kararı; sonra 6. madde kapanış.
