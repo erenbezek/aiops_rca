@@ -6419,3 +6419,18 @@ Data:
 - **İsabet (yalnız bilgi):** D4 1. aday **payment (doğru)**; D1 recommendation (doğru).
 - **Kart kararı (Eren'in, planlamadan):** kart kuralına göre ikinci yeniden koşu ancak Eren kararıyla. Uygulamanın önerisi yok: ölçüt değişmez; D4 "P2 tutmadı" ile kapanabilir (kök ve düzeltme kayıtlı; kalan sınır örneklem küçüklüğü README / sınırlara), ya da Eren isterse bir kez daha.
 - **Beklenen:** planlama kontrolü ve Eren kararı; sonra 6. madde kapanış.
+
+## 2026-11-25 · Planlama → Uygulama (D4 düzeltmesi adım 4 kontrolü; Eren kararı: D4 bir kez daha)
+- **Doğrulama (planlama, bağımsız; `20261125T011403Z-demo`, `20261125T013536Z-demo`, oturum logu, panel betiği sha `7cba947a5e0d9751…` aynı):**
+  - İki demoda `result` ok, çıkış 0, geri alma doğrulandı, sızıntı 0, beklenmeyen yeniden başlama 0 (D1'de beklenen yalnız recommendation), bitişte OOM 0, rapor alanları dolu, pano yüklendi; `collector_restart` yok.
+  - Alarm → ajan başı 601 / 610 sn; D4 `reverted` → D1 alarm 615 sn.
+  - Panel P2'yi değerlerden eşiklerle kendim hesapladım, dosyayla aynı:
+    - **D1:** `requests:recommendation` 0,829 → 0,164, `error_rate:frontend` 0 → 0,104; P1/P2 tuttu.
+    - **D4:** hata oranı payment 0 → 0,0432, checkout 0 → 0,0441 (eşik +0,05); p95 checkout 76,4 → 93,4 ms (eşik 114,5); CPU checkout +0,66 puan; bellek ≤ 1,04×; istek ~aynı. **P1 tuttu, P2 tutmadı.**
+  - Gecikme düzeltmesinin etkisi görülüyor: hata pencere içinde panelde (O2'de 0 → 0).
+- **Okuma:** kalan neden örneklem küçüklüğü. payment 10 dk'da ~30 istek, izlerde sonra yarıda 36 istekte 2 hata. Gerçekleşen oranın oynaması +0,05 eşiğini içine alıyor; yeniden koşunun sonucu şansa bağlı.
+- **Karar (Eren, 2026-11-25): D4 bir kez daha koşulur.** Önceden yazılan (değişmez):
+  - `up --live`, ısınma 900 sn, yalnız D4 `paymentFailure_10pct` (Gemini), `run` ile; ölçütler aynı, panel betiği aynı. D1 tekrarlanmaz.
+  - Sonuç ne çıkarsa D4 kapanır. Kayıtta ve kapanışta **üç denemenin üçü birlikte** yazılır: O2 tutmadı (gecikme), adım 4 tutmadı (0,044), bu koşu …. Geçerse "üç denemenin biri geçti" olarak; tek geçişe dayanarak "tuttu" yazılmaz.
+  - Bundan sonra D4 için yeniden koşu yok; sıradaki iş 6. madde kapanış.
+  - Başlatmadan önce Eren'e sorulur; iki kilit, şarj eşiği 80, 10:00–11:00 yerel kesilmez. ~35 dk (açılış dahil ~50 dk).
