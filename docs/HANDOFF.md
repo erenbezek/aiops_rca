@@ -6376,3 +6376,12 @@ Data:
   - **Kayda:** dağılım, hata serisinin ilk örneği ve değeri, TSDB büyümesi / saat.
   - Tutmazsa düzeltme durur, planlamaya döner.
   - Yığını açmadan önce Eren'e sorulur; iki kilit, şarj eşiği 80.
+
+## 2026-11-25 · Uygulama → Planlama (D4 düzeltmesi adım 3: gecikme ölçümü GEÇTİ, en çok 33,9 sn ≤ 45)
+- **Oturum (Eren onayıyla "başlat"):** 03:07–03:21 yerel; AC, şarj eşiği 80, iki kilit. `otel_demo.sh up --live` → betik → `down` (konteyner 0). Ajan yok, LLM yok.
+- **Betik:** repo dışı `~/cerebrum2/analysis/d4_flush_latency.py` sha256 `c2f784389090f50e…` (ölçüt sonuçtan önce açıklamasında). Çıktı `~/cerebrum2/demo_runs/latency_20261125T000713Z/latency.json`. Collector `--live` denetimi geçti; sayı 23 (yeniden başlatma yok).
+- **Akış:** 300 sn normal → `paymentFailure` 50% 00:12:59Z (flagd doğruladı) → 300 sn → `off` 00:18:00Z (doğrulandı, variant `off`) → 120 sn.
+- **Sonuç:** hatalı payment SERVER span'ı 10, sayaç artışı 10 (eşleşmeyen 0). Gecikme (span bitişi → onu içeren ilk örnek): **en az 7,5 / ortanca 18,0 / en çok 33,9 sn**; hepsi ≤ 45 → **GEÇTİ**. Örnek aralığı 15,0 sn (ortanca).
+- **Açık nokta 2 (serinin 0'la doğması):** hata serisinin ilk örneği 00:13:36Z, **değer 0**, flag açıldıktan sonra. En büyük gecikme (33,9 sn) **ilk hata**; sonrakiler 7,5–19,0 sn. Yani bağlayıcı yeni seriyi ilk gönderimde 0 ile yayımlıyor, ilk hata bir sonraki gönderimde sayılıyor: yeni bir serinin ilk hatası **bir gönderim fazladan** gecikiyor. Bu, D4'teki açıklanmayan ≥ 29 sn'yi açıklar (60 sn aralıkta ilk hata 89 sn = iki gönderim; açık nokta 1). 15 sn aralıkta bu ek ≤ 15 sn.
+- **Prometheus volume'ü (bilgi, `docker system df -v`):** 13,35 → 14,0 MB, ≈ 5,5 MB / saat (kısa pencere, kaba; 2 GiB sınırına göre küçük).
+- **Beklenen:** planlama kontrolü; sonra adım 4 (D4 `paymentFailure_10pct` bir kez + D1 `containerStop:recommendation` bir kez, Gemini, `up --live`; Eren'e sorarak).
