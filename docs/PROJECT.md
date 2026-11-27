@@ -28,7 +28,8 @@ kök neden analizinde ne kadar iş görür?
 - [x] CI yeşil: birim testler + sabit snapshot'larda baseline regresyonu + servis imajı (GHCR)
   - Servis imajı (GHCR) tamam (2026-10-29): iki imaj CI'da derlenip main'de gönderiliyor (`images.yml`), koşular digest'le sabit.
   - Baseline regresyonu tamam (2026-10-31): kural (`rule_expected.json`, P1a) ve BARO (`baro_expected.json`, P1b) beklenen çıktı testleri CI'da koşuyor (main push run 41178530691: 464 geçti, 3 atlandı; atlananlar demo klonu isteyen `test_replay_config`). Sınırlama: 4 kırpılmış pilot örneği; yalnız CPU ve bellek metrikleri (ağ sütunu yok), izler seyreltilmiş. Kodun aynı kaldığının kontrolü, tam vakadaki sonucun değil.
-- [ ] Sızıntı kontrolü: snapshot'larda cevabı ele veren veri yok (flagd vb.), testle doğrulandı
+- [x] Sızıntı kontrolü: snapshot'larda cevabı ele veren veri yok (flagd vb.), testle doğrulandı
+  - Tam tarama (planlama, 2026-11-28): `aiops_rca.leakage.scan_model_view` (commit `98ed9ad`) bütün snapshot'larda; taranan 74 / etiket 74, okuma hatası 0, bulgu 0 (yalnız toplamlar görüldü; ölçüt taramadan önce yazıldı). Ayrıca vaka hattı her vakada, P2 ajan koşuları araç çıktılarında taradı (0); sızıntı testi CI'da.
 - [x] Vaka çeşitliliği: set en az zincirleme hata, sessiz hata (log yok, sadece metrik) ve yanıltıcı gürültü içeriyor
   - V3 test: cascading 17, silent 8, partial 3, noisy 1. Dev: cascading 17, silent 10, partial 3, noisy 2.
 - [ ] Tekrarlanabilirlik:

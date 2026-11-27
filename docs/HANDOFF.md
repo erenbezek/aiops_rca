@@ -6568,3 +6568,24 @@ Data:
   - `aiops_rca/llm_cache/` ve oturumların scratch klasörleri **P2e'den sonra** yeniden sorulur.
 - **Kalan kapanış soruları (planlama sorar):** 4: dallar (`task/p2d` ve `task/kapanis`); 5: "Sızıntı kontrolü" kutusu ve belgelerdeki yerel yollar.
 - **Uygulamaya:** soru 4–5'in cevapları gelince planlama tek bir kapanış kartı yazar (silmeler, README notu, DECISIONS satırları, PR). Şimdilik bu dalda yeni iş yok; PR kartla birlikte.
+
+## 2026-11-28 · Planlama → Uygulama (Kapanış kartı: soru 4–5 kararları, sızıntı tam taraması geçti; silmeler, README notları, PR)
+- **Soru 4, dallar (Eren):**
+  - `task/p2d` ve `task/kapanis` silinir (GitHub'da).
+  - Öteki 31 dala dokunulmaz. Üçünde main'de olmayan küçük içerik var: `erenbezek-patch-1`, `-2` (README), `task/quality-trial` (tek HANDOFF satırı).
+- **Soru 5a, "Sızıntı kontrolü" kutusu (Eren: önce tam tarama):**
+  - Betik: planlama scratch `full_leak_par.py` (sha256 `511e6561f66949ec…`; `aiops_rca.leakage.scan_model_view`, klon `98ed9ad`, `aiops_rca.__file__` klonda).
+  - Yalnız toplamlar basıldı: vaka kimliği ve bulgu metni yok.
+  - Ölçüt taramadan önce yazıldı: bulgu 0, hata 0, taranan = etiket.
+  - Sonuç: etiket 74, snapshot 74, taranan 74, hata 0, **bulgu 0**, bulgulu snapshot 0; 26,7 dk, 4 süreç, en büyük alt süreç belleği 2.252 MiB. **PASS.**
+  - PROJECT kutusu [x] (bu commit).
+- **Soru 5b, yerel yollar (Eren):** kalır; README sınırlarına bir satır.
+- **DECISIONS:** soru 2, 3, 4, 5a, 5b için beş satır (bu commit). Soru 1'in satırı uygulamanın (2026-11-27).
+- **Uygulamanın işi (bu dalda, plan Eren'e; onaydan sonra):**
+  1. **17 volume'ü sil:** yığın kapalı; `docker volume ls -f dangling=true` (`otel-demo_` dışı) listesi HANDOFF 2026-11-28 planlama kaydındaki listeyle **birebir** aynı olmalı. Fark varsa silme, planlamaya yaz. Silmeden sonra kalan sahipsizler yalnız üç isimli volume.
+  2. **`~/cerebrum2/analysis/p2b_red` ve `p2d_red`'i sil**; `analysis/`'teki öteki dosyalar kalır.
+  3. **Dallar:** `task/p2d` ve `task/kapanis` GitHub'da silinir; yerelde varsa yerel kopyaları da.
+  4. **README:** sınırlara iki satır: elle / demo açılışının bıraktığı ~66 MB volume (vaka hattı siler); bazı resmî kayıtlarda yerel mutlak yol (işlevsiz). PROJECT "Şu an" satırı.
+  5. **PR** (sade açıklama); push'tan sonra açık ve başı son commit; CI yeşil. Yapılan silmeler kayda (liste, sayı).
+- **Sonra:** P2e (DECISIONS 2026-11-18): planlama P2e kartını yazar; önce aday seçimi ve geçme ölçütü Eren'e.
+- **P2e'den sonra yeniden sorulacak:** `llm_cache/`, scratch klasörleri, snapshot setinin Releases'te yayını (tekrarlanabilirlik 2. seviye).
