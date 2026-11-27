@@ -157,7 +157,7 @@ Okurken:
 
 `tools/live_demo.py` çalışan demo yığınında bir hata seçer ve uygular. 10 dk sonra Proje 2'nin donmuş ajanı (Gemini ya da yerel qwen3.5-4b) Prometheus, Jaeger ve OpenSearch'ten canlı okur. Sonra hata geri alınır ve doğrulanır, ajanın gördüğü çıktılarda sızıntı taranır. Rapor: üç aday ve kanıt yolları, araç çağrıları, sonraki adım önerisi (1. adayın canlı verisinden sabit kural tablosuyla; ajan uygulamaz), Grafana panosunun pencereye ayarlı bağlantısı ve doğru cevap (ajandan sonra). `serve` aynı akışı tek sayfalık bir web arayüzünden başlatır (yalnız `127.0.0.1`, aynı anda tek demo). Demo gösterimdir, ölçüm değil; isabeti sonuç tablolarına girmez.
 
-Kabul koşusu (önceden yazılı ölçütler; 8 koşu): bütün koşularda sonuç, geri alma, rapor alanları, sızıntı 0 ve beklenmeyen yeniden başlama 0 tuttu; arayüzden uçtan uca bir demo; 4B'de bellek yetti. Panel ölçütü (panoda hatanın görünmesi) hatanın kendi belirtisiyle tuttu:
+Kabul koşusu (önceden yazılı ölçütler; 8 koşu): sonuç, geri alma, rapor alanları, sızıntı 0 ve beklenmeyen yeniden başlama 0 sekiz demonun hepsinde tuttu; 4B demosunda bellek yetti, arayüzden başlatılan demo uçtan uca çalıştı. İki deneme enjeksiyondan önce korumada durdu, sayılmadı (22 konteyner; uyku kilidi adı). Panel ölçütü (panoda hatanın görünmesi) hatanın kendi belirtisiyle tuttu:
 
 | Demo | Model | Panelde görülen |
 |---|---|---|
