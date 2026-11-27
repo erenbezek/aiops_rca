@@ -6443,3 +6443,49 @@ Data:
 - **İsabet (yalnız bilgi):** 1. aday checkout (yanlış; doğru payment), `unsure`, `step_limit`. `next_step` kural `human`.
 - **Üç deneme birlikte (planlama kararı gereği):** O2 P2 tutmadı (gecikme); adım 4 P2 tutmadı (0,044 < 0,05); bu koşu P2 tuttu ama hatadan değil, bellekten — pencerede hata 0. Uygulamanın okuması: "üç denemenin biri geçti" yazmak yanıltıcı olur; düşük hacimli %10 hata 10 dk'da güvenilir görünmüyor (~30 istek: hiç hata olmama olasılığı ~%4, 2–5 arası tipik). Ölçüt değiştirilmedi; nasıl yazılacağı planlamanın / Eren'in.
 - **Beklenen:** planlama kontrolü; kapanış metni için karar; sonra 6. madde kapanış. D4 için yeniden koşu yok.
+
+## 2026-11-27 · Planlama → Uygulama (D4 son koşu kontrolü; D4 kapanış metni; sırada 6. madde kapanış)
+- **Doğrulama (planlama, bağımsız; `20261125T083209Z-demo`, oturum logu, panel betiği sha `7cba947a5e0d9751…` aynı):**
+  - Kayıt temiz:
+    - `result` ok, çıkış 0;
+    - flag `10%` yazıldı ve flagd'den 1 sn'de doğrulandı (08:32:14Z);
+    - geri alma `off` doğrulandı;
+    - sızıntı 0, beklenmeyen 0, OOM 0;
+    - rapor alanları dolu; `collector_restart` yok;
+    - alarm → ajan başı 601 sn.
+  - Panel değerlerinden kendim hesapladım, dosyayla aynı:
+    - tek vuruş `mem:checkout` (12,62 → 15,57 MB, ×1,23 ≥ 1,2);
+    - hata oranı payment 0 → 0, checkout 0 → 0;
+    - istek, p95, CPU eşik altında.
+  - Hata gerçekleşmedi:
+    - rapor satırında checkout hata oranı 0 / 0 (29 → 22 istek);
+    - ajanın `error_rate` çıktısında payment ve checkout beş kovada 0,000.
+    - Olasılık: ~30 istekte hiç hata olmaması 0,9^30 ≈ %4; nadir ama olağan.
+  - Önceki deneme `20261125T081538Z-demo`: yalnız `run.json`, sonuç "guards: not under systemd-inhibit; no gnome-session-inhibit…", `times_utc` boş (enjeksiyon yok). Sayılmaz; kilit adı hatası uygulamanın kaydında.
+- **D4'ün kapanış metni (planlama; ölçüt değişmedi):** P2'yi bu koşuda tutturan bellek artışı hatadan kaynaklanamaz, çünkü pencerede hata yok; gürültüdür. "Üç denemenin biri geçti" yazılmaz. Kapanışta (PROJECT, README sınırları) şöyle yazılır:
+  > `paymentFailure_10pct` üç denemede panelde eşik üstünde görünmedi:
+  > - O2: gecikme yüzünden hata pencereye girmedi.
+  > - Düzeltmeden (canlı katman, 15 sn) sonra: hata görünür oldu ama oran 0,044 < 0,05.
+  > - Son deneme: pencerede hiç hata yok; ölçüt 6 bellek gürültüsüyle biçimsel olarak tuttu.
+  >
+  > Düşük hacimli (~30 istek / 10 dk) %10 hata bu demo süresinde güvenilir bir belirti üretmiyor.
+  >
+  > Öteki demolar ölçüt 6'yı hatanın kendi belirtisiyle tuttu: D1 ×2, D2, D3, D5.
+- **6. madde (kapanış) — uygulama önce planı Eren'e yazar, onaydan sonra:**
+  - PROJECT "Canlı demo" kutusu ve DevOps satırları (demo kartındaki gibi);
+  - ARCHITECTURE (canlı katman dahil);
+  - GLOSSARY (onaylı adlar: `collector_restart`, `ensure_containers`, `--live` katmanı vb.);
+  - README demo bölümü;
+  - PR (sade açıklama).
+- **README sınırlarına girecekler:**
+  1. Panodaki p95 raporun p95'inden farklı (pencere / hesap).
+  2. Durdurma, ajan çalışıyorsa en çok ajanın süresi kadar bekler.
+  3. `serve` açık kaldıkça uyku kilitleri tutulur.
+  4. `--live` ile bile hatalar panelde ~35 sn'ye kadar gecikir; yeni bir hata serisi bir gönderim geç sayılır.
+  5. Düşük hacimli hatalar (yukarıdaki D4 metni) panelde görünmeyebilir.
+  6. Konteyner sayısı 23 değilse `run` collector'ı bir kez yeniden başlatır, demo ~10 dk geç başlar.
+- **Eren'e kapanışta sorulacaklar (bu kartın dışında, karar Eren'in):**
+  - `paymentFailure_10pct` arayüzün kabul listesinde kalsın mı;
+  - 13+ sahipsiz Docker volume;
+  - `llm_cache/` denemeleri, `analysis/` klonları ve scratch klasörleri;
+  - `task/p2d` dalı.
