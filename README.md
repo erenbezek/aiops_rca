@@ -173,7 +173,7 @@ Sınırlar:
 2. Durdurma, ajan çalışıyorsa en çok ajanın süresi kadar bekler; sonra hata geri alınır.
 3. `serve` açık kaldıkça makinenin uyku kilitleri tutulur.
 4. `--live` ile bile bir hata panelde ~35 sn'ye kadar gecikir (ölçülen en çok 33,9 sn); yeni bir hata serisi bir gönderim geç sayılır. Ajanın başlamasından önceki son ~35 sn'deki hatalar panel penceresine girmeyebilir.
-5. Düşük hacimli hatalar panelde görünmeyebilir. `paymentFailure_10pct` üç denemede panelde eşik üstünde görünmedi: ilkinde gecikme yüzünden hata pencereye girmedi; canlı demo katmanından (15 sn) sonra hata görünür oldu ama oran 0,044 < 0,05; son denemede pencerede hiç hata yoktu ve panel ölçütü bellek gürültüsüyle biçimsel olarak tuttu. Düşük hacimli (~30 istek / 10 dk) %10 hata bu demo süresinde güvenilir bir belirti üretmiyor.
+5. Düşük hacimli hatalar panelde görünmeyebilir. `paymentFailure_10pct` üç denemede panelde eşik üstünde görünmedi: ilkinde gecikme yüzünden hata pencereye girmedi; canlı demo katmanından (15 sn) sonra hata görünür oldu ama oran 0,044 < 0,05; son denemede pencerede hiç hata yoktu ve panel ölçütü bellek gürültüsüyle biçimsel olarak tuttu. Düşük hacimli (~30 istek / 10 dk) %10 hata bu demo süresinde güvenilir bir belirti üretmiyor. Bu yüzden demonun listesinden çıkarıldı; aynı hata `paymentFailure_50pct` ile seçilebilir (vaka hattında değişiklik yok).
 6. Konteyner sayısı 23 değilse (collector'ın açılışta bir konteyneri kaçırması) `run` collector'ı bir kez yeniden başlatır; demo ~10 dk geç başlar.
 
 ## Tekrar üretme

@@ -113,8 +113,8 @@ def test_spawn_targets_python_demo_process(monkeypatch):
     assert seen["cmd"][0] == sys.executable and seen["cmd"][2:] == [
         "run", "--fault", "networkDelay", "--target", "quote", "--model", "gemini-3.5-flash-lite"]
     assert seen["env"]["SCENARIO_RUNNER_INHIBITED"] == "1"         # sarmalayıcı yok: sinyal doğrudan python'a
-    ld.spawn_run("paymentFailure_10pct", "qwen3.5-4b")
-    assert seen["cmd"][2:5] == ["run", "--scenario", "paymentFailure_10pct"]
+    ld.spawn_run("paymentFailure_50pct", "qwen3.5-4b")
+    assert seen["cmd"][2:5] == ["run", "--scenario", "paymentFailure_50pct"]
 
 
 def test_serve_binds_loopback_only(monkeypatch):

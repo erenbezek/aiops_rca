@@ -72,6 +72,11 @@ INFRA_PARAMS = {("containerPause", "cart"): "on", ("containerPause", "quote"): "
                 ("cpuThrottle", "product-catalog"): "0.09", ("cpuThrottle", "recommendation"): "0.03",
                 ("networkDelay", "cart"): "50ms", ("networkDelay", "quote"): "50ms",
                 ("packetLoss", "currency"): "10%", ("packetLoss", "shipping"): "10%"}
+# Kabul listesinden bilerek çıkarılan flag senaryoları → gerekçe (Eren kararı 2026-11-27, DECISIONS). Vaka hattı değişmez.
+DEMO_EXCLUDED = {
+    "paymentFailure_10pct": "~30 istek / 10 dk'da %10 hata panelde güvenilir belirti üretmiyor (kabulde üç denemede "
+                            "eşik üstünde görünmedi); aynı hata paymentFailure_50pct ile listede",
+}
 SAMPLE_S = 30
 LOCK_NAME = ".lock"  # DEMO_RUNS altında; süreçler arası tek demo (`fcntl.flock`; Eren onaylı 2026-11-19)
 # Neden metni "storage card" içerir: `scenario_runner.inhibited()` yalnız tanıdığı metinleri (`INHIBIT_WHY`) kabul eder.
@@ -95,6 +100,8 @@ def faults() -> dict[str, dict]:
                            "propagation_path": a["propagation_path"], "categories": a["categories"]}}
     for sid, s in sr.BY_ID.items():
         if "fault_type" not in s:  # gürültü katmanı (loadGeneratorFloodHomepage) hata değil
+            continue
+        if sid in DEMO_EXCLUDED:
             continue
         out[sid] = {"kind": "flag", "scenario": sid,
                     "answer": {"root_cause_service": s["root"], "fault_type": s["fault_type"],
