@@ -94,6 +94,15 @@ flowchart LR
     acmp --> p2dcalls[("results/p2d_test_calls.json")]
     p2dcalls --> drep["tools/agent_report.py --report p2d<br/>(TEST_RUNS; dev–test Fisher;<br/>results/p2d_test.md / .json, yalnız toplam)"]
 
+    live_layer["deploy/otel-demo/compose.live.yaml<br/>+ otelcol-config-live.yml<br/>(span metrikleri 15 sn; yalnız up --live)"] -->|collector komutu| col
+    page["tools/live_demo_page.html<br/>(tek sayfa)"] --> ldemo
+    ldemo["tools/live_demo.py run / serve<br/>(korumalar, 23 konteyner: ensure_containers,<br/>10 dk normal, hata, 10 dk, ajan, geri alma)"] -->|"hata uygula / geri al<br/>(scenario_runner: flagd, docker, netem)"| inj
+    ldemo -->|"pano yükle (API)"| graf["Grafana panosu<br/>deploy/otel-demo/grafana/aiops-demo.json"]
+    graf -->|"PromQL: rate, histogram_quantile"| mon
+    mon -->|"MAIN_ENDS"| lstore
+    ldemo -->|"ajan (methods/agent.py, LiveStore)"| agent
+    ldemo -->|"run.json, rapor, sızıntı taraması<br/>(leakage, araç çıktıları)"| druns[("demo_runs/<UTC>-demo/<br/>— git dışı")]
+
     classDef yok stroke-dasharray: 5 5
 ```
 
@@ -102,6 +111,7 @@ flowchart LR
 - Yeniden oynatma (depolama D3, 2026-10-25) iki C2 penceresinde sınandı: izler, loglar ve metrikler canlı demodan ayrı, boş bir izleme sistemine kayıpsız gitti; Prometheus eski zamanlı örnekleri kabul ediyor ve diske yazdıktan sonra da sorgulanabiliyor. Proje 2'de `mon` vakaları tutmaz (~7 gün); ajanın canlı araçları vakaların snapshot'larından bu yolla doldurulan sisteme bakar (DECISIONS 2026-10-25).
 - P2a (2026-11-10/12): ajanın araçlarının üzerine kurulacağı sorgu katmanı depolamadan bağımsız; okuyucu yalnız ham kayıt verir, hesap ortak kodda (DECISIONS 2026-11-09 "aynı tanım"). Canlı taraf vaka başına boş yığına oynatılır. Dosya ↔ canlı karşılaştırması (pilot 25, dev 18): çağrıların hepsi eşit, yalnız Jaeger'in sıfır süreli span'e 1 ns eklemesi kalıyor (DECISIONS 2026-11-11); Jaeger'in `error="true"` → hata çevirisi okuyucuda geri alınıyor (DECISIONS 2026-11-12). Rapor `results/p2a_compare.md`.
 - Vaka üretimi V1 (2026-10-25/26): `scenario_runner.py incidents` bir listedeki vakaları uçtan uca üretir (enjekte et → kaydet → temizle → snapshot + etiket → kontroller). Pilot gece 13/13 geçerli, sızıntı 0, ~27,4 dk/vaka. `inj` hâlâ kesik çizgili: flag dışı enjeksiyonlar V2'de.
+- Canlı demo (2026-11-27): ana yığında (`mon`, yeniden oynatma değil) bir hata uygulanır, 10 dk sonra donmuş P2 ajanı aynı `LiveStore`'la `MAIN_ENDS` uçlarından okur; sonraki adım ajanın 1. adayının canlı satırından kural tablosuyla (`NEXT_STEPS`), model çağrısı yok. Ajan yalnız önerir. Demo yığını `up --live` ile açılır (span metrikleri 15 sn'de bir); vaka hattının `up`'ı bu katmanı yüklemez, birleşik ayarı değişmez. Konteyner sayısı 23 değilse demo collector'ı bir kez yeniden başlatır ve 10 dk normal dönemi baştan bekler.
 - Sızıntı testi gerçek veride sınandı (C2 `positive_control`: her senaryoda raw'da bulgu, filtered temiz). Senaryo koşucusu (`scenario_runner.py`) vaka üretiminin temeli; `inj` kesik çizgili, çünkü flag dışı enjeksiyonlar (tc netem, CPU/bellek, kill) yok.
 
 ## Dosyalar
@@ -124,7 +134,7 @@ flowchart LR
 | `src/aiops_rca/call_graph.py` | Snapshot izlerinden servisler arası çağrı kenarları |
 | `src/aiops_rca/query.py` | P2a sorgu katmanı: altı sorgu fonksiyonu (`list_services`, `metric_series`, `search_spans`, `get_trace`, `search_logs`, `service_dependencies`), ortak hesap, okuyucu arayüzü (`Store`), ad tablosu `METRIC_NAMES`; depolamadan bağımsız |
 | `src/aiops_rca/store_file.py` | Dosya okuyucusu `FileStore`: vakanın `model_view` snapshot'ından ham kayıt (sinyal başına bir kez okur, bellekte tutar) |
-| `src/aiops_rca/store_live.py` | Canlı okuyucu `LiveStore`: yeniden oynatma yığınındaki Jaeger v3 (servis × dilim, derinlikte bölme, tekrar ayıklama), OpenSearch (zaman dilimi, 10.000'de bölme) ve Prometheus'tan (ham örnek) ham kayıt; `http`, `rfc3339`, `jaeger_raw_slice`, `REPLAY_ENDS` (`storage_check.py` buradan alır) |
+| `src/aiops_rca/store_live.py` | Canlı okuyucu `LiveStore`: yeniden oynatma yığınındaki Jaeger v3 (servis × dilim, derinlikte bölme, tekrar ayıklama), OpenSearch (zaman dilimi, 10.000'de bölme) ve Prometheus'tan (ham örnek) ham kayıt; `http`, `rfc3339`, `jaeger_raw_slice`, `REPLAY_ENDS` (`storage_check.py` buradan alır); `MAIN_ENDS` ana yığının uçları (canlı demo) |
 | `src/aiops_rca/agent_tools.py` | P2b ajan araçları: altı aracın modele görünen tanımları (`TOOLS`), `run_tool` (parametre çevirisi ve doğrulama, P2a sorgusu, metin biçimi, tek token sınırı + tek işaret; hesap `query.py`'de). P2c-0: zaman uçları isteğe bağlı (verilmeyen uç pencerenin ucu; `metric_series`'te alarma hizalı tam kovalar), servissiz `metric_series` servis başına `query.metric_series` ile tek tablo |
 | `src/aiops_rca/scoring.py` | Puanlama: ad eşleme (takma adlı koşuda önce gerçek ada çeviri), top-1/top-3, kanıt geçerliliği, etiket yoluyla örtüşme, Brier, seçici doğruluk, kapsama, sorulmayan girdi (boş, bütçe aşımı), cevapsız satır, set özeti |
 | `src/aiops_rca/methods/rule.py` | Kural baseline (`rule_baseline`): `signals.rule_check` ilk 3'ü şemadaki cevaba |
@@ -187,8 +197,15 @@ flowchart LR
 | `docs/OTEL_DEMO.md` | OpenTelemetry Demo 3.1.0 keşif notları |
 | `docs/INCIDENT_CATALOG.md` | Enjekte edilecek hatalar, doğru cevap kuralı, beklenen belirti ve yayılım yolları |
 | `tools/api_smoke_test.py` | Aday API modellerinin teknik uygunluk testi (basit cevap, tool calling, uzun girdi) |
-| `tools/otel_demo.sh` | OTel Demo 3.1.0'ı repo dışına (`~/cerebrum2/otel-demo`) klonlar ve doğrular (`fetch`); minimal modda başlatır, durdurur, birleşik compose ayarını basar (`up`, `down`, `config`); `up` sonunda OpenSearch ISM saklama kuralını yükler |
-| `deploy/otel-demo/compose.extras.yaml` | Demonun boş `compose.extras.yaml`'ının yerine en son yüklenen katmanımız: log sınırı, sadece 3 host portu (`127.0.0.1`), flag dosyası ve telemetri klasörü bağlamaları, collector kullanıcısı, izleme sisteminin isimli volume'leri ve Jaeger katmanı, Prometheus boyut sınırı (2GB), Jaeger bellek sınırı (2000M) |
+| `tools/otel_demo.sh` | OTel Demo 3.1.0'ı repo dışına (`~/cerebrum2/otel-demo`) klonlar ve doğrular (`fetch`); minimal modda başlatır, durdurur, birleşik compose ayarını basar (`up`, `down`, `config`); `up` sonunda OpenSearch ISM saklama kuralını yükler; `--raw` süzülmemiş kopya, `--live` canlı demo katmanı (ikisi birlikte olmaz) |
+| `deploy/otel-demo/compose.extras.yaml` | Demonun boş `compose.extras.yaml`'ının yerine en son yüklenen katmanımız: log sınırı, sadece 3 host portu (`127.0.0.1`), flag dosyası ve telemetri klasörü bağlamaları, collector kullanıcısı, izleme sisteminin isimli volume'leri ve Jaeger katmanı, Prometheus boyut sınırı (2GB), Jaeger bellek sınırı (2000M), product-catalog bellek sınırı (64M; canlı demo 2. madde) |
+| `deploy/otel-demo/compose.live.yaml` | Canlı demo katmanı: collector komutuna `otelcol-config-live.yml`'ı ekler; yalnız `otel_demo.sh up --live` / `config --live`, `--raw` ile birlikte kullanılmaz |
+| `deploy/otel-demo/otelcol-config-live.yml` | Collector'ın canlı demo ayarı: `span_metrics` gönderim aralığı 15 sn (varsayılan 60 sn) |
+| `deploy/otel-demo/grafana/aiops-demo.json` | Canlı demo Grafana panosu (uid `aiops-demo`): istek hızı, hata oranı, p95, konteyner CPU, bellek; servis seçici |
+| `tools/live_demo.py` | Canlı demo: `list` (kabul listesi), `run` (korumalar, `--live` katmanı, kilit, pano yükleme, `ensure_containers`, taban, hata, 10 dk, ajan, geri alma ve doğrulama, yeniden başlama / OOM, sızıntı taraması, `NEXT_STEPS`, rapor `demo_runs/<UTC>-demo/`), `serve` (FastAPI, `127.0.0.1:8765`, belirteçli başlat / durdur, ilerleme, rapor) |
+| `tools/live_demo_page.html` | `serve`'ün tek sayfası: hata ve model seçimi, adım ilerlemesi, rapor; dış kaynak yok |
+| `tests/test_live_demo.py` | `live_demo.py run` sahte dünyayla (Docker, Prometheus, flagd, saat, ajan taklitli): akış, korumalar (`--live` katmanı dahil), geri alma, durdurma, kilit, `NEXT_STEPS`, collector yeniden başlatma; vaka hattının `up`'ının katmanı kullanmadığı |
+| `tests/test_live_demo_serve.py` | `serve` uçları (FastAPI test istemcisi ve alt süreç): belirteç, Host denetimi, tek demo, durdurma, sayfa |
 | `deploy/otel-demo/otelcol-config-extras.yml` | Collector katmanımız: süzme (`filter/sim_world`, `transform/scrub`), OpenSearch uyumu (`transform/backend_compat`) ve dosya çıkışı (`filtered/`), upstream pipeline listeleri korunarak |
 | `deploy/otel-demo/otelcol-config-raw.yml` | Süzülmemiş paralel pipeline'lar (`raw/`), sadece `--raw` ile |
 | `deploy/otel-demo/compose.raw.yaml` | Collector komutuna `otelcol-config-raw.yml`'ı ekleyen compose katmanı, sadece `--raw` ile |

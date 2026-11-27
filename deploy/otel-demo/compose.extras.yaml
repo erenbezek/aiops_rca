@@ -92,6 +92,12 @@ services:
     ports: !reset []
   product-catalog:
     ports: !reset []
+    # Canlı demo 2. madde (ii) müdahale sınaması (DECISIONS 2026-10-30; Eren onayı 2026-11-19): upstream 20M'de
+    # sınır %99 dolu, sürecin ~8,7 MB'ı swap'ta. Ölçüt tutmazsa bu satır geri alınır.
+    deploy:
+      resources:
+        limits:
+          memory: 64M
   quote:
     ports: !reset []
   recommendation:

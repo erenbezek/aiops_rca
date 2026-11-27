@@ -1,0 +1,16 @@
+# Canlı demo katmanı (Eren kararı 2026-11-25): yalnız `tools/otel_demo.sh up --live` ile yüklenir, varsayılan
+# kapalı; `--raw` ile birlikte kullanılmaz (ikisi de collector komutunu değiştirir). Collector'a bizim extras'tan
+# sonra otelcol-config-live.yml'ı ekler (span metrikleri 15 sn'de bir).
+#
+# Upstream değişirse elle güncellenir: komut listesi compose.raw.yaml'daki gibi upstream'in listesi + bizim katmanlar.
+services:
+  otel-collector:
+    command: !override
+      - "--config=/etc/otelcol-config.yml"
+      - "--config=/etc/otelcol-config-full.yml"
+      - "--config=/etc/otelcol-config-observability.yml"
+      - "--config=/etc/otelcol-config-extras.yml"
+      - "--config=/etc/otelcol-config-live.yml"
+      - "--feature-gates=service.profilesSupport"
+    volumes:
+      - ${OTEL_COLLECTOR_CONFIG_LIVE}:/etc/otelcol-config-live.yml:ro

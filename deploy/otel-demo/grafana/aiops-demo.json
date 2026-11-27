@@ -1,0 +1,208 @@
+{
+ "uid": "aiops-demo",
+ "title": "aiops_rca canlı demo",
+ "tags": [
+  "aiops_rca"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 1,
+ "editable": true,
+ "refresh": "30s",
+ "time": {
+  "from": "now-30m",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "service",
+    "label": "Servis",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "webstore-metrics"
+    },
+    "query": {
+     "query": "label_values(traces_span_metrics_calls_total, service_name)",
+     "refId": "service"
+    },
+    "definition": "label_values(traces_span_metrics_calls_total, service_name)",
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "refresh": 2
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "timeseries",
+   "title": "İstek hızı (gelen span / sn)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "webstore-metrics"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 0
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "webstore-metrics"
+     },
+     "expr": "sum by (service_name) (rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[3m]))",
+     "legendFormat": "{{service_name}}"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "type": "timeseries",
+   "title": "Hata oranı",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "webstore-metrics"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 0
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "webstore-metrics"
+     },
+     "expr": "(sum by (service_name) (rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\", status_code=\"STATUS_CODE_ERROR\"}[3m])) or sum by (service_name) (rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[3m])) * 0) / sum by (service_name) (rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[3m]))",
+     "legendFormat": "{{service_name}}"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "timeseries",
+   "title": "p95 gecikme (ms)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "webstore-metrics"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "webstore-metrics"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le, service_name) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[3m])))",
+     "legendFormat": "{{service_name}}"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "type": "timeseries",
+   "title": "Konteyner CPU (bir çekirdeğin %'si)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "webstore-metrics"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "webstore-metrics"
+     },
+     "expr": "rate(container_cpu_usage_nanoseconds_total{container_name=~\"$service\"}[3m]) / 1e9 * 100",
+     "legendFormat": "{{container_name}}"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "type": "timeseries",
+   "title": "Konteyner bellek",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "webstore-metrics"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 16
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "webstore-metrics"
+     },
+     "expr": "container_memory_usage_total_bytes{container_name=~\"$service\"}",
+     "legendFormat": "{{container_name}}"
+    }
+   ]
+  }
+ ]
+}

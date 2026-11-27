@@ -10,7 +10,7 @@ Mikroservis ortamına (OpenTelemetry Demo ve kendi Python servisimiz) bilerek ha
 
 - **Proje 1 bitti:** sonuç tablosu, dev hata analizi ve sınırlamalar `results/` altında.
 - **Proje 2 bitti:** sabit sorgu araçlarıyla çalışan tek ajan, dosyadan ve canlı izleme sisteminden koşuldu; test raporu, iki test hata analizi ve sınırlamalar `results/` altında (aşağıda).
-- **Canlı demo** (hata enjekte et → kanıtlı olay raporu) Proje 2'den sonra.
+- **Canlı demo bitti:** çalışan yığına hata uygulanır, ajan canlı izleme sisteminden kanıtlı bir rapor ve sonraki adım önerisi verir; komut ve web arayüzü (aşağıda).
 - **Snapshot seti henüz yayınlanmadı.** Vakaların ham kayıtları repo dışında; proje sonunda GitHub Releases'te sıkıştırılmış olarak yayınlanacak (tekrarlanabilirlik seviye 2). O zamana kadar deneyi baştan koşmak mümkün değil; aşağıdaki komutlar repodaki kayıtlardan sonuçları yeniden üretir.
 
 ## Akış
@@ -153,6 +153,29 @@ Okurken:
 - 4B testte 18 vakanın 16'sında adım sınırına takıldı.
 - Hata analizleri: [`results/p2d_error_summary.md`](results/p2d_error_summary.md) (ajan ıskaları), [`results/p1_test_error_summary.md`](results/p1_test_error_summary.md) (P1 test başarısızları). Sınırlamalar: [`results/p2_limitations.md`](results/p2_limitations.md).
 
+## Canlı demo
+
+`tools/live_demo.py` çalışan demo yığınında bir hata seçer ve uygular. 10 dk sonra Proje 2'nin donmuş ajanı (Gemini ya da yerel qwen3.5-4b) Prometheus, Jaeger ve OpenSearch'ten canlı okur. Sonra hata geri alınır ve doğrulanır, ajanın gördüğü çıktılarda sızıntı taranır. Rapor: üç aday ve kanıt yolları, araç çağrıları, sonraki adım önerisi (1. adayın canlı verisinden sabit kural tablosuyla; ajan uygulamaz), Grafana panosunun pencereye ayarlı bağlantısı ve doğru cevap (ajandan sonra). `serve` aynı akışı tek sayfalık bir web arayüzünden başlatır (yalnız `127.0.0.1`, aynı anda tek demo). Demo gösterimdir, ölçüm değil; isabeti sonuç tablolarına girmez.
+
+Kabul koşusu (önceden yazılı ölçütler; 8 koşu): sonuç, geri alma, rapor alanları, sızıntı 0 ve beklenmeyen yeniden başlama 0 sekiz demonun hepsinde tuttu; 4B demosunda bellek yetti, arayüzden başlatılan demo uçtan uca çalıştı. İki deneme enjeksiyondan önce korumada durdu, sayılmadı (22 konteyner; uyku kilidi adı). Panel ölçütü (panoda hatanın görünmesi) hatanın kendi belirtisiyle tuttu:
+
+| Demo | Model | Panelde görülen |
+|---|---|---|
+| `containerStop:recommendation` (iki koşu) | Gemini | recommendation istek hızı ~0,8 → ~0,15 /sn, frontend hata oranı 0 → ~0,10 |
+| `containerPause:cart` | Gemini | cart istek hızı 1,42 → 0,20 /sn, frontend p95 35 → 2556 ms |
+| `networkDelay:quote` | Gemini | quote-gateway p95 7,6 → 90,5 ms (gecikme çağıranda görünür) |
+| `containerStop:recommendation` | qwen3.5-4b | recommendation istek hızı 0,85 → 0,15 /sn |
+| `paymentFailure_10pct` (üç koşu) | Gemini | eşik üstünde görünmedi (aşağıda) |
+
+Sınırlar:
+
+1. Panodaki p95 (span metriklerinin histogramından) raporun p95'inden (izlerden, pencerenin iki yarısı) farklı olabilir. `containerPause:cart`'ta duraklatmada bekleyen istekler izlerde ~301 sn, panoda 2,6 sn.
+2. Durdurma, ajan çalışıyorsa en çok ajanın süresi kadar bekler; sonra hata geri alınır.
+3. `serve` açık kaldıkça makinenin uyku kilitleri tutulur.
+4. `--live` ile bile bir hata panelde ~35 sn'ye kadar gecikir (ölçülen en çok 33,9 sn); yeni bir hata serisi bir gönderim geç sayılır. Ajanın başlamasından önceki son ~35 sn'deki hatalar panel penceresine girmeyebilir.
+5. Düşük hacimli hatalar panelde görünmeyebilir. `paymentFailure_10pct` üç denemede panelde eşik üstünde görünmedi: ilkinde gecikme yüzünden hata pencereye girmedi; canlı demo katmanından (15 sn) sonra hata görünür oldu ama oran 0,044 < 0,05; son denemede pencerede hiç hata yoktu ve panel ölçütü bellek gürültüsüyle biçimsel olarak tuttu. Düşük hacimli (~30 istek / 10 dk) %10 hata bu demo süresinde güvenilir bir belirti üretmiyor.
+6. Konteyner sayısı 23 değilse (collector'ın açılışta bir konteyneri kaçırması) `run` collector'ı bir kez yeniden başlatır; demo ~10 dk geç başlar.
+
 ## Tekrar üretme
 
 Kurulum CI'daki gibi (`pyproject.toml`'daki Python sürümü):
@@ -170,18 +193,27 @@ python -m pytest
 
 `--check` komutları sonuç tablolarını ve hata analizi özetlerini repodaki kayıtlardan yeniden üretip repodakilerle karşılaştırır; CI hepsini bayt aynı üretir. Snapshot, API anahtarı ve ağ gerekmez.
 
+Canlı demo, demo yığınını canlı demo katmanıyla ister (span metrikleri 15 sn'de bir; vaka hattının `up`'ı bu katmanı yüklemez, katmansız açılmış yığında demo korumada durur):
+
+```
+python -m pip install -e ".[dev,demo]"
+tools/otel_demo.sh up --live          # sonra en az 10 dk normal dönem
+python tools/live_demo.py serve       # ya da: python tools/live_demo.py run --fault containerStop --target recommendation
+tools/otel_demo.sh down
+```
+
 ## Repo haritası
 
 | Klasör | İçerik |
 |---|---|
 | `src/aiops_rca/` | Paket: vaka erişimi, sinyaller, yöntemler (kural, BARO, LLM, daraltma), puanlama, sonuç tablosu, hata analizi, sorgu katmanı |
-| `tools/` | Betikler: vaka üretim hattı, ölçümler, yeniden oynatma, dosya ↔ canlı karşılaştırması |
+| `tools/` | Betikler: vaka üretim hattı, ölçümler, yeniden oynatma, dosya ↔ canlı karşılaştırması, canlı demo ve arayüzü |
 | `tests/` | Testler ve CI'daki küçük sabit örnekler |
 | `incidents/` | Vaka etiketleri (doğru cevap ve set) |
 | `incident_lists/` | Gece koşularının vaka listeleri |
 | `eval_responses/` | Resmî koşuların kayıtları |
 | `results/` | Sonuç tabloları, hata analizleri, sınırlamalar, P2 raporları |
-| `deploy/` | Demo katmanları (collector süzmesi, compose), yeniden oynatma yığını, systemd birimi, yardımcı imaj |
+| `deploy/` | Demo katmanları (collector süzmesi, compose, canlı demo katmanı), Grafana panosu, yeniden oynatma yığını, systemd birimi, yardımcı imaj |
 | `services/` | Kendi servisimiz (quote-gateway) |
 | `docs/` | Proje hafızası (aşağıda) |
 | `.github/workflows/` | CI: testler; imajların derlenmesi ve GHCR'a gönderimi |

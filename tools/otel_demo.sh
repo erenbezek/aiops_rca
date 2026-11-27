@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # OTel Demo'yu repo dışına getirir, sabit sürümü doğrular ve minimal modda çalıştırır (DECISIONS 2026-10-18).
-# Kullanım: tools/otel_demo.sh fetch | up [--raw] | down | config [--raw] [docker compose config argümanları]
+# Kullanım: tools/otel_demo.sh fetch | up [--raw|--live] | down | config [--raw|--live] [docker compose config argümanları]
 set -euo pipefail
 
 # Sürüm burada sabit: etiket taşınırsa commit kontrolü yakalar.
@@ -15,6 +15,9 @@ EXTRAS_FILE="${DEPLOY_DIR}/compose.extras.yaml"
 RAW_FILE="${DEPLOY_DIR}/compose.raw.yaml"
 COLLECTOR_EXTRAS="${DEPLOY_DIR}/otelcol-config-extras.yml"
 COLLECTOR_RAW="${DEPLOY_DIR}/otelcol-config-raw.yml"
+# Canlı demo katmanı (span metrikleri 15 sn; Eren kararı 2026-11-25): sadece --live ile.
+LIVE_FILE="${DEPLOY_DIR}/compose.live.yaml"
+COLLECTOR_LIVE="${DEPLOY_DIR}/otelcol-config-live.yml"
 JAEGER_EXTRAS="${DEPLOY_DIR}/jaeger-config-extras.yml"
 # Bizim flag'lerimiz (quote-gateway): upstream flag dosyasıyla birleştirilir (reset_flag_file).
 FLAGD_EXTRAS="${DEPLOY_DIR}/flagd-extras.json"
@@ -57,18 +60,22 @@ verify_clone() {
 }
 
 # Minimal mod: demonun compose.yaml + compose.observability.yaml, sonra bizim katmanımız (demonun boş
-# compose.extras.yaml'ı yüklenmez); RAW=1 ise en son compose.raw.yaml. Env dosyaları Makefile'daki sırayla.
+# compose.extras.yaml'ı yüklenmez); RAW=1 ise en son compose.raw.yaml, LIVE=1 ise compose.live.yaml (ikisi birlikte olmaz). Env dosyaları Makefile'daki sırayla.
 # Kabuk değişkenleri --env-file'ı ezer:
 # - DEMO_VERSION: upstream .env'de "latest".
 # - OTEL_COLLECTOR_CONFIG_EXTRAS: demonun boş collector extras'ı yerine bizimki.
 # - OTEL_COLLECTOR_USER: eren + docker grubu (dosyalar eren'in olsun, Docker soketi okunabilsin).
 # - OTEL_COLLECTOR_CONFIG_RAW: sadece compose.raw.yaml kullanır.
+# - OTEL_COLLECTOR_CONFIG_LIVE: sadece compose.live.yaml kullanır.
 # - JAEGER_CONFIG_EXTRAS: Jaeger'in ikinci ayar dosyası (diske yazma; depolama kartı).
 RAW=0
+LIVE=0
 compose() {
     local f files=(-f compose.yaml -f compose.observability.yaml -f "$EXTRAS_FILE")
     (( RAW )) && files+=(-f "$RAW_FILE")
-    for f in "$EXTRAS_FILE" "$RAW_FILE" "$COLLECTOR_EXTRAS" "$COLLECTOR_RAW" "$JAEGER_EXTRAS"; do
+    (( LIVE )) && files+=(-f "$LIVE_FILE")
+    for f in "$EXTRAS_FILE" "$RAW_FILE" "$LIVE_FILE" "$COLLECTOR_EXTRAS" "$COLLECTOR_RAW" "$COLLECTOR_LIVE" \
+             "$JAEGER_EXTRAS"; do
         [[ -f "$f" ]] || die "$f not found"
     done
     local docker_gid
@@ -78,6 +85,7 @@ compose() {
         DEMO_VERSION="$DEMO_TAG" \
         OTEL_COLLECTOR_CONFIG_EXTRAS="$COLLECTOR_EXTRAS" \
         OTEL_COLLECTOR_CONFIG_RAW="$COLLECTOR_RAW" \
+        OTEL_COLLECTOR_CONFIG_LIVE="$COLLECTOR_LIVE" \
         JAEGER_CONFIG_EXTRAS="$JAEGER_EXTRAS" \
         OTEL_COLLECTOR_USER="$(id -u):${docker_gid}" \
             docker compose --env-file .env --env-file .env.override "${files[@]}" "$@"
@@ -196,16 +204,19 @@ cmd_config() {
 }
 
 usage() {
-    echo "usage: $0 fetch | up [--raw] | down | config [--raw] [docker compose config args]" >&2
+    echo "usage: $0 fetch | up [--raw|--live] | down | config [--raw|--live] [docker compose config args]" >&2
     exit 2
 }
 
 [[ $# -ge 1 ]] || usage
 cmd="$1"
 shift
-if [[ "$cmd" == "up" || "$cmd" == "config" ]] && [[ "${1:-}" == "--raw" ]]; then
-    RAW=1
-    shift
+if [[ "$cmd" == "up" || "$cmd" == "config" ]]; then
+    case "${1:-}" in
+        --raw)  RAW=1; shift ;;
+        --live) LIVE=1; shift ;;
+    esac
+    [[ "${1:-}" == "--raw" || "${1:-}" == "--live" ]] && die "--raw and --live cannot be used together"
 fi
 case "$cmd" in
     fetch)  [[ $# -eq 0 ]] || usage; cmd_fetch ;;

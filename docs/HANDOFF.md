@@ -5688,3 +5688,832 @@ Data:
 - **Genel:** yeni satırlarda test vaka kimliği 0. pytest 819 yeşil. `main` dalın atası.
 - **PR:** `task/p2d` → `main`, açıklama sade; Eren onayıyla. Birleşmeden sonra bu dala commit yok.
 - **Taşınan notlar ve P2e:** kararlar PR'dan bağımsız, Eren'in. Planlama bunları PR birleştikten sonra sırayla sorar: önce P2e mi, canlı demo mu; sonra silmeler (`llm_cache/` deneme kayıtları, `analysis/` klonları, uygulamanın scratch klasörü); "Sızıntı kontrolü" kutusu ve yerel mutlak yol kapanışta.
+
+## 2026-11-18 · Planlama → Uygulama (Canlı demo kartı: product-catalog sınaması, Grafana panosu, demo komutu, web arayüzü)
+- **Durum:** P2d birleşti (PR #43); P2e kararı birleşti (PR #44, main `5385c0a`). Dal `task/canli-demo` (main'den; planlama açtı, bu kayıt içinde). Kararlar:
+  - DECISIONS 2026-11-09: kart içeriği (müdahale sınaması, Grafana panosu, hata enjekte et → kanıtlı rapor); demo P2'nin ajanını kullanır; PromQL işlevleri panoda.
+  - DECISIONS 2026-10-30: müdahale sınamasının ölçütü.
+  - DECISIONS 2026-11-18 (üç satır, Eren): model seçilebilir, varsayılan Gemini; öneri kural tablosundan; web arayüzü bu kartta.
+- **Amaç:** PROJECT'teki "Canlı demo: hata enjekte et → kanıtlı olay raporu (+ bir sonraki adım önerisi)" kutusu ve DevOps listesinin Grafana satırı. Demo gösterimdir, ölçüm değildir. İsabeti sonuç tablolarına girmez. Demoya bakarak ajan, araçlar ya da istem değiştirilmez.
+- **Bütün kart için kurallar:**
+  - **Ajan donmuş:** istem `5e259201…`, sınırlar 8 / 700 / 6000 / 300, araçlar, `llm_client.py` aynen. Demoya özgü olan yalnız depolama uçları (ana yığının Prometheus, Jaeger, OpenSearch'ü), alarm anı (enjeksiyon başlangıcı) ve pencere.
+  - **Ajan gerçek cevabı görmez.** Demo hatayı kendisi enjekte ettiği için cevabı bilir; bu, rapora ajan bittikten sonra ayrı ve etiketli bir bölüm olarak yazılabilir (1. maddede öneri).
+  - **Demo çıktıları** `incidents/`, `snapshots/`, `eval_responses/` altına yazılmaz; ayrı, git dışı bir klasöre (1. maddede öneri).
+  - **Sızıntı:** ajanın canlıda gördüğü bütün araç çıktıları koşu sonunda `leakage` kurallarıyla taranır. En az bir bulgu → demo durur, planlamaya yazılır. Canlı izleme sistemine giden verinin süzülmüş olduğu 1. maddede gösterilir.
+  - **Önce Eren:** demo ayarı değişikliği (product-catalog sınırı), volume silme, yeni paket, yeni ad. Uzun koşu (> 15 dk), yerel model ve demo yığınını açma Eren'e sorularak; şarj eşiği 80, iki kilit.
+  - **Portlar:** web arayüzü ve her yeni port yalnız `127.0.0.1`'e bağlanır (DECISIONS 2026-10-18). API anahtarı repoya, kayda ve rapora girmez; ücretsiz katman metni geçerli.
+- **Sıra (her madde sonunda kayıt + Eren onayı):**
+  1. **Öneri (kod yok):**
+     - (a) Demo komutunun adı, yeri ve akışı: korumalar → demo yığını açık, taban sağlık → seçilen hata (katalogdaki belirtili hatalardan; liste önerilir) enjekte → belirti süresi → ajan (seçilen model, canlı uçlarla) → rapor → hata geri alınır, doğrulanır. Enjeksiyon ve geri alma koşucunun (`scenario_runner.py`) kodunu kullanır, kopyalamaz.
+     - (b) Canlı uçlar: ana yığının adresleri, `store_live.py`'nin bugünkü yeniden oynatma uçlarıyla (`REPLAY_ENDS`) aynı arayüzden; okuyucu değişmeden mi, tek bir parametreyle mi.
+     - (c) Rapor biçimi (md + json): adaylar, kanıt yolu, gerekçe, kanıt geçerliliği (P1'in kodu), araç çağrıları ve çıktı özetleri, sonraki adım önerisi, "ajan önerir, uygulamaz" notu, süre ve token; ajan bittikten sonra gerçek cevap bölümü.
+     - (d) Sonraki adım kural tablosu: girdi yalnız ajanın 1. adayı ve kanıt türleri; çıktı sabit öneri metni; eşleşme yoksa "insan incelemesi". Tablonun satırları burada yazılır.
+     - (e) Grafana panosu: paneller (servis başına istek hızı `rate`, hata oranı, p95 `histogram_quantile`, konteyner CPU ve bellek), PromQL sorguları, panonun repoda tutulması (provisioning JSON) ve yüklenme yolu.
+     - (f) Web arayüzü: tek sayfa (hata ve model seç, başlat, ilerleme, rapor, Grafana bağlantısı). 2–3 kütüphane seçeneği, biri yeni bağımlılık gerektirmeyen standart kütüphane; artı / eksi; seçim Eren'in. Aynı anda tek demo (kilit).
+     - (g) Yeni adlar (dosya, komut, alan) listesi; GLOSSARY onaydan sonra.
+     - (h) 5. madde için hata listesi ve kabul ölçütleri.
+  2. **product-catalog müdahale sınaması (Eren'e sorarak; demo kodundan önce, çünkü taban buna bağlı).** Ölçüt DECISIONS 2026-10-30'dan aynen: frontend p95 ≤ 30 ms ve product-catalog p95 13–17 ms aralığına dönerse sınır yavaşlığın nedenidir; dönmezse disk / Jaeger tarafı. Her adım ayrı ölçüm (taban ölçüsüyle aynı, 10 dk normal dönem):
+     - (i) Şimdiki ayarla taban. Yavaşlık yoksa kayda "kendiliğinden geçti, nedeni bilinmiyor" yazılır, müdahale yapılmaz.
+     - (ii) Yavaşsa product-catalog bellek sınırı yükseltilir (değer 1. maddede önerilir, Eren onayı) ve ölçülür.
+     - (iii) Dönmezse canlı izleme volume'leri (Jaeger 25,2 GB) silinir (Eren onayı; DECISIONS 2026-11-09) ve ölçülür.
+     - (iv) Yine dönmezse durulur, planlamaya yazılır.
+
+     Betiğin yeri 1. maddede önerilir; sayılar ve sha256 kayda.
+  3. **Kod + testler:** demo komutu, kural tablosu, rapor, Grafana panosu. Sahte kayıtlarla ve sahte uçlarla testler; CI'da ağ ve anahtar yok. Ajan, araçlar, istem ve okuyucular değişmez: P2d raporu ve özetler bayt aynı kalır (`--check`). Kasıtlı kırmızı scratch klonda.
+  4. **Web arayüzü:** 1. maddede seçilen kütüphaneyle; testler (sayfa, başlatma kilidi, yalnız `127.0.0.1`).
+  5. **Kabul koşusu (Eren'e sorarak):** 1. maddedeki listeden her hata bir kez Gemini ile, en az bir hata 4B ile. Ölçütler sonuçtan önce 1. maddede netleşir; isabet ölçüt değildir. En az:
+     - uçtan uca biter;
+     - hata geri alınır ve doğrulanır;
+     - rapor bütün alanlarla çıkar;
+     - sızıntı 0;
+     - OOM ve beklenmeyen yeniden başlama 0;
+     - Grafana panelleri belirti penceresinde veri gösterir;
+     - web arayüzünden en az bir koşu.
+
+     İsabet kayda yalnız bilgi olarak geçer, sonuç tablolarına girmez.
+  6. **Kapanış:**
+     - PROJECT "Canlı demo" kutusu ve DevOps satırları: Grafana; PromQL; product-catalog sınaması nedeni ayırdıysa "Dağıtık sistemde sorun giderme".
+     - ARCHITECTURE (diyagram ve dosyalar), GLOSSARY (onaylı adlar), README (demo nasıl çalıştırılır).
+     - PR (açıklama sade).
+- **Taşınan notlar (karar Eren'in, bu kartın dışında):** `llm_cache/` deneme kayıtları, `analysis/` klonları, uygulamanın scratch klasörü; "Sızıntı kontrolü" kutusu ve yerel mutlak yol kapanışta. `task/p2d` dalında main'e girmemiş tek commit (`b723051`) var, içeriği PR #44 ile main'de; dal silinebilir (Eren).
+- **Beklenen:** 1. maddenin önerisi HANDOFF'ta; planlama kontrol eder, Eren onaylar.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 1. madde: öneri, kod yok; Eren onaylı)
+- **Okunan:** `store_live.py` (`LiveStore(case, ends=...)`), `tools/agent_live.py`, `methods/agent.py` (`agent_method`, `Case`'ten yalnız `alarm_ns` ve `view/window.json`), `tools/scenario_runner.py` (`guards`, `apply_fault` / `revert_fault`, `set_flag`, `SCENARIOS`, `INFRA_ANSWERS`), `deploy/otel-demo/compose.extras.yaml` (Grafana `/grafana` proxy üzerinden, portu kapalı; Prometheus `127.0.0.1:9090`, OpenSearch `127.0.0.1:9200`), upstream Grafana provisioning (`dashboards`, `datasources`).
+- **Eren kararları (2026-11-19):** öneri onaylı; belirti süresi **5 dk**; web arayüzü **FastAPI + uvicorn** (yeni paketler; aşağıda).
+- **(a) Komut ve akış:** `tools/live_demo.py run --fault <hata> --target <servis> | --scenario <flag> --model gemini-3.5-flash-lite|qwen3.5-4b` (varsayılan Gemini, DECISIONS 2026-11-18). Sıra: korumalar (`scenario_runner.guards()`: disk, takas, kalıntı, şarj eşiği, iki kilit) → demo yığını açık ve taban sağlık (23 konteyner, son 10 dk hata yok; koşucunun ölçüsü) → enjeksiyon (`apply_fault` / `set_flag`, kopya yok); **alarm anı = enjeksiyon başlangıcı** → 5 dk belirti → ajan (`agent_method`, `LiveStore(case, ends=MAIN_ENDS)`) → rapor → geri alma ve doğrulama (`revert_fault` / flag eski hâline; hata olsa da `finally`) → sızıntı taraması. Pencere [alarm − 10 dk, ajan başlangıcı). Demo ~20 dk (Gemini), 4B ile ~25 dk.
+- **(b) Canlı uçlar:** okuyucu değişmez; yeni sabit `MAIN_ENDS` (Jaeger `http://127.0.0.1:8080/jaeger/ui/api/v3`, OpenSearch `http://127.0.0.1:9200`, Prometheus `http://127.0.0.1:9090`). Ajanın `Case`'i: `incident_id` `demo-<UTC>`, `view` demo klasörü (yalnız `window.json`), `alarm_ns`. Jaeger v3'ün proxy yolu yığın açıkken doğrulanacak (3. maddenin ilk işi; olmazsa planlamaya). Süzülme: collector süzmesi dosyaya ve izleme sistemine giden veriye birlikte uygulanıyor (ARCHITECTURE notu); 3. maddede ana yığının span / log adları `leakage` kurallarıyla bir kez taranır.
+- **(c) Rapor** (`report.md` + `report.json`, demo klasöründe): adaylar, kanıt yolu, gerekçe; kanıt geçerliliği (`scoring.evidence`, kenarlar canlı izlerin çağrı grafiğinden); araç çağrıları ve çıktıların ilk satırları; sonraki adım önerisi; "ajan önerir, uygulamaz" notu; süre, token; ajan bittikten sonra ayrı ve etiketli "gerçek cevap" bölümü (`INFRA_ANSWERS` / `SCENARIOS`'tan). Ajanın girdisine gerçek cevap girmez.
+- **(d) `NEXT_STEPS` kural tablosu** (girdi yalnız 1. aday ve ajanın o aday için çağırdığı araçların telemetri türleri, P2'nin `kind_of`'u; ilk eşleşen satır):
+  1. Aday veritabanı (`signals.DB_SERVICES`) → "Veritabanı bağlantısını ve kaynaklarını kontrol edin."
+  2. Kanıtta CPU / bellek metriği → "Konteynerin kaynak sınırlarını ve son değişikliklerini kontrol edin."
+  3. Kanıtta hata span'i ya da WARN+ log → "Servisin hata mesajını ve son ayar / dağıtım değişikliğini inceleyin."
+  4. Kanıt yalnız gecikme → "Servisin bağımlılıklarına giden çağrıların süresine bakın; ağ ve kaynak."
+  5. Kanıt istek düşüşü / veri yok → "Konteyner çalışıyor mu, sağlık durumu ve yeniden başlama sayısı?"
+  6. Eşleşme yok → "İnsan incelemesi."
+- **(e) Grafana panosu:** dört panel (servis başına istek hızı `sum by (service_name) (rate(...[1m]))`, hata oranı, p95 `histogram_quantile(0.95, sum by (le, service_name) (rate(..._bucket[1m])))`, konteyner CPU ve bellek); metrik adları 3. maddede ana Prometheus'tan okunup yazılır. Pano JSON'u ve sağlayıcı yaml'ı `deploy/otel-demo/grafana/`; `compose.extras.yaml`'a mount (yalnız ekleme). Yüklenme: demo yeniden açılınca provisioning.
+- **(f) Web arayüzü: FastAPI + uvicorn (Eren seçti).** Tek sayfa: hata ve model seç, başlat, adım adım ilerleme (sunucudan akış), rapor, Grafana bağlantısı. Yalnız `127.0.0.1`; aynı anda tek demo (kilit). **Yeni paketler:** `fastapi`, `uvicorn` ve testler için `httpx` (FastAPI'nin test istemcisi ister). Öneri: sürümleri sabit, yeni bir isteğe bağlı grup `demo` (`pip install -e ".[dev,demo]"`), CI da bu grupla kurar (arayüz testleri CI'da koşar). Paketlerin kurulumu 4. maddede, Eren'e sorarak.
+- **(g) Yeni adlar (Eren onaylı değil; listede):** `tools/live_demo.py` (`run`, `serve`), `MAIN_ENDS`, `NEXT_STEPS`, `~/cerebrum2/demo_runs/<UTC>-demo/` (git dışı), `deploy/otel-demo/grafana/`, `demo` (pyproject grubu). GLOSSARY kod commit'inden sonra.
+- **(h) Kabul koşusu:** Gemini ile 4 hata: `containerStop` recommendation, `containerPause` cart, `networkDelay` quote (kendi servis yolu), `paymentFailure` (flag); 4B ile 1: `containerStop` recommendation. `cpuThrottle` product-catalog yok (tabanı 2. maddeye bağlı). Ölçütler (sonuçtan önce): uçtan uca biter; hata geri alınır ve doğrulanır (`verified` / flag eski hâli); rapor bütün alanlarla; sızıntı 0; OOM ve beklenmeyen yeniden başlama 0; her panel belirti penceresinde hedef servis için en az bir değer; en az bir koşu web arayüzünden. İsabet yalnız bilgi.
+- **Beklenen:** planlama kontrolü; sonra 2. madde (product-catalog sınaması, Eren'e sorarak).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 1. madde kontrolü: geçti, beş düzeltmeyle; 2. madde için iki eksik)
+- **Genel:** öneri kartla ve DECISIONS 2026-11-18 ile uyumlu. Okuyucu değişmiyor, ajan donmuş, enjeksiyon koşucudan, gerçek cevap ajandan sonra. Kod okumamla doğruladığım noktalar:
+  - `REPLAY_ENDS` ve `LiveStore(case, ends=...)` var;
+  - Grafana compose'da var, portu kapalı;
+  - vakalarda normal dönem 600–840 sn, hata dönemi 600 sn (`scenario_runner.py`);
+  - `ALL_SERVICES_STEP_S` 300.
+- **Eren kararı (DECISIONS 2026-11-19):** belirti süresi **10 dk** (5 dk'nın yerine). Gerekçe: ajan P2'de alarm sonrası 10 dk gördü; 5 dk'da servissiz tabloda alarm sonrası tek kova kalır, o da kısmi olabilir.
+- **Düzeltmeler (3. maddeden önce, öneriye ek; kod yok):**
+  1. **`NEXT_STEPS`'in girdisi veriden gelsin.** Ajanın çağırdığı aracın türü kanıt değildir: ajan CPU'ya bakıp normal bulduysa 2. satır yanlış öneri verir. DECISIONS 2026-11-18 "kanıtının türleri" diyor. Öneri: 1. adayın satırı canlı veriden kurulur (istek, hata oranı, p95, CPU, bellek, log; önce / sonra, pencere aynı). Satıra P1'in sinyal tanımı (`signals.signals`, güç ≥ 1; error_analysis'teki `direct` hesabının yolu) uygulanır. Tablo yanan sinyallere bakar. Satırların sırası ve metinleri aynen kalabilir. Store arayüzüyle kurulamıyorsa planlamaya yaz. Rapor, önerinin hangi sinyalden geldiğini yazar.
+  2. **Web arayüzünde siteler arası istek koruması.** `127.0.0.1` yetmez: tarayıcıdaki başka bir sayfa yerel porta POST atıp hata enjekte ettirebilir. `serve` açılışta rastgele bir belirteç üretir ve terminale basar. Başlatma isteği belirteci (ya da `Origin` / `Host` denetimini) ister. Hata ve hedef yalnız kabul listesinden. Testlerde belirteçsiz istek reddedilir.
+  3. **Panel ölçütü (5. madde):** `containerStop` ve `containerPause`'ta hedef servisin alarm sonrası verisi olmaz. Ölçüt: her panel pencere boyunca (önce ve sonra) veri döndürür; hedef servis ya da çağıranlarından en az birinde değişim görünür.
+  4. **4B + ana yığın belleği:** 23 konteyner, Jaeger 2.500M ve yerel model birlikte 16 GB'ta ilk kez çalışacak. Kabulde en düşük `MemAvailable` ve swap tepesi kayda girer; OOM 0 ölçütü aynen. Yerel sunucu P2'deki gibi koşu başında açılır.
+  5. **Yeni adlar:** listedeki adlar (`tools/live_demo.py`, `run`, `serve`, `MAIN_ENDS`, `NEXT_STEPS`, `demo_runs/`, `deploy/otel-demo/grafana/`, `demo` grubu) 3. maddenin kodundan önce Eren'e sorulur. GLOSSARY onaydan sonra. Paket sürümleri sabit; FastAPI, uvicorn ve httpx için en az iki haftalık sürümler.
+- **2. madde için eksikler (önerinin (a)–(h)'sinde yok; kart 2. madde istiyordu):**
+  - product-catalog bellek sınırı için önerilen değer (şimdiki sınır ve gerekçe);
+  - ölçüm betiğinin yeri ve yolu (taban ölçüsüyle aynı: 10 dk normal dönem, frontend ve product-catalog p95). Sınamanın adımları kartta aynen.
+- **Beklenen:** 2. maddenin iki eksiği HANDOFF'ta; sonra 2. madde, Eren'e sorarak (yığın açılır, uzun koşu; şarj eşiği 80, iki kilit).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo: 1. madde düzeltmeleri alındı; 2. maddenin iki eksiği)
+- **Düzeltmeler (planlama 67a7364):** beşi de 3. maddenin koduna girer, değişiklik yok: belirti 10 dk (DECISIONS 2026-11-19); `NEXT_STEPS` girdisi 1. adayın canlı veriden kurulan satırına `signals.signals` (güç ≥ 1), rapor kaynağı yazar; `serve` belirteci + kabul listesi; panel ölçütü (pencere boyunca veri, hedef ya da çağıranlarında değişim); 4B'de `MemAvailable` ve swap tepesi kayda; yeni adlar ve sabit sürümler 3. maddeden önce Eren'e.
+- **(1) product-catalog bellek sınırı: öneri 64M** (şimdiki upstream 20M, `memswap_limit` yok).
+  - Dayanak: 2026-10-30 sınaması (`~/cerebrum2/analysis/pc_memory_probe_20261030T0933Z.json`), normal dönem sonunda: `memory.current` 20,28 MB / sınır 20,97 MB (doluluk 0,991), anon 9,47 MB, file 9,52 MB, swap'ta 8,70 MB; 15 dk'da `events.max` +32.520, `workingset_refault_file` 1,50 M sayfa. Sürecin kendi belleği (anon + swap) ≈ 18,2 MB, sınırda dosya önbelleğine ~1–2 MB kalıyor.
+  - 64M = anon + swap'ın ~3,5 katı; dosya önbelleğine ~45 MB pay. Makine toplamına etkisi ~44 MB (16 GB'ta önemsiz). Daha küçük değer (40M) sınırda yine geri kazanım riski; daha büyüğü gereksiz.
+  - Yer: `deploy/otel-demo/compose.extras.yaml`'da product-catalog'a `deploy.resources.limits.memory: 64M` (yalnız ekleme; Jaeger satırının biçimi). Bu satır yalnız (ii)'de ve yalnız ölçüt tutarsa kalır; tutmazsa geri alınır (commit geçmişinde).
+  - checkout da 20M ve aynı belirtide (doluluk 0,974); sınama yalnız product-catalog (kart aynen). Not olarak kayda.
+- **(2) Ölçüm betiği: yeni kod yok; onaylı taban betiği aynen** (`~/cerebrum2/analysis/v3c_baseline.py`, sha256 `608dbe74…24f6`, DECISIONS 2026-10-30). Demoyu koşucudaki gibi açar (collector yeniden başlatma, 23 konteyner, 5 dk ısınma, 10 dk normal), frontend p95'i koşucunun ölçüsüyle (`summarize` → `service_rows` → `baseline_check`) ve servis başına p95'i (`services`, product-catalog dahil) kayda yazar; sonda `down` ve anonim volume silme. Betiğin kendi PASS'ı yalnız frontend ≤ 30 ms; sınamanın ölçütü ikisi birlikte: frontend p95 ≤ 30 ms **ve** product-catalog p95 13–17 ms (DECISIONS 2026-10-30), JSON'dan okunur. Çıktı `~/cerebrum2/analysis/v3c_baseline_<UTC>.json` / `.log`; sha ve sayılar kayda.
+  - Süre: ölçüm başına ~25 dk (açılış ~6 + ısınma 5 + normal 10 + kapanış); en çok üç ölçüm (i, ii, iii) ≈ 75 dk. Her biri Eren'e sorularak; şarj eşiği 80, iki kilit (betik koşucunun kilitlerini alıyor).
+  - (iii) izleme volume'lerini silmek (Jaeger 25,2 GB; DECISIONS 2026-11-09) ayrıca Eren onayı.
+- **Beklenen:** planlama kontrolü; sonra 2. madde (i), Eren'e sorarak.
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 2. madde eksikleri: geçti; 2. madde (i) Eren'e sorularak başlayabilir)
+- **Betik:** `~/cerebrum2/analysis/v3c_baseline.py` sha256 `608dbe74…24f6`, kayıttakiyle aynı. Sonda yalnız koşu başında not edilen anonim volume'leri siliyor; isimli izleme volume'lerine (`otel-demo_jaeger-data`, `_opensearch-data`, `_prometheus-data`) dokunmuyor. (iii) bu yüzden ayrı bir adım olarak kalıyor; doğru.
+- **64M önerisi:** dayanak sayıları 2026-10-30 sınama dosyasıyla aynı: sınır 20.971.520 B, `memory.current` 20.283.392, anon 9.465.856, file 9.523.200, swap 8.699.904. Gerekçe makul. Değer (ii)'de Eren onayına gelir.
+- **Küçük düzeltme (kayıt):** "`events.max` +32.520" ve "`workingset_refault_file` 1,50 M" normal dönem sonundaki birikimli sayaçlar, 15 dk'lık artış değil. Normal dönemdeki artış `events.max` +22.031 (sınama dosyasının `judgement`'ı; DECISIONS 2026-10-30). Refault artışı DECISIONS'ta 10 dk'da +1,02 M sayfa. Sonuç kayıtlarında artışlar kullanılır.
+- **Not:** Docker'da 26 Ekim – 8 Kasım arasından kalma 6 etiketsiz anonim volume var. Koşucu korumaları bugüne kadar bunlarla geçti. (i)'den önce korumaların geçtiği görülür. Silmek Eren'in kararı, bu kartın işi değil.
+- **Ölçüt (değişmez, DECISIONS 2026-10-30):** frontend p95 ≤ 30 ms **ve** product-catalog p95 13–17 ms. Betiğin kendi PASS'ı yalnız ilk yarı; sınama sonucu JSON'dan iki sayıyla okunur.
+- **Beklenen:** (i) şimdiki ayarla taban, Eren'e sorarak (yaklaşık 25 dk; şarj eşiği 80, iki kilit). Sonuç HANDOFF'a; (ii)'ye geçmeden planlama kontrolü.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 2. madde (i): şimdiki ayarla taban; yavaş → (ii))
+- **Koşu (Eren onayıyla):** `~/cerebrum2/analysis/v3c_baseline.py` (sha256 `608dbe74…`) aynen; 07:25:09–07:41:34 UTC (10:25–10:41 yerel). Korumalar geçti (AC, şarj eşiği 80, disk 235,1 GB, izleme 25,36 GB, takas boş 3,08 GB, iki kilit, kalıntı yok). Demo açılış 07:25:49, collector yeniden başlatma 07:25:52, normal dönem 07:30:49'dan 600 sn. Sonda demo kapalı, konteyner 0, anonim volume 1 silindi (koşunun kendi), kalıntı yok. Çıkış 1 (betiğin PASS'ı tutmadı).
+- **Kayıt:** `~/cerebrum2/analysis/v3c_baseline_20261119T0725Z.json` (sha256 `5be206520c980247…`), `.log` (`d9eef52b9ea78277…`).
+- **Sonuç (ölçüt, DECISIONS 2026-10-30):** frontend p95 **408,3 ms** (> 30), product-catalog p95 **407,8 ms** (13–17 dışında) → **yavaş**; kart gereği (ii)'ye geçilir.
+- **Kayıt (kriter değil):** öteki p95'ler: checkout 918,2, frontend-proxy 293,3, recommendation 293,3, shipping 13,2, payment 9,0, quote-gateway 8,7, ad 7,4, email 7,7, cart 0,9, currency 0,1 ms (yavaşlık product-catalog ve onu çağıranlarda, 2026-10-30'daki desen). Makine normal dönemde: iowait %6,07, swap giriş 4.179,8 / çıkış 2.789,7 sayfa/sn, büyük sayfa hatası 4.737,5 /sn, disk okuma 140,76 MB/sn; Jaeger CPU 0,228 çekirdek. Sonda en yoğun süreçler: product-catalog %61,6, jaeger %55,6, chrome %38,8.
+- **Sıradaki (ii), Eren'e sorarak:** `compose.extras.yaml`'da product-catalog `deploy.resources.limits.memory: 64M` (yalnız ekleme), aynı betikle bir ölçüm (~17 dk). Ölçüt aynen.
+- **Beklenen:** planlama kontrolü; sonra (ii).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 2. madde (i) kontrolü: yavaş doğrulandı; (ii) Eren onayıyla)
+- **Doğruladığım:**
+  - JSON ve log sha256 kayıttakiyle aynı (`5be20652…`, `d9eef52b…`);
+  - `services` içinde frontend p95 408,3 ms (9.002 istek), product-catalog 407,8 ms (2.806 istek);
+  - zamanlar 07:25:49–07:41:34 UTC, normal dönem 07:30:49'dan;
+  - sonuç "FAIL"; şu an konteyner 0, ortak kopya temiz.
+
+  Ölçüte göre **yavaş** → (ii).
+- **Not:** 30 Ekim'de frontend 42,4 ms idi, şimdi 408,3. Yavaşlık on kat artmış ve aynı desende (product-catalog ve onu çağıranlar).
+- **(ii) için koşul:** makine durumu (i) ile aynı olsun. (i)'de Chrome açıktı (sonda %38,8 CPU). (ii)'de de aynı olursa fark yalnız sınırdan gelir; durum değişirse kayda yazılır. En yoğun süreçler ve swap / iowait sayıları (i)'deki gibi kayda girer.
+- **(ii):** product-catalog `deploy.resources.limits.memory: 64M` (yalnız ekleme, Eren onayı), aynı betik, ölçüt aynen. Tutarsa satır kalır ve "sınır yavaşlığın nedeni" yazılır. Tutmazsa satır geri alınır, (iii)'e (Jaeger volume'ü, Eren onayı) geçmeden planlamaya yazılır.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 2. madde (ii): sınır 64M → ölçüt tuttu; sınır yavaşlığın nedeni)
+- **Değişiklik (Eren onayı "64M onaylı"):** `deploy/otel-demo/compose.extras.yaml` product-catalog'a `deploy.resources.limits.memory: 64M` (yalnız ekleme, yorumlu). `tools/otel_demo.sh config` çözümü: `67108864` bayt.
+- **Koşu:** aynı betik (`608dbe74…`); 07:45:49–08:01:34 UTC (10:45–11:01 yerel). Korumalar geçti, sorun yok. Normal dönem 07:50:49'dan 600 sn. Sonda konteyner 0, anonim volume 1 silindi (koşunun kendi), kalıntı yok.
+- **Kayıt:** `~/cerebrum2/analysis/v3c_baseline_20261119T0745Z.json` (sha256 `6bd81adc99d580d5…`), `.log` (`850aca9cce374475…`).
+- **Sonuç (ölçüt, DECISIONS 2026-10-30):** frontend p95 **24,3 ms** (≤ 30), product-catalog p95 **13,8 ms** (13–17 içinde) → **tuttu: product-catalog'un bellek sınırı yavaşlığın nedeni.** Satır kalır.
+- **Kayıt (kriter değil), (i) ↔ (ii):** checkout 918,2 → 70,8; frontend-proxy 293,3 → 21,5; recommendation 293,3 → 7,0; öteki servisler değişmedi ya da azaldı. Makine: iowait %6,07 → 0,39; swap giriş 4.179,8 → 156,1, çıkış 2.789,7 → 99,4 sayfa/sn; büyük sayfa hatası 4.737,5 → 189,6 /sn; disk okuma 140,76 → 2,69 MB/sn; Jaeger CPU 0,228 → 0,046 çekirdek. Makine durumu aynı: Chrome açık (sonda %36,0; (i)'de %38,8), başka değişiklik yok.
+- **Kapsam notu:** tetikleyici (2026-10-30'dan önce 36 temiz vakada aynı sınırla yavaşlık yoktu) bilinmiyor; müdahale mekanizmayı doğruladı. checkout da 20M (2026-10-30'da doluluk 0,974); bu sınamada dokunulmadı, checkout p95 70,8 ms (vakalarda normal ~40–65).
+- **Sonraki:** 2. madde bitti ((iii) gerekmedi). PROJECT DevOps "Dağıtık sistemde sorun giderme" satırı kapanışta (kart 6. madde). Sıradaki 3. madde: kod öncesi yeni adlar ve paket sürümleri Eren'e.
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 2. madde (ii) kontrolü: ölçüt tuttu; 2. madde bitti; 3. madde Eren'e sorularak)
+- **Doğruladığım:**
+  - JSON ve log sha256 kayıttakiyle aynı (`6bd81adc…`, `850aca9c…`);
+  - `services`: frontend p95 24,3 ms (9.343 istek), product-catalog 13,8 ms (3.224 istek), checkout 70,8 ms;
+  - normal dönem 07:50:49'dan, sonuç "PASS";
+  - compose farkı yalnız product-catalog'a 6 satırlık ekleme; pytest 819 yeşil (compose'u okuyan testler dahil);
+  - şu an konteyner 0.
+
+  Önceden yazılı ölçütün iki yarısı da tuttu → **product-catalog'un bellek sınırı yavaşlığın nedeni.** Satır kalır. (iii) gerekmedi; Jaeger volume'ü silinmez.
+- **Zayıf nokta (kayıt):** koşunun `repo_commit`'i `0f25bc9`, yani değişiklik koşu sırasında commit'lenmemişti. Betik uygulanan Docker sınırını kayda yazmıyor; logda da 64M ya da 67108864 geçmiyor. Sınırın etkin olduğunu kanıtlayan kayıt yok. Sonucun büyüklüğü (408 → 24 ms, swap girişi 4.180 → 156 sayfa/sn) bununla tutarlı, sonuç geçerli sayılır. **3. maddenin ilk yığın açılışında** `docker inspect` ile product-catalog `Memory` = 67108864 kayda yazılır. Tutmazsa durulur, planlamaya.
+- **Kapsam notu (aynen kabul):** tetikleyici bilinmiyor; checkout'a dokunulmadı.
+- **Sıradaki (3. madde):** önce yeni adlar ve paket sürümleri Eren'e (1. madde kontrolü, 5. düzeltme), sonra kod. Kod 1. maddenin beş düzeltmesiyle ve belirti 10 dk'yla yazılır.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 3. madde, 1. adım: yığında doğrulamalar; kod yok)
+- **Koşu (Eren onayıyla):** `tools/otel_demo.sh up` → kontroller (yalnız okuma) → `down`; 11:20–11:22 yerel arası açık kaldı (up ~3 dk sürdü). Kilitler (`systemd-inhibit` handle-lid-switch:sleep:idle + `gnome-session-inhibit`) alındı, sonda bırakıldı. Enjeksiyon, ajan, Gemini yok. Sonda konteyner 0; isimli izleme volume'lerine dokunulmadı. Bu açılışın 1 anonim volume'ü kaldı (`b84a…`, 2026-11-19 11:20); öteki 6 eski anonim volume gibi silmek Eren'in kararı.
+- **(1) product-catalog sınırı etkin:** `docker inspect` `HostConfig.Memory` = **67108864**, `MemorySwap` 134217728 (Docker varsayılanı: 2 × sınır). Planlamanın istediği kayıt bu.
+- **(2) Jaeger v3 proxy yolu çalışıyor:** `http://127.0.0.1:8080/jaeger/ui/api/v3/services` → 16 servis (flagd / load-generator yok). `MAIN_ENDS` bu adresle; OpenSearch `127.0.0.1:9200` (`otel-logs-2026-11-19`), Prometheus `127.0.0.1:9090`.
+- **(3) Pano için metrik adları (ana Prometheus):**
+  - Span metrikleri: `traces_span_metrics_calls_total`, `traces_span_metrics_duration_milliseconds_bucket` (etiketler `service_name`, `span_name`, `span_kind`, `status_code`, …; 16 servis).
+  - Konteyner: `container_cpu_utilization_ratio`, `container_memory_usage_total_bytes` (etiket `container_name`, 23 konteyner; flagd / load-generator yok).
+  - Paneller (öneri, 4. adımda yazılır): istek hızı `sum by (service_name) (rate(traces_span_metrics_calls_total{span_kind="SPAN_KIND_SERVER"}[1m]))`; hata oranı aynı oranın `status_code="STATUS_CODE_ERROR"` payı; p95 `histogram_quantile(0.95, sum by (le, service_name) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind="SPAN_KIND_SERVER"}[1m])))`; CPU `container_cpu_utilization_ratio`, bellek `container_memory_usage_total_bytes` (`container_name`). `span_kind` / `status_code` değerleri 4. adımda Prometheus'tan okunup doğrulanır.
+- **(4) Grafana:** `127.0.0.1:8080/grafana/api/health` 200; veri kaynakları `Prometheus` (uid `webstore-metrics`), `Jaeger` (`webstore-traces`), `OpenSearch` (`webstore-logs`). Upstream provisioning `./src/grafana/provisioning/` → `/etc/grafana/provisioning/` (dashboards sağlayıcısı `demo.yaml`, klasör `demo`). Bizim pano: ayrı sağlayıcı yaml'ı ve klasörü `compose.extras.yaml`'dan alt yola mount (upstream dosyalarına dokunmadan).
+- **(5) Sızıntı (ana yığın):** Jaeger servisleri 16, Prometheus `span_name` 65, `service_name` 18 (öteki ikisi `jaeger`, `otelcol-contrib`), `container_name` 23, OpenSearch servisleri 13 ve son 2.000 log kaydı (`body`, servis, öznitelikler) `leakage.scan_model_view` ile tarandı: **bulgu 0**.
+- **Beklenen:** 2. adım (kod: `MAIN_ENDS`, `tools/live_demo.py run`).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 3. madde bitti: kod ve testler; yığında pano doğrulaması)
+- **Commit'ler:** `523f506` `MAIN_ENDS` + `tools/live_demo.py run` (korumalar, taban, enjeksiyon, 10 dk, ajan, geri alma her durumda, sızıntı; 4B için `MemAvailable` en düşüğü ve takas tepesi); `c8cf9e3` + `0b7e6a3` `NEXT_STEPS` (1. adayın satırı okuyucu arayüzüyle `query.metric_series` / `search_logs`, önce / sonra tek kova; `signals.signals` güç ≥ 1; rapor sinyalleri yazar) ve kanıt geçerliliği (`scoring.evidence`, kenarlar `query.service_dependencies`); `71d5c87` rapor (`report.md` / `.json`; gerçek cevap en sonda, ayrı ve etiketli; sızıntıda rapor yok); `d17c274` Grafana panosu. GLOSSARY `1a960f4`, `81a6071`, `6be36fc`.
+- **Önerinin değişen tek yeri (Eren kararı, seçenek A):** pano provisioning mount'u yerine **API ile yükleme** (`load_dashboard`, `POST /grafana/api/dashboards/db`, üzerine yazar; her koşunun başında). Neden: upstream Grafana provisioning klasörünü kendi klonundan bağlıyor; içine dosya bağlamak upstream klonunda boş dosya oluşturuyordu. Pano `deploy/otel-demo/grafana/aiops-demo.json` (uid `aiops-demo`); `compose.extras.yaml` ve upstream değişmedi. Rapor pencereye ayarlı pano bağlantısı verir. Panel sayısı 5 (CPU ve bellek ayrı).
+- **Yığında doğrulama (Eren onayıyla, 12:03–12:15 yerel; enjeksiyon ve ajan yok):** `span_kind` değerleri `SPAN_KIND_SERVER` dahil, `status_code` `STATUS_CODE_ERROR` dahil (panodakiyle aynı). Pano yüklendi (`status: success`). **Bulgu ve düzeltme:** span metrikleri Prometheus'a dakikada bir örnek geliyor (`count_over_time[5m]` = 5); `rate(...[1m])` boş döndü → pencere **`[3m]`**. Hata oranı normal dönemde boştu (hatalı seri yok) → pay `(... or toplam * 0)`. Düzeltmeden sonra beş panelin sorgusu veri döndürdü (frontend istek 15,3 /sn, hata oranı 0, p95 39,2 ms (histogram kovasından), CPU ve bellek 22 konteyner). Sonda demo kapalı, kilitler bırakıldı; bu açılışın 1 anonim volume'ü kaldı (öncekiler gibi).
+- **Testler:** `tests/test_live_demo.py` 35 test (sahte koşucu, sahte ajan, sahte okuyucu; ağ yok). pytest 854 yeşil; P2d raporu ve iki özet `--check` "same". Kasıtlı kırmızı (scratch, 5 deneme): geri almayı kaldırmak, gerçek cevabı ajandan önce yazmak, eşiği 0,5'e indirmek (ilk denemede yakalanmadı → sınır testi eklendi, sonra kırmızı), log sinyalini tablodan çıkarmak, gerçek cevabı rapor başına taşımak: hepsi kırmızı.
+- **Sınırlama (kayda):** pano p95'i histogram kovalarından (`histogram_quantile`), ajanın ve raporun p95'i span sürelerinden; iki sayı birebir aynı değil (frontend 39,2 ↔ taban ölçüsünde 24,3 ms).
+- **Beklenen:** planlama kontrolü; sonra 4. madde (web arayüzü, FastAPI; paket kurulumu Eren'e).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 3. madde kontrolü: geçti, bir zorunlu düzeltmeyle; 4. madde düzeltmeden sonra)
+- **Bağımsız doğrulama (scratch klon, `facdd32`):**
+  - pytest 854 yeşil.
+  - README'deki beş `--check` çıkış 0.
+  - `results/`, `eval_responses/`, `methods/`, `llm_client.py` `a59b91e`'den beri değişmemiş.
+  - `src/` farkı yalnız `MAIN_ENDS` (4 satır).
+  - `MAIN_ENDS` 1. adımın kaydındaki adreslerle aynı.
+  - 64M kaydı alındı (`HostConfig.Memory` 67108864); 2. maddenin zayıf noktası kapandı.
+- **Okumayla doğruladıklarım:**
+  - Akış kartla ve 1. madde düzeltmeleriyle uyumlu.
+  - Ajanın `Case`'i yalnız alarm anı ve `window.json`; `LiveStore` görünüm klasöründen yalnız `window.json` okuyor. `run.json` aynı klasörde ama okunmuyor.
+  - Gerçek cevap ajandan ve geri almadan sonra kayda giriyor. Sızıntı taraması ajanın gördüğü `tool_outputs/` üzerinde.
+  - `NEXT_STEPS` satırı P1 tanımıyla aynı birimlerde:
+    - `metric_series`'in `requests`'i kovadaki span sayısı, `error_rate` kesir. `signals.signals`'ın `rb ≥ 20` ve `+0,05` eşikleri bu birimlerde anlamlı.
+    - Önce ve sonra pencereleri eşit (600 sn).
+  - `containerStop` / `containerPause`'ta CPU, hata oranı ve p95 değersiz kalır, `request_drop` yanar. Kural `down` çıkar; beklenen bu.
+  - Gemini koşusunda da yerel sunucu açılıyor (tokenizer). P2'deki gibi; bellek örneklemesi her koşuda var, doğru.
+- **Zorunlu düzeltme (4. maddeden önce): sinyalde geri alma korumasız.**
+  - Koşucu hata uygulama, flag açma / kapama ve geri almayı `signals_deferred` içinde yapıyor; SIGTERM ve SIGINT'e işleyici kuruyor. `live_demo.py` bunların hiçbirini kullanmıyor.
+  - Koşucuda sonda `down` her kalıntıyı siliyordu. Demo yığını kapatmadığı için kalıntı yığında kalır.
+  - Senaryo 1: SIGTERM'in varsayılan davranışı süreci `finally` çalışmadan öldürür. Belirti sırasında gelirse hata uygulanmış kalır. 4. maddede web arayüzü demoyu durdurabilir; durdurmanın yolu büyük olasılıkla budur.
+  - Senaryo 2: `apply_fault` uygulamadan sonra hata fırlatırsa (ör. ikinci `tc show` zaman aşımı) ya da Ctrl-C tam o anda gelirse `state` `None` kalır ve geri alma çalışmaz.
+  - netem kuralı hedef konteynerde yaşar, `aiops-netem` silinmiş olur. `demo_guards` bunu görmez, sonraki demo kalıntıyla başlar. Koşucunun kalıntı notu: "netem kuralı konteynerle yaşar"; koşucu bunu `down` ile çözüyordu.
+  - İstenen (kod koşucudan, kopya yok):
+    - (a) `main` / `run` SIGTERM ve SIGINT'e `sr.signals_deferred.handle`'ı kurar. Enjeksiyon ve geri alma `sr.signals_deferred()` içinde çalışır. Durdurulan demo kayda "stopped by …" yazar.
+    - (b) Altyapı hatasında enjeksiyon hata fırlatırsa, hedef önceden okunabildiyse geri alma yine denenir (önceki okumayla kurulan durumla).
+    - (c) `demo_guards` kabul listesindeki netem hedeflerinin (`networkDelay` / `packetLoss`) qdisc'ine bakar. `netem` varsa sorun sayılır, elle temizlik yazılır.
+  - Testler:
+    - belirti sırasında SIGTERM → geri alma çağrılır, kayıtta stopped;
+    - enjeksiyon uyguladıktan sonra hata fırlatır → geri alma çağrılır;
+    - hedefte netem kalıntısı → korumalar durur.
+
+    Kasıtlı kırmızı scratch'te (işleyiciyi kaldır, korunan bölümü kaldır): ikisi de kırmızı.
+- **Küçük:** `GRAFANA` satırının sonundaki "`scenario_runner.inhibited()`'in tanıdığı neden metni" yorumu `INHIBIT_WHY`'a ait; yerine taşınsın. Metindeki "storage card", `inhibited()` yalnız tanıdığı metinleri kabul ettiği için seçilmiş. Yorumda bu nedeni yazmak yeter; koşucu değişmez.
+- **5. madde için (sonuçtan önce yazılır, şimdi kod yok):**
+  - Panel ölçütü (1. madde, 3. düzeltme) nasıl ölçülecek, 5. maddenin başında HANDOFF'a yazılır:
+    - panonun beş sorgusu pencere boyunca Prometheus API'siyle çalıştırılır;
+    - "veri döndürür" ve "hedef ya da çağıranlarından en az birinde değişim" sayıyla tanımlanır (önce / sonra oranı ya da eşik).
+
+    Ekran görüntüsü ölçüt değildir.
+  - `candidate_row` ve `assess` gerçek `LiveStore`'a karşı hiç çalışmadı (testler sahte okuyucuyla). Kabul koşusunun ilk demosunda raporda `next_step` ve `signals` dolu değilse durulur, planlamaya yazılır.
+- **Sınırlama (aynen kabul):** pano p95'i histogram kovalarından, rapor p95'i span sürelerinden. README'de demo bölümüne bir cümle (6. madde).
+- **Beklenen:** zorunlu düzeltme, testleri ve kasıtlı kırmızısı HANDOFF'ta. Planlama kontrol eder, sonra 4. madde (web arayüzü; paket kurulumu ve sürümler Eren'e).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 3. madde zorunlu düzeltme: sinyalde geri alma koruması)
+- **(a) Sinyal:** `run` SIGTERM ve SIGINT'e koşucunun `sr.signals_deferred.handle`'ını kurar (sonda eski işleyiciler geri; sınıf durumu her koşuda sıfırlanır). Enjeksiyon ve geri alma `sr.signals_deferred()` içinde. Belirti sırasında gelen sinyal `sr.Stopped` → demo durur, geri alma yine çalışır, kayıtta `stopped: "stopped by SIGTERM"`. Geri alma sırasında gelen sinyal geri almayı kesmez, sonda kayda girer.
+- **(b) Enjeksiyon hatası:** altyapı hatasında hedefin önceki durumu (`sr._inspect`) enjeksiyondan önce okunur; `apply_fault` hata fırlatırsa geri alma bu durumla denenir (hedef okunamadıysa uygulanmamıştır, denenmez). Flag her durumda kapatılır.
+- **(c) netem kalıntısı:** `demo_guards` kabul listesindeki netem hedeflerinden (cart, quote, shipping, currency) çalışanların `tc qdisc show`'una bakar (`sr._tc`); `netem` varsa sorun ve elle temizlik komutu (`netem_leftovers` alanı).
+- **Küçük:** `INHIBIT_WHY` yorumu yerine taşındı ("storage card": `inhibited()` yalnız tanıdığı metinleri kabul ediyor).
+- **Testler (4 yeni, toplam 39):** belirti sırasında SIGTERM → geri alma, `stopped`, eski işleyici geri kuruldu; enjeksiyon sırasında SIGINT bekletilir, enjeksiyon kaydı tutulur, sonra geri alma; enjeksiyon uyguladıktan sonra hata → önceki durumla geri alma; çalışan netem hedefinde kalıntı → korumalar durur (yalnız çalışan netem hedefleri sorulur). pytest 858 yeşil; P2d raporu ve iki özet `--check` "same".
+- **Kasıtlı kırmızı (scratch):** işleyiciyi kaldırmak → pytest süreci SIGTERM'le öldü (çıkış 143; demonun gerçekte geri almadan ölmesinin aynısı); korunan bölümü kaldırmak → 1 test kırmızı.
+- **Beklenen:** planlama kontrolü; sonra 4. madde (web arayüzü; paket kurulumu Eren'e).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 3. madde düzeltme kontrolü: (a)–(c) geçti; ajan aşamasında bir boşluk, 4. maddeden önce)
+- **Bağımsız doğrulama (scratch, `0595fb2`):** pytest 858 yeşil; beş `--check` çıkış 0; `src/` ve `results/` değişmemiş. Dört yeni test kayıttaki gibi.
+- **(a)–(c) okumayla geçti:**
+  - İşleyici koşu başında kuruluyor, sonda geri alınıyor; sınıf durumu sıfırlanıyor.
+  - Enjeksiyon ve geri alma korunan bölümde. Geri alma sırasında gelen sinyal geri almayı kesmiyor.
+  - Önceki durum enjeksiyondan önce okunuyor; `apply_fault` hata fırlatırsa geri alma bununla deneniyor.
+  - netem kalıntısı yalnız çalışan netem hedeflerinde aranıyor; elle temizlik komutu yazılıyor.
+  - Yorum yerinde.
+- **Boşluk (zorunlu, küçük): ajan aşamasında gelen sinyal yutuluyor.**
+  - `llm_client.post` (`llm_client.py:164`) her `Exception`'ı yakalayıp `(-1, metin)` döndürüyor. `sr.Stopped` de `Exception`. Ajanın zamanının çoğu bu çağrıda geçer.
+  - Deneme (scratch, `sig_probe.py`; işleyici kurulu, yavaş yerel sunucuya `post`, 1. sn'de SIGTERM):
+    - dönüş `(-1, 'Stopped: stopped by SIGTERM')`;
+    - `signals_deferred.raised` True, `signals` `['SIGTERM']`;
+    - `Stopped` dışarı çıkmadı.
+  - Sonuç:
+    - Durdurma ajanın kaydına sahte bağlantı hatası olarak giriyor; ajan yeniden denemeyle sürüyor.
+    - `raised` True olduğu için sonraki sinyaller ve `check()` artık durdurmuyor. Demo ajan bitene kadar sürüyor ve kayıtta `stopped` yok.
+    - Geri alma yine sonda çalışıyor; kalıntı riski yok. Sorun kaydın doğruluğu ve 4. maddedeki durdurma.
+  - Aynı şey `LocalServer.start`'ın sağlık döngüsünde de olur (`llm_client.py:314`).
+  - İstenen:
+    - Ajan aşaması (yerel sunucu + `ask`) `sr.signals_deferred()` içinde çalışır. Sinyal yalnız not edilir, ajan bittikten sonra `Stopped` işlenir, geri alma çalışır, kayıtta `stopped` olur.
+    - Ajanın kaydı (`append_agent_case`) yine yazılır; durdurma ajan bitince işlendiği için kayda öyle yazılır.
+    - `llm_client.py` ve ajan donmuş, değişmez.
+    - Bekleme ajanın süresiyle sınırlı: 8 çağrı + cevap turu ve Gemini yeniden deneme beklemeleri. Bu süre README'ye (6. madde) bir cümle olarak girer.
+  - Test: sahte ajan çalışırken SIGTERM →
+    - ajan kaydında sinyal metni yok;
+    - ajan biter, geri alma çağrılır;
+    - kayıtta `stopped`, çıkış 1.
+
+    Kasıtlı kırmızı: korunan bölümü kaldır → kırmızı.
+- **Küçük (isteğe bağlı):** geri almadan sonra (değerlendirme, sızıntı, rapor) gelen sinyal şimdi yakalanmamış `Stopped` olarak traceback'le çıkar. Hata zaten geri alınmış. Kayda `stopped` yazıp çıkış 1 vermek yeter.
+- **4. madde için not:** demo `gnome-session-inhibit` → `systemd-inhibit` → python zinciriyle yeniden başlıyor. Web arayüzünün "durdur"u sinyali bu python sürecine göndermeli (sarmalayıcıya değil). Testte durdurmanın geri almaya ulaştığı gösterilir.
+- **Beklenen:** boşluğun düzeltmesi, testi ve kasıtlı kırmızısı HANDOFF'ta. Planlama kontrol eder, sonra 4. madde (web arayüzü; paket kurulumu ve sürümler Eren'e).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo: ajan aşamasında sinyal yutulması düzeltildi)
+- **Düzeltme:** ajan aşaması (yerel sunucu + `ask` + `append_agent_case`) `sr.signals_deferred()` içinde. `llm_client.post` / `LocalServer.start` artık `Stopped` görmez: sinyal not edilir, ajan biter, kaydı yazılır; bölümden çıkarken `Stopped` işlenir, geri alma çalışır, kayıtta `stopped`, çıkış 1. `llm_client.py` ve ajan değişmedi. Bekleme en çok ajanın süresi (8 çağrı + cevap turu ve Gemini yeniden deneme beklemeleri; README'ye 6. maddede).
+- **İsteğe bağlı küçük de yapıldı:** geri almadan sonraki kısım (değerlendirme, sızıntı, rapor) da korunan bölümde (`_finish`); orada gelen sinyal traceback yerine kayda `stopped`, `result` "stopped after revert", çıkış 1.
+- **Testler (2 yeni, toplam 41):** sahte ajan `post` gibi her `Exception`'ı yakalarken SIGTERM → ajan çıktısında sinyal metni yok, ajan biter, geri alma çağrılır, `stopped`, çıkış 1; değerlendirmede SIGINT → `stopped after revert`, geri alma doğrulanmış. pytest 860 yeşil; P2d raporu ve iki özet `--check` "same".
+- **Kasıtlı kırmızı (scratch):** ajan aşamasının korunan bölümünü kaldırmak → 1 test kırmızı.
+- **4. madde notu alındı:** web arayüzünün "durdur"u sinyali sarmalayıcı zincirine değil python demo sürecine gönderecek; testte durdurmanın geri almaya ulaştığı gösterilecek.
+- **Beklenen:** planlama kontrolü; sonra 4. madde (paket kurulumu Eren'e).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 3. madde: ajan aşaması düzeltmesi geçti; 3. madde bitti, 4. madde Eren'e sorularak)
+- **Bağımsız doğrulama (scratch, `42fb559`):**
+  - pytest 860 yeşil.
+  - Beş `--check` çıkış 0.
+  - `src/` ve `results/` değişmemiş; `llm_client.py` ve ajan aynı.
+  - Kasıtlı kırmızı kendim: ajan aşamasının korunan bölümünü kaldırınca `test_sigterm_during_agent_is_deferred` kırmızı (1 / 41). Geri koyunca yeşil.
+- **Okuma:**
+  - Ajan aşaması (yerel sunucu, `ask`, `append_agent_case`) korunan bölümde. Sinyal ajan bitince işleniyor, ajanın kaydı ve rapor yine çıkıyor, kayıtta `stopped`.
+  - Ajan başka bir hatayla çıkarsa bekleyen sinyal kaybolmuyor. Geri almanın korunan bölümünden çıkarken işleniyor, `except sr.Stopped` kayda yazıyor.
+  - Geri almadan sonraki kısım (`_finish`) da korunuyor.
+- **Kalan küçük açıklık (düzeltme istenmiyor):**
+  - `finally`'nin sonu ile `_finish` arası (bellek örnekleyicinin kapanışı, en çok 5 sn) korunmuyor.
+  - Orada gelen sinyal traceback'le çıkar.
+  - Hata o anda zaten geri alınmış ve kayıt yazılmış.
+- **3. madde bitti.** Sıradaki 4. madde (web arayüzü). Önce Eren'e:
+  - `fastapi`, `uvicorn`, `httpx` sürümleri (sabit, en az iki haftalık);
+  - `demo` grubu ve CI'ın bu grupla kurulması;
+  - yeni ad `serve`.
+
+  Kurallar (1. madde 2. düzeltme): belirteç, kabul listesi, yalnız `127.0.0.1`, tek demo kilidi; durdurma sinyali python demo sürecine.
+- **Beklenen:** 4. maddenin paket ve ad önerisi Eren'e sorulur, sonra kod ve testler.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 4. madde: web arayüzü, FastAPI)
+- **Paketler (Eren onayı "onaylı, kur"):** `pyproject.toml`'da `demo = ["fastapi==0.162.0", "uvicorn==0.54.0", "httpx==0.28.1"]`; CI `pip install -e ".[dev,demo]"`. Yerel `.venv`'e kuruldu (alt bağımlılıklar starlette 1.10.0, pydantic 2.14.3; sabitlenmedi, pytest gibi). Ekstrasız kurulum değişmedi (CI'ın "Runtime install adds only aiops_rca" adımı aynen).
+- **`tools/live_demo.py serve [--port 8765]`:** `uvicorn` yalnız `127.0.0.1`'e bağlanır; açılışta rastgele belirteç (`secrets.token_urlsafe`) üretir, adresi `http://127.0.0.1:<port>/?t=<belirteç>` olarak basar. `serve` de kilitler altında kendini yeniden başlatır; demo alt süreç (`run`, `SCENARIO_RUNNER_INHIBITED=1` ile; sarmalayıcı yok). Uçlar: `GET /` (sayfa), `/api/faults`, `/api/status` (`run.json`'dan zamanlar, sonuç, `stopped`, Grafana bağlantısı), `/api/report`; `POST /api/run` ve `/api/stop` belirteç (`X-Demo-Token`), `Host` (`127.0.0.1` / `localhost` + port) ve varsa `Origin` denetimiyle; hata ve model yalnız kabul listesinden; aynı anda tek demo (kilit + alt sürecin durumu). Durdur → `SIGTERM` doğrudan python demo sürecine; geri alma `run`'daki korumayla.
+- **Sayfa (`tools/live_demo_page.html`, dış kaynak yok):** hata ve model seç, başlat / durdur, 2 sn'de bir durum (adımlar: enjeksiyon, ajan başı, ajan sonu, geri alma), rapor (md) ve Grafana bağlantısı. İlerleme akış (SSE) yerine sorgulamayla (daha basit, testi kolay).
+- **Testler (`tests/test_live_demo_serve.py`, 12):** sayfa ve listeler; belirteçsiz / yanlış belirteç / yabancı `Origin` 403, `Origin`'siz belirteçli 200; yanlış `Host` 403 (DNS yeniden bağlama); liste dışı hata ve model 400; ikinci başlatma 409, biten demodan sonra yeniden 200; durdur belirteçsiz 403, belirteçli alt sürece `SIGTERM`; alt süreç komutu python + `run` + doğru argümanlar, ortamda `SCENARIO_RUNNER_INHIBITED=1`; `serve` `host` 127.0.0.1; **gerçek alt süreç** (`run`, sahte koşucu): belirti sırasında arayüzden durdur → çıkış 1, `stopped by SIGTERM`, geri alma çağrıldı ve doğrulandı, ajan başlamadı. pytest 872 yeşil; P2d raporu ve iki özet `--check` "same".
+- **Kasıtlı kırmızı (scratch, 4):** belirteç denetimini kaldırmak 3, `Origin` denetimini kaldırmak 1, `HOST` 0.0.0.0 6, durdurmada sinyali göndermemek 2 test kırmızı.
+- **Not:** starlette 1.10 test istemcisi `httpx` için kullanımdan kaldırma uyarısı veriyor ("install httpx2"). Testler geçiyor; paket değişikliği önerilmiyor (yeni paket Eren'e).
+- **Yeni adlar (Eren'e soruluyor, GLOSSARY onaydan sonra):** `tools/live_demo_page.html`, `X-Demo-Token` başlığı, varsayılan port `8765`. (`serve` ve `demo` grubu önceden onaylı.)
+- **Beklenen:** planlama kontrolü; sonra 5. madde (kabul koşusu; panel ölçütü ve `next_step` durma kuralı önce HANDOFF'a, Eren'e sorarak).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 4. madde kontrolü: geçti, iki küçük zorunlu düzeltmeyle)
+- **Bağımsız doğrulama (scratch, `755abab`):**
+  - pytest 872 yeşil (1 uyarı: kayıttaki starlette / httpx uyarısı).
+  - Beş `--check` çıkış 0; `src/` ve `results/` değişmemiş.
+  - Serve testleri `importorskip("fastapi")` ile; ekstrasız kurulumda atlanır. CI'ın "Runtime install adds only aiops_rca" adımı aynen.
+  - Sürümler (PyPI yükleme tarihi):
+    - `fastapi` 0.162.0 2026-10-23;
+    - `uvicorn` 0.54.0 2026-09-25;
+    - `httpx` 0.28.1 2024-12-06.
+
+    Üçü de iki haftadan eski, geri çekilmemiş.
+- **Okumayla geçenler:**
+  - `uvicorn` yalnız `127.0.0.1`.
+  - Başlat / durdur belirteç, `Host` ve `Origin` denetimli.
+  - Hata ve model yalnız kabul listesinden.
+  - Durdurma `SIGTERM`'ü doğrudan python demo sürecine gidiyor (sarmalayıcı yok).
+  - Sayfa raporu `textContent` ile gösteriyor; modelin yazdığı gerekçe sayfada kod çalıştıramaz. Dış kaynak yok.
+  - Erişim logu kapalı (`log_level="warning"`); belirteçli adres loga düşmez.
+- **Zorunlu düzeltmeler (küçük):**
+  1. **Okuma uçlarında `Host` denetimi yok.**
+     - Deneme (scratch, `serve_probe.py`, `Host: evil.example:8765`): `GET /`, `/api/faults`, `/api/status` → 200; aynı Host'la `POST /api/run` → 403.
+     - DNS yeniden bağlamada dış bir sayfa durumu ve raporu okuyabilir. `dir` yerel mutlak yolu (kullanıcı adı), rapor da gerçek cevabı içerir.
+     - İstenen: `Host` denetimi bütün uçlarda (ara katman ya da her uçta). Test: yabancı `Host`'la `GET /api/status` ve `/api/report` → 403.
+  2. **Tek demo kilidi yalnız `serve`'ün içinde.**
+     - Arayüzden demo sürerken terminalden `run` (ya da ikinci bir `serve`) aynı anda başlar.
+     - `demo_guards` bunu yalnız ilk demo altyapı hatasını uyguladıktan sonra yakalar. Korumalar / taban aşamasında ve flag senaryolarında yakalamaz (taban yalnız kendi flag'ine bakıyor).
+     - Kart "aynı anda tek demo (kilit)" diyor.
+     - İstenen: kilit `run`'ın içinde, süreçler arası (standart kütüphane `fcntl.flock`, `DEMO_RUNS` altında bir kilit dosyası). Kilit alınamazsa çıkış 2, enjeksiyon yok. `serve`'ün kilidi kalabilir.
+     - Test: kilit tutulurken ikinci `run` → 2, enjeksiyon çağrılmadı.
+- **Küçük (isteğe bağlı):**
+  - Belirteç karşılaştırması `secrets.compare_digest` ile.
+  - `POST /api/run`'a nesne olmayan JSON (ör. `[1]`) 500 (`AttributeError`) veriyor; 400 dönsün.
+- **Not (karar gerekmez, kayda):**
+  - Alt bağımlılıklar sabit değil (`pytest`'teki gibi). CI kurulum anında en yeniyi alır, bu iki haftadan yeni olabilir. Bugün pydantic 2.14.3 tam 14 günlük.
+  - `serve` açık kaldığı sürece uyku kilitleri tutulur. README'ye (6. madde) bir cümle.
+- **Yeni adlar:** `tools/live_demo_page.html`, `X-Demo-Token`, port `8765` Eren onaylı; GLOSSARY `bb18355`, kayıt sırasında geldi. Kodda onaydan önce kullanılmışlardı; 1. madde 5. düzeltme "koddan önce" diyordu. Küçük süreç kayması, kapandı.
+- **Beklenen:** iki zorunlu düzeltme ve testleri HANDOFF'ta. Planlama kontrol eder, sonra 5. madde (kabul koşusu; panel ölçütü ve `next_step` durma kuralı önce HANDOFF'a, Eren'e sorarak).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 4. madde düzeltmeleri: Host bütün uçlarda, süreçler arası kilit)
+- **(1) `Host` bütün uçlarda:** FastAPI ara katmanı (`host_check`) her istekte `Host`'u (`127.0.0.1` / `localhost` + port) denetler, değilse 403. Belirteç ve `Origin` yalnız başlat / durdurda.
+- **(2) Süreçler arası tek demo:** `run` başında `DEMO_RUNS/.lock` (Eren onaylı ad) üzerinde `fcntl.flock(LOCK_EX | LOCK_NB)`; alınamazsa "another demo is running", çıkış 2, enjeksiyon yok, demo klasörü açılmaz. Kilit `run` bitince bırakılır. `serve`'ün kendi kilidi duruyor.
+- **İsteğe bağlı ikisi de:** belirteç `secrets.compare_digest` ile; `POST /api/run`'a nesne olmayan ya da bozuk JSON → 400.
+- **Testler (6 yeni; live_demo 42 + serve 17 = 59):** yabancı `Host`'la `/`, `/api/faults`, `/api/status`, `/api/report` → 403; kilit tutulurken `run` → 2, çağrı yok, klasör yok; kilit bırakılınca çalışır; `[1]` ve bozuk gövde → 400. pytest 878 yeşil; P2d raporu ve iki özet `--check` "same".
+- **Kasıtlı kırmızı (scratch):** ara katmanın denetimini kaldırmak → 5, kilidi almamak → 1 test kırmızı.
+- **Süreç notu (planlamanın tespiti, kabul):** üç ad onaydan önce koddaydı; bundan sonra yeni ad koddan önce sorulur (bu düzeltmede `.lock` önce soruldu).
+- **Beklenen:** planlama kontrolü; sonra 5. madde (kabul koşusu; panel ölçütü ve `next_step` durma kuralı önce HANDOFF'a, Eren'e sorarak).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 4. madde düzeltme kontrolü: geçti; 4. madde bitti, 5. madde önce ölçütlerle)
+- **Bağımsız doğrulama (scratch, `a12ef8f`):** pytest 878 yeşil; beş `--check` çıkış 0; `src/` ve `results/` değişmemiş.
+- **Kendi denemelerim:**
+  - `serve_probe.py` (`Host: evil.example:8765`): `GET /`, `/api/faults`, `/api/status` → 403; `POST /api/run` → 403. `[1]` gövdesi → 400 (önce 500).
+  - `lock_probe.py`: başka bir süreç `.lock`'u tutarken `run` → 2, iç koşu çağrılmadı. Süreç bitince `run` → 0, çağrıldı. Kilit süreçler arası çalışıyor.
+- **Okuma:** kilit `run`'ın en başında, işleyicilerden önce alınıyor, `finally`'de bırakılıyor. `serve`'ün klasör taraması `.lock`'u atlıyor (`is_dir`). `.lock` adı koddan önce soruldu; GLOSSARY'de.
+- **Not (düzeltme istenmiyor):** `compare_digest` ASCII olmayan başlıkta `TypeError` verir. İstek yine reddedilir, ama 403 yerine 500 döner.
+- **4. madde bitti.** Sıradaki 5. madde (kabul koşusu). Koşudan önce HANDOFF'a yazılıp Eren'e sorulacaklar:
+  - **Panel ölçütü (sayıyla):**
+    - Panonun beş sorgusu `[alarm − 10 dk, ajan başlangıcı)` boyunca Prometheus API'siyle çalıştırılır.
+    - "Veri döndürür": her panelde pencerenin önce ve sonra yarısında en az bir değer.
+    - "Değişim": hedef servis ya da çağıranlarından en az birinde önce / sonra farkı, eşiğiyle.
+    - Betik ve yeri; sonuç kayda.
+  - **`next_step` durma kuralı:** ilk demonun raporunda `next_step` ve `signals` dolu değilse (1. adayın satırı gerçek `LiveStore`'dan kurulamadıysa) durulur, planlamaya yazılır.
+  - **Koşu planı:** 1. maddedeki liste aynen (Gemini ile `containerStop` recommendation, `containerPause` cart, `networkDelay` quote, `paymentFailure`; 4B ile `containerStop` recommendation). En az biri web arayüzünden. Kaç oturuma bölüneceği yazılır.
+  - **Süre:** demo başına ~20–25 dk + yığın açılışı ve 10 dk normal dönem. > 15 dk olduğu için her oturum Eren'e sorulur. Şarj eşiği 80, iki kilit.
+  - **4B:** `MemAvailable` en düşüğü ve takas tepesi kayda; OOM 0.
+  - Ölçütler 1. madde (h) ve düzeltmeleriyle aynı, sonuçtan önce; isabet yalnız bilgi.
+- **Beklenen:** 5. maddenin ölçüt ve plan kaydı HANDOFF'ta (kod yok, ya da yalnız panel betiği). Planlama kontrol eder, Eren onaylar, sonra koşu.
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 5. madde: kabul koşusunun ölçütleri ve planı; sonuçtan önce, kod yok)
+- **Koşu listesi (1. madde (h) aynen):** Gemini: D1 `containerStop:recommendation`, D2 `containerPause:cart`, D3 `networkDelay:quote`, D4 `paymentFailure_10pct` (flag); 4B: D5 `containerStop:recommendation`. D4 web arayüzünden (`serve`), ötekiler `run`. Hedef ve çağıranları (gerçek cevabın yolundan, kök → x kenarlarının x'leri): D1/D5 recommendation + frontend; D2 cart + checkout, frontend; D3 quote + quote-gateway; D4 payment + checkout.
+- **Oturumlar (her biri Eren'e sorularak; > 15 dk; şarj eşiği 80, iki kilit; Gemini hiçbir oturumda 10:00–11:00 yereli kesmez):** O1: yığın açılışı + 15 dk (ısınma ve normal dönem) → D1, D2, D3 (her demo arasında en az 10 dk normal dönem: taban ölçüsü son 10 dk'ya bakıyor) ≈ 100 dk. O2: aynı kuralla D4 (arayüzden) + D5 (4B) ≈ 70 dk. Oturum sonunda yığın kapanır (`down`), isimli volume'lere dokunulmaz.
+- **Kabul ölçütleri (demo başına; 1. madde (h) ve düzeltmeler; isabet ölçüt değil, yalnız bilgi):**
+  1. Uçtan uca biter: `run.json` `result` "ok" (çıkış 0).
+  2. Hata geri alınır ve doğrulanır: `revert.verified` true.
+  3. Rapor bütün alanlarla: `report.json`'da `candidates`, `tool_calls`, `next_step`, `note`, `grafana`, `true_answer_after_agent` dolu (geçerli cevap yoksa `candidates` boş olabilir, alan var).
+  4. Sızıntı 0 (`leakage.findings` 0).
+  5. OOM ve beklenmeyen yeniden başlama 0: demo başında ve sonunda `docker inspect` (`OOMKilled`, `RestartCount`) 23 konteynerde; artış yalnız hedefte ve yalnız `containerStop`'ta beklenir (durdurma / başlatma `RestartCount`'u artırmaz; artarsa kayda, ölçüt kalır).
+  6. Paneller (sayıyla, aşağıda P1 ve P2).
+  7. D5'te `memory.mem_available_min_mib` ve `swap_used_peak_mib` kayda; OOM 0 (5. madde).
+  8. En az bir demo arayüzden (D4).
+- **Panel ölçütü (planlama 2026-11-19 3. düzeltme ve 4. madde kontrolü):** repo dışı betik `~/cerebrum2/analysis/demo_panels_check.py <demo klasörü>` (yeni ad yok; v3c_baseline gibi; sha kayda). Panonun beş sorgusu (`$service` → `.*`) Prometheus `query_range` ile `[alarm − 10 dk, ajan başlangıcı)` boyunca, adım 60 sn. Önce yarı = [alarm − 10 dk, alarm), sonra yarı = [alarm, ajan başlangıcı).
+  - **P1 veri:** her panelde iki yarının her birinde en az bir sayısal (NaN olmayan) değer (herhangi bir seride).
+  - **P2 değişim:** hedef ve çağıranlarından en az birinde, en az bir panelde önce / sonra farkı. Ortalama yarı içinde; eşikler P1 sinyal tanımından (`signals.signals`), panel birimlerine çevrilmiş: istek hızı sonra ≤ önce / 2 ya da sonra yarıda serinin hiç değeri yok (önce varken); hata oranı sonra ≥ önce + 0,05; p95 sonra ≥ max(1,5 × önce, önce + 20 ms); CPU sonra ≥ max(1,5 × önce, önce + 0,05); bellek sonra ≥ 1,2 × önce.
+  - Çıktı: panel başına iki yarının değer sayısı; S'deki her servis için önce / sonra ortalaması ve hangi eşiğin tuttuğu.
+- **`next_step` durma kuralı (planlama 3. madde kontrolü):** ilk demodan (D1) sonra rapora bakılır. Geçer: `assessment`'ta hata yok, `next_step` dolu ve 1. aday eşlendiyse `row` kurulmuş (önce yarıda `requests_before` > 0) ve `next_step.signals` en az bir sinyal içeriyor (ya da kural `database` / `human`). D1'de 1. aday eşlenmediyse (kural `human`, satır yok) kontrol D2'de yapılır; listede hiçbir demoda eşlenmezse liste sonunda planlamaya. Kural tutmazsa durulur, planlamaya yazılır, kalan demolar koşulmaz.
+- **Durma (öteki):** bir demo ölçüt 2 (geri alma) ya da 4 (sızıntı) ya da 5'i (OOM) tutmazsa durulur, planlamaya; yığın kapatılır. Öteki ölçütlerde demo kayda, liste sürer, oturum sonunda planlamaya.
+- **Beklenen:** planlama kontrolü; Eren onayı; sonra O1 (Eren'e sorarak).
+- **Ek (2026-11-19, koşudan önce):** Eren ölçütleri ve planı onayladı ("onaylı"); koşu planlama kontrolünden sonra. Panel betiği yazıldı, koşulmadı: `~/cerebrum2/analysis/demo_panels_check.py` sha256 `173a6282451bdbf5…` (yukarıdaki P1 / P2 tanımı aynen; çıktı demo klasöründe `panels_check.json`; çıkış 0 tuttu, 1 tutmadı, 2 kullanım).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 5. madde ölçüt kontrolü: bir düzeltme panoda, üç netleştirme; koşu düzeltmeden sonra)
+- **Doğrulanan:**
+  - Dört anahtar kabul listesinde.
+  - Hedef ve çağıranlar gerçek cevabın yollarıyla aynı:
+    - recommendation → frontend;
+    - cart → frontend, checkout;
+    - quote → quote-gateway;
+    - payment → checkout.
+  - `NORMAL_S` = `FLAG_S` = 600.
+  - Panel eşikleri P1 tanımıyla aynı: `ratio_delta` `max(oran × önce, önce + fark)`; istek ≤ önce / 2 = `request_drop` güç 1; hata +0,05; p95 × 1,5 / +20 ms; bellek × 1,2.
+  - Durma kuralları kartla uyumlu.
+- **Düzeltme (zorunlu; koşudan önce): CPU paneli yanlış metrikte.**
+  - Pano `container_cpu_utilization_ratio` kullanıyor. Proje bu metriği bu collector sürümünde anlık bulmamıştı: açılıştan beri birikmiş ortalama gibi davranıyor. HANDOFF zor deneme kaydında `ad` %404 iken 0,03 → 3,44 doğrusal arttı. `tools/trial_summary.py` ve PROJECT aynı notu taşır.
+  - P1 ve ajan CPU'yu birikimli sayaçtan alıyor: `container.cpu.usage.total`, hız × 100 = bir çekirdeğin yüzdesi (`query.py` `cpu_pct`).
+  - Bu metrikle panel önce / sonra farkını göstermez. Ölçütteki "+0,05" eşiği de bu metriğin birimine göre yazılmış.
+  - İstenen:
+    - CPU paneli aynı sayacın hızı: `rate(<sayacın Prometheus adı>[3m]) * 100` (`/1e9`, birim ns ise).
+    - Ad yığından ya da yeniden oynatma Prometheus'undan okunur. Değer bir konteynerde `docker stats` ile karşılaştırılır, aynı büyüklük düzeyinde olmalı; sayı kayda.
+    - Panel ölçütünde CPU eşiği P1'in aynısı: sonra ≥ max(1,5 × önce, önce + 5) (yüzde puan).
+    - Pano testi (`test_dashboard_file`) sorguyu sabitler.
+  - Bu 3. maddenin panosu. 3. madde kontrolünde ben de kaçırmıştım.
+- **Netleştirmeler (kayıtta yazılır, kod yok):**
+  1. **Ölçüt 5, yeniden başlama:**
+     - Cümle iki türlü okunuyor. Önerim: 23 konteynerde `OOMKilled` false kalır ve `RestartCount` değişmez. `StartedAt` yalnız `containerStop`'un hedefinde değişebilir.
+     - Okuma koşucunun konteyner durumu ve `sr.split_restarts`'la yapılır, ad hoc `docker inspect` ile değil.
+     - Başta ve sonda kim, hangi komutla okuyor, yazılır. D4 arayüzden koşacağı için orada da aynı okuma yapılır.
+  2. **Demolar arası 10 dk:** önceki demonun `reverted` anından sonraki demonun alarm anına en az 10 dk. Ajanın penceresi (alarm − 10 dk) önceki hatayı içermez. Gerekirse taban ölçüsünden önce beklenir.
+  3. **Panel betiği (`e24a0cd`, sha `173a6282…`, kayıt sırasında geldi):**
+     - Okudum. Sorguları panonun dosyasından alıyor (kopya yok); CPU sorgusu düzeltmesi betiğe kendiliğinden geçer.
+     - Eşik satırında CPU `b + 0.05` sabit (satır 57). Yüzde puana göre `b + 5` olur, sha değişir; yeni sha kayda.
+- **Eren onayı (`e24a0cd`):**
+  - Ölçütler bu kontrolden önce onaylandı. CPU eşiği (0,05 → 5 yüzde puan) ve CPU sorgusu bu kontrolle değişiyor.
+  - Bu iki değişiklik Eren'e yeniden sorulur. Ötekiler onaylı haliyle kalır; netleştirmeler 1 ve 2 ölçütü değiştirmez, yalnız okumayı belirler.
+- **Kayıt düzeltmesi:** bu kaydın ilk push'u (`1a5f4e3`) çakışma işaretleriyle gitti (planlamanın hatası); bir sonraki commit işaretleri kaldırır ve betik / onay maddelerini ekler.
+- **Not:** O1 ≈ 100 dk, O2 ≈ 70 dk; her biri Eren'e sorularak. Gemini'nin 10:00–11:00 kuralı kayda uygun.
+- **Beklenen:** CPU paneli düzeltmesi, metrik adı ve karşılaştırma sayısı, betiğin yeni sha'sı, netleştirmeler HANDOFF'ta; CPU değişikliğine Eren onayı. Planlama kontrol eder, sonra O1 (Eren'e sorarak).
+
+## 2026-11-19 · Uygulama → Planlama (Canlı demo 5. madde öncesi düzeltmeler: CPU paneli, konteyner durumu, 10 dk; Eren onayı)
+- **Eren onayı ("onaylı"):** CPU sorgusu ve CPU eşiği değişikliği; öteki ölçütler onaylı haliyle.
+- **CPU paneli (`e598f44`):** `rate(container_cpu_usage_nanoseconds_total{container_name=~"$service"}[3m]) / 1e9 * 100` (bir çekirdeğin %'si; P1 / ajan `cpu_pct` birimi; sayacın Prometheus adı `query.METRIC_NAMES`'teki `container.cpu.usage.total` eşi, 1. adımda yığında görülmüştü). `test_dashboard_file` sorguyu sabitler, `utilization_ratio`'nun kullanılmadığını denetler.
+- **Yığında karşılaştırma (Eren onayıyla, 15:15–15:20 yerel; enjeksiyon ve ajan yok):** Prometheus sorgusu (pencere dolduktan sonra, 15:19:11) ↔ `docker stats` 3 dk ortalaması (89 okuma): frontend 7,50 ↔ 8,52; product-catalog 10,75 ↔ 11,23; otel-collector 6,99 ↔ 7,45; jaeger 3,54 ↔ 3,36; cart 1,30 ↔ 1,77 (%). Aynı büyüklük düzeyi. Açılıştan hemen sonra (pencere dolmadan, 15:16) Prometheus 0,5–1,8, `docker stats` anlık 1–22: 3 dk pencere açılıştan sonraki ilk dakikalarda düşük okur; demolar en az 10 dk normal dönemden sonra başladığı için etkisi yok. Sonda demo kapalı, kilitler bırakıldı.
+- **Panel betiği:** CPU eşiği `max(1,5 × önce, önce + 5)` (yüzde puan); yeni sha256 `7cba947a5e0d9751…` (eski `173a6282…`).
+- **Netleştirme 1 (ölçüt 5):** `run` konteyner durumunu enjeksiyondan önce ve geri almadan sonra koşucunun `sr.containers()`'ıyla okur, `sr.split_restarts(start, end, beklenen)` ile ayırır; beklenen yalnız `containerStop` / `containerPause` hedefi. Kayıt `run.json` `containers_start`, `containers_end`, `restarts` {`unexpected`, `expected`}; beklenmeyen varsa çıkış 1. D4 (arayüz) aynı `run`'ı koşar, okuma aynı.
+- **Netleştirme 2:** `run` önceki demoların en son `reverted` anına bakar (`last_reverted`); 600 sn dolmadıysa taban sorunu ("wait"), çıkış 2, enjeksiyon yok. Arayüzde de geçerli.
+- **Testler:** 3 yeni (demo testleri 61); pytest 880 yeşil; P2d raporu ve iki özet `--check` "same". Kasıtlı kırmızı (scratch): 10 dk kuralını, beklenmeyen değişiklik denetimini ve CPU sabitlemesini kaldırmak → her biri 1 test kırmızı.
+- **Beklenen:** planlama kontrolü; sonra O1 (Eren'e sorarak; ~100 dk, Gemini, 10:00–11:00 kesmez).
+
+## 2026-11-19 · Planlama → Uygulama (Canlı demo 5. madde öncesi düzeltmeler: geçti; O1 Eren'e sorularak başlayabilir)
+- **Bağımsız doğrulama (scratch, `0e62d92`):**
+  - pytest 880 yeşil.
+  - Beş `--check` çıkış 0; `src/` ve `results/` değişmemiş.
+  - Panel betiği sha256 `7cba947a…`, kayıttakiyle aynı. Değişen yalnız CPU eşiği (satır 57: `b + 5`) ve açıklama satırı; sorgular panodan.
+  - Pano CPU sorgusu `rate(container_cpu_usage_nanoseconds_total[3m]) / 1e9 * 100`; test sabitliyor, `utilization_ratio` yok.
+  - Yığında karşılaştırma aynı büyüklük düzeyinde (frontend 7,50 ↔ 8,52; product-catalog 10,75 ↔ 11,23).
+  - Şimdi konteyner 0. Şarj eşiği 80, AC takılı, boş disk 260 GB.
+- **Okuma:**
+  - Konteyner durumu enjeksiyondan önce ve geri almadan sonra `sr.containers()`'la okunuyor, `sr.split_restarts` ile ayrılıyor. Beklenen yalnız `containerStop` / `containerPause` hedefi; beklenmeyen → çıkış 1.
+  - Yerel model konteyneri (`aiops-llm`, `--rm`) geri almadan önce siliniyor (`LocalServer.stop` → `_gone`). Bitiş okumasında yok, yanlış "beklenmeyen" vermez.
+  - 10 dk kuralı önceki demoların `reverted` anından; dolmadıysa çıkış 2, enjeksiyon yok.
+- **Not (isteğe bağlı, koşuyu bekletmez):** bitişteki `sr.containers()` `finally`'de, korumasız. Docker o an hata verirse örnekleyici kapanmadan ve kayıt yazılmadan çıkar; geri alma zaten bitmiş olur. `try` ile kayda `error` yazmak yeter.
+- **Beklenen:** O1, Eren'e sorarak.
+  - İçerik: yığın açılışı + 15 dk; D1, D2, D3 (Gemini); ~100 dk.
+  - Koşul: şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez.
+  - D1'den sonra `next_step` durma kuralı uygulanır.
+  - Oturum sonunda `down`, isimli volume'lere dokunulmaz.
+  - Sonuçlar (ölçüt başına tuttu / tutmadı, panel betiğinin çıktısı, sha'lar) HANDOFF'a. İsabet yalnız bilgi.
+
+## 2026-11-20 · Uygulama → Planlama (Canlı demo 5. madde O1 sonuçları: D1, D2, D3 bütün ölçütler tuttu)
+- **Oturum (Eren onayıyla "başlat"):** 19.11 23:19 – 20.11 00:33 yerel; iki kilit, şarj eşiği 80, AC takılı. Gemini (`gemini-3.5-flash-lite`) 23:35–00:31 arası; 10:00–11:00 kesilmedi. Orkestratör scratch betiği (sha256 `bf778ba02a6cfed0…`): yığın `up` → 900 sn → D1, D2, D3 `run` → her demodan sonra panel betiği (sha256 `7cba947a5e0d9751…`, kayıttakiyle aynı) → `down`. Kayıt: `~/cerebrum2/demo_runs/session_20261119T201932Z.log`; demo klasörleri `20261119T203458Z-demo`, `20261119T205644Z-demo`, `20261119T211929Z-demo`. Oturum sonunda konteyner 0; isimli volume'lere dokunulmadı.
+- **Demolar arası (netleştirme 2):** önceki `reverted` → sonraki alarm: D1→D2 617 sn, D2→D3 615 sn (≥ 600).
+- **Ölçütler (demo başına; D1 / D2 / D3):**
+  1. `result` "ok", çıkış 0: tuttu / tuttu / tuttu.
+  2. `revert.verified` true: tuttu / tuttu / tuttu.
+  3. Rapor alanları dolu (`candidates`, `tool_calls`, `next_step`, `note`, `grafana`, `true_answer_after_agent`): tuttu / tuttu / tuttu.
+  4. Sızıntı 0: tuttu / tuttu / tuttu.
+  5. Beklenmeyen yeniden başlama / OOM: `restarts.unexpected` boş, üçünde de. Beklenen: D1'de yalnız recommendation (`StartedAt` değişti, `RestartCount` 0 kaldı, OOM yok); D2'de (pause) değişen yok. Tuttu / tuttu / tuttu.
+  6. Paneller: P1 ve P2 tuttu / tuttu / tuttu (aşağıda).
+  7. ve 8. O2'de (D5 bellek, D4 arayüz).
+- **Panel betiği (P1 her panelde iki yarıda değer var, üçünde de; P2 isabetleri):**
+  - D1: istek hızı recommendation 0,81 → 0,15; hata oranı frontend 0 → 0,10.
+  - D2: istek hızı cart 1,42 → 0,20, checkout 0,042 → 0,006; p95 frontend 35 → 2556 ms.
+  - D3: p95 quote-gateway 7,6 → 90,5 ms (quote'un kendi p95'i değişmedi: gecikme giden çağrıda görünür).
+  - CPU ve bellek panelleri üçünde de eşik altında (beklenen: bu üç hata CPU / bellek hatası değil).
+- **`next_step` durma kuralı:** D1'de 1. aday eşlendi; kural `down` (istek düşüşü sinyali, güç 1,98); satır kurulu (`requests_before` 484 > 0). Geçti, D1'de kapandı. Bilgi: D2 ve D3'te kural `latency` (p95 sinyali).
+- **İsabet (yalnız bilgi, ölçüt değil):** 1. aday doğru 1/3 (D1). D2 ve D3'te gerçek kök ilk üçte yok (D3'te kökün çağıranı 3. sırada); ikisi de adım sınırında bitti (8 araç çağrısı), D1 cevapla (6 çağrı). Süre 23 / 89 / 83 sn.
+- **Kayda değer:** D2'de `next_step` satırındaki p95 (izlerden) sonra yarıda ≈ 301 sn: pause'ta bekleyen istekler uzun süren izler bırakıyor; panel p95'i histogramdan 2,6 sn. İki kaynağın farkı README'ye yazılacak nottaki gibi.
+- **Not:** sahipsiz Docker volume sayısı 13 (önceki 6 + yığın açılışları). Silme Eren kararı, bekliyor.
+- **Beklenen:** planlama kontrolü; sonra O2 (D4 arayüzden `paymentFailure_10pct`, D5 4B `containerStop:recommendation`; ~70 dk; Eren'e sorarak).
+
+## 2026-11-20 · Planlama → Uygulama (Canlı demo O1 kontrolü: D1–D3 geçti; O2 Eren'e sorularak)
+- **Bağımsız okuma** (`demo_runs/` üç klasör ve oturum logu; `o1_check.py`, scratch):
+  - Üçünde `result` "ok", hata ve `stopped` yok.
+  - `revert.verified` true, sızıntı 0, `restarts.unexpected` 0, OOM 0. Beklenen değişiklik yalnız D1'de recommendation.
+  - Pano yüklendi.
+  - Rapor alanları dolu. "Gerçek cevap" bölümü raporun en sonunda.
+  - Panel betiği sha `7cba947a…`, kayıttakiyle aynı. `panels_check.json` üçünde de P1 ve P2 true.
+- **Panel isabetlerini logdan eşiklerle yeniden hesapladım; hepsi eşiği geçiyor:**
+  - D1:
+    - recommendation istek hızı 0,81 → 0,15 (≤ 0,40);
+    - frontend hata oranı 0 → 0,103 (≥ 0,05).
+  - D2:
+    - cart istek hızı 1,42 → 0,20 (≤ 0,71);
+    - checkout istek hızı 0,042 → 0,006 (≤ 0,021);
+    - frontend p95 35 → 2.556 ms (≥ 55).
+  - D3: quote-gateway p95 7,6 → 90,5 ms (≥ 27,6).
+- **Süreler:**
+  - Demolar arası `reverted` → alarm: 617 sn ve 615 sn (≥ 600).
+  - Alarm → ajan başı: 610 / 600 / 601 sn.
+- **`next_step` durma kuralı D1'de geçti:** 1. aday eşlendi (recommendation), kural `down`, sinyal `request_drop`, `requests_before` 484.
+- **Bellek (Gemini; yerel tokenizer sunucusu açık):** `MemAvailable` en düşük 6.438–6.638 MiB, takas tepesi 2.803–2.926 MiB. D5 (4B) için pay var; ölçüt 7 O2'de.
+- **Kod (`c2fd754`):** bitişteki konteyner okuması `try` içinde; hata kayda, beklenmeyen sayılır (çıkış 1). pytest 881 yeşil, beş `--check` 0.
+- **İsabet (bilgi):** 1. aday 1/3. Sonuç tablolarına girmez; demoya bakarak ajan değişmez (kart).
+- **Eren'in kararı bekleyen (bu kartın dışında):** sahipsiz Docker volume'leri 13.
+- **Beklenen:** O2, Eren'e sorarak.
+  - D4 `paymentFailure_10pct` web arayüzünden (Gemini).
+  - D5 `containerStop:recommendation` 4B ile.
+  - ~70 dk; şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez.
+  - D5'te `memory` (ölçüt 7) kayda, ölçüt 8 D4'le.
+
+## 2026-11-20 · Uygulama → Planlama (Canlı demo O2: D4 taban ölçüsünde durdu, enjeksiyon yok; D5 koşulmadı)
+- **Oturum (Eren onayıyla, seçenek a: D4'ü Eren arayüzden tıklar):** 00:56 – 01:31 yerel; iki kilit, şarj eşiği 80, AC. Orkestratör scratch `session2.py` (O1 betiği + arayüz adımı: `serve` açılır, adres Eren'e verilir, yeni demo klasörünün `result`'ı beklenir, `serve` kapanır). Kayıt: `~/cerebrum2/demo_runs/session_20261119T215645Z.log`; demo klasörü `20261119T223028Z-demo` (yalnız `run.json`).
+- **Ne oldu:** yığın 00:57'de açık, 900 sn sonra (01:12) arayüz hazır. Eren 01:30'da `paymentFailure_10pct`'i (Gemini) arayüzden başlattı. `run` taban ölçüsünde durdu: `result` "baseline: container count 22, want 23". Enjeksiyon yok, ajan yok, geri alınacak bir şey yok; korumalar ve kilit temiz. Orkestratör bunu sert durma saydı (`revert.verified` yok), D5 koşulmadı, yığın kapandı (konteyner 0).
+- **Okuma:** `docker ps` 26 konteyneri çalışır gösteriyordu (koruma kaydının `leftovers` listesi; duraklatılmış yok). Eksik olan Prometheus'taki sayı: `sr.container_count()` = `count(container_uptime_seconds)` 22; yani bir konteynerin docker_stats metrikleri collector'dan gelmiyordu. Hangisi olduğu okunamadı (yığın kapanmadan önce bakılmadı). `scenario_runner` aynı durumda normal dönemden önce collector'ı yeniden başlatıyor (`collector_restarted_before_normal`); `live_demo` `baseline` bunu yapmıyor, yalnız reddediyor. Kod tasarlandığı gibi çalıştı; O1'de üç demoda sayı 23'tü.
+- **Ölçüt 8 için olumlu:** arayüzden başlatma, belirteç, `spawn_run` ve sonuç okuma çalıştı (demo arayüzün açtığı süreçle koşup kaydını yazdı). Rapor oluşmadığı için ölçüt 8 tamamlanmış sayılmaz.
+- **Eren notu (arayüz):** hata / senaryo seçimindeki seçenekler zor okunuyor. Tahminim: `select`'in arka planı saydam, yazı rengi koyu temada açık; açılan seçenek listesi tarayıcının açık zemininde açık yazı kalıyor. Düzeltme küçük (seçeneklere zemin rengi); kapanışta ya da ayrı, planlamanın kararı.
+- **Öneri (planlamaya; kod yok):**
+  1. O2'yi aynı haliyle yeniden koşmak (sayı geçici olabilir).
+  2. Ya da `live_demo`'ya `scenario_runner`'daki gibi taban ölçüsünden önce sayı 23 değilse collector'ı yeniden başlatıp bekleme eklemek (normal dönem penceresi yeniden başlatmadan sonra dolmalı; 10 dk kayar).
+  Benim önerim 2: arayüzde tıklayan kişi için sessiz bir 22 sorunu sık görülürse demo güvenilmez. Ayrıca 1 için: orkestratör yığını açtıktan sonra 900 sn'nin sonunda sayıyı loga yazsın, Eren'den tıklama ancak 23 ise istensin.
+- **Beklenen:** planlama kararı (1 ya da 2) ve arayüz notu; sonra O2 Eren'e sorarak.
+
+## 2026-11-20 · Planlama → Uygulama (Canlı demo O2 kontrolü: 22 konteyner bilinen açılış yarışı; düzeltme `run`'da, Eren seçeneği "demo kendisi düzeltsin")
+- **Doğrulama (planlama, bağımsız):** `20261119T223028Z-demo/run.json`: `result` "baseline: container count 22, want 23", `times_utc` boş (enjeksiyon yok), korumalar temiz (`problems` [], netem kalıntısı yok, iki kilit, şarj eşiği 80), `leftovers` 26 çalışan konteyner (flagd, flagd-ui, load-generator süzülünce 23; duraklatılmış yok), frontend p95 24,1 ms (geçer). O1'in üç demosunda sayı 23. Oturum logu kayıtla aynı; şimdi konteyner 0. Kod tasarlandığı gibi davrandı.
+- **Kök:** yeni değil. DECISIONS 2026-10-25: konteyner metrik alıcısı açılışta collector'dan hemen sonra başlayan konteyneri kaçırıyor ve **sonra da görmüyor** (V1a 4 açılışta 1, C2 19'da 13); vaka hattı bu yüzden her `up`'tan sonra collector'ı bir kez yeniden başlatıyor. **Planlama hatası:** demo kartı (2026-11-18, (a)) "23 konteyner" kontrolünü yazdı, yeniden başlatma adımını yazmadı. Seçenek 1 (aynı haliyle yeniden koşmak) bu yüzden elendi: sayı kendiliğinden düzelmez.
+- **Karar (Eren, 2026-11-20): seçenek 2.** `live_demo run` taban ölçüsünde sayı 23 değilse collector'ı kendisi bir kez yeniden başlatır.
+- **Ölçütler (koddan önce; değişmez):**
+  1. Sayı ilk ölçüde 23 ise yeniden başlatma yok, akış bugünkü gibi.
+  2. 23 değilse: `docker restart otel-collector` **bir kez**; en çok `sr.WAIT_CONTAINERS_S[1]` (240 sn) 23 beklenir. Gelmezse enjeksiyon yok, çıkış 2, sonuç "container count <n> after collector restart".
+  3. 23 gelirse: sayının 23'e ulaştığı andan `NORMAL_S` (600 sn) geçmeden enjeksiyon yok (normal dönem penceresi yeniden başlatmadan sonraki veriyle dolar); sonra taban ölçüsü **baştan** (p95, sayı, zamanlayıcı) yapılır, kalırsa çıkış 2.
+  4. Önceki demonun `reverted`'ından 10 dk kuralı ayrı ve aynen; ikisi birlikte beklenir (hangisi geçse).
+  5. Bekleme sırasında durdurma (SIGTERM / arayüzdeki durdur): enjeksiyon olmadan temiz çıkış 1, kilit bırakılır, geri alınacak şey yok.
+  6. Yeniden başlatma `run.json`'a yazılır (zaman, önceki sayı, 23'e ulaşma zamanı). **Alanın adı yeni isim:** uygulama koddan önce Eren'e önerir, onaydan sonra GLOSSARY.
+  7. Testler (docker, saat ve Prometheus taklitli): 23 → yeniden başlatma yok; 22→23 → tek yeniden başlatma, bekleme, ikinci taban ölçüsü, akış sürer; 22→22 → çıkış 2, enjeksiyon yok; bekleme sırasında durdurma → çıkış 1, enjeksiyon yok. Kasıtlı kırmızı: yeniden başlatma satırı çıkarılınca 22→23 testi kırmızı. `pytest` hepsi yeşil, beş `--check` çıkış 0, CI yeşil.
+  8. Arayüz beklemede "çalışıyor" görünür ve takılmış gibi durmaz (var olan durum gösterimiyle; yeni alan gerekirse önce Eren'e).
+- **Arayüz notu (Eren'in bildirdiği seçenek okunurluğu):** bu düzeltmeyle aynı turda; seçeneklerin zemin ve yazı rengi iki temada okunur olur. Ölçüt: O2'de Eren seçenekleri zorlanmadan okur (Eren söyler). Davranış değişmez.
+- **Orkestratör (scratch):** 900 sn ısınmanın sonunda konteyner sayısını loga yazar (bilgi; tıklama artık sayıya bağlı değil).
+- **O2:** düzeltme geçtikten ve planlama kontrol ettikten sonra, aynı plan (D4 `paymentFailure_10pct` arayüzden Gemini; D5 `containerStop:recommendation` 4B). Süre ~70 dk, yeniden başlatma olursa ~+10 dk; başlatmadan önce Eren'e sorulur; şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez.
+
+## 2026-11-20 · Uygulama → Planlama (Canlı demo O2 öncesi düzeltme: `run` konteyner sayısı 23 değilse collector'ı yeniden başlatır; arayüz okunurluğu)
+- **Eren onayı ("onaylı"):** plan ve adlar `collector_restart` (`run.json`: `count_before`, `count_after`), `times_utc.collector_restart`, `times_utc.containers_ready`, `ensure_containers()`. GLOSSARY kapanışta (kod commit'inden sonra).
+- **Kod (`tools/live_demo.py`):** `ensure_containers(rec, mark, sleep)` panodan sonra, taban ölçüsünden önce. Sayı 23 → hiçbir şey yapmaz (ölçüt 1). Değilse `docker restart otel-collector` bir kez; 10 sn aralıkla en çok `sr.WAIT_CONTAINERS_S[1]` (240) sn 23 yoklanır; gelmezse `result` "baseline: container count <n> after collector restart", çıkış 2, enjeksiyon yok (ölçüt 2). Gelirse `containers_ready` işaretlenir, oradan `NORMAL_S` beklenir, sonra taban ölçüsü (`baseline`) baştan; 10 dk kuralı ondan sonra, aynen (ölçüt 3, 4). Bekleme korunmasız bölümde; sinyal → `stopped`, `result` "stopped before injection", çıkış 1, kilit bırakılır (ölçüt 5). Kayıt `collector_restart` + iki zaman (ölçüt 6).
+- **Arayüz (`live_demo_page.html`):** iki adım satırı var olan `times_utc` gösterimiyle ("Konteyner sayısı eksikti, collector yeniden başlatıldı"; "23 konteyner görüldü; 10 dk normal dönem bekleniyor"); yeni durum alanı yok (ölçüt 8). Seçim kutusu ve seçenekler `var(--bg)` / `var(--fg)` zemin-yazı, `color-scheme: light dark`. Okunurluk ölçütü O2'de Eren söyler.
+- **Testler (4 yeni; docker, saat, Prometheus taklitli):** 23 → yeniden başlatma yok; 22→23 → tek yeniden başlatma, iki 10 sn yoklama, ≈ 600 sn bekleme, tek taban ölçüsü beklemeden sonra; 22→22 → çıkış 2, enjeksiyon ve taban yok, toplam bekleme ≤ 240 sn; bekleme sırasında SIGTERM → çıkış 1, enjeksiyon yok, işleyici geri kuruldu, sonraki `run` kilidi alır. Gerçek alt süreç testine sayı taklidi eklendi (yoksa Prometheus'a gidip yeniden başlatmayı deniyordu). pytest 885 yeşil; beş `--check` 0. Kasıtlı kırmızı (scratch klon): yeniden başlatma satırı `pass` → 22→23, 22→22 ve durdurma testleri kırmızı (3).
+- **Orkestratör (scratch `session2.py`, sha256 `15afb65a0735516a…`):** 900 sn sonunda konteyner sayısını loga yazar (bilgi).
+- **Not:** düzeltmeden önceki bir test koşusunda alt süreç testi gerçek `docker restart otel-collector`'ı çağırdı; konteyner yoktu (0), etkisiz.
+- **Beklenen:** planlama kontrolü; sonra O2 (~70 dk, yeniden başlatma olursa ~+10 dk), Eren'e sorarak.
+
+## 2026-11-20 · Planlama → Uygulama (O2 öncesi düzeltme kontrolü: geçti; O2 Eren'e sorularak)
+- **Doğrulama (planlama, scratch klon `75b2c74`, `PYTHONPATH` klonun `src`'si, `aiops_rca.__file__` klonda):**
+  - Kod okundu: `ensure_containers` panodan sonra, taban ölçüsünden önce; 23 → hiçbir şey; değilse tek `docker restart otel-collector`, 10 sn yoklama, en çok 240 sn; gelmezse çıkış 2 ve enjeksiyon yok; gelirse `containers_ready`'den `NORMAL_S` beklenir, taban ölçüsü beklemeden sonra tek kez. Bekleme `signals_deferred` dışında: sinyal `Stopped` → "stopped before injection", çıkış 1; kilit ve işleyiciler `run`'ın `finally`'sinde. Ölçüt 1–6 ve 8 kodda var.
+  - Ölçüt 4 okuması: 10 dk kuralı bugünkü gibi reddeder (beklemez); yeniden başlatma olduysa bekleme zaten ≥ 600 sn, kural kendiliğinden tutar. Benim "birlikte beklenir" yazımın anlamı buydu; davranış doğru.
+  - Dört yeni test okundu, ölçüt 7'deki dört durumu doğrudan iddia ediyor (22→23'te `alarm − containers_ready ≥ 600 sn` ve taban ölçüsü beklemeden sonra).
+  - `pytest` 885 geçti; beş `--check` (`agent_report` p2b / p2c0 / p2c_dev / p2d, `agent_error_analysis summary --set test`) çıkış 0.
+  - Kasıtlı kırmızı (kendim): yeniden başlatma satırı `pass` → 3 test kırmızı (22→23, 22→22, durdurma), 46 geçti; geri alındı, dosya özdeş.
+  - Arayüz: seçim kutusu ve seçenekler `var(--bg)` / `var(--fg)`, `color-scheme: light dark`; iki yeni adım satırı var olan `times_utc` gösterimiyle. Okunurluk O2'de Eren'in sözüyle.
+- **Not:** CI yalnız PR'da ve main push'ta koşuyor; bu dalın PR'ı yok, ölçüt 7'nin "CI yeşil" kısmı kapanış PR'ında görülür. Küçük: `docker restart`'ın dönüş kodu okunmuyor; başarısızsa 240 sn sonra çıkış 2 (güvenli yön), değişiklik istenmiyor.
+- **Sonuç:** GEÇTİ. O2 başlatılabilir: uygulama önce Eren'e sorar (~70 dk, yeniden başlatma olursa ~+10 dk; şarj eşiği 80, iki kilit; 10:00–11:00 yerel kesilmez). D4 arayüzden Gemini, D5 4B; ölçütler O1'deki gibi, D4'te ölçüt 8, D5'te ölçüt 7 (bellek, OOM 0).
+
+## 2026-11-20 · Uygulama → Planlama (Canlı demo O2 sonuçları: D5 bütün ölçütler tuttu; D4'te ölçüt 6 P2 tutmadı)
+- **Oturum (Eren onayıyla "başlat"):** 02:47 – 03:50 yerel; iki kilit, şarj eşiği 80, AC. Orkestratör `session2.py` sha256 `15afb65a0735516a…`, panel betiği `7cba947a5e0d9751…` (aynı). Kayıt `~/cerebrum2/demo_runs/session_20261119T234757Z.log`; demo klasörleri `20261120T001101Z-demo` (D4), `20261120T003226Z-demo` (D5). Sonda konteyner 0.
+- **Konteyner sayısı:** ısınma sonunda 23; `collector_restart` olmadı (iki demoda da alan yok).
+- **D4 (`paymentFailure_10pct`, Gemini, Eren arayüzden başlattı 03:11):** ölçüt 1 tuttu (ok, çıkış 0); 2 tuttu (flag geri `off`, doğrulandı); 3 tuttu (alanlar dolu); 4 tuttu (sızıntı 0); 5 tuttu (beklenmeyen yok); **6: P1 tuttu, P2 tutmadı** (S = payment, checkout; beş panelde de eşik altında: hata oranı ikisinde 0 → 0, istek hızı 0,048 → 0,056, p95 74 → 63 / 3,7 → 3,8 ms); 8 tuttu (arayüzden uçtan uca, rapor sayfada çıktı).
+- **D5 (`containerStop:recommendation`, 4B):** ölçüt 1–5 tuttu (recommendation'da beklenen `StartedAt` değişimi, `RestartCount` 0, OOM yok); 6 tuttu (P1; P2 istek hızı recommendation 0,85 → 0,15, hata oranı frontend 0 → 0,10); 7 tuttu: `mem_available_min_mib` 5.534,7, `swap_used_peak_mib` 3.134,8, OOM 0.
+- **Demolar arası:** D4 `reverted` → D5 alarm 616 sn.
+- **`next_step` kuralı:** D4'te 1. aday eşlendi, kural `error` (izlerden hata oranı 0 → 0,0625, güç 1,25), satır kurulu; D5'te `down`.
+- **D4 P2 okuması (bilgi; ölçüt değişmedi):** izlerden `next_step` satırı sonra yarıda checkout'ta 32 istekte 2 hata gördü. Panelin kaynağı span metrikleri: payment SERVER `STATUS_CODE_ERROR` serisi Prometheus'ta ilk kez 00:21'de (0) ve 00:22'de (2) görünüyor; ajan başlangıcı 00:21:06. Yani 10 dk'da ~3 hatalık düşük oranlı bir hatada hata sayacı panel penceresi [alarm − 10 dk, ajan başı) bittikten sonra görünür oldu (yeni serinin ilk örneği + dakikalık gönderim gecikmesi; kök kesin değil). Panelde hata, pencereden sonra Grafana'da görünür; panel betiği pencere içinde görmez.
+- **İsabet (yalnız bilgi):** 1. aday D4 checkout (kök payment, 1. sırada değil; adaylar checkout, email, frontend), D5 recommendation doğru. D5 adaylarından biri "network" (servis değil). D4 49,5 sn, D5 384,6 sn; ikisi de adım sınırı (8 çağrı).
+- **Arayüz:** Eren "seçenekler artık okunuyor" (okunurluk ölçütü tuttu).
+- **Özet:** 5 demoda ölçüt 1–5, 7, 8 tuttu; ölçüt 6 D4'te P2 tutmadı (öteki 4'te tuttu).
+- **Beklenen:** planlama kararı: D4 P2 sonucu nasıl kayda geçer (ölçüt değiştirilmez; kart "tutmadı" olarak mı kapanır, yoksa ayrı bir yeniden koşu mu). Sonra 6. madde kapanış.
+
+## 2026-11-24 · Planlama → Uygulama (O2 kontrolü: D5 geçti, D4 ölçüt 6 P2 tutmadı; Eren kararı: kök → pano düzeltmesi → D4 yeniden)
+- **Doğrulama (planlama, bağımsız; demo klasörleri `20261120T001101Z-demo`, `20261120T003226Z-demo`, oturum logu):**
+  - İki demoda `result` ok, çıkış 0, geri alma doğrulandı, sızıntı 0, beklenmeyen yeniden başlama 0 (D5'te beklenen yalnız recommendation), bitişte OOM 0, rapor alanları dolu, pano yüklendi. Alarm → ajan başı 601 / 610 sn; D4 `reverted` → D5 alarm 616 sn. `collector_restart` yok (ısınma sonunda sayı 23).
+  - Bellek (ölçüt 7, D5): `mem_available_min_mib` 5.534,7, `swap_used_peak_mib` 3.134,8, OOM 0. Tuttu.
+  - Ölçüt 8 (D4 arayüzden uçtan uca) tuttu; Eren okunurluğu onayladı.
+  - Panel P2'yi `panels_check.json` değerlerinden eşiklerle kendim yeniden hesapladım: D5 vuruşlar `requests:recommendation` (0,845 → 0,151), `error_rate:frontend` (0 → 0,103), dosyayla aynı. D4'te S = {payment, checkout}, on değerin hiçbiri eşikte değil (hata oranı ikisinde 0 → 0; istek 0,0475 → 0,0561; p95 74,4 → 63,0 / 3,66 → 3,85 ms; CPU +0,25 / +0,17 puan; bellek 1,04× / 1,14×). **D4 ölçüt 6: P1 tuttu, P2 tutmadı.** Ölçüt değişmez.
+  - İsabet (yalnız bilgi): D4 1. aday checkout, D5 doğru.
+- **Okuma:** belirti var ama çok seyrek: payment 10 dk'da ~30 istek, %10 → ~3 hata; ajanın `next_step` satırı izlerden checkout'ta 32 istekte 2 hata gördü. Uygulamanın okumasına göre span metriklerinde payment `STATUS_CODE_ERROR` serisi ilk kez ajan başlangıcından sonra görünüyor. Kök kesin değil. Olası mekanizmalar (doğrulanmadı):
+  - (i) Yeni doğan sayaç serisinin ilk artışı `rate` ile sayılmaz: önceki örnek yok, seri N'den başlar.
+  - (ii) Span metrikleri bağlayıcısının gönderim aralığı ya da Prometheus'a ulaşma gecikmesi.
+  - (iii) İkisi birden.
+- **Karar (Eren, 2026-11-24): önce kök bulunur, sonra pano düzeltilir, D4 bir kez yeniden koşulur.** Ölçüt 6 ve panel betiği (`7cba947a5e0d9751…`) değişmez.
+- **Adım 1 — kök incelemesi (kod ve pano değişmez; yalnız okuma):**
+  - Kaynak öncelikle **kayıtlı D4 verisi**. Saklama 7 gün: D4 penceresi ~2026-11-27 03:00 yerelde silinir, O1 (D1–D3) ~2026-11-26 23:00 yerelde. 2 GB boyut sınırı daha erken silebilir; ilk iş verinin hâlâ orada olduğunu görmek.
+  - Yığın açılır, enjeksiyon yok, ajan yok. Yığını açmadan önce Eren'e sorulur (kısa; iki kilit).
+  - Cevaplanacak sorular (sayıyla, UTC):
+    - **S1.** D4 penceresinde payment ve checkout'ta hatalı SERVER span'larının zamanları (Jaeger): kaç tane, ilki ne zaman.
+    - **S2.** `traces_span_metrics_calls_total{service_name="payment"|"checkout", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}` serisinin ham örnekleri (aralık sorgusu, `[…]` ile ham değerler): ilk örneğin zamanı ve değeri, sonraki artışlar.
+    - **S3.** S1'deki ilk hata ile S2'deki ilk örnek arasındaki süre. Aynı süre hatasız serilerde de var mı (normal istek serisinin örnek aralığı, gecikmesi)?
+    - **S4.** Panodaki hata oranı ifadesi pencere içindeki zamanlarda (`query` ile, `[3m]`) ne veriyor; S2'deki örneklerle bu sonucun nasıl çıktığı.
+    - **S5.** Collector'daki span metrikleri bağlayıcısının ayarı (gönderim aralığı, süre aşımı; upstream'den mi bizim katmandan mı) okunur, değiştirilmez.
+  - Kayıtlı veri soruları cevaplamaya yetmezse kontrollü yeniden üretim yalnız Eren'e sorulduktan sonra yapılır (`paymentFailure_10pct` kısa süre, ajan yok).
+  - Çıktı: S1–S5'in sayıları ve kök. Hangi mekanizma (i/ii/iii/başka) kanıtla, hangisi elendi.
+- **Adım 2 — düzeltme seçenekleri planlamaya (kod yok):** her seçenek için ne değişir, hangi mekanizmayı giderir, öteki panellere ve demolara etkisi. **Prometheus ya da collector ayarına dokunan seçenek mimari değişikliğidir**, Eren'e sorulur. Ölçüt koddan önce yazılır.
+- **Düzeltmenin kabulü için şimdiden şart (Eren'in seçimi ne olursa):**
+  - (a) Değişen pano ifadesi, D1–D3 ve D5'in kayıtlı pencerelerinde aynı panel betiğiyle yeniden değerlendirilir; P1 ve P2 dördünde de tutmaya devam eder. O1 verisi 26.11 ~23:00 yerelden önce okunmalı.
+  - (b) D4 canlı olarak **bir kez** yeniden koşulur; sonuç ne çıkarsa kayda girer. İkinci yeniden koşu ancak Eren kararıyla olur.
+  - (c) Gerekçe mekanizmaya dayanır. Yalnız D4'ü geçirmek için eşik ya da pencere oynamak düzeltme sayılmaz.
+- **Süre baskısı:** veri silinmeden önce adım 1 ve (a). Adım 1 kısa sürer ve uzun koşu değildir, ama yığın açıldığı için Eren'e sorulur.
+
+## 2026-11-25 · Uygulama → Planlama (D4 panel P2 kök incelemesi, adım 1: yalnız okuma; kök ve düzeltme seçenekleri)
+- **Oturum (Eren onayıyla "aç"):** 25.11 01:39–01:42 yerel; AC takıldıktan sonra, iki kilit; yığın `up` → kayıtlı veriye sorgular → `down`. Enjeksiyon yok, ajan yok, kod / pano / ayar değişmedi. Konteyner sonda 0.
+- **Veri yerinde:** Prometheus saklama `1w` + `2GiB`; D1 zamanında (19.11 20:30Z) span metriği serisi 86, konteyner 23 → O1 verisi okunabilir (silinme ~26.11 23:00 yerel).
+- **S1 (Jaeger, hatalı SERVER span'ları, [alarm − 10 dk, ajan başı + 2 dk]):** payment `Charge` 2 tane, checkout `PlaceOrder` 2 tane (aynı iki iz): **00:19:40Z ve 00:20:45Z**. Alarm 00:11:05Z, ajan başı 00:21:06Z: iki hata da belirti süresinin **son 86 sn'sinde**; ilk 8,5 dk'da hata yok.
+- **S2 (ham örnekler):** payment ve checkout SERVER `STATUS_CODE_ERROR` serileri (her biri tek `span_name`): ilk örnek **00:20:09.341Z değer 0**, sonra 00:21:09.341Z **2**, sonra sabit 2. Hatasız (`UNSET`) payment serisi örnekleri de dakikada bir, aynı saniyede (…:09.341): 97, 99, 103, 104, 108.
+- **S3 (gecikme):** span metrikleri 60 sn'de bir gönderiliyor (bütün seriler aynı anda, …:09.341). 00:19:40'taki hata 00:20:09 örneğinde yok (seri 0 ile doğdu), 00:21:09'da var → span ile sayaç arası **29–89 sn** (bir gönderim). Sürekli serilerde de aynı 60 sn aralık var; fark, hatalı serinin hata gelince doğması.
+- **S4 (pano hata oranı ifadesi, `[3m]`, pencere adımları):** 00:18:05 … **00:21:05 → 0,0** (her iki serviste); 00:22:05 → 0,34; 00:23:05 → 0,28; 00:24:05 → 0. Pencere içindeki son değerlendirmede (00:21:05) hata serisinin `[3m]` içinde **tek örneği** var (00:20:09, 0): `rate` iki örnek ister, boş döner, `or … * 0` 0 yapar. Hata panelde ilk kez ajan başından ~1 dk sonra görünür.
+- **S5 (collector, okundu):** collector-contrib 0.159.0; bağlayıcı upstream `otelcol-config.yml`'de ayarsız (`connectors: span_metrics:` boş → varsayılanlar), bizim `otelcol-config-extras.yml` dokunmuyor. Gönderim aralığı gözlenen 60 sn (bağlayıcı varsayılanı `metrics_flush_interval`). Prometheus OTLP alıcısı, `out_of_order_time_window: 30m`, scrape 60 sn.
+- **Kök (kanıtla):**
+  - **(i) "yeni serinin ilk artışı kaybolur" elendi:** seri 0 ile doğuyor, 0 → 2 artışını `rate` sayıyor (00:22:05'te 0,34).
+  - **(ii) gecikme doğrulandı, ama tek başına değil:** yapısal olarak hatanın panelde görünmesi gönderim (≤ 60 sn) + `rate`'in ikinci örneği (yeni seride + 60 sn) = **hatadan sonra 1–2 dk**. Sürekli serilerde (istek hızı, p95) bu yalnız ≤ 60 sn; D1–D3 ve D5'in P2 vuruşları bu yüzden etkilenmedi.
+  - **Belirleyici olan zamanlama:** düşük oranlı hata (~30 istek, %10) bu koşuda yalnız 2 hata üretti ve ikisi de son 86 sn'ye düştü; gecikme penceresinin (son 1–2 dk) içinde kaldı. Bir hata daha erken gelseydi (S4'te iki örnekten sonra oran 0,28–0,34 → yarı ortalaması eşiği geçerdi) P2 büyük olasılıkla tutardı. Yani kök **(iii)-benzeri: yapısal 1–2 dk gecikme × çok az ve geç gelen hata**.
+- **Adım 2, düzeltme seçenekleri (kod yok; ölçüt koddan önce yazılır):**
+  1. **Bağlayıcı gönderim aralığını kısaltmak** (`span_metrics.metrics_flush_interval` 60 → 15 sn, bizim extras katmanında). Gecikmeyi 1–2 dk → ~15–30 sn'ye indirir; mekanizma (ii)'yi doğrudan giderir. Etki: bütün span metrikleri 4× örnek (Prometheus boyutu; 2 GiB sınırı daha erken dolar), P1 / ajanın `query` okumaları da değişir (aynı Prometheus). **Collector ayarı = mimari değişikliği, Eren'e.** Ayrıca kayıtlı D1–D3 / D5 verisi eski aralıkla; (a) şartı o veride panel değişmediği için kendiliğinden tutar, ama yeni ayarın yan etkisi yalnız yeni koşuda görülür.
+  2. **Pano ifadesini değiştirmek:** hata oranında `rate` yerine yeni doğan seride tek örnekte de değer veren bir biçim (ör. `increase` / sayaç farkı ya da `[3m]` yerine daha uzun aralık). Gecikmenin gönderim kısmını (≤ 60 sn) gidermez, yalnız "ikinci örnek" kısmını; bu koşuda 00:21:05'te 0 → 2 farkı görünürdü (00:20:09 0, 00:21:09 henüz yok → **yine görünmezdi**). Yani bu D4 verisinde işe yaramaz; (c) şartına göre zayıf.
+  3. **Değişiklik yok; D4'ü bir kez yeniden koşmak** ve gecikmeyi README / sınırlara yazmak. Mekanizma giderilmez; sonuç hatanın zamanlamasına bağlı (bu koşudaki gibi 2–3 hatanın hepsinin son 1–2 dk'ya düşme olasılığı küçük ama sıfır değil).
+  - **Önerim 1** (mekanizmayı gideren tek seçenek); ölçütü planlama yazar, Eren onaylar; sonra (a) D1–D3 / D5 kayıtlı pencerede panel betiği (26.11 23:00 yerelden önce) ve (b) D4 bir kez canlı. Seçenek 1 seçilirse (a) yeni ayarı sınamaz; sınama (b)'de ve D4'le birlikte bir sürekli seri demosunda (ör. D1) olur — bu ek koşu planlamanın kararı.
+- **Beklenen:** planlama: seçenek ve ölçüt; Eren onayı (seçenek 1 mimari).
+
+## 2026-11-25 · Planlama → Uygulama (D4 kök kontrolü; Eren kararı: gönderim aralığı 15 sn yalnız demo yığınında)
+- **Doğrulama (planlama):** yığın kapalı olduğu için S1–S4'ün sayılarını yeniden sorgulamadım; ölçüm adımında bağımsız görülecek. Okunanlar:
+  - `run.json` (alarm 00:11:05Z, ajan başı 00:21:06Z) kayıtla aynı.
+  - Upstream `otelcol-config.yml`'de `span_metrics:` boş; bizim extras dokunmuyor.
+  - Traces pipeline'ında `batch` processor yok.
+  - Prometheus v3.13.1 bayraklarında sıfır örnek ekleyen özellik yok; saklama 7d / 2GB.
+- **Okumada açık kalan iki nokta:**
+  1. İlk hata 00:19:40Z, ondan 29 sn sonraki 00:20:09 örneği **0**, ancak 00:21:09'da 2 → ilk hatanın uçtan uca gecikmesi **89 sn**, bir gönderimi kaçırmış. "Bir gönderim (≤ 60 sn)" bunu açıklamıyor: ≥ 29 sn'lik ek bir gecikme var, kaynağı bilinmiyor. 15 sn aralık bu parçayı gidermeyebilir.
+  2. Hata serisinin 0 değeriyle doğması açıklanmadı (hata sayacı 0'la nasıl başlıyor).
+- **Seçenek 1'in yan etkisi:** `otelcol-config-extras.yml` vaka hattında da kullanılıyor. Aralık orada değişirse P2e'nin yeni vakaları test setinden farklı koşulda üretilir. Eren seçeneği: **ayar yalnız demo yığınına**; vaka hattı değişmez.
+- **Sıra (her adımdan sonra planlama kontrolü):**
+  1. **Adlar Eren'e (koddan önce):** demo katmanının dosya adı ve `otel_demo.sh`'ta onu seçen yol (bayrak vb.). GLOSSARY onaydan sonra.
+  2. **Kod + testler.** Ölçütler:
+     - (a) Demo katmanıyla birleşik ayarda (`print-config`) `span_metrics.metrics_flush_interval` 15s. Katmansız (vaka hattının `up`'ı) birleşik ayar bugünküyle **birebir aynı** (fark 0).
+     - (b) `validate` (0.159.0) iki durumda çıkış 0; `check_collector_pipelines.py` iki durumda eksik 0.
+     - (c) `scenario_runner`'ın `up` çağrısı katmanı **kullanmaz**; bunu iddia eden test.
+     - (d) Kasıtlı kırmızı: katman varsayılan `up`'a bağlanınca (c) kırmızı.
+     - (e) `pytest` yeşil, beş `--check` 0.
+     - (f) README'de demoyu açma komutu katmanlı biçimle.
+  3. **Gecikme ölçümü (canlı, kısa; ajan yok; Eren'e sorulur).** Demo katmanıyla yığın açılır, `paymentFailure` %50 yaklaşık 5 dk açık (tanı için çok hata; demo değil), kapatılır, geri alma doğrulanır.
+     - Her hatalı payment SERVER span'ı için span bitişi (Jaeger) → onu içeren ilk Prometheus örneği arasındaki süre ölçülür (ham örnekler).
+     - **Geçer: hataların hepsinde ≤ 45 sn** (15 sn gönderim + pay).
+     - Kayda: gecikme dağılımı (en az / ortanca / en çok); hata serisinin ilk örneği ve değeri (açık nokta 2); Prometheus TSDB büyümesi / saat (bilgi; 2 GB sınırı).
+     - Tutmazsa düzeltme durur, planlamaya döner: ek gecikmenin kaynağı ayrıca aranır.
+  4. **Canlı demolar (Eren'e sorulur):** D4 `paymentFailure_10pct` (Gemini) **bir kez**; yan etki için D1 `containerStop:recommendation` (Gemini) bir kez. Demo yığını katmanla açılır.
+     - Ölçütler O1/O2'deki gibi, değişmez; panel betiği `7cba947a5e0d9751…` aynı.
+     - Sonuç ne çıkarsa kayda girer. İkinci yeniden koşu ancak Eren kararıyla.
+     - Ajanın canlı okumaları daha sık örnekle değişebilir; isabet yalnız bilgi, ajan değişmez.
+- **Önceki kartın (a) şartı düşer:** pano değişmiyor, kayıtlı D1–D3 / D5 verisi eski aralıkla. Kayıtlı veride yeniden değerlendirme bir şey sınamaz; yerine 4. adımdaki D1 koşusu gelir. Silinme tarihi baskısı kalmadı.
+
+## 2026-11-25 · Uygulama → Planlama (D4 düzeltmesi adım 1–2: canlı demo katmanı `--live`, koruma; ölçüm öncesi)
+- **Eren onayı ("onaylı, korumayla"):** adlar `deploy/otel-demo/otelcol-config-live.yml`, `deploy/otel-demo/compose.live.yaml`, `tools/otel_demo.sh up --live` / `config --live`, `OTEL_COLLECTOR_CONFIG_LIVE`. Ek (Eren seçimi): `live_demo` korumaları yığın katmansız açıksa durur. GLOSSARY kapanışta.
+- **Kod:**
+  - `otelcol-config-live.yml`: yalnız `connectors.span_metrics.metrics_flush_interval: 15s` (liste yok).
+  - `compose.live.yaml`: `compose.raw.yaml` kalıbı; collector komutu upstream listesi + extras + live, dosya `OTEL_COLLECTOR_CONFIG_LIVE` ile bağlanır.
+  - `otel_demo.sh`: `LIVE=1` → `compose.live.yaml` en sona; `--raw` ile birlikte → hata (çıkış 1, "--raw and --live cannot be used together").
+  - `live_demo.demo_guards`: `docker inspect otel-collector` `.Args`'ta `--config=/etc/otelcol-config-live.yml` yoksa sorun ("collector not started with the live layer …; tools/otel_demo.sh down; tools/otel_demo.sh up --live"), enjeksiyon yok, çıkış 2. Modül açıklaması `up --live`.
+  - README "Tekrar üretme" altında canlı demo komutları (`up --live`, `serve` / `run`, `down`).
+- **Ölçütler:**
+  - (a) `print-config` (0.159.0, dört / beş katman, demonun `.env`'leri, boş `/hostfs`): katmansız `metrics_flush_interval` 60 sn (60000000000 ns, varsayılan), `--live` ile 15 sn; iki birleşik ayar arasında **tek fark** bu alan. Katmansız `docker compose config` çıktısı değişiklikten önceki betikle **bayt aynı** (`cmp`). Tuttu.
+  - (b) `validate` iki durumda çıkış 0; `check_collector_pipelines.py` upstream'e karşı iki durumda "logs, metrics, profiles, traces; problems: 0". Tuttu.
+  - (c) `test_case_pipeline_up_never_uses_live_layer` (raw True / False): `sr.demo("up")` argümanlarında `--live` yok. Tuttu.
+  - (d) Kasıtlı kırmızı (scratch klon): `sr.demo` katmansız `up`'a `--live` eklenince (c)'nin raw=False durumu kırmızı (1). Tuttu.
+  - (e) pytest 888 yeşil (+3: koruma testi, (c)×2; testlerde `docker inspect` otomatik taklit); README'deki beş `--check` çıkış 0. CI kapanış PR'ında.
+  - (f) README'de `tools/otel_demo.sh up --live`. Tuttu.
+- **Not:** `storage_check.py` de katmansız `up` çağırıyor (depolama kartı aracı); değişmedi.
+- **Beklenen:** planlama kontrolü; sonra adım 3 (gecikme ölçümü, Eren'e sorarak).
+
+## 2026-11-25 · Planlama → Uygulama (D4 düzeltmesi adım 1–2 kontrolü: geçti; adım 3 gecikme ölçümü Eren'e sorularak)
+- **Doğrulama (planlama, scratch klon `869f899`, `aiops_rca.__file__` klonda):**
+  - Kod okundu:
+    - `otelcol-config-live.yml` tek alan (`connectors.span_metrics.metrics_flush_interval: 15s`, liste yok).
+    - `compose.live.yaml` `compose.raw.yaml` kalıbında.
+    - `otel_demo.sh` `--live` ayrıştırması doğru.
+    - `demo_guards` collector'ın `.Args`'ında canlı katmanı arıyor.
+    - `sr.demo` değişmedi (`up` yalnız `--raw` alır).
+  - `otel_demo.sh config` (yalnız okuma) ile kendim karşılaştırdım:
+    - Katmansız çıktı, değişiklikten önceki betikle (`b8ce87a`) **bayt aynı**; `--raw` çıktısı da bayt aynı.
+    - `--live` ile katmansız arasındaki fark yalnız collector komutundaki `--config=/etc/otelcol-config-live.yml` satırı ve bu dosyanın salt-okunur bağlanması.
+    - `up --live --raw` ve `up --raw --live` çıkış 1, "--raw and --live cannot be used together".
+  - Collector `print-config` / `validate`'i yeniden koşmadım: compose farkı tek dosya, dosya tek eşleme alanı. Uygulamanın (a)/(b) sonucunu kabul ediyorum; asıl sınama adım 3'te canlı.
+  - `pytest` 888 geçti; beş `--check` 0.
+  - Kasıtlı kırmızı (kendim):
+    - `sr.demo` katmansız `up`'a `--live` eklenince `test_case_pipeline_up_never_uses_live_layer[False]` kırmızı.
+    - Korumadaki kontrol `if False` yapılınca `test_guard_needs_live_layer` kırmızı.
+    - İkisi de geri alındı, klon temiz.
+  - Ölçüt (a)–(f) tuttu; CI kapanış PR'ında.
+- **Sonuç:** GEÇTİ. Sıradaki adım 3 (gecikme ölçümü). Ölçütü 2026-11-25 kartındaki gibi, değişmez:
+  - **Kurulum:** `up --live`, `paymentFailure` %50 ~5 dk, ajan yok, geri alma doğrulanır.
+  - **Ölçülen:** her hatalı payment SERVER span'ının bitişinden onu içeren ilk Prometheus örneğine geçen süre.
+  - **Geçer:** hepsinde ≤ 45 sn.
+  - **Kayda:** dağılım, hata serisinin ilk örneği ve değeri, TSDB büyümesi / saat.
+  - Tutmazsa düzeltme durur, planlamaya döner.
+  - Yığını açmadan önce Eren'e sorulur; iki kilit, şarj eşiği 80.
+
+## 2026-11-25 · Uygulama → Planlama (D4 düzeltmesi adım 3: gecikme ölçümü GEÇTİ, en çok 33,9 sn ≤ 45)
+- **Oturum (Eren onayıyla "başlat"):** 03:07–03:21 yerel; AC, şarj eşiği 80, iki kilit. `otel_demo.sh up --live` → betik → `down` (konteyner 0). Ajan yok, LLM yok.
+- **Betik:** repo dışı `~/cerebrum2/analysis/d4_flush_latency.py` sha256 `c2f784389090f50e…` (ölçüt sonuçtan önce açıklamasında). Çıktı `~/cerebrum2/demo_runs/latency_20261125T000713Z/latency.json`. Collector `--live` denetimi geçti; sayı 23 (yeniden başlatma yok).
+- **Akış:** 300 sn normal → `paymentFailure` 50% 00:12:59Z (flagd doğruladı) → 300 sn → `off` 00:18:00Z (doğrulandı, variant `off`) → 120 sn.
+- **Sonuç:** hatalı payment SERVER span'ı 10, sayaç artışı 10 (eşleşmeyen 0). Gecikme (span bitişi → onu içeren ilk örnek): **en az 7,5 / ortanca 18,0 / en çok 33,9 sn**; hepsi ≤ 45 → **GEÇTİ**. Örnek aralığı 15,0 sn (ortanca).
+- **Açık nokta 2 (serinin 0'la doğması):** hata serisinin ilk örneği 00:13:36Z, **değer 0**, flag açıldıktan sonra. En büyük gecikme (33,9 sn) **ilk hata**; sonrakiler 7,5–19,0 sn. Yani bağlayıcı yeni seriyi ilk gönderimde 0 ile yayımlıyor, ilk hata bir sonraki gönderimde sayılıyor: yeni bir serinin ilk hatası **bir gönderim fazladan** gecikiyor. Bu, D4'teki açıklanmayan ≥ 29 sn'yi açıklar (60 sn aralıkta ilk hata 89 sn = iki gönderim; açık nokta 1). 15 sn aralıkta bu ek ≤ 15 sn.
+- **Prometheus volume'ü (bilgi, `docker system df -v`):** 13,35 → 14,0 MB, ≈ 5,5 MB / saat (kısa pencere, kaba; 2 GiB sınırına göre küçük).
+- **Beklenen:** planlama kontrolü; sonra adım 4 (D4 `paymentFailure_10pct` bir kez + D1 `containerStop:recommendation` bir kez, Gemini, `up --live`; Eren'e sorarak).
+
+## 2026-11-25 · Planlama → Uygulama (D4 düzeltmesi adım 3 kontrolü: gecikme ölçümü geçti; adım 4 Eren'e sorularak)
+- **Doğrulama (planlama):**
+  - Betik `~/cerebrum2/analysis/d4_flush_latency.py` sha256 `c2f784389090f50e…` kayıtla aynı. Dosyanın son değişikliği 25.11 02:59 yerel, koşu 03:07: ölçüt koşudan önce yazılmış (açıklamada ≤ 45 sn).
+  - Mantık okundu:
+    - collector `--live` denetimi, sayı 23;
+    - 300 sn normal, %50 ve doğrulama, 300 sn, `off` (`finally`), 120 sn;
+    - Jaeger'den hatalı payment SERVER span bitişleri; Prometheus'tan tek hata serisinin ham örnekleri;
+    - k. hata (bitişe göre) ↔ sayacın seri doğduğu değerden ≥ k olduğu ilk örnek.
+    - Eşleştirme sıralı bir yaklaşık; sayım eşit olduğu için (10 span, sayaçta 10) kayma yok.
+  - `latency.json`'dan kendim yeniden hesapladım: 10 gecikme, en az 7,5 / ortanca 18,0 / en çok 33,9 sn, hepsi ≤ 45; `off` doğrulandı. **GEÇTİ.**
+  - Hata serisinin ilk örneği 00:13:36Z, değer 0, flag açıldıktan sonra; en büyük gecikme ilk hatada.
+- **Açık noktalar:**
+  - **Nokta 2 (davranış):** yeni hata serisi ilk gönderimde 0 ile görünüyor, ilk hata bir sonraki gönderimde sayılıyor. Ölçümle kanıtlı.
+  - **Nokta 1:** D4'teki 89 sn bununla tutarlı (60 sn aralıkta iki gönderim). 0'ın kaynağı (bağlayıcı mı, Prometheus'un OTLP alımı mı) belirlenmedi; düzeltme için gerekmiyor.
+  - Panel açısından: seri 0 örneğiyle doğduğu için `rate` ilk artış örneğinde değer verir. Panelde görünme ≈ ölçülen gecikme (+ değerlendirme adımı).
+- **Kalan sınır (README'ye, kapanışta):** canlı katmanda bile ajan başlangıcından önceki son ~35 sn'deki hatalar panel penceresine girmeyebilir.
+- **Bilgi:** Prometheus volume ≈ 5,5 MB / saat (kısa pencere); yığın yalnız demoda açık, 2 GB sınırına etkisi küçük.
+- **Sıradaki: adım 4 (Eren'e sorulur).** Ölçütler 2026-11-25 kartındaki gibi:
+  - `up --live`; D4 `paymentFailure_10pct` (Gemini) bir kez, D1 `containerStop:recommendation` (Gemini) bir kez.
+  - O1/O2 ölçütleri değişmez; panel betiği `7cba947a5e0d9751…` aynı.
+  - Sonuç ne çıkarsa kayda; ikinci yeniden koşu ancak Eren kararıyla.
+  - İki kilit, şarj eşiği 80, 10:00–11:00 yerel kesilmez.
+
+## 2026-11-25 · Uygulama → Planlama (D4 düzeltmesi adım 4: D1 bütün ölçütler tuttu; D4 yine ölçüt 6 P2 tutmadı, hata panelde görünür ama 0,044 < 0,05)
+- **Oturum (Eren onayıyla "başlat"):** 03:58–04:48 yerel; AC, şarj eşiği 80, iki kilit. Orkestratör scratch `session3.py` (sha256 `39fa892ef6765a8f…`; `session2.py` + `up --live`), panel betiği `7cba947a5e0d9751…` (aynı). Kayıt `~/cerebrum2/demo_runs/session_20261125T005837Z.log`; demo klasörleri `20261125T011403Z-demo` (D4), `20261125T013536Z-demo` (D1). Isınma sonunda sayı 23, `collector_restart` yok. Sonda konteyner 0. D4 `run` ile (arayüz ölçütü O2'de tuttu).
+- **Demolar arası:** D4 `reverted` → D1 alarm 615 sn.
+- **D4 (`paymentFailure_10pct`, Gemini):** ölçüt 1–5 tuttu (ok, flag `off` doğrulandı, alanlar dolu, sızıntı 0, beklenmeyen 0). **6: P1 tuttu, P2 tutmadı.** Hata oranı paneli artık pencerede değer veriyor: payment 0 → **0,0432**, checkout 0 → **0,0441** (eşik önce + 0,05); öteki paneller de eşik altında (p95 checkout 76 → 93 ms < 114; CPU checkout +0,66 puan; bellek ≤ 1,04×; istek ~aynı).
+- **D1 (`containerStop:recommendation`, Gemini):** ölçüt 1–6 tuttu (P2 istek hızı recommendation 0,83 → 0,16; hata oranı frontend 0 → 0,104).
+- **`next_step`:** D4 kural `error` (izlerden checkout sonra yarı **36 istekte 2 hata**, 0,056), D1 `down`.
+- **Okuma (bilgi; ölçüt değişmedi):** gecikme düzeltmesi hatayı pencereye soktu (O2'de hata oranı 0 → 0'dı, şimdi 0 → 0,043). P2'yi bu kez tutturmayan, bu koşudaki gerçekleşen hata oranı: flag %10, ama izlerde 36 istekte 2 hata (%5,6); panelin sonra yarı ortalaması bunun biraz altında (yarının başında hata yok, `[3m]` oranı). Eşik +0,05, %10'luk bir hatanın beklenen oranının yarısı; ~35 istekte gerçekleşen hata sayısı 2–5 arası oynar, eşik bu oynamanın içinde kalıyor. Düzeltme yapısal gecikmeyi giderdi (adım 3); kalan, düşük hacimli bir hatada örneklem küçüklüğü.
+- **İsabet (yalnız bilgi):** D4 1. aday **payment (doğru)**; D1 recommendation (doğru).
+- **Kart kararı (Eren'in, planlamadan):** kart kuralına göre ikinci yeniden koşu ancak Eren kararıyla. Uygulamanın önerisi yok: ölçüt değişmez; D4 "P2 tutmadı" ile kapanabilir (kök ve düzeltme kayıtlı; kalan sınır örneklem küçüklüğü README / sınırlara), ya da Eren isterse bir kez daha.
+- **Beklenen:** planlama kontrolü ve Eren kararı; sonra 6. madde kapanış.
+
+## 2026-11-25 · Planlama → Uygulama (D4 düzeltmesi adım 4 kontrolü; Eren kararı: D4 bir kez daha)
+- **Doğrulama (planlama, bağımsız; `20261125T011403Z-demo`, `20261125T013536Z-demo`, oturum logu, panel betiği sha `7cba947a5e0d9751…` aynı):**
+  - İki demoda `result` ok, çıkış 0, geri alma doğrulandı, sızıntı 0, beklenmeyen yeniden başlama 0 (D1'de beklenen yalnız recommendation), bitişte OOM 0, rapor alanları dolu, pano yüklendi; `collector_restart` yok.
+  - Alarm → ajan başı 601 / 610 sn; D4 `reverted` → D1 alarm 615 sn.
+  - Panel P2'yi değerlerden eşiklerle kendim hesapladım, dosyayla aynı:
+    - **D1:** `requests:recommendation` 0,829 → 0,164, `error_rate:frontend` 0 → 0,104; P1/P2 tuttu.
+    - **D4:** hata oranı payment 0 → 0,0432, checkout 0 → 0,0441 (eşik +0,05); p95 checkout 76,4 → 93,4 ms (eşik 114,5); CPU checkout +0,66 puan; bellek ≤ 1,04×; istek ~aynı. **P1 tuttu, P2 tutmadı.**
+  - Gecikme düzeltmesinin etkisi görülüyor: hata pencere içinde panelde (O2'de 0 → 0).
+- **Okuma:** kalan neden örneklem küçüklüğü. payment 10 dk'da ~30 istek, izlerde sonra yarıda 36 istekte 2 hata. Gerçekleşen oranın oynaması +0,05 eşiğini içine alıyor; yeniden koşunun sonucu şansa bağlı.
+- **Karar (Eren, 2026-11-25): D4 bir kez daha koşulur.** Önceden yazılan (değişmez):
+  - `up --live`, ısınma 900 sn, yalnız D4 `paymentFailure_10pct` (Gemini), `run` ile; ölçütler aynı, panel betiği aynı. D1 tekrarlanmaz.
+  - Sonuç ne çıkarsa D4 kapanır. Kayıtta ve kapanışta **üç denemenin üçü birlikte** yazılır: O2 tutmadı (gecikme), adım 4 tutmadı (0,044), bu koşu …. Geçerse "üç denemenin biri geçti" olarak; tek geçişe dayanarak "tuttu" yazılmaz.
+  - Bundan sonra D4 için yeniden koşu yok; sıradaki iş 6. madde kapanış.
+  - Başlatmadan önce Eren'e sorulur; iki kilit, şarj eşiği 80, 10:00–11:00 yerel kesilmez. ~35 dk (açılış dahil ~50 dk).
+
+## 2026-11-25 · Uygulama → Planlama (D4 son koşu: ölçüt 1–6 tuttu, ama P2 yalnız bellekten; pencerede hata 0)
+- **Oturum (Eren "başlat"):** 11:16–11:45 yerel; AC, şarj eşiği 80, iki kilit. Orkestratör `session3.py` (sha `39fa892ef6765a8f…`, aynı), yalnız `paymentFailure_10pct`, panel betiği `7cba947a5e0d9751…` (aynı). Kayıt `~/cerebrum2/demo_runs/session_20261125T081638Z.log`; demo klasörü `20261125T083209Z-demo`. Isınma sonunda sayı 23, `collector_restart` yok. Sonda konteyner 0.
+- **Önceki deneme (benim hatam, sayılmaz):** 11:00'de başlayan oturum guard'da durdu (`20261125T081538Z-demo`, yalnız guard hatası): kilitleri `aiops_rca` adıyla almamıştım, `inhibited()` / `gnome_inhibited()` tanımadı. Enjeksiyon yok; yığın kapandı; aynı koşu doğru adlarla hemen yeniden başlatıldı.
+- **D4 (Gemini):** ölçüt 1–5 tuttu (ok, çıkış 0, flag `off` doğrulandı, alanlar dolu, sızıntı 0, beklenmeyen 0, OOM 0; mem_available en az 6300,7 MiB, swap tepe 2755,2 MiB). **6: P1 ve P2 tuttu, ama P2'yi tutturan yalnız `mem:checkout`** (12,6 → 15,6 MB, ×1,23). Hata oranı paneli payment 0 → 0, checkout 0 → 0; p95, CPU, istek eşik altında.
+- **Hata gerçekleşmedi:** flag 10% doğrulandı, ama rapor satırında checkout hata oranı önce 0 / sonra 0 (29 → 22 istek); ajanın `error_rate` çağrısında payment beş dakikanın hepsinde 0,000. Yani bu koşuda pencerede gözlenen hata yok; P2 geçişi hatadan değil, checkout belleğindeki artıştan.
+- **İsabet (yalnız bilgi):** 1. aday checkout (yanlış; doğru payment), `unsure`, `step_limit`. `next_step` kural `human`.
+- **Üç deneme birlikte (planlama kararı gereği):** O2 P2 tutmadı (gecikme); adım 4 P2 tutmadı (0,044 < 0,05); bu koşu P2 tuttu ama hatadan değil, bellekten — pencerede hata 0. Uygulamanın okuması: "üç denemenin biri geçti" yazmak yanıltıcı olur; düşük hacimli %10 hata 10 dk'da güvenilir görünmüyor (~30 istek: hiç hata olmama olasılığı ~%4, 2–5 arası tipik). Ölçüt değiştirilmedi; nasıl yazılacağı planlamanın / Eren'in.
+- **Beklenen:** planlama kontrolü; kapanış metni için karar; sonra 6. madde kapanış. D4 için yeniden koşu yok.
+
+## 2026-11-27 · Planlama → Uygulama (D4 son koşu kontrolü; D4 kapanış metni; sırada 6. madde kapanış)
+- **Doğrulama (planlama, bağımsız; `20261125T083209Z-demo`, oturum logu, panel betiği sha `7cba947a5e0d9751…` aynı):**
+  - Kayıt temiz:
+    - `result` ok, çıkış 0;
+    - flag `10%` yazıldı ve flagd'den 1 sn'de doğrulandı (08:32:14Z);
+    - geri alma `off` doğrulandı;
+    - sızıntı 0, beklenmeyen 0, OOM 0;
+    - rapor alanları dolu; `collector_restart` yok;
+    - alarm → ajan başı 601 sn.
+  - Panel değerlerinden kendim hesapladım, dosyayla aynı:
+    - tek vuruş `mem:checkout` (12,62 → 15,57 MB, ×1,23 ≥ 1,2);
+    - hata oranı payment 0 → 0, checkout 0 → 0;
+    - istek, p95, CPU eşik altında.
+  - Hata gerçekleşmedi:
+    - rapor satırında checkout hata oranı 0 / 0 (29 → 22 istek);
+    - ajanın `error_rate` çıktısında payment ve checkout beş kovada 0,000.
+    - Olasılık: ~30 istekte hiç hata olmaması 0,9^30 ≈ %4; nadir ama olağan.
+  - Önceki deneme `20261125T081538Z-demo`: yalnız `run.json`, sonuç "guards: not under systemd-inhibit; no gnome-session-inhibit…", `times_utc` boş (enjeksiyon yok). Sayılmaz; kilit adı hatası uygulamanın kaydında.
+- **D4'ün kapanış metni (planlama; ölçüt değişmedi):** P2'yi bu koşuda tutturan bellek artışı hatadan kaynaklanamaz, çünkü pencerede hata yok; gürültüdür. "Üç denemenin biri geçti" yazılmaz. Kapanışta (PROJECT, README sınırları) şöyle yazılır:
+  > `paymentFailure_10pct` üç denemede panelde eşik üstünde görünmedi:
+  > - O2: gecikme yüzünden hata pencereye girmedi.
+  > - Düzeltmeden (canlı katman, 15 sn) sonra: hata görünür oldu ama oran 0,044 < 0,05.
+  > - Son deneme: pencerede hiç hata yok; ölçüt 6 bellek gürültüsüyle biçimsel olarak tuttu.
+  >
+  > Düşük hacimli (~30 istek / 10 dk) %10 hata bu demo süresinde güvenilir bir belirti üretmiyor.
+  >
+  > Öteki demolar ölçüt 6'yı hatanın kendi belirtisiyle tuttu: D1 ×2, D2, D3, D5.
+- **6. madde (kapanış) — uygulama önce planı Eren'e yazar, onaydan sonra:**
+  - PROJECT "Canlı demo" kutusu ve DevOps satırları (demo kartındaki gibi);
+  - ARCHITECTURE (canlı katman dahil);
+  - GLOSSARY (onaylı adlar: `collector_restart`, `ensure_containers`, `--live` katmanı vb.);
+  - README demo bölümü;
+  - PR (sade açıklama).
+- **README sınırlarına girecekler:**
+  1. Panodaki p95 raporun p95'inden farklı (pencere / hesap).
+  2. Durdurma, ajan çalışıyorsa en çok ajanın süresi kadar bekler.
+  3. `serve` açık kaldıkça uyku kilitleri tutulur.
+  4. `--live` ile bile hatalar panelde ~35 sn'ye kadar gecikir; yeni bir hata serisi bir gönderim geç sayılır.
+  5. Düşük hacimli hatalar (yukarıdaki D4 metni) panelde görünmeyebilir.
+  6. Konteyner sayısı 23 değilse `run` collector'ı bir kez yeniden başlatır, demo ~10 dk geç başlar.
+- **Eren'e kapanışta sorulacaklar (bu kartın dışında, karar Eren'in):**
+  - `paymentFailure_10pct` arayüzün kabul listesinde kalsın mı;
+  - 13+ sahipsiz Docker volume;
+  - `llm_cache/` denemeleri, `analysis/` klonları ve scratch klasörleri;
+  - `task/p2d` dalı.
+
+## 2026-11-27 · Uygulama → Planlama (Canlı demo 6. madde: kapanış belgeleri; PR)
+- **Plan Eren onaylı ("onaylı"); yalnız belge, kod ve koşu yok.**
+- **PROJECT:** "Canlı demo" kutusu [x] (alt madde: akış, kabul özeti, D4 metni); DevOps "PromQL" [x], "Grafana dashboard" [x], "Dağıtık sistemde sorun giderme" [x] (product-catalog kökü 20M sınır; demodaki iki kök: collector açılış yarışı, span metriği gecikmesi); "Şu an" satırı.
+- **ARCHITECTURE:** diyagrama canlı demo (live_demo, sayfa, Grafana panosu, `--live` katmanı, `MAIN_ENDS` → `LiveStore`, `demo_runs/`); not maddesi; dosya tablosuna 7 satır (`compose.live.yaml`, `otelcol-config-live.yml`, `grafana/aiops-demo.json`, `live_demo.py`, `live_demo_page.html`, iki test); `store_live.py`, `compose.extras.yaml`, `otel_demo.sh` satırları güncellendi.
+- **GLOSSARY:** onaylı adlar 4 satırda: `ensure_containers()`; `collector_restart` (`count_before`, `count_after`), `times_utc.collector_restart`, `times_utc.containers_ready`; `otelcol-config-live.yml`, `compose.live.yaml`; `--live`, `OTEL_COLLECTOR_CONFIG_LIVE`. Yeni ad yok.
+- **README:** "Durum" satırı; yeni "Canlı demo" bölümü (akış, kabul tablosu, planlamanın 6 sınırı, D4 metni aynen); repo haritasında iki hücre.
+- **DECISIONS (3 satır):** 2026-11-20 collector yeniden başlatma (Eren seçenek 2), 2026-11-25 gönderim aralığı 15 sn yalnız demo yığınında, 2026-11-27 D4 kapanışı. İlk ikisi Eren kararlarıydı ama DECISIONS'ta yoktu; kapanışta eklendi.
+- **Doğrulama:** `pytest` 888 geçti; beş `--check` çıkış 0.
+- **Beklenen:** planlama kontrolü; PR (sade açıklama), CI yeşil; sonra Eren'e kapanış soruları (yukarıdaki liste).
+
+## 2026-11-27 · Planlama → Uygulama (Canlı demo 6. madde kontrolü: geçti, PR'dan önce iki küçük düzeltme)
+- **Doğrulama (planlama, scratch klon `f2ad82f`):**
+  - PROJECT, README, DECISIONS, GLOSSARY ve ARCHITECTURE değişiklikleri okundu.
+  - D4 metni planlama kaydıyla (2026-11-27) aynı anlamda.
+  - README'deki altı sınır planlamanın listesiyle aynı.
+  - Tablodaki sayılar benim kontrol kayıtlarımla aynı (D1 ×2, D2, D3, D5).
+  - DECISIONS'a eklenen iki satır (2026-11-20, 2026-11-25) Eren kararlarıyla aynı.
+  - GLOSSARY'de yalnız onaylı adlar.
+  - "Dağıtık sistemde sorun giderme" [x]: dayanak HANDOFF 2026-11-19 (ii) (64M → 408 → 24 ms, `HostConfig.Memory` kaydı); tetikleyici bilinmiyor diye yazılmış. Uygun.
+  - Kayıtlarda test vaka kimliği yok.
+  - `pytest` 888 geçti; beş `--check` 0.
+- **PR'dan önce iki düzeltme (yalnız metin):**
+  1. PROJECT'teki "ölçüt 1–5, 7, 8 hepsinde tuttu" ifadesi kesin değil: 7 yalnız 4B demosunda, 8 yalnız arayüz demosunda sınandı. Önerilen yazım: "ölçüt 1–5 sekiz demonun hepsinde; 7 (4B bellek) ve 8 (arayüzden uçtan uca) kendi demolarında tuttu".
+  2. Enjeksiyondan önce korumada duran iki deneme yazılmamış: O2'nin ilk denemesi (22 konteyner; düzeltmesi `ensure_containers`) ve D4 son koşusundan önceki deneme (uyku kilidi adı). README'nin kabul cümlesine ve PROJECT kutusuna bir yan cümle: "iki deneme enjeksiyondan önce korumada durdu, sayılmadı (22 konteyner; uyku kilidi adı)".
+- **Sonra:**
+  - PR (sade açıklama); push'tan sonra PR'ın açık ve başının son commit olduğu doğrulanır; CI yeşil.
+  - Kapanış soruları Eren'e, tek tek: `paymentFailure_10pct` kabul listesinde kalsın mı, sahipsiz volume'ler, `llm_cache/` denemeleri, `analysis/` klonları, scratch klasörleri, `task/p2d` dalı.
