@@ -6517,3 +6517,84 @@ Data:
 - **Sonra:**
   - PR (sade açıklama); push'tan sonra PR'ın açık ve başının son commit olduğu doğrulanır; CI yeşil.
   - Kapanış soruları Eren'e, tek tek: `paymentFailure_10pct` kabul listesinde kalsın mı, sahipsiz volume'ler, `llm_cache/` denemeleri, `analysis/` klonları, scratch klasörleri, `task/p2d` dalı.
+
+## 2026-11-27 · Uygulama → Planlama (PR #45 birleşti; kapanış sorusu 1: `paymentFailure_10pct` listeden çıktı)
+- **PR #45** birleşti (main `b9f95ea`), PR CI yeşil.
+- **Eren kararı (seçenek b):** `paymentFailure_10pct` canlı demonun kabul listesinden çıkar. Dal `task/demo-liste` (Eren onaylı ad), plan Eren onaylı.
+- **Kod (`68c9629`):** `tools/live_demo.py` `DEMO_EXCLUDED` (Eren onaylı ad; gerekçe yorumda), `faults()` atlar → arayüzde ve `list`'te yok, `run --scenario paymentFailure_10pct` çıkış 2. `scenario_runner` değişmedi (senaryo `BY_ID`'de kalır; testte iddia).
+- **Testler:** liste testi (`DEMO_EXCLUDED` yalnız bu senaryo, listede yok, 50pct var); yeni `test_cli_rejects_excluded_scenario` (yeniden çalıştırma ve `run` taklitli, hata metni); bu senaryoyu kullanan üç test 50pct'ye geçti. Kasıtlı kırmızı scratch klonunda: atlama satırı çıkınca iki test kırmızı (liste, CLI). `pytest` 889 geçti; beş `--check` 0.
+- **Belgeler:** README sınır 5'e "listeden çıkarıldı" cümlesi; DECISIONS 2026-11-27 satırı; ARCHITECTURE `live_demo.py` satırı; GLOSSARY `DEMO_EXCLUDED` (kod commit'inden sonra).
+- **Beklenen:** planlama kontrolü; PR (sade), CI yeşil; sonra kapanış soruları 2–6 Eren'e tek tek.
+
+## 2026-11-27 · Planlama → Uygulama (Canlı demo PR #45 kontrolü: birleşti, temiz; kapanış dalı)
+- **Doğrulama (planlama):**
+  - PR #45 2026-11-27 17:21Z birleşti (merge `b9f95ea`). PR'ın başı `5dd23dc`, main'in atası.
+  - PR denetimi `test` SUCCESS; main push CI (`b9f95ea`) success.
+  - PR açıklaması sade.
+  - `5dd23dc`'deki iki metin düzeltmesi planlama kaydıyla (2026-11-27) aynı:
+    - ölçüt 1–5 sekiz demonun hepsinde, 7 ve 8 kendi demolarında;
+    - korumada duran iki deneme sayılmadı.
+  - Canlı demo kartı kapandı. 2026-11-19 / 20 kontrollerinde ertelenen "CI yeşil" şartı burada tuttu.
+- **Kayıt yeri (Eren kararı, 2026-11-27):** PR birleştiği için bu kayıt yeni `task/kapanis` dalında (main `b9f95ea`'dan). Kapanış kararlarının kartı aynı dala yazılır; ayrı PR yok, kapanış PR'ıyla girer.
+- **Sıradaki:** planlama kapanış kararlarını Eren'e tek tek sorar:
+  - `paymentFailure_10pct` arayüzün kabul listesinde kalsın mı;
+  - sahipsiz Docker volume'ler;
+  - `llm_cache/` denemeleri, `analysis/` klonları, scratch klasörleri;
+  - `task/p2d` dalı;
+  - "Sızıntı kontrolü" kutusu ve kapanıştaki yerel yollar.
+  - Sonra kapanış kartı, en sonda P2e (DECISIONS 2026-11-18).
+- **Not (planlama, 2026-11-28):** yukarıdaki kayıt ilk olarak `task/kapanis`'te yazıldı (`f6aab59`). Aynı akşam uygulama `task/demo-liste`'yi açmış; iki kapanış dalı olmasın diye kayıt buraya kopyalandı. `task/kapanis`'in silinmesi kapanış sorusu 4'te.
+
+## 2026-11-28 · Planlama → Uygulama (`task/demo-liste` kontrolü: geçti; kapanış soruları 1–3 kararları; kalan sorular planlamada)
+- **Çelişki ve çözümü:**
+  - Soru 1'i hem uygulama (27.11 20:26, Eren: "çıkar") hem planlama sordu (28.11, Eren: "kalsın"; planlama `task/demo-liste`'yi bilmiyordu).
+  - Eren'e soruldu: **geçerli olan "çıkarılsın"**; uygulamanın işi kalır.
+  - Bundan sonra kapanış sorularını yalnız planlama sorar; uygulama sormaz, yalnız uygular.
+- **Doğrulama (planlama, yeni scratch klon, `12a0bfe`):**
+  - Kod okundu: `DEMO_EXCLUDED` yalnız `paymentFailure_10pct`; `faults()` atlıyor; `scenario_runner` değişmedi.
+  - `pytest` 889 geçti; beş `--check` 0.
+  - Kasıtlı kırmızı (kendim): atlama satırı `if False` → `test_accepted_faults_from_runner_tables` ve `test_cli_rejects_excluded_scenario` kırmızı; geri alındı.
+  - `live_demo.py list`: `paymentFailure_10pct` 0, `paymentFailure_50pct` 1.
+  - README, DECISIONS, ARCHITECTURE ve GLOSSARY satırları tutarlı. **GEÇTİ.**
+- **Kapanış sorusu 2, sahipsiz volume'ler (Eren, 2026-11-28):**
+  - Adı olmayan **17 volume silinir** (16 × ~66 MB, demonun postgres'inin açılış başına açtığı geçici veritabanı, DECISIONS 2026-10-25; 1 × 0 B; toplam ~1,06 GB).
+  - İsimli üçü (`otel-demo_jaeger-data`, `otel-demo_opensearch-data`, `otel-demo_prometheus-data`) **kalır**.
+  - Kod değişmez. README'ye not: elle / demo açılışı, açılış başına ~66 MB adı olmayan volume bırakır (vaka hattı siler).
+  - Silinecekler (28.11'de `docker volume ls -f dangling=true`, `otel-demo_` dışı): 05a396fdb4acf19e0da044bcdd947d93d4554a8dceb194f9058316a6d16c2849 0e83905a9127561fd9c5b71086bb101a05e1d5a524632cc91a9ebe85004340ce 205f8c82507288f4fb0aa6a3c52fc546de250d38a34cdc43f11879bb031de703 26a14e68f52fc13cacc6daef72300ca52ccf4304ea2756f34883301b91a268cd 436cc72cfe2b1934409268dcf6a3000291143718d5c1f453d5a3f034646e4af2 50d79cf3e9315b5f98b0136903149ce3af9cf7db03d63e0902443e3e27b4f002 53dde20d07ddb71d55caf88ecc5a3e824a487af87273e1c40914e371fb06ae25 65ec988a44e61b991361bfaafa28fc8afa1a0e8b66d7e9a7ef9d9080b0e46d36 6f6f6bbaaf6f50e99cd73ccdb6d8070e69aab6e8766fa7c8d4f0d621e121e3c6 783f7a5515bdb670a5e607263c9b36a2277968589d9d229f8274175f9113457f 8972f89401f25a6ca73874a2a890bb4f3bbb2f9a0a9e611a6a85417730b7cd38 9e445326dabfd94124cf14269f974fa8fae556526dd000b6eb7ee8c937ce491a b84a2c84dfc32d3dddfa0b7791eaab87ccb8f3eb95baac58f42467cf99986566 cff48b891df7d00d05ce28164d9f009f4a8eca49f61ff4e973029f9be39b9bb6 db521aef87c7da3596890c11566f0b8f767efda6c5b8b9d5716ec9f5574426ad f1a43967604d1dd89fb4b50acf68f59ee40218e8eaaf0d33d42c31d047efd172 fb376cff3ad94acd5a014e11637367ea37326fa856aa78b411aa0aa337c3004e 
+  - Uygulama yığın kapalıyken siler. Önce listeyi bu kayıtla karşılaştırır: fazla ya da eksik varsa durur, planlamaya yazar. Sonra listeyi kayda yazar.
+- **Kapanış sorusu 3, deneme klasörleri (Eren, 2026-11-28):**
+  - `~/cerebrum2/analysis/p2b_red` ve `~/cerebrum2/analysis/p2d_red` (kasıtlı-kırmızı klonları, git'ten yeniden üretilebilir; 153 MB) **şimdi silinir**.
+  - `analysis/`'teki öteki dosyalara (kayıtların sha ile andığı betikler) dokunulmaz.
+  - `aiops_rca/llm_cache/` ve oturumların scratch klasörleri **P2e'den sonra** yeniden sorulur.
+- **Kalan kapanış soruları (planlama sorar):** 4: dallar (`task/p2d` ve `task/kapanis`); 5: "Sızıntı kontrolü" kutusu ve belgelerdeki yerel yollar.
+- **Uygulamaya:** soru 4–5'in cevapları gelince planlama tek bir kapanış kartı yazar (silmeler, README notu, DECISIONS satırları, PR). Şimdilik bu dalda yeni iş yok; PR kartla birlikte.
+
+## 2026-11-28 · Planlama → Uygulama (Kapanış kartı: soru 4–5 kararları, sızıntı tam taraması geçti; silmeler, README notları, PR)
+- **Soru 4, dallar (Eren):**
+  - `task/p2d` ve `task/kapanis` silinir (GitHub'da).
+  - Öteki 31 dala dokunulmaz. Üçünde main'de olmayan küçük içerik var: `erenbezek-patch-1`, `-2` (README), `task/quality-trial` (tek HANDOFF satırı).
+- **Soru 5a, "Sızıntı kontrolü" kutusu (Eren: önce tam tarama):**
+  - Betik: planlama scratch `full_leak_par.py` (sha256 `511e6561f66949ec…`; `aiops_rca.leakage.scan_model_view`, klon `98ed9ad`, `aiops_rca.__file__` klonda).
+  - Yalnız toplamlar basıldı: vaka kimliği ve bulgu metni yok.
+  - Ölçüt taramadan önce yazıldı: bulgu 0, hata 0, taranan = etiket.
+  - Sonuç: etiket 74, snapshot 74, taranan 74, hata 0, **bulgu 0**, bulgulu snapshot 0; 26,7 dk, 4 süreç, en büyük alt süreç belleği 2.252 MiB. **PASS.**
+  - PROJECT kutusu [x] (bu commit).
+- **Soru 5b, yerel yollar (Eren):** kalır; README sınırlarına bir satır.
+- **DECISIONS:** soru 2, 3, 4, 5a, 5b için beş satır (bu commit). Soru 1'in satırı uygulamanın (2026-11-27).
+- **Uygulamanın işi (bu dalda, plan Eren'e; onaydan sonra):**
+  1. **17 volume'ü sil:** yığın kapalı; `docker volume ls -f dangling=true` (`otel-demo_` dışı) listesi HANDOFF 2026-11-28 planlama kaydındaki listeyle **birebir** aynı olmalı. Fark varsa silme, planlamaya yaz. Silmeden sonra kalan sahipsizler yalnız üç isimli volume.
+  2. **`~/cerebrum2/analysis/p2b_red` ve `p2d_red`'i sil**; `analysis/`'teki öteki dosyalar kalır.
+  3. **Dallar:** `task/p2d` ve `task/kapanis` GitHub'da silinir; yerelde varsa yerel kopyaları da.
+  4. **README:** sınırlara iki satır: elle / demo açılışının bıraktığı ~66 MB volume (vaka hattı siler); bazı resmî kayıtlarda yerel mutlak yol (işlevsiz). PROJECT "Şu an" satırı.
+  5. **PR** (sade açıklama); push'tan sonra açık ve başı son commit; CI yeşil. Yapılan silmeler kayda (liste, sayı).
+- **Sonra:** P2e (DECISIONS 2026-11-18): planlama P2e kartını yazar; önce aday seçimi ve geçme ölçütü Eren'e.
+- **P2e'den sonra yeniden sorulacak:** `llm_cache/`, scratch klasörleri, snapshot setinin Releases'te yayını (tekrarlanabilirlik 2. seviye).
+
+## 2026-11-28 · Uygulama → Planlama (Kapanış kartı uygulandı: silmeler, README notları, PR)
+- **Plan Eren onaylı ("onaylı").**
+- **1. Volume'ler:** konteyner 0; silmeden hemen önce `docker volume ls -q -f dangling=true` (`otel-demo_` dışı) listesi planlama kaydındaki 17 kimlikle birebir aynı (diff boş, iki kez). `docker volume rm` 17 / 17. Sonra sahipsiz yalnız `otel-demo_jaeger-data`, `otel-demo_opensearch-data`, `otel-demo_prometheus-data`. Silinen kimlikler: planlama kaydındaki liste (2026-11-28, soru 2), aynen.
+- **2. Klasörler:** `~/cerebrum2/analysis/p2b_red` (65,3 MB) ve `p2d_red` (42,2 MB) silindi (du; kayıttaki 153 MB ölçüm farkı). `analysis/`'teki öteki dosyalar kaldı (`p2a_red_c.py`, `p2b_red_agent.py`, `p2b_red_tools.py` betikleri dahil).
+- **3. Dallar:** GitHub'da `task/p2d` (`b723051`) ve `task/kapanis` (`f6aab59`) silindi; yerel `task/p2d` (`d7af3be`, main'in atası) silindi. Öteki dallara dokunulmadı.
+- **4. README:** canlı demo sınırlarına 7. madde (adsız ~66 MB volume, vaka hattı siler); "Tekrar üretme"ye yerel mutlak yol notu (6 canlı koşu klasörünün `live.json` ve `responses.jsonl` dosyaları; `--check` kullanmaz). PROJECT "Şu an" satırı.
+- **Doğrulama:** `pytest` 889 geçti; beş `--check` çıkış 0.
+- **Beklenen:** planlama kontrolü; PR birleşince P2e kartı.

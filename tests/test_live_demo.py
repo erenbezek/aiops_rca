@@ -29,8 +29,19 @@ def test_accepted_faults_from_runner_tables():
     for v in infra.values():
         assert re.fullmatch(sr.PARAM_RE[v["fault"]], v["param"]) and v["answer"]["root_cause_service"] == v["target"]
     flags = {k for k, v in f.items() if v["kind"] == "flag"}
-    assert flags == {k for k, s in sr.BY_ID.items() if "fault_type" in s}
-    assert "loadGeneratorFloodHomepage_on" not in f and "paymentFailure_10pct" in f
+    assert flags == {k for k, s in sr.BY_ID.items() if "fault_type" in s} - set(ld.DEMO_EXCLUDED)
+    assert "loadGeneratorFloodHomepage_on" not in f and "paymentFailure_50pct" in f
+    assert set(ld.DEMO_EXCLUDED) == {"paymentFailure_10pct"} and "paymentFailure_10pct" not in f
+    assert set(ld.DEMO_EXCLUDED) <= set(sr.BY_ID)                   # çıkarılan senaryo koşucuda kalır (vaka hattı)
+
+
+def test_cli_rejects_excluded_scenario(monkeypatch, capsys):
+    def never(*a, **k):
+        raise AssertionError("excluded scenario got past the list check")
+    monkeypatch.setattr(ld.subprocess, "run", never)                  # kilit sarmalayıcısıyla yeniden çalıştırma
+    monkeypatch.setattr(ld, "run", never)
+    assert ld.main(["run", "--scenario", "paymentFailure_10pct"]) == 2
+    assert "not accepted: paymentFailure_10pct" in capsys.readouterr().err
 
 
 LIVE_ARGS = '["--config=/etc/otelcol-config-extras.yml","--config=/etc/otelcol-config-live.yml"]'
@@ -211,17 +222,17 @@ def test_leakage_stops_demo(monkeypatch, tmp_path):
 
 def test_flag_scenario_on_then_off(monkeypatch, tmp_path):
     w = World(monkeypatch, tmp_path)
-    code, rec, _ = w.run("paymentFailure_10pct", "qwen3.5-4b")
+    code, rec, _ = w.run("paymentFailure_50pct", "qwen3.5-4b")
     assert code == 0
     flags = [c for c in w.calls if c[0] == "flag"]
-    assert flags == [("flag", "paymentFailure", "10%"), ("flag", "paymentFailure", "off")]
+    assert flags == [("flag", "paymentFailure", "50%"), ("flag", "paymentFailure", "off")]
     assert ("agent", "qwen3.5-4b") in w.calls and rec["answer"]["root_cause_service"] == "payment"
 
 
 def test_flag_not_off_before_is_baseline_problem(monkeypatch, tmp_path):
     w = World(monkeypatch, tmp_path)
-    monkeypatch.setattr(sr, "resolve", lambda s: {"variant": "10%"})
-    code, rec, _ = w.run("paymentFailure_10pct")
+    monkeypatch.setattr(sr, "resolve", lambda s: {"variant": "50%"})
+    code, rec, _ = w.run("paymentFailure_50pct")
     assert code == 2 and w.calls == []
 
 
