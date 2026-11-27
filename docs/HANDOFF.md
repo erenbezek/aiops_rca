@@ -6517,3 +6517,11 @@ Data:
 - **Sonra:**
   - PR (sade açıklama); push'tan sonra PR'ın açık ve başının son commit olduğu doğrulanır; CI yeşil.
   - Kapanış soruları Eren'e, tek tek: `paymentFailure_10pct` kabul listesinde kalsın mı, sahipsiz volume'ler, `llm_cache/` denemeleri, `analysis/` klonları, scratch klasörleri, `task/p2d` dalı.
+
+## 2026-11-27 · Uygulama → Planlama (PR #45 birleşti; kapanış sorusu 1: `paymentFailure_10pct` listeden çıktı)
+- **PR #45** birleşti (main `b9f95ea`), PR CI yeşil.
+- **Eren kararı (seçenek b):** `paymentFailure_10pct` canlı demonun kabul listesinden çıkar. Dal `task/demo-liste` (Eren onaylı ad), plan Eren onaylı.
+- **Kod (`68c9629`):** `tools/live_demo.py` `DEMO_EXCLUDED` (Eren onaylı ad; gerekçe yorumda), `faults()` atlar → arayüzde ve `list`'te yok, `run --scenario paymentFailure_10pct` çıkış 2. `scenario_runner` değişmedi (senaryo `BY_ID`'de kalır; testte iddia).
+- **Testler:** liste testi (`DEMO_EXCLUDED` yalnız bu senaryo, listede yok, 50pct var); yeni `test_cli_rejects_excluded_scenario` (yeniden çalıştırma ve `run` taklitli, hata metni); bu senaryoyu kullanan üç test 50pct'ye geçti. Kasıtlı kırmızı scratch klonunda: atlama satırı çıkınca iki test kırmızı (liste, CLI). `pytest` 889 geçti; beş `--check` 0.
+- **Belgeler:** README sınır 5'e "listeden çıkarıldı" cümlesi; DECISIONS 2026-11-27 satırı; ARCHITECTURE `live_demo.py` satırı; GLOSSARY `DEMO_EXCLUDED` (kod commit'inden sonra).
+- **Beklenen:** planlama kontrolü; PR (sade), CI yeşil; sonra kapanış soruları 2–6 Eren'e tek tek.
