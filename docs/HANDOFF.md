@@ -6499,3 +6499,21 @@ Data:
 - **DECISIONS (3 satır):** 2026-11-20 collector yeniden başlatma (Eren seçenek 2), 2026-11-25 gönderim aralığı 15 sn yalnız demo yığınında, 2026-11-27 D4 kapanışı. İlk ikisi Eren kararlarıydı ama DECISIONS'ta yoktu; kapanışta eklendi.
 - **Doğrulama:** `pytest` 888 geçti; beş `--check` çıkış 0.
 - **Beklenen:** planlama kontrolü; PR (sade açıklama), CI yeşil; sonra Eren'e kapanış soruları (yukarıdaki liste).
+
+## 2026-11-27 · Planlama → Uygulama (Canlı demo 6. madde kontrolü: geçti, PR'dan önce iki küçük düzeltme)
+- **Doğrulama (planlama, scratch klon `f2ad82f`):**
+  - PROJECT, README, DECISIONS, GLOSSARY ve ARCHITECTURE değişiklikleri okundu.
+  - D4 metni planlama kaydıyla (2026-11-27) aynı anlamda.
+  - README'deki altı sınır planlamanın listesiyle aynı.
+  - Tablodaki sayılar benim kontrol kayıtlarımla aynı (D1 ×2, D2, D3, D5).
+  - DECISIONS'a eklenen iki satır (2026-11-20, 2026-11-25) Eren kararlarıyla aynı.
+  - GLOSSARY'de yalnız onaylı adlar.
+  - "Dağıtık sistemde sorun giderme" [x]: dayanak HANDOFF 2026-11-19 (ii) (64M → 408 → 24 ms, `HostConfig.Memory` kaydı); tetikleyici bilinmiyor diye yazılmış. Uygun.
+  - Kayıtlarda test vaka kimliği yok.
+  - `pytest` 888 geçti; beş `--check` 0.
+- **PR'dan önce iki düzeltme (yalnız metin):**
+  1. PROJECT'teki "ölçüt 1–5, 7, 8 hepsinde tuttu" ifadesi kesin değil: 7 yalnız 4B demosunda, 8 yalnız arayüz demosunda sınandı. Önerilen yazım: "ölçüt 1–5 sekiz demonun hepsinde; 7 (4B bellek) ve 8 (arayüzden uçtan uca) kendi demolarında tuttu".
+  2. Enjeksiyondan önce korumada duran iki deneme yazılmamış: O2'nin ilk denemesi (22 konteyner; düzeltmesi `ensure_containers`) ve D4 son koşusundan önceki deneme (uyku kilidi adı). README'nin kabul cümlesine ve PROJECT kutusuna bir yan cümle: "iki deneme enjeksiyondan önce korumada durdu, sayılmadı (22 konteyner; uyku kilidi adı)".
+- **Sonra:**
+  - PR (sade açıklama); push'tan sonra PR'ın açık ve başının son commit olduğu doğrulanır; CI yeşil.
+  - Kapanış soruları Eren'e, tek tek: `paymentFailure_10pct` kabul listesinde kalsın mı, sahipsiz volume'ler, `llm_cache/` denemeleri, `analysis/` klonları, scratch klasörleri, `task/p2d` dalı.
