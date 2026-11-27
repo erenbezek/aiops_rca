@@ -6598,3 +6598,57 @@ Data:
 - **4. README:** canlı demo sınırlarına 7. madde (adsız ~66 MB volume, vaka hattı siler); "Tekrar üretme"ye yerel mutlak yol notu (6 canlı koşu klasörünün `live.json` ve `responses.jsonl` dosyaları; `--check` kullanmaz). PROJECT "Şu an" satırı.
 - **Doğrulama:** `pytest` 889 geçti; beş `--check` çıkış 0.
 - **Beklenen:** planlama kontrolü; PR birleşince P2e kartı.
+
+## 2026-11-28 · Planlama → Uygulama (Kapanış PR #46 kontrolü: birleşti, temiz)
+- **Doğrulama (planlama):**
+  - PR #46 2026-11-27 23:41Z birleşti (merge `53a7048`); başı `8ca541c` main'in atası.
+  - PR denetimi `test` SUCCESS; main push CI `test` success. PR açıklaması sade.
+  - **Silmeler:**
+    - sahipsiz volume olarak yalnız `otel-demo_jaeger-data`, `otel-demo_opensearch-data`, `otel-demo_prometheus-data` kaldı (17 adsız silinmiş);
+    - `analysis/p2b_red` ve `p2d_red` yok; `demo_panels_check.py`, `d4_flush_latency.py`, `v3c_baseline.py` yerinde;
+    - `task/p2d` ve `task/kapanis` GitHub'da yok, 30 dal duruyor;
+    - konteyner 0.
+  - README'deki iki not ve PROJECT "Şu an" kararlarla aynı. Uygulamanın kaydındaki klon boyutu (107,5 MB) benim ölçümümden (153 MB) farklı; ölçüm biçimi farkı, önemsiz.
+- **Kayıt yeri:** PR birleştiği için bu kayıt `task/p2e`'nin ilk commit'inde (Eren'in 2026-11-27 tercihiyle aynı yol).
+
+## 2026-11-28 · Planlama → Uygulama (P2e kartı: daraltma ajana araç olarak; 30 yeni vaka, Gemini + 4B)
+- **Kararlar (Eren, 2026-11-28):**
+  - Aday 2: P1'in daraltması ajana araç olarak verilir.
+  - **30 yeni vaka** (iki gece).
+  - **Gemini + 4B.**
+  - Dal `task/p2e`.
+  - Kurallar DECISIONS 2026-11-18'deki gibi: yeni, bakılmamış vakalar; tek değişiklik; ölçüt koşudan önce; P2d'nin sonucu değişmez, P2e ayrı satır.
+- **Neden bu aday:** testte en büyük ölçülmüş fark burada (Gemini; P1 daraltma top-1 15/18, ajan 10/18). Bu vaka sayısında yalnız büyük etki ayırt edilebildiği için karar değiştirebilecek tek aday bu.
+- **Aşırı uyum riski (karta, rapora):** aday test sonuçlarından türedi. Yeni vakalar bu yüzden şart. Sonuç "testteki farkın yeni vakalarda tekrarı" olarak okunur.
+- **Güç kontrolü (önceden; kesin eşli test, iki yönlü p < 0,05, ayrışan vakalar):**
+  - En küçük geçen ayrışmalar: 6–0, 7–0, 8–1, 9–1, 10–2, 11–2, 12–3.
+  - Geçmeyen örnekler: 5–0 (p 0,063), 7–1 (0,070), 9–2 (0,065).
+  - Planlamanın 2026-11-28 sorusunda "9–2" geçen örnek olarak yazılmıştı; **yanlıştı**, düzeltme bu satır.
+  - Testteki fark aynen tekrarlanırsa 30 vakada beklenen net kazanç ~8: geçme olasılığı yüksek ama kesin değil.
+  - Etki daha küçükse sonuç "ayırt edilemedi" olur. Bu "etkisiz" demek değildir.
+  - Hangi sonuç neyi değiştirir:
+    - **geçerse** araçlı ajan P2'nin iyileştirilmiş satırı olarak raporlanır;
+    - **geçmezse** donmuş P2 ajanı tek ajan satırı kalır, P2e sonucu sınırlamalara yazılır.
+- **Kollar (her model için aynı 30 vaka, dosya modu):**
+  - **A:** donmuş P2 ajanı (istem sha `5e259201…`, sınırlar 8 / 700 / 6000 / 300).
+  - **B:** A + daraltma aracı. Tek fark araç; istemde yalnız araç listesi ve tanımı değişir, yeni istem sha kayda.
+  - **Bilgi satırları (ölçüt değil):**
+    - Gemini A'nın ikinci koşusu (gürültü tabanı, P2d'deki gibi);
+    - P1 daraltma tek başına aynı vakalarda (Gemini), B'nin daraltmanın kendisini geçip geçmediğini görmek için.
+- **Ölçüt (koşudan önce; değişmez):**
+  - **Birincil (Gemini):** top-1, B ↔ A eşli; kesin iki yönlü test p < 0,05 **ve** B lehine. Geçerse "araç Gemini ajanını iyileştirdi".
+  - **İkincil (önceden yazılı, ayrı satırlar):**
+    - Gemini top-3 aynı testle;
+    - 4B top-1 ve top-3 aynı testle.
+    - Birincil dışındaki satırlar karar vermez, ayrı okunur; çoklu karşılaştırma iddiası yapılmaz.
+  - **Teknik:**
+    - teknik kesinti 0;
+    - sızıntı taraması 0 (araç çıktıları dahil);
+    - araç etiket okumaz. Test: aracın çıktısı aynı vakada P1 daraltmasının çıktısıyla aynı, etiket dosyasına erişim yok.
+- **Adımlar (her adımdan sonra planlama kontrolü; uzun koşulardan önce Eren'e sorulur; iki kilit, şarj eşiği 80):**
+  1. **Öneri (kod yok):** aracın tasarımı. Ad, girdi / çıktı, P1 daraltmasından nasıl çağrıldığı, sınırlara (çıktı ≤ 700?) uyumu, istemdeki tanım metni. Yeni vaka listesi: test setiyle aynı katalog dağılımı (senaryo ve hata türü oranları); dev, test, heldout ve pilot kullanılmaz. Yeni setin adı. Yeni adlar Eren'e.
+  2. **Kod + testler:** araç; A'nın donmuş kodu ve istemi değişmez (B ayrı yapılandırma); kasıtlı kırmızı; `pytest`, `--check`'ler, CI.
+  3. **Vaka üretimi:** vaka hattı değişmeden (`--live` yok), 30 vaka, iki gece. Geçersiz vakalar kuralı vaka hattındaki gibi. Planlama etiketlerden yalnız toplamları görür.
+  4. **Koşular:** Gemini A, A (2. koşu), B, P1 daraltma; 4B A, B. Sıra ve süre öneride.
+  5. **Puanlama ve rapor:** puanlama kodu koşudan önce donar. Rapor ayrı dosya (`results/` altında, ad öneride); P2d dosyaları değişmez; README ve PROJECT'te ayrı satır.
+- **Sonra:** `llm_cache/`, scratch klasörleri ve snapshot setinin Releases'te yayını (yeni vakalar dahil) Eren'e sorulur.
