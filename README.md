@@ -175,6 +175,7 @@ Sınırlar:
 4. `--live` ile bile bir hata panelde ~35 sn'ye kadar gecikir (ölçülen en çok 33,9 sn); yeni bir hata serisi bir gönderim geç sayılır. Ajanın başlamasından önceki son ~35 sn'deki hatalar panel penceresine girmeyebilir.
 5. Düşük hacimli hatalar panelde görünmeyebilir. `paymentFailure_10pct` üç denemede panelde eşik üstünde görünmedi: ilkinde gecikme yüzünden hata pencereye girmedi; canlı demo katmanından (15 sn) sonra hata görünür oldu ama oran 0,044 < 0,05; son denemede pencerede hiç hata yoktu ve panel ölçütü bellek gürültüsüyle biçimsel olarak tuttu. Düşük hacimli (~30 istek / 10 dk) %10 hata bu demo süresinde güvenilir bir belirti üretmiyor. Bu yüzden demonun listesinden çıkarıldı; aynı hata `paymentFailure_50pct` ile seçilebilir (vaka hattında değişiklik yok).
 6. Konteyner sayısı 23 değilse (collector'ın açılışta bir konteyneri kaçırması) `run` collector'ı bir kez yeniden başlatır; demo ~10 dk geç başlar.
+7. Yığını elle ya da demo için `tools/otel_demo.sh up` ile açmak her açılışta adı olmayan ~66 MB'lık bir Docker volume bırakır (demonun veritabanının açılışta açtığı geçici veri; vaka hattı bunları kendisi siler, elle açılışta `docker volume ls -f dangling=true` ile görülür).
 
 ## Tekrar üretme
 
@@ -192,6 +193,8 @@ python -m pytest
 ```
 
 `--check` komutları sonuç tablolarını ve hata analizi özetlerini repodaki kayıtlardan yeniden üretip repodakilerle karşılaştırır; CI hepsini bayt aynı üretir. Snapshot, API anahtarı ve ağ gerekmez.
+
+Sınır: bazı resmî kayıtlarda (`eval_responses/` altındaki canlı koşuların `live.json` ve `responses.jsonl` dosyaları) koşunun yapıldığı makinenin yerel mutlak yolu geçer. Bu yollar yalnız kayıttır; yeniden üretme ve `--check` komutları onları kullanmaz.
 
 Canlı demo, demo yığınını canlı demo katmanıyla ister (span metrikleri 15 sn'de bir; vaka hattının `up`'ı bu katmanı yüklemez, katmansız açılmış yığında demo korumada durur):
 

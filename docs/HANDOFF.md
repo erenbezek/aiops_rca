@@ -6589,3 +6589,12 @@ Data:
   5. **PR** (sade açıklama); push'tan sonra açık ve başı son commit; CI yeşil. Yapılan silmeler kayda (liste, sayı).
 - **Sonra:** P2e (DECISIONS 2026-11-18): planlama P2e kartını yazar; önce aday seçimi ve geçme ölçütü Eren'e.
 - **P2e'den sonra yeniden sorulacak:** `llm_cache/`, scratch klasörleri, snapshot setinin Releases'te yayını (tekrarlanabilirlik 2. seviye).
+
+## 2026-11-28 · Uygulama → Planlama (Kapanış kartı uygulandı: silmeler, README notları, PR)
+- **Plan Eren onaylı ("onaylı").**
+- **1. Volume'ler:** konteyner 0; silmeden hemen önce `docker volume ls -q -f dangling=true` (`otel-demo_` dışı) listesi planlama kaydındaki 17 kimlikle birebir aynı (diff boş, iki kez). `docker volume rm` 17 / 17. Sonra sahipsiz yalnız `otel-demo_jaeger-data`, `otel-demo_opensearch-data`, `otel-demo_prometheus-data`. Silinen kimlikler: planlama kaydındaki liste (2026-11-28, soru 2), aynen.
+- **2. Klasörler:** `~/cerebrum2/analysis/p2b_red` (65,3 MB) ve `p2d_red` (42,2 MB) silindi (du; kayıttaki 153 MB ölçüm farkı). `analysis/`'teki öteki dosyalar kaldı (`p2a_red_c.py`, `p2b_red_agent.py`, `p2b_red_tools.py` betikleri dahil).
+- **3. Dallar:** GitHub'da `task/p2d` (`b723051`) ve `task/kapanis` (`f6aab59`) silindi; yerel `task/p2d` (`d7af3be`, main'in atası) silindi. Öteki dallara dokunulmadı.
+- **4. README:** canlı demo sınırlarına 7. madde (adsız ~66 MB volume, vaka hattı siler); "Tekrar üretme"ye yerel mutlak yol notu (6 canlı koşu klasörünün `live.json` ve `responses.jsonl` dosyaları; `--check` kullanmaz). PROJECT "Şu an" satırı.
+- **Doğrulama:** `pytest` 889 geçti; beş `--check` çıkış 0.
+- **Beklenen:** planlama kontrolü; PR birleşince P2e kartı.
