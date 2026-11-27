@@ -6489,3 +6489,13 @@ Data:
   - 13+ sahipsiz Docker volume;
   - `llm_cache/` denemeleri, `analysis/` klonları ve scratch klasörleri;
   - `task/p2d` dalı.
+
+## 2026-11-27 · Uygulama → Planlama (Canlı demo 6. madde: kapanış belgeleri; PR)
+- **Plan Eren onaylı ("onaylı"); yalnız belge, kod ve koşu yok.**
+- **PROJECT:** "Canlı demo" kutusu [x] (alt madde: akış, kabul özeti, D4 metni); DevOps "PromQL" [x], "Grafana dashboard" [x], "Dağıtık sistemde sorun giderme" [x] (product-catalog kökü 20M sınır; demodaki iki kök: collector açılış yarışı, span metriği gecikmesi); "Şu an" satırı.
+- **ARCHITECTURE:** diyagrama canlı demo (live_demo, sayfa, Grafana panosu, `--live` katmanı, `MAIN_ENDS` → `LiveStore`, `demo_runs/`); not maddesi; dosya tablosuna 7 satır (`compose.live.yaml`, `otelcol-config-live.yml`, `grafana/aiops-demo.json`, `live_demo.py`, `live_demo_page.html`, iki test); `store_live.py`, `compose.extras.yaml`, `otel_demo.sh` satırları güncellendi.
+- **GLOSSARY:** onaylı adlar 4 satırda: `ensure_containers()`; `collector_restart` (`count_before`, `count_after`), `times_utc.collector_restart`, `times_utc.containers_ready`; `otelcol-config-live.yml`, `compose.live.yaml`; `--live`, `OTEL_COLLECTOR_CONFIG_LIVE`. Yeni ad yok.
+- **README:** "Durum" satırı; yeni "Canlı demo" bölümü (akış, kabul tablosu, planlamanın 6 sınırı, D4 metni aynen); repo haritasında iki hücre.
+- **DECISIONS (3 satır):** 2026-11-20 collector yeniden başlatma (Eren seçenek 2), 2026-11-25 gönderim aralığı 15 sn yalnız demo yığınında, 2026-11-27 D4 kapanışı. İlk ikisi Eren kararlarıydı ama DECISIONS'ta yoktu; kapanışta eklendi.
+- **Doğrulama:** `pytest` 888 geçti; beş `--check` çıkış 0.
+- **Beklenen:** planlama kontrolü; PR (sade açıklama), CI yeşil; sonra Eren'e kapanış soruları (yukarıdaki liste).
