@@ -3,7 +3,7 @@
     python -m aiops_rca.evaluate run --method rule|baro|narrowing [--sets pilot,dev] [--cases inc-…,…] [--final-test] [--root eval_responses]
     python -m aiops_rca.evaluate run --method llm --model <etiket> --level raw|summary|narrowed [--alias] [--sets …]
                                      [--cases …] [--root llm_cache]
-    python -m aiops_rca.evaluate run --method agent --model <etiket> [--sets …] [--cases …] [--root llm_cache]
+    python -m aiops_rca.evaluate run --method agent --model <etiket> [--narrowed-start] [--sets …] [--cases …] [--root llm_cache]
     python -m aiops_rca.evaluate score <koşu klasörü> [--final-test]
 
 `run`: seçilen setlerin geçerli vakalarında yöntemi koşar, her cevabı şemayla doğrular ve kaydeder (`runs.py`).
@@ -15,7 +15,8 @@ yazar ve set başına tabloyu basar. Sorulmayan girdi (`input_status`
 `empty` / `over_budget`) ve cevapsız satır (`no_answer`) ıskalama ve çekimser sayılır; takma adlı koşuda cevaptaki adlar gerçek ada çevrilip eşlenir. `test` seti iki komutta da yalnız `--final-test` ile; `heldout` hiç.
 `agent` yöntemi (`methods/agent.py`, P2b) dosya modunda (`FileStore`) ajanı koşar: satır P1 biçiminde + bitiş nedeni,
 adım ve istek sayısı; koşu klasörüne ayrıca `turns.jsonl` (vaka × tur) ve `tool_outputs/<vaka>.jsonl` (modele giden
-araç çıktılarının metni).
+araç çıktılarının metni). `--narrowed-start` (P2e B kolu, yalnız `agent`): ajan görev mesajında P1'in daraltma
+tablosuyla başlar (`methods/agent.py` `NARROWED_START`).
 Çıkış: 0 tamam, 2 kullanım hatası.
 """
 from __future__ import annotations
@@ -48,7 +49,12 @@ TABLE_COLUMNS = (("n", "Vaka"), ("top1", "top-1"), ("top3", "top-3"), ("evidence
 
 def cmd_run(method: str, sets: tuple[str, ...], final_test: bool, root: Path, *, incidents: Path = INCIDENTS,
             snapshots: Path = SNAPSHOTS, cases: tuple[str, ...] | None = None, model: str | None = None,
-            level: str | None = None, alias: bool = False, llm_options: dict | None = None) -> Path:
+            level: str | None = None, alias: bool = False, llm_options: dict | None = None,
+            narrowed_start: bool = False) -> Path:
+    if narrowed_start and method != "agent":
+        raise ValueError("--narrowed-start is only for --method agent")
+    if narrowed_start:
+        llm_options = {**(llm_options or {}), "narrowed_start": True}
     if method == "llm":
         if model is None or level is None:
             raise ValueError("--method llm needs --model and --level")
@@ -162,6 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--model", choices=list(MODELS))
     r.add_argument("--level", choices=list(LEVELS))
     r.add_argument("--alias", action="store_true")
+    r.add_argument("--narrowed-start", action="store_true")
     r.add_argument("--sets", default=",".join(DEFAULT_SETS))
     r.add_argument("--cases", help="comma-separated incident ids within the selected sets")
     r.add_argument("--final-test", action="store_true")
@@ -174,7 +181,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "run":
             cases = tuple(x for x in args.cases.split(",") if x) if args.cases else None
             run_dir = cmd_run(args.method, tuple(x for x in args.sets.split(",") if x), args.final_test, args.root,
-                              cases=cases, model=args.model, level=args.level, alias=args.alias)
+                              cases=cases, model=args.model, level=args.level, alias=args.alias,
+                              narrowed_start=args.narrowed_start)
             print(run_dir)
         else:
             print(markdown_table(cmd_score(args.run_dir, args.final_test)["table"]))

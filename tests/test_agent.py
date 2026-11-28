@@ -247,3 +247,111 @@ def test_pilot_report_reproduces():
     assert agent_report.main(["--check"]) == 0
     assert agent_report.main(["--report", "p2c0", "--check"]) == 0  # P2c-0 pilot tasarım turu
     assert agent_report.main(["--report", "p2c_dev", "--check"]) == 0  # P2c dev koşuları
+
+
+# --- P2e B kolu: `narrowed_start` (HANDOFF 2026-11-28; planlamanın 2. madde ölçütleri (a)–(d)) ---
+
+# B'nin istemi: A'nın parçaları + `NARROWED_START` (P1 metni birebir). Değişirse yeniden onay ve kayıt.
+PROMPT_SHA256_NARROWED_START = "d237c17e93f82acf1bca8ee6b9e4efcca0e8500c73f41c7c12ea8365ef7bfd03"
+
+
+def _fixture_cases():
+    from pathlib import Path
+    from aiops_rca.cases import Case, alarm_ns
+    fixtures = Path(__file__).resolve().parent / "fixtures"
+    for view in sorted((fixtures / "snapshots").iterdir()):
+        label = json.loads((INCIDENTS / f"{view.name}.json").read_text(encoding="utf-8"))
+        yield Case(view.name, view, alarm_ns(label["answer"]["injection_start"]))
+
+
+def test_narrowed_start_is_p1_narrowed_input_byte_for_byte():
+    """(a) Blok = P1'in daraltma açıklaması + "Data:" + P1'in daraltma girdisinin metni (CI örneklerinde donmuş
+    `narrowed_expected.json` ve P1'in kullanıcı mesajı)."""
+    from pathlib import Path
+    from aiops_rca.methods import llm
+    expected = json.loads((Path(__file__).resolve().parent / "fixtures" / "narrowed_expected.json").read_text())
+    for case in _fixture_cases():
+        block = ag.narrowed_start_text(case)
+        assert block == llm.LEVEL_TEXT["narrowed"] + "\n\nData:\n" + expected[case.incident_id]
+        p1_user = llm.build_messages("narrowed", "T", expected[case.incident_id])[1]["content"]
+        assert p1_user.endswith("\n\nData:\n" + expected[case.incident_id]) and llm.LEVEL_TEXT["narrowed"] in p1_user
+
+
+def test_fit_history_never_shortens_the_task():
+    """(b) Bütçe dolunca yalnız araç sonuçları ize iner; görev (tablo dahil) her durumda birebir; görev bile sığmazsa
+    kısaltılmaz, `None` (vaka `budget`)."""
+    task = "task " + "table " * 400
+    steps = [{"action_text": "a", "result_message": "r " * 300, "stub": "s"} for _ in range(6)]
+    words = lambda msgs: sum(len(m["content"].split()) for m in msgs)  # noqa: E731
+    full = words(ag.build_messages(task, steps, set()))
+    for budget in range(full, 0, -97):
+        msgs, dropped, n = ag.fit_history(task, steps, None, words, budget=budget)
+        if msgs is None:
+            assert budget < words(ag.build_messages(task, steps, set(range(len(steps) - 1))))
+            continue
+        assert msgs[1]["content"] == task and n <= budget
+
+
+def test_narrowed_start_run_and_settings(tmp_path, fake, monkeypatch):
+    """(a)–(c) uçtan uca, dosya modu: B'de her isteğin görev mesajı = A'nın görevi + blok (kırpma sırasında da);
+    ayarlarda `narrowed_start` ve B'nin sha'sı. A'nın ayarlarında alan yok, sha donmuş değer."""
+    from pathlib import Path
+    monkeypatch.setattr(ag, "_checked_gguf", lambda label, models_dir: "sha-test")
+    fixtures = Path(__file__).resolve().parent / "fixtures" / "snapshots"
+    cid = "inc-0f31ed0e"
+    inc = tmp_path / "incidents"
+    inc.mkdir()
+    shutil.copy(INCIDENTS / f"{cid}.json", inc / f"{cid}.json")
+    real = ag.fit_history
+
+    def tight(task, steps, tail, count, budget=None):  # 2. adımdan sonra en eski sonuç ize iner
+        need = count(ag.build_messages(task, steps, set(range(len(steps) - 1)), tail)) if steps else 0
+        return real(task, steps, tail, count, budget=max(need + 5, ag.TOTAL_BUDGET * 100 if not steps else 0))
+    monkeypatch.setattr(ag, "fit_history", tight)
+    opts = lambda srv: {"base": srv.base, "chat_url": srv.base + "/v1/chat/completions", "key": "k",  # noqa: E731
+                        "sleep": lambda s: None}
+    tasks = {}
+    for b in (False, True):
+        srv = fake(*[completion(act("list_services"))] * 3, completion(act(answer=True)), completion(GOOD))
+        run_dir = evaluate.cmd_run("agent", ("pilot",), False, tmp_path / f"runs{b}", incidents=inc,
+                                   snapshots=fixtures, model="gemini-3.5-flash-lite", llm_options=opts(srv),
+                                   narrowed_start=b)
+        settings = json.loads((run_dir / "run.json").read_text())["settings"]
+        chats = srv.chats()
+        tasks[b] = {c["messages"][1]["content"] for c in chats}
+        assert len(tasks[b]) == 1 and len(chats) == 5
+        if b:
+            assert settings["narrowed_start"] is True and settings["prompt_sha256"] == PROMPT_SHA256_NARROWED_START
+            assert any(m["content"].startswith("[earlier result dropped") for m in chats[3]["messages"])
+        else:
+            assert "narrowed_start" not in settings and settings["prompt_sha256"] == PROMPT_SHA256
+    case = next(c for c in _fixture_cases() if c.incident_id == cid)
+    (a_task,), (b_task,) = tasks[False], tasks[True]
+    assert b_task == a_task + "\n\n" + ag.narrowed_start_text(case)
+    assert ag.prompt_sha256(True) == PROMPT_SHA256_NARROWED_START != PROMPT_SHA256
+    with pytest.raises(ValueError):
+        evaluate.cmd_run("llm", ("pilot",), False, tmp_path / "x", incidents=inc, snapshots=fixtures,
+                         model="gemini-3.5-flash-lite", level="narrowed", narrowed_start=True)
+
+
+def test_narrowed_start_reads_only_the_snapshot(tmp_path, monkeypatch):
+    """(d) Blok yalnız vakanın snapshot klasöründen okur: etiket dosyaları (`incidents/`) açılmaz."""
+    import builtins
+    import io
+    from aiops_rca.cases import Case
+    case = next(_fixture_cases())
+    view = tmp_path / "view"
+    shutil.copytree(case.view, view)
+    copy = Case(case.incident_id, view, case.alarm_ns)
+    want = ag.narrowed_start_text(case)
+    opened = []
+    real_open = builtins.open
+
+    def spy(file, *a, **k):
+        opened.append(str(file))
+        return real_open(file, *a, **k)
+    monkeypatch.setattr(builtins, "open", spy)
+    monkeypatch.setattr(io, "open", spy)
+    assert ag.narrowed_start_text(copy) == want
+    assert opened and all(p.startswith(str(view)) for p in opened if p.endswith((".json", ".jsonl")))
+    assert not any("incidents" in p for p in opened)

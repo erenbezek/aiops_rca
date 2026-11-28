@@ -4,7 +4,8 @@ yok", "takma ad yok").
 
 Vaka başına:
 1. Mesajlar: sistem (P1'in sistem istemi), görev (alarm anı, pencere, araç tanımları `agent_tools.TOOLS`'tan, kurallar,
-   eylem biçimi; kök tanımı P1'den birebir).
+   eylem biçimi; kök tanımı P1'den birebir). P2e B kolunda (`narrowed_start`) görevin sonunda P1'in daraltma girdisi
+   (`NARROWED_START`).
 2. Her tur: katı JSON eylem şeması (`ACTION_FORMAT`) — bir araç + parametreler ya da "answer". Eylem kodla da
    doğrulanır (`validate_action`); şema dışı eylem yeniden sorulmaz (`schema_action`).
 3. Araç `agent_tools.run_tool` ile; sonuç `user` mesajı olarak geri döner (sağlayıcıların araç rolü yok). Geçersiz
@@ -33,7 +34,7 @@ from aiops_rca import agent_tools as at
 from aiops_rca.answer import validate_answer
 from aiops_rca.cases import Case
 from aiops_rca.llm_client import ENDPOINTS, IMAGE, MODELS, MODELS_DIR, LocalServer, Pacer, chat, count_tokens
-from aiops_rca.methods.llm import (SYSTEM_PROMPT, TOKENIZER, TOTAL_BUDGET, USER_TEMPLATE, _checked_gguf,
+from aiops_rca.methods.llm import (LEVEL_TEXT, SYSTEM_PROMPT, TOKENIZER, TOTAL_BUDGET, USER_TEMPLATE, _checked_gguf,
                                    _template_tokens)
 
 MAX_TOOL_CALLS = 8
@@ -47,6 +48,11 @@ _P1 = USER_TEMPLATE.format(alarm_time="{alarm_time}", level_text="{level_text}",
 ROOT_DEFINITION = _P1.split("\n\n")[1]
 ANSWER_INSTRUCTIONS = _P1.split("\n\nGive exactly", 1)[1].split("\n\nData:", 1)[0]
 ANSWER_INSTRUCTIONS = "Give exactly" + ANSWER_INSTRUCTIONS
+
+# P2e B kolu (`narrowed_start`; HANDOFF 2026-11-28, Eren kararı "tam tablo ilk mesajda"): görev mesajının sonuna P1'in
+# daraltma açıklaması ve "Data:" satırı birebir, ardından P1'in daraltma girdisinin metni (`inputs.narrowed_table` +
+# `summary_text`, değişmeden). Görev mesajı `fit_history`'de hiç kısalmaz; bütçe kuralı aynen. Kapalıyken A birebir.
+NARROWED_START = LEVEL_TEXT["narrowed"] + "\n\nData:\n{data}"
 
 # --- eylem şeması --------------------------------------------------------------------------------------------------
 
@@ -127,9 +133,17 @@ def answer_message() -> str:
     return ANSWER_TURN.format(instructions=ANSWER_INSTRUCTIONS)
 
 
-def prompt_sha256() -> str:
-    return hashlib.sha256(json.dumps([SYSTEM_PROMPT, TASK_TEMPLATE, RESULT_TEMPLATE, ANSWER_TURN, DROPPED,
-                                      ROOT_DEFINITION, ANSWER_INSTRUCTIONS, tool_definitions()]).encode()).hexdigest()
+def prompt_sha256(narrowed_start: bool = False) -> str:
+    parts = [SYSTEM_PROMPT, TASK_TEMPLATE, RESULT_TEMPLATE, ANSWER_TURN, DROPPED, ROOT_DEFINITION, ANSWER_INSTRUCTIONS,
+             tool_definitions()]
+    if narrowed_start:  # A'nın listesi ve sha'sı değişmez
+        parts.append(NARROWED_START)
+    return hashlib.sha256(json.dumps(parts).encode()).hexdigest()
+
+
+def narrowed_start_text(case: Case) -> str:
+    from aiops_rca.inputs import narrowed_table, summary_text
+    return NARROWED_START.format(data=summary_text(narrowed_table(case)))
 
 
 def call_text(tool: str, args: dict) -> str:
@@ -182,18 +196,22 @@ def fit_history(task: str, steps: list[dict], tail: str | None, count: Callable[
 def agent_method(label: str, store_factory: Callable[[Case], object], *, models_dir=MODELS_DIR,
                  base: str | None = None, chat_url: str | None = None, key: str | None = None,
                  sleep: Callable[[float], None] = time.sleep,
-                 clock: Callable[[], float] = time.monotonic) -> Iterator[tuple[Callable[[Case], dict], dict]]:
-    """(vaka → {"row", "turns", "tool_outputs"}, `run.json` ayarları). `base` verilirse sunucu açılmaz (testler)."""
+                 clock: Callable[[], float] = time.monotonic,
+                 narrowed_start: bool = False) -> Iterator[tuple[Callable[[Case], dict], dict]]:
+    """(vaka → {"row", "turns", "tool_outputs"}, `run.json` ayarları). `base` verilirse sunucu açılmaz (testler).
+    `narrowed_start`: P2e B kolu (görev mesajına daraltma tablosu); yalnız dosya modunda (tablo snapshot'tan)."""
     if label not in MODELS:
         raise ValueError(f"unknown model {label!r}")
     spec = MODELS[label]
     server_label = label if spec.provider == "local" else TOKENIZER
-    settings = {"max_tokens": spec.max_tokens, "extra": spec.extra, "prompt_sha256": prompt_sha256(),
+    settings = {"max_tokens": spec.max_tokens, "extra": spec.extra, "prompt_sha256": prompt_sha256(narrowed_start),
                 "total_budget": TOTAL_BUDGET, "max_tool_calls": MAX_TOOL_CALLS,
                 "tool_result_tokens": TOOL_RESULT_TOKENS, "image": IMAGE, "gguf": MODELS[server_label].gguf,
                 "gguf_sha256": _checked_gguf(server_label, models_dir)}
     if spec.provider != "local":
         settings["tokenizer"] = TOKENIZER
+    if narrowed_start:  # A'nın ayarları birebir kalsın diye yalnız açıkken
+        settings["narrowed_start"] = True
     gap = {"groq": 65, "gemini": GEMINI_GAP}.get(spec.provider)
     if gap:
         settings["request_gap_s"] = gap
@@ -216,7 +234,8 @@ def agent_method(label: str, store_factory: Callable[[Case], object], *, models_
             return {**rec, "wait_s": round(waited, 3)}
 
         def ask(case: Case) -> dict:
-            return run_case(case, store_factory(case), request, count_text, count_msgs, clock)
+            return run_case(case, store_factory(case), request, count_text, count_msgs, clock,
+                            narrowed_start=narrowed_start)
 
         yield ask, settings
 
@@ -226,10 +245,13 @@ def _tokens(rec: dict) -> dict:
     return {"input": t.get("input") or 0, "output": t.get("output") or 0}
 
 
-def run_case(case: Case, store, request, count_text, count_msgs, clock=time.monotonic) -> dict:
+def run_case(case: Case, store, request, count_text, count_msgs, clock=time.monotonic,
+             narrowed_start: bool = False) -> dict:
     t_start = clock()
     lo_min, hi_min = _window_minutes(store, case)
     task = task_message(_alarm_time(case), lo_min, hi_min)
+    if narrowed_start:
+        task += "\n\n" + narrowed_start_text(case)
     steps, turns, outputs = [], [], []
     tok = {"input": 0, "output": 0}
     model_s = wait_s = 0.0
