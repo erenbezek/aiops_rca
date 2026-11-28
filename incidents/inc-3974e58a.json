@@ -1,0 +1,286 @@
+{
+ "incident_id": "inc-3974e58a",
+ "set": "p2e",
+ "answer": {
+  "scenario": "productCatalogLockContention",
+  "variant": "on",
+  "noise_layer": null,
+  "injection_start": "2026-11-28T06:23:49Z",
+  "injection_end": "2026-11-28T06:33:50Z",
+  "root_cause_service": "product-catalog",
+  "fault_type": "latency",
+  "propagation_path": [
+   [
+    "product-catalog",
+    "frontend"
+   ],
+   [
+    "product-catalog",
+    "recommendation"
+   ],
+   [
+    "product-catalog",
+    "checkout"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "silent"
+  ]
+ },
+ "window": {
+  "start": "2026-11-28T06:10:09Z",
+  "end": "2026-11-28T06:35:37Z"
+ },
+ "checks": {
+  "baseline_health": {
+   "frontend_p95_ms": 24.4,
+   "reference_ms": 25.3,
+   "threshold_ms": 50.6,
+   "pass": true,
+   "measured_at": "2026-11-28T06:23:48Z"
+  },
+  "coverage": {
+   "traces": {
+    "bytes": 137769099,
+    "mb_per_min": 5.41,
+    "oldest_utc": "2026-11-28T04:40:36Z",
+    "covered": true
+   },
+   "metrics": {
+    "bytes": 48362849,
+    "mb_per_min": 1.9,
+    "oldest_utc": "2026-11-25T00:59:05Z",
+    "covered": true
+   },
+   "logs": {
+    "bytes": 45459302,
+    "mb_per_min": 1.78,
+    "oldest_utc": "2026-11-25T01:44:41Z",
+    "covered": true
+   }
+  },
+  "leakage": {
+   "findings": 0,
+   "first": []
+  },
+  "symptom": {
+   "service": "product-catalog",
+   "min_requests": 10,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "operation",
+    "operation": "oteldemo.ProductCatalogService/ListProducts",
+    "signal": "p99_ms",
+    "strength": 1468.105,
+    "requests": [
+     670,
+     332
+    ],
+    "values": [
+     3.5,
+     29365.6
+    ]
+   },
+   "service_level": {
+    "level": "service",
+    "signal": "p99_ms",
+    "strength": 1418.86
+   },
+   "operation_level": {
+    "level": "operation",
+    "operation": "oteldemo.ProductCatalogService/ListProducts",
+    "signal": "p99_ms",
+    "strength": 1468.105,
+    "requests": [
+     670,
+     332
+    ],
+    "values": [
+     3.5,
+     29365.6
+    ]
+   }
+  },
+  "event": {
+   "applied": true,
+   "pass": true,
+   "requests_after": 332,
+   "basis": "operation oteldemo.ProductCatalogService/ListProducts",
+   "min_requests": 10
+  },
+  "monitoring_health": {
+   "opensearch": {
+    "sent_series": 1,
+    "sent": 31203.0,
+    "send_failed": 0.0,
+    "enqueue_failed": 0.0
+   },
+   "exporters": {
+    "file/traces": {
+     "sent": 103372.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/metrics": {
+     "sent": 111774.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/logs": {
+     "sent": 31203.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "debug": {
+     "sent_series": 3,
+     "sent": 246349.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "jaeger_storage_exporter": {
+     "sent_series": 1,
+     "sent": 100165.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "opensearch": {
+     "sent_series": 1,
+     "sent": 31203.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_grpc/jaeger": {
+     "sent_series": 1,
+     "sent": 103372.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_http/prometheus": {
+     "sent_series": 1,
+     "sent": 111774.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    }
+   },
+   "receiver_refused": 0.0
+  }
+ },
+ "valid": true,
+ "invalid_reasons": [],
+ "marks": [],
+ "run": {
+  "list_entry": {
+   "scenario": "productCatalogLockContention_on",
+   "noise_layer": null,
+   "set": "p2e"
+  },
+  "versions": {
+   "repo_commit": "5315c6c2032124fa91eb9e57c5a5229a474a6406",
+   "demo_commit": "dedc0178918e260823323b8d95005a8cb924b007",
+   "demo_env": {
+    "IMAGE_VERSION": "3.0.0",
+    "DEMO_VERSION": "latest",
+    "COLLECTOR_CONTRIB_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0",
+    "COLLECTOR_EBPF_PROFILER_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-ebpf-profiler:0.159.0",
+    "FIREPIT_IMAGE": "ghcr.io/florianl/firepit:v0.1.0",
+    "FLAGD_IMAGE": "ghcr.io/open-feature/flagd:v0.16.0",
+    "GRAFANA_IMAGE": "grafana/grafana:13.1.0",
+    "JAEGERTRACING_IMAGE": "quay.io/jaegertracing/jaeger:2.19.0",
+    "POSTGRES_IMAGE": "postgres:18.4",
+    "PROMETHEUS_IMAGE": "quay.io/prometheus/prometheus:v3.13.1",
+    "VALKEY_IMAGE": "ghcr.io/valkey-io/valkey:9.0.4-alpine3.23"
+   }
+  },
+  "guards": {
+   "ac_online": "1",
+   "charge_limit": "80",
+   "battery_pct": "80",
+   "pkg_temp_c": 58.0,
+   "free_disk_gb": 253.0,
+   "monitoring_gb": 3.83,
+   "snapshot_gb": 22.1,
+   "swap_free_gb": 2.35,
+   "power_profile": "balanced",
+   "inhibited": true,
+   "gnome_inhibited": true,
+   "leftovers": [],
+   "problems": []
+  },
+  "times": {
+   "start": "2026-11-28T06:06:39Z",
+   "demo_up": "2026-11-28T06:07:09Z",
+   "collector_restarted": "2026-11-28T06:07:13Z",
+   "normal_start": "2026-11-28T06:12:09Z",
+   "flag_on_write_productCatalogLockContention": "2026-11-28T06:23:49Z",
+   "flag_on_verified_productCatalogLockContention": "2026-11-28T06:23:50Z",
+   "flag_off_write_productCatalogLockContention": "2026-11-28T06:33:50Z",
+   "flag_off_verified_productCatalogLockContention": "2026-11-28T06:33:52Z",
+   "tail_end": "2026-11-28T06:35:37Z",
+   "demo_down": "2026-11-28T06:36:16Z",
+   "snapshot_cut": "2026-11-28T06:36:27Z"
+  },
+  "containers": {
+   "after_collector_restart": 23,
+   "at_flag_on": 23,
+   "at_flag_off": 23
+  },
+  "collector_restarted": true,
+  "restarts_in_window": [],
+  "expected_restarts": [],
+  "suspended_s": -0.0,
+  "max_pkg_temp_c": 73.0,
+  "memory": {
+   "jaeger": {
+    "peak_mib": 2500.0,
+    "current_mib": 1610.8,
+    "anon_mib": 600.3,
+    "file_mib": 964.0,
+    "swap_mib": 140.2,
+    "swap_peak_mib": 311.2,
+    "max": 5412,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "otel-collector": {
+    "peak_mib": 330.2,
+    "current_mib": 279.6,
+    "anon_mib": 100.4,
+    "file_mib": 170.5,
+    "swap_mib": 0.0,
+    "swap_peak_mib": 0.0,
+    "max": 0,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "jaeger_heap_peak_mib": 1846.1,
+   "jaeger_cpu_avg_cores": 0.067,
+   "collector_sampled_peak_mib": 118.9,
+   "jaeger_anon_peak_mib": 1524.2,
+   "jaeger_swap_peak_mib": 148.9
+  },
+  "anonymous_volumes_removed": {
+   "66c988d9bbfe625bb3a8a8d4c428410955abddeff99c46609308733099a7531d": 0
+  },
+  "duration_s": 1856,
+  "snapshot_bytes": 231591315,
+  "overheat": false,
+  "baseline_failed": false,
+  "coverage_short": false,
+  "leakage_found": false,
+  "fault_state": null,
+  "target_ips": null,
+  "min_swap_free_gb": 2.14,
+  "export_failures": {
+   "otlp_grpc_jaeger": 0.0,
+   "jaeger_storage_exporter": 0.0,
+   "collector_refused": 0.0
+  },
+  "schedule": {
+   "seed": 2679006802,
+   "normal_s": 699,
+   "tail_s": 107
+  },
+  "scheduler": "stopped"
+ }
+}

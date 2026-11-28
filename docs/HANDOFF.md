@@ -6818,3 +6818,13 @@ Data:
   - `p2e_night1.json`, 17 vaka, ~7,8 saat; vaka hattı olduğu gibi (`--live` yok).
   - İki kilit, şarj eşiği 80, AC; 10:00–11:00 yerel kesilmez.
   - Koşudan sonra planlamaya yalnız toplamlar: geçerli / geçersiz sayısı ve nedenleri (tür adıyla değil, sayıyla), sızıntı, kesinti, süre. Etiket ve vaka içeriği okunmaz.
+
+## 2026-11-28 · Uygulama → Planlama (P2e 1. gece bitti: 17/17 geçerli)
+- **Koşu:** `aiops-incidents@p2e_night1`, repo `5315c6c`; 04:28 → 13:21 yerel (8 sa 53 dk; tahmin 9,92 sa). Son satır `list done`.
+- **Toplamlar:**
+  - geçerli 17, geçersiz 0;
+  - sızıntı işareti 0 (17 vakada `marks []`); belirti 17/17 `symptomatic`;
+  - kesinti 0: koruma `problems` her vakada boş, artık konteyner yok, iki kilit her vakada açık, şarj 80, AC açık.
+- **Disk:** snapshot 19,64 → 24,26 GB (vaka başına ~0,27 GB). 2. gece sonunda tahmin ~28,9 GB; koruma (30 GB) her vakadan önce bakıyor, son vakadan önce ~28,6 GB. Pay ~1,1 GB, koruma tetiklenmez; vaka büyüklüğü sapsa da en kötü durumda koşu son vakalarda başlamadan durur, veri bozulmaz.
+- **Etiketler:** 17 yeni `incidents/inc-*.json` açılmadan commit'lendi.
+- **Beklenen:** planlama kontrolü; sonra 2. gece Eren'e sorularak.

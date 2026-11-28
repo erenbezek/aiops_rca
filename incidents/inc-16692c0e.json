@@ -1,0 +1,277 @@
+{
+ "incident_id": "inc-16692c0e",
+ "set": "p2e",
+ "answer": {
+  "scenario": "paymentFailure",
+  "variant": "50%",
+  "noise_layer": "loadGeneratorFloodHomepage",
+  "injection_start": "2026-11-28T05:52:20Z",
+  "injection_end": "2026-11-28T06:02:22Z",
+  "root_cause_service": "payment",
+  "fault_type": "error",
+  "propagation_path": [
+   [
+    "payment",
+    "checkout"
+   ],
+   [
+    "checkout",
+    "frontend"
+   ]
+  ],
+  "categories": [
+   "cascading",
+   "noisy"
+  ]
+ },
+ "window": {
+  "start": "2026-11-28T05:38:22Z",
+  "end": "2026-11-28T06:04:11Z"
+ },
+ "checks": {
+  "baseline_health": {
+   "frontend_p95_ms": 24.3,
+   "reference_ms": 25.3,
+   "threshold_ms": 50.6,
+   "pass": true,
+   "measured_at": "2026-11-28T05:52:15Z"
+  },
+  "coverage": {
+   "traces": {
+    "bytes": 214189264,
+    "mb_per_min": 8.3,
+    "oldest_utc": "2026-11-28T03:44:29Z",
+    "covered": true
+   },
+   "metrics": {
+    "bytes": 49356581,
+    "mb_per_min": 1.91,
+    "oldest_utc": "2026-11-25T00:59:05Z",
+    "covered": true
+   },
+   "logs": {
+    "bytes": 65587710,
+    "mb_per_min": 2.54,
+    "oldest_utc": "2026-11-25T01:44:41Z",
+    "covered": true
+   }
+  },
+  "leakage": {
+   "findings": 0,
+   "first": []
+  },
+  "symptom": {
+   "service": "payment",
+   "min_requests": 10,
+   "verdict": "symptomatic",
+   "deciding": {
+    "level": "service",
+    "signal": "error_rate",
+    "strength": 8.667
+   },
+   "service_level": {
+    "level": "service",
+    "signal": "error_rate",
+    "strength": 8.667
+   },
+   "operation_level": {
+    "level": "operation",
+    "operation": "oteldemo.PaymentService/Charge",
+    "signal": "error_rate",
+    "strength": 8.667,
+    "requests": [
+     23,
+     30
+    ],
+    "values": [
+     0.0,
+     0.4333
+    ]
+   }
+  },
+  "event": {
+   "applied": true,
+   "pass": true,
+   "requests_after": 30,
+   "basis": "service total",
+   "min_requests": 10
+  },
+  "monitoring_health": {
+   "opensearch": {
+    "sent_series": 1,
+    "sent": 45877.0,
+    "send_failed": 0.0,
+    "enqueue_failed": 0.0
+   },
+   "exporters": {
+    "file/traces": {
+     "sent": 169372.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/metrics": {
+     "sent": 112619.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "file/logs": {
+     "sent": 45829.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "debug": {
+     "sent_series": 3,
+     "sent": 327820.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "jaeger_storage_exporter": {
+     "sent_series": 1,
+     "sent": 173578.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "opensearch": {
+     "sent_series": 1,
+     "sent": 45877.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_grpc/jaeger": {
+     "sent_series": 1,
+     "sent": 169313.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    },
+    "otlp_http/prometheus": {
+     "sent_series": 1,
+     "sent": 112619.0,
+     "send_failed": 0.0,
+     "enqueue_failed": 0.0
+    }
+   },
+   "receiver_refused": 0.0
+  }
+ },
+ "valid": true,
+ "invalid_reasons": [],
+ "marks": [],
+ "run": {
+  "list_entry": {
+   "scenario": "paymentFailure_50pct",
+   "noise_layer": "loadGeneratorFloodHomepage_on",
+   "set": "p2e"
+  },
+  "versions": {
+   "repo_commit": "5315c6c2032124fa91eb9e57c5a5229a474a6406",
+   "demo_commit": "dedc0178918e260823323b8d95005a8cb924b007",
+   "demo_env": {
+    "IMAGE_VERSION": "3.0.0",
+    "DEMO_VERSION": "latest",
+    "COLLECTOR_CONTRIB_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0",
+    "COLLECTOR_EBPF_PROFILER_IMAGE": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-ebpf-profiler:0.159.0",
+    "FIREPIT_IMAGE": "ghcr.io/florianl/firepit:v0.1.0",
+    "FLAGD_IMAGE": "ghcr.io/open-feature/flagd:v0.16.0",
+    "GRAFANA_IMAGE": "grafana/grafana:13.1.0",
+    "JAEGERTRACING_IMAGE": "quay.io/jaegertracing/jaeger:2.19.0",
+    "POSTGRES_IMAGE": "postgres:18.4",
+    "PROMETHEUS_IMAGE": "quay.io/prometheus/prometheus:v3.13.1",
+    "VALKEY_IMAGE": "ghcr.io/valkey-io/valkey:9.0.4-alpine3.23"
+   }
+  },
+  "guards": {
+   "ac_online": "1",
+   "charge_limit": "80",
+   "battery_pct": "80",
+   "pkg_temp_c": 58.0,
+   "free_disk_gb": 253.4,
+   "monitoring_gb": 3.46,
+   "snapshot_gb": 21.77,
+   "swap_free_gb": 2.33,
+   "power_profile": "balanced",
+   "inhibited": true,
+   "gnome_inhibited": true,
+   "leftovers": [],
+   "problems": []
+  },
+  "times": {
+   "start": "2026-11-28T05:34:52Z",
+   "demo_up": "2026-11-28T05:35:22Z",
+   "collector_restarted": "2026-11-28T05:35:26Z",
+   "normal_start": "2026-11-28T05:40:22Z",
+   "flag_on_write_paymentFailure": "2026-11-28T05:52:20Z",
+   "flag_on_verified_paymentFailure": "2026-11-28T05:52:21Z",
+   "flag_on_write_loadGeneratorFloodHomepage": "2026-11-28T05:52:21Z",
+   "flag_on_verified_loadGeneratorFloodHomepage": "2026-11-28T05:52:22Z",
+   "flag_off_write_paymentFailure": "2026-11-28T06:02:22Z",
+   "flag_off_verified_paymentFailure": "2026-11-28T06:02:23Z",
+   "flag_off_write_loadGeneratorFloodHomepage": "2026-11-28T06:02:23Z",
+   "flag_off_verified_loadGeneratorFloodHomepage": "2026-11-28T06:02:24Z",
+   "tail_end": "2026-11-28T06:04:11Z",
+   "demo_down": "2026-11-28T06:04:48Z",
+   "snapshot_cut": "2026-11-28T06:04:59Z"
+  },
+  "containers": {
+   "after_collector_restart": 23,
+   "at_flag_on": 23,
+   "at_flag_off": 23
+  },
+  "collector_restarted": true,
+  "restarts_in_window": [],
+  "expected_restarts": [],
+  "suspended_s": -0.0,
+  "max_pkg_temp_c": 71.0,
+  "memory": {
+   "jaeger": {
+    "peak_mib": 2500.0,
+    "current_mib": 1727.0,
+    "anon_mib": 705.1,
+    "file_mib": 970.5,
+    "swap_mib": 106.7,
+    "swap_peak_mib": 331.5,
+    "max": 4500,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "otel-collector": {
+    "peak_mib": 400.0,
+    "current_mib": 395.7,
+    "anon_mib": 104.8,
+    "file_mib": 277.9,
+    "swap_mib": 0.0,
+    "swap_peak_mib": 0.0,
+    "max": 281,
+    "oom": 0,
+    "oom_kill": 0
+   },
+   "jaeger_heap_peak_mib": 1846.3,
+   "jaeger_cpu_avg_cores": 0.092,
+   "collector_sampled_peak_mib": 166.9,
+   "jaeger_anon_peak_mib": 1518.2,
+   "jaeger_swap_peak_mib": 188.5
+  },
+  "anonymous_volumes_removed": {
+   "e326fa0d15d058ae39ac076442614e9501c2a80f0e63d1ff6e0440e42fc6d47d": 0
+  },
+  "duration_s": 1907,
+  "snapshot_bytes": 329133620,
+  "overheat": false,
+  "baseline_failed": false,
+  "coverage_short": false,
+  "leakage_found": false,
+  "fault_state": null,
+  "target_ips": null,
+  "min_swap_free_gb": 2.06,
+  "export_failures": {
+   "otlp_grpc_jaeger": 0.0,
+   "jaeger_storage_exporter": 0.0,
+   "collector_refused": 0.0
+  },
+  "schedule": {
+   "seed": 2115099489,
+   "normal_s": 713,
+   "tail_s": 109
+  },
+  "scheduler": "stopped"
+ }
+}
