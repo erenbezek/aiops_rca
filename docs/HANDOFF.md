@@ -6703,3 +6703,19 @@ Data:
   - Geçer: teknik kesinti 0 ve `budget` bitişi 0. Değilse durulur, planlamaya.
   - Kayda: ilk mesaj token (en az / en çok), 4B vaka başı süre (4. madde süre tahmini için).
 - **Not:** B'de bütçenin ~1/3'ünü tablo kullanır; eski araç sonuçları A'dan daha erken kısalır. Bu, değişikliğin bedelidir ve sonuçla birlikte okunur.
+
+## 2026-11-28 · Uygulama → Planlama (P2e 2. madde: B kolu kodu ve testleri; duman Eren'e sorulacak)
+- **Eren onayı ("onaylı"):** plan ve adlar `--narrowed-start`, `NARROWED_START` (koddan önce). GLOSSARY kod commit'inden sonra (bu commit).
+- **Kod (`461e300`):**
+  - `methods/agent.py`: `NARROWED_START = LEVEL_TEXT["narrowed"] + "\n\nData:\n{data}"` (yeni İngilizce metin yok, P1'in açıklaması ve "Data:" satırı birebir); `narrowed_start_text(case)` = `NARROWED_START.format(data=summary_text(narrowed_table(case)))` (P1'in işlevleri değişmeden). `run_case` / `agent_method` `narrowed_start=False`; açıkken görev mesajının sonuna `"\n\n" + blok`.
+  - `prompt_sha256(narrowed_start)`: kapalıyken parça listesi aynı → A `5e259201…` (test donmuş); açıkken `NARROWED_START` eklenir → B **`d237c17e93f82acf…`** (testte donmuş). `run.json` ayarına `narrowed_start: true` yalnız açıkken (A'nın ayarları birebir).
+  - `evaluate.py`: `run --method agent --narrowed-start`; başka yöntemle `ValueError` (çıkış 2). Canlı mod (`agent_live.py`) dokunulmadı; B yalnız dosya modunda.
+  - `fit_history` değişmedi: görev mesajını hiç kısaltmıyor, yalnız araç sonuçlarını ize indiriyor (5. kural aynen).
+- **Testler (`tests/test_agent.py`, 4 yeni):**
+  - (a) CI'daki 4 örnekte blok = P1 açıklaması + "Data:" + donmuş `narrowed_expected.json` metni, bayt aynı; P1'in kullanıcı mesajı aynı satırla bitiyor.
+  - (b) `fit_history` her bütçede görevi birebir bırakıyor; görev sığmazsa `None` (kısaltma yok).
+  - (c) Uçtan uca dosya modu, A ve B: B'de bütün isteklerin görev mesajı = A'nın görevi + blok (kırpma sırasında da); ayarlar ve iki sha; `--narrowed-start` başka yöntemde reddediliyor.
+  - (d) Blok yalnız snapshot klasöründen okuyor; `incidents/` açılmıyor (open izleyicisiyle).
+  - (e) Kasıtlı kırmızı (scratch klon): tablonun bir karakteri değişince (a) kırmızı; görev kısaltılabilir olunca (b) kırmızı. İkisi de beklendiği gibi.
+  - `pytest` 893 geçti; beş `--check` 0.
+- **Sıradaki:** duman (2 pilot vaka, B, Gemini + 4B; ~15 dk) Eren'e sorularak; sonra planlama kontrolü.
