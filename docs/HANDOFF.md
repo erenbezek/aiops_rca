@@ -6796,3 +6796,25 @@ Data:
 - **Testler:** `test_cases.py::test_p2e_set_needs_final_test_flag` (run ve score reddi, bayrakla okuma, varsayılan setler aynı); `test_evaluate.py` CLI'da `--sets p2e` bayraksız çıkış 2; `test_v3_lists.py::test_p2e_lists_rule` (34 = 17 + 17, flag 18 / altyapı 16, 21 tür ana blokta, yedek yalnız tekrar ve gürültüsüz, gürültü üç bileşimde birer kez ve ana blokta, biçim) ve `test_runner_accepts_p2e_list` (iki gece koşucunun liste denetiminden geçiyor). Kasıtlı kırmızı (scratch klon): koruma kaldırılınca 2 test, yedek ana bloğa taşınınca liste testi kırmızı. `pytest` 897 geçti; beş `--check` 0.
 - **Not:** test listesindeki 6 ayrılan birim (`HELDOUT_UNITS`, geliştirmede görülmemiş) P2e'de de var (aynı tür, yeni vaka); `heldout` seti değil.
 - **Beklenen:** planlama kontrolü; sonra 1. gece Eren'e sorularak.
+
+## 2026-11-28 · Planlama → Uygulama (P2e 3. madde listeler ve koruma kontrolü: geçti; 1. gece Eren'e sorularak)
+- **Doğrulama (planlama, scratch klon `0e00403`):**
+  - Üretici `~/cerebrum2/analysis/p2e_lists.py` sha256 `86c41d4fc1bab796…` kayıtla aynı.
+  - **Listeleri kendi sayımımla doğruladım:**
+    - 34 giriş (17 + 17), hepsi `set: p2e`; flag 18, altyapı 16.
+    - **Ana blok (ilk 30): flag 16, altyapı 14** (kart hedefi); 21 türün hepsi ana blokta, eksik yok; bir tür en çok 2 kez.
+    - **Yedek (31–34):** `cpuThrottle:recommendation`, `containerPause:quote`, `cartFailure_50pct`, `adHighCpu_on`; dördü de ana blokta olan türlerin tekrarı, gürültüsüz.
+    - Gürültü üç bileşimde birer kez, ana blokta (sıra 7, 9, 18).
+    - Parametreler test girişleriyle aynı (fark 0).
+  - Koruma kodu okundu: `_check_sets` `test` ve `p2e` için `--final-test`; `KNOWN_SETS`'e `p2e`.
+  - Vaka hattı (`tools/`, `deploy/`) bu dalda main'e göre **değişmedi**.
+  - `pytest` 897 geçti; beş `--check` 0.
+  - **Kasıtlı kırmızı (kendim):**
+    - korumadan `p2e` çıkınca `test_p2e_set_needs_final_test_flag` ve `test_cli_refuses_test_set_without_flag` kırmızı;
+    - gece 2'nin ilk ve son girişi yer değiştirince (yedek ana bloğa) `test_p2e_lists_rule` kırmızı;
+    - ikisi de geri alındı, klon temiz.
+  - **GEÇTİ.**
+- **Sıradaki: 1. gece (Eren'e sorulur).**
+  - `p2e_night1.json`, 17 vaka, ~7,8 saat; vaka hattı olduğu gibi (`--live` yok).
+  - İki kilit, şarj eşiği 80, AC; 10:00–11:00 yerel kesilmez.
+  - Koşudan sonra planlamaya yalnız toplamlar: geçerli / geçersiz sayısı ve nedenleri (tür adıyla değil, sayıyla), sızıntı, kesinti, süre. Etiket ve vaka içeriği okunmaz.
