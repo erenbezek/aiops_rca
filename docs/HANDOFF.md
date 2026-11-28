@@ -6764,3 +6764,24 @@ Data:
 - **Geçersiz vaka kuralı:** vaka hattındaki gibi (`valid`), değişmez. Önceden yazılı (1. madde): geçerliler üretim sırasıyla (gece 1 sonra gece 2), **ilk 30'u** kullanılır; 30'dan az geçerli çıkarsa durulur, planlamaya.
 - **Kod gereği (küçük, onaya):** `src/aiops_rca/cases.py` `KNOWN_SETS`'e `"p2e"` girmeli (yoksa `load_cases` reddeder). Koşucu `set`'i girişten olduğu gibi yazıyor, değişiklik yok. Soru planlamaya: `p2e` içeriği koşulardan önce kodla korunsun mu (`test`'in `--final-test`'i gibi), yoksa kural yeterli mi (uygulama ve planlama koşulardan önce yalnız toplam görür)? Uygulamanın önerisi: kural yeterli; koruma eklemek P2d kodunu genişletir.
 - **Beklenen:** planlama kontrolü; sonra listeler + `KNOWN_SETS` tek commit, sonra 1. gece Eren'e sorularak.
+
+## 2026-11-28 · Planlama → Uygulama (P2e 3. madde liste kontrolü: bir düzeltmeyle; `p2e` korunur)
+- **Doğrulama (planlama):**
+  - `~/cerebrum2/analysis/p2e_lists.py` sha256 `bb21bdc9a83428b8…` okundu. Test girişlerinden yalnız senaryo / hata / hedef / parametre alıyor; etiket ve vaka kimliği okunmuyor.
+  - Kayıttaki sıradan kendim saydım: gece 1 flag 9 / altyapı 8, gece 2 flag 9 / altyapı 8, toplam 34; tekrar 13 (flag 7, altyapı 6). Kayıtla aynı.
+- **Sorun (düzeltilir):** "ilk 30 geçerli" kuralı karışık sırayla birleşince tür kaybı oluyor.
+  - 34'ün hepsi geçerli çıkarsa atılan son 4 giriş: `cpuThrottle:product-catalog` (listedeki **tek** kopyası), `containerPause:quote` (**iki kopyası birden**), `productCatalogLockContention_on` + gürültü.
+  - Sonuç: 21 türün **ikisi değerlendirmede hiç olmaz**, gürültülü üç bileşimden biri düşer. Kartın "test setiyle aynı katalog dağılımı" şartı tutmaz.
+- **Düzeltilmiş kural (planlama; belirlenimci, sonuca bakmadan):**
+  1. **Ana blok (30):** 21 temel giriş + 13 tekrardan tohumla seçilen 9. Gürültü katmanı üç bileşimin **temel** girişinde. Ana blok tohumla karışık.
+  2. **Yedek (4):** kalan 4 tekrar, tohumla sıralı, **listenin sonunda** (2. gecenin son 4 sırası).
+  3. Geceler: ilk 17 → gece 1, kalan 17 → gece 2 (ana bloğun son 13'ü + 4 yedek).
+  4. Değerlendirme kuralı aynen: geçerliler üretim sırasıyla, ilk 30'u. Ana bloktan geçersiz çıkan olursa yerine sıradaki yedek girer. Bileşim kaymaları kayda yazılır.
+  5. Bütün 21 tür ancak geçersiz vaka yüzünden düşebilir; düşerse kayda.
+- **Küçük not:** betik açıklamasındaki "gürültü her birinin ilk girişinde" karıştırmadan önceki sıraya göreydi; karıştırmadan sonra ikinci kopyaya düşebiliyordu (paymentFailure_50pct, quoteGatewaySlowdown_30ms, productCatalogLockContention_on). Yeni kuralda gürültü temel girişte, sorun kalkar.
+- **Soru: `p2e` kodla korunsun mu? (planlama kararı) Evet.** `test`'in `--final-test` koruması `p2e`'ye de uygulanır: `run` ve `score`'da `p2e` yalnız `--final-test` ile.
+  - Neden: P2e'nin bütün değeri vakalara bakılmamış olmasında. Kural tek başına bir yanlış komutla bozulabilir (ör. geliştirme sırasında `--sets p2e`), bunun bedeli ise geri alınamaz. Değişiklik küçük: korunan setler listesine bir ad.
+  - Ölçüt: `p2e` `--final-test`'siz `run` ve `score`'da reddedilir (test). `test` ve öteki setlerin davranışı değişmez. Beş `--check` 0.
+- **Sıradaki tek commit:** düzeltilmiş üretici (yeni sha kayda), iki liste, `KNOWN_SETS`'e `p2e`, koruma ve testi.
+  - Planlama, kontrolde listenin son 4'ünün yalnız tekrar olduğunu ve 21 türün ana blokta bulunduğunu kendisi sayar.
+  - Sonra 1. gece Eren'e sorularak (~7,8 saat; iki kilit, şarj eşiği 80; 10:00–11:00 yerel kesilmez).
