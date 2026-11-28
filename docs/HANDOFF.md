@@ -6828,3 +6828,30 @@ Data:
 - **Disk:** snapshot 19,64 → 24,26 GB (vaka başına ~0,27 GB). 2. gece sonunda tahmin ~28,9 GB; koruma (30 GB) her vakadan önce bakıyor, son vakadan önce ~28,6 GB. Pay ~1,1 GB, koruma tetiklenmez; vaka büyüklüğü sapsa da en kötü durumda koşu son vakalarda başlamadan durur, veri bozulmaz.
 - **Etiketler:** 17 yeni `incidents/inc-*.json` açılmadan commit'lendi.
 - **Beklenen:** planlama kontrolü; sonra 2. gece Eren'e sorularak.
+
+## 2026-11-28 · Planlama → Uygulama (P2e 1. gece kontrolü: toplamlar geçti; bir test kırmızı, 2. geceden önce düzelt)
+- **Doğrulanan** (scratch klon `618bb35`, kendi betiklerim, yalnız toplamlar):
+  - günlük: geçerli 17, geçersiz 0; `marks []` 17; `symptomatic` 17; `list done` 1; Traceback 0. Vaka süresi ortalama 1.881 sn (en az 1.706, en çok 2.072). 04:28 → 13:21 yerel.
+  - koruma satırları: `problems` 17/17 boş, `leftovers` 17/17 boş; kilit 34/34 `inhibited`; şarj 80 ve AC 17/17.
+  - commit: yalnız 17 yeni etiket + HANDOFF eklendi; eski etiket, kod, `tools/` ve `deploy/` değişmedi. Günlükteki kimlikler = eklenen dosyalar.
+  - etiketler: 17/17 `set` p2e, `valid` true; snapshot 17/17. `--final-test` olmadan okuma `PermissionError` veriyor, bayrakla 17 vaka geliyor. Toplam etiket 91 = snapshot 91.
+  - sızıntı taraması (4 süreç): 17/17 tarandı, bulgu 0, hata 0, 10,6 dk.
+  - disk: snapshot 24,26 GB; yeni 17 vaka 4,62 GB (ortalama 0,27). Boş alan 248 GB.
+- **Kırmızı:** `pytest` 896 geçti, 1 kırmızı: `tests/test_catalog.py::test_heldout_only_in_held_units`.
+  - Nedeni (sayıyla): held-out birimlere düşen etiketler test 5, heldout 13, p2e 5. Test bunlara yalnız `heldout` ve `test` setlerinde izin veriyor.
+  - Sızıntı değil: `p2e` de `test` gibi yalnız `--final-test` ile okunuyor. `p2e` izinli sete eklenince sızan 0, yanlış yerde duran 0.
+  - Kayıtta pytest sonucu yoktu; PR'da CI kırmızı olurdu.
+- **Planlamanın hatası:** günlüğe bakarken iki kez satır içeriği ekrana geldi:
+  - son satırda bir vakanın kimliği ile senaryo adı;
+  - bir desen eşleşmesinde kimliksiz bir senaryo adı.
+  Planlama koşuya ve puanlamaya dokunmuyor, ajan donmuş; sonuca etkisi yok, ama kural dışı. Bundan sonra günlükten yalnız `grep -c` ile sayı alınır.
+- **Senden (uygulama):**
+  1. `tests/test_catalog.py` 197. satırda izinli setlere `"p2e"` ekle, yanına tek satır yorum yaz (DECISIONS 2026-11-28 p2e koruması).
+     - Kasıtlı kırmızı (scratch klonda): `p2e` izinden çıkınca test kırmızı olmalı.
+     - Tüm pytest yeşil; tek commit, push.
+  2. Sonra 2. gece Eren'e sorularak:
+     - `p2e_night2.json`, 17 vaka; tahmin ~9 sa (1. gece 8 sa 53 dk);
+     - iki kilit, şarj 80, AC;
+     - disk koruması son vakadan önce ~28,6 GB'ta, tetiklenmemeli.
+  3. Gece kaydında pytest sonucu da olsun. Planlamaya yine yalnız toplamlar; günlük satırı kayda girmez.
+- **Beklenen:** test düzeltmesi + 2. gece; planlama ikisini birlikte kontrol eder.
