@@ -6652,3 +6652,22 @@ Data:
   4. **Koşular:** Gemini A, A (2. koşu), B, P1 daraltma; 4B A, B. Sıra ve süre öneride.
   5. **Puanlama ve rapor:** puanlama kodu koşudan önce donar. Rapor ayrı dosya (`results/` altında, ad öneride); P2d dosyaları değişmez; README ve PROJECT'te ayrı satır.
 - **Sonra:** `llm_cache/`, scratch klasörleri ve snapshot setinin Releases'te yayını (yeni vakalar dahil) Eren'e sorulur.
+
+## 2026-11-28 · Uygulama → Planlama (P2e 1. madde: öneri, kod yok; Eren onaylı)
+- **Eren onayı ("i, onaylı"):** aşağıdaki öneri, çıktı biçimi (i) ve beş ad.
+- **Ölçülen çakışma:** P1'in daraltma girdisi (`narrowed_table`: 5 adayın tam bloğu) dev Gemini koşusunda `data_tokens` 1.373 / 1.925,5 / 2.488 (en az / ortanca / en çok); ajanın araç çıktısı sınırı `TOOL_RESULT_TOKENS` 700. Seçenekler: (i) kısa liste, sınır içinde; (ii) tam tablo, sınırı bu araç için kaldırmak (ikinci değişiklik) ve bütçenin ~1/3'ü. **Eren: (i).**
+- **1. Araç `narrow_candidates`:**
+  - Parametre yok. Dosya snapshot'ından `candidate_narrowing(case)` (P1'in kodu, değişmeden); etiket okumaz.
+  - Çıktı: en çok 5 aday **ada göre** (P1 girdisindeki gibi; sıra ve grup verilmez), her adayda gücü ≥ 1 olan sinyallerin adları, adaylar arasındaki çağrı kenarları. Tahmini 150–300 token (2. maddede ölçülür; 700'ü aşarsa durulur).
+  - Tanım metni: "Statistical shortlist of up to 5 candidate root-cause services (from signals that changed after the alert and the call graph), in name order, with their changed signals and the calls among them. Not ranked; check them with the other tools."
+  - Adım sınırı 8 aynen; araç çağrısı bir adım. İstemde yalnız araç listesi değişir; B'nin istem sha'sı kayda.
+  - Testler: çıktı aynı vakada `candidate_narrowing`'in aday kümesi ve kenarlarıyla aynı; etiket dosyasına erişim yok; A'nın istem sha'sı `5e259201…` ve araç listesi değişmedi.
+- **2. B kolu `--narrowing-tool`:** `evaluate run --method agent` seçeneği; yokken A birebir aynı (donmuş kod yolu). Seçenek `run.json` ajan ayarlarına yazılır.
+- **3. Yeni vakalar, set `p2e`:**
+  - Bileşim test listelerinin oranıyla: test girişleri 21 (flag 11, altyapı 10) → 30 vakada flag 16, altyapı 14; senaryolar katalogdan, test listesindeki senaryo türleriyle. Dev, test, heldout, pilot kullanılmaz.
+  - Testte 21 girişin 3'ü düştü (%14); **34 giriş**, iki gece (`incident_lists/p2e_night1.json`, `p2e_night2.json`, 17 + 17; gece başı ~7,8 saat, 27,4 dk / vaka). Önceden yazılı kural: geçerli vakalar üretim sırasıyla, **ilk 30'u** kullanılır; 30'dan az geçerli çıkarsa durulur, planlamaya.
+  - Liste ayrıntısı (senaryo / hedef / parametre) 2. maddede koddan önce planlamaya.
+- **4. Koşular:** Gemini A, A (2. koşu), B, P1 daraltma (Gemini, `narrowed`); 4B A, B (~4,3 dk / vaka, iki kol ~4,3 saat). Hepsi dosya modunda. Sıra 4. maddede; uzun koşulardan önce Eren'e.
+- **5. Rapor:** `results/p2e.md`, `results/p2e.json` (`tools/agent_report.py --report p2e`); P2d dosyaları değişmez.
+- **Yeni adlar (Eren onaylı 2026-11-28):** `narrow_candidates`, `--narrowing-tool`, set `p2e` (ve `--report p2e`), `incident_lists/p2e_night1.json` / `p2e_night2.json`, `results/p2e.md` / `.json`. GLOSSARY kod commit'inden sonra.
+- **Beklenen:** planlama kontrolü; sonra 2. madde (kod + testler).
