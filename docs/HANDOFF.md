@@ -6671,3 +6671,35 @@ Data:
 - **5. Rapor:** `results/p2e.md`, `results/p2e.json` (`tools/agent_report.py --report p2e`); P2d dosyaları değişmez.
 - **Yeni adlar (Eren onaylı 2026-11-28):** `narrow_candidates`, `--narrowing-tool`, set `p2e` (ve `--report p2e`), `incident_lists/p2e_night1.json` / `p2e_night2.json`, `results/p2e.md` / `.json`. GLOSSARY kod commit'inden sonra.
 - **Beklenen:** planlama kontrolü; sonra 2. madde (kod + testler).
+
+## 2026-11-28 · Planlama → Uygulama (P2e 1. madde kontrolü: B kolunun biçimi değişti, Eren kararı "tam tablo ilk mesajda")
+- **Kontrol:**
+  - Önerinin çoğu kalır:
+    - set `p2e`, 34 giriş / ilk 30 geçerli kuralı;
+    - bileşim (flag 16, altyapı 14; test listelerinin oranı, toplamlarla);
+    - koşular, rapor adları.
+  - Bütçe kuralı okundu (`methods/agent.py` 5. kural): tam mesaj ≤ `TOTAL_BUDGET` 6.000; sığmazsa en eski **araç sonucu** tek satıra iner.
+- **Zayıf nokta:**
+  - Testteki fark (Gemini top-1 15/18 ↔ 10/18), modelin 5 adayın **tam veri bloğunu** gördüğü P1 daraltmasından geliyordu.
+  - (i) kısa listesi yalnız adları ve sinyal adlarını veriyor (~150–300 token).
+  - Farkın ne kadarının aday daraltmasından, ne kadarının verinin kendisinden geldiği bilinmiyor.
+  - Etki küçük çıkarsa 30 vakada sonuç büyük olasılıkla "ayırt edilemedi" olur: deneme kararı değiştiremeyebilir.
+- **Karar (Eren, 2026-11-28): B kolunda ajan, P1 daraltmasının tam tablosuyla başlar.**
+  - Araç çağrısı yok. Tablo ilk kullanıcı mesajında, P1'in aynı işleviyle, değişmeden üretilir (`narrowed_table`; P1 girdisindeki metin birebir).
+  - Sonra aynı araçlarla, aynı sınırlarla (8 / 700 / 6000 / 300).
+  - Tablo bütçede kısaltılmaz. Yalnız araç sonuçları kısalır; kural aynen.
+  - Tek değişiklik: "ajana daraltmanın tam girdisi verilir". (i) ve (ii) düştü.
+- **Adlar:** onaylı `narrow_candidates` ve `--narrowing-tool` düştü (artık araç yok). Uygulama yerlerine yeni adları koddan önce Eren'e önerir (B kolunun seçeneği ve ilk mesaj bloğu). Öteki onaylı adlar kalır: set `p2e`, iki gece listesi, `results/p2e.*`, `--report p2e`.
+- **Ölçütler (2026-11-28 kartı) aynen.** Bilgi satırı "P1 daraltma tek başına" artık şunu gösterir: tablonun üstüne ajanın araç kullanımının bir şey katıp katmadığı.
+- **2. madde (kod + testler) için ek ölçütler (koddan önce):**
+  - (a) B'nin ilk mesajındaki tablo, aynı vakada P1'in daraltma girdisindeki tabloyla **bayt aynı**.
+  - (b) `fit_history` tabloyu hiç kısaltmaz; bütçe dolunca yalnız araç sonuçları kısalır. Test: yapay uzun geçmişle.
+  - (c) A birebir aynı: istem sha `5e259201…`, mesajlar ve araç listesi değişmez. B'nin istem sha'sı ayrı ve kayda.
+  - (d) Etiket okunmaz (dosya erişimi testi).
+  - (e) Kasıtlı kırmızı: tablo bir karakter değişince (a) kırmızı; tablo kısaltılabilir olunca (b) kırmızı.
+  - (f) `pytest`, beş `--check`; CI kapanış PR'ında.
+- **Duman denemesi (2. maddenin sonunda, Eren'e sorarak; P2e vakaları değil):**
+  - Bilinen 2 pilot vakada B, Gemini ve 4B. Yalnız teknik okunur: `end_reason`, ilk mesajın token sayısı, `budget` bitişi, süre. **İsabet okunmaz, kayda girmez.**
+  - Geçer: teknik kesinti 0 ve `budget` bitişi 0. Değilse durulur, planlamaya.
+  - Kayda: ilk mesaj token (en az / en çok), 4B vaka başı süre (4. madde süre tahmini için).
+- **Not:** B'de bütçenin ~1/3'ünü tablo kullanır; eski araç sonuçları A'dan daha erken kısalır. Bu, değişikliğin bedelidir ve sonuçla birlikte okunur.
