@@ -6719,3 +6719,9 @@ Data:
   - (e) Kasıtlı kırmızı (scratch klon): tablonun bir karakteri değişince (a) kırmızı; görev kısaltılabilir olunca (b) kırmızı. İkisi de beklendiği gibi.
   - `pytest` 893 geçti; beş `--check` 0.
 - **Sıradaki:** duman (2 pilot vaka, B, Gemini + 4B; ~15 dk) Eren'e sorularak; sonra planlama kontrolü.
+- **Duman (Eren "başlatabilirsin"; 03:59–04:12 yerel; iki kilit, şarj eşiği 80, AC):** 2 pilot vaka (`inc-01a609bb`, `inc-01dd32ce`), B (`--narrowed-start`), `--root llm_cache` (`20261128T005958Z-agent` Gemini, `20261128T010112Z-agent` 4B); ayarlarda `narrowed_start: true`, sha `d237c17e…`. Yalnız teknik okundu, isabet okunmadı.
+  - Teknik kesinti 0 (dört vakada `no_answer` yok, şema geçerli, çıkış 0); `budget` bitişi 0. **Geçti.**
+  - İlk mesaj (görev + tablo) token: en az 3.412, en çok 3.494 (bütçe 6.000).
+  - Bitişler: Gemini `answer` ×2 (araç 4 / 2); 4B `answer` (2) ve `step_limit` (8).
+  - Kırpma: Gemini en büyük tam mesaj 5.761, ize inen 0; 4B en büyük 5.952, ize inen en çok 6 sonuç (step_limit vakasında; beklenen bedel, planlama notu).
+  - 4B vaka başı süre 207,6 ve 478,6 sn (ortalama ~5,7 dk; P2d A ~4,3 dk). 4. madde süre tahmini: 4B B kolu 30 vakada ~3 saat.
