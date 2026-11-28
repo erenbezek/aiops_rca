@@ -193,8 +193,9 @@ HELDOUT_UNITS = {("networkDelay", "quote"), ("packetLoss", "currency"), ("cpuThr
 def test_heldout_only_in_held_units():
     labels = [json.loads(p.read_text(encoding="utf-8")) for p in sorted((REPO / "incidents").glob("inc-*.json"))]
     unit = {d["incident_id"]: (d["answer"]["scenario"], d["answer"]["root_cause_service"]) for d in labels}
+    # `p2e` de `test` gibi yalnız --final-test ile okunur (DECISIONS 2026-11-28 p2e koruması).
     leaked = [(d["incident_id"], d["set"]) for d in labels
-              if unit[d["incident_id"]] in HELDOUT_UNITS and d["set"] not in {"heldout", "test"}]
+              if unit[d["incident_id"]] in HELDOUT_UNITS and d["set"] not in {"heldout", "test", "p2e"}]
     stray = [d["incident_id"] for d in labels if d["set"] == "heldout" and unit[d["incident_id"]] not in HELDOUT_UNITS]
     assert not leaked, f"held-out unit labels open to development: {leaked}"
     assert not stray, f"heldout outside the held-out units: {stray}"
