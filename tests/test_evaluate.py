@@ -103,6 +103,8 @@ def test_cli_refuses_test_set_without_flag(world, capsys):
     assert evaluate.main(["run", "--method", "rule", "--sets", "test", "--root", str(root)]) == 2
     assert "final_test" in capsys.readouterr().err
     assert evaluate.main(["run", "--method", "rule", "--sets", "heldout", "--final-test", "--root", str(root)]) == 2
+    assert evaluate.main(["run", "--method", "rule", "--sets", "p2e", "--root", str(root)]) == 2  # P2e, test gibi
+    assert "set 'p2e' needs final_test" in capsys.readouterr().err
 
 
 def test_baro_run_schema_and_answers(world):

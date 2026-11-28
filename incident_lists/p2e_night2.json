@@ -1,0 +1,19 @@
+[
+ {"scenario": "productCatalogLockContention_on", "noise_layer": "loadGeneratorFloodHomepage_on", "set": "p2e"},
+ {"fault": "packetLoss", "target": "shipping", "param": "10%", "noise_layer": null, "set": "p2e"},
+ {"fault": "containerPause", "target": "cart", "param": "on", "noise_layer": null, "set": "p2e"},
+ {"scenario": "intlShippingSlowdown_10sec", "noise_layer": null, "set": "p2e"},
+ {"scenario": "productCatalogFailure_on", "noise_layer": null, "set": "p2e"},
+ {"scenario": "recommendationCacheFailure_on", "noise_layer": null, "set": "p2e"},
+ {"fault": "packetLoss", "target": "currency", "param": "10%", "noise_layer": null, "set": "p2e"},
+ {"fault": "packetLoss", "target": "currency", "param": "10%", "noise_layer": null, "set": "p2e"},
+ {"scenario": "paymentFailure_50pct", "noise_layer": null, "set": "p2e"},
+ {"fault": "containerStop", "target": "currency", "param": "on", "noise_layer": null, "set": "p2e"},
+ {"fault": "packetLoss", "target": "shipping", "param": "10%", "noise_layer": null, "set": "p2e"},
+ {"scenario": "productCatalogFailure_on", "noise_layer": null, "set": "p2e"},
+ {"scenario": "quoteGatewayMemoryLeak_384kb", "noise_layer": null, "set": "p2e"},
+ {"fault": "cpuThrottle", "target": "recommendation", "param": "0.03", "noise_layer": null, "set": "p2e"},
+ {"fault": "containerPause", "target": "quote", "param": "on", "noise_layer": null, "set": "p2e"},
+ {"scenario": "cartFailure_50pct", "noise_layer": null, "set": "p2e"},
+ {"scenario": "adHighCpu_on", "noise_layer": null, "set": "p2e"}
+]

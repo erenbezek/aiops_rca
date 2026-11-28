@@ -148,3 +148,48 @@ def test_runner_accepts_list(monkeypatch, tmp_path, name):
     monkeypatch.setattr(sr, "run_incident", lambda *a, **k: pytest.fail("must not run"))
     monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
     assert sr.cmd_incidents(LISTS / f"{name}.json") == 1
+
+
+# --- P2e listeleri (`incident_lists/p2e_night1.json`, `p2e_night2.json`; HANDOFF 2026-11-28 planlamanın düzeltilmiş
+# kuralı). Üretici repo dışı (`~/cerebrum2/analysis/p2e_lists.py`, tohum ve sha HANDOFF'ta); bu test kurala bakar. ---
+
+P2E = [json.loads((LISTS / f"p2e_night{n}.json").read_text(encoding="utf-8")) for n in (1, 2)]
+P2E_ALL = P2E[0] + P2E[1]
+
+
+def p2e_unit(e: dict) -> tuple:
+    return (e["fault"], e["target"], e["param"]) if "fault" in e else (e["scenario"],)
+
+
+def test_p2e_lists_rule():
+    test_entries = [e for entries in NIGHTS.values() for e in entries if e["set"] == "test"]
+    base = Counter(p2e_unit(e) for e in test_entries)
+    assert len(base) == 21 and set(base.values()) == {1}                       # test listesinin 21 benzersiz girişi
+    assert [len(p) for p in P2E] == [17, 17] and all(e["set"] == "p2e" for e in P2E_ALL)
+    assert all(set(e) == ({"fault", "target", "param"} if "fault" in e else {"scenario"}) | {"noise_layer", "set"}
+               for e in P2E_ALL)
+    got = Counter(p2e_unit(e) for e in P2E_ALL)
+    assert set(got) == set(base) and sum(got.values()) == 34 and set(got.values()) <= {1, 2}
+    kinds = Counter("fault" in e for e in P2E_ALL)
+    assert (kinds[False], kinds[True]) == (18, 16)                               # flag 18, altyapı 16
+    repeats = [u for u, n in got.items() if n == 2]
+    assert len(repeats) == 13 and sum(len(u) == 1 for u in repeats) == 7         # tekrar: flag 7, altyapı 6
+    main, spare = P2E_ALL[:30], P2E_ALL[30:]
+    assert {p2e_unit(e) for e in main} == set(base)                              # 21 türün hepsi ana blokta
+    assert all(p2e_unit(e) in {p2e_unit(m) for m in main} for e in spare)       # yedek (son 4) yalnız tekrar
+    assert all(e["noise_layer"] is None for e in spare)
+    flood = [e for e in P2E_ALL if e["noise_layer"]]
+    assert {e["noise_layer"] for e in flood} == {FLOOD} and all(e in main for e in flood)
+    assert sorted(e["scenario"] for e in flood) == ["paymentFailure_50pct", "productCatalogLockContention_on",
+                                                    "quoteGatewaySlowdown_30ms"]  # her bileşim bir kez (temel giriş)
+
+
+@pytest.mark.parametrize("n", (1, 2))
+def test_runner_accepts_p2e_list(monkeypatch, tmp_path, n):
+    no_side_effects(monkeypatch)
+    monkeypatch.setattr(sr, "INCIDENT_RUNS", tmp_path / "runs")
+    monkeypatch.setattr(sr, "versions", lambda: {})
+    monkeypatch.setattr(sr, "guards", lambda: {"problems": ["test stop"], "swap_free_gb": 3.0, "monitoring_gb": 15.5})
+    monkeypatch.setattr(sr, "run_incident", lambda *a, **k: pytest.fail("must not run"))
+    monkeypatch.setattr(sr.subprocess, "run", lambda *a, **k: sr.subprocess.CompletedProcess(a, 0, "", ""))
+    assert sr.cmd_incidents(LISTS / f"p2e_night{n}.json") == 1

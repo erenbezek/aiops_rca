@@ -39,6 +39,18 @@ def test_test_set_needs_final_test_flag(incidents):
     assert [c.incident_id for c in cases.load_cases(("test",), final_test=True, incidents=incidents)] == ["inc-t1"]
 
 
+def test_p2e_set_needs_final_test_flag(incidents):
+    """`p2e` `test` gibi korunur (planlama 2026-11-28): `run` (`load_cases`) ve `score` (`load_labels`) bayraksız reddeder."""
+    (incidents / "inc-e1.json").write_text(json.dumps(label("inc-e1", "p2e")))
+    with pytest.raises(PermissionError, match="p2e"):
+        cases.load_cases(("p2e",), incidents=incidents)
+    with pytest.raises(PermissionError, match="p2e"):
+        cases.load_labels(("dev", "p2e"), incidents=incidents)
+    assert [c.incident_id for c in cases.load_cases(("p2e",), final_test=True, incidents=incidents)] == ["inc-e1"]
+    assert cases.load_labels(("p2e",), final_test=True, incidents=incidents)["inc-e1"]["set"] == "p2e"
+    assert [c.incident_id for c in cases.load_cases(incidents=incidents)] == ["inc-d1", "inc-p1"]  # varsayılan aynı
+
+
 @pytest.mark.parametrize("final_test", [False, True])
 def test_heldout_never_read(incidents, final_test):
     with pytest.raises(PermissionError):

@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 INCIDENTS = REPO / "incidents"
 SNAPSHOTS = Path.home() / "cerebrum2" / "snapshots"
 DEFAULT_SETS = ("pilot", "dev")
-KNOWN_SETS = frozenset({"pilot", "dev", "test", "heldout"})
+KNOWN_SETS = frozenset({"pilot", "dev", "test", "heldout", "p2e"})
 
 
 @dataclass(frozen=True)
@@ -35,8 +35,10 @@ def _check_sets(sets: tuple[str, ...], final_test: bool) -> None:
         raise ValueError(f"unknown set(s): {sorted(unknown)}")
     if "heldout" in sets:
         raise PermissionError("set 'heldout' is never read")
-    if "test" in sets and not final_test:
-        raise PermissionError("set 'test' needs final_test=True (--final-test)")
+    # `p2e` (P2e'nin yeni vakaları; planlama kararı 2026-11-28) `test` gibi: yalnız --final-test ile.
+    for s in ("test", "p2e"):
+        if s in sets and not final_test:
+            raise PermissionError(f"set '{s}' needs final_test=True (--final-test)")
 
 
 def _labels(sets: tuple[str, ...], incidents: Path) -> list[dict]:
