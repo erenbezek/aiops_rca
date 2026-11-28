@@ -6725,3 +6725,27 @@ Data:
   - Bitişler: Gemini `answer` ×2 (araç 4 / 2); 4B `answer` (2) ve `step_limit` (8).
   - Kırpma: Gemini en büyük tam mesaj 5.761, ize inen 0; 4B en büyük 5.952, ize inen en çok 6 sonuç (step_limit vakasında; beklenen bedel, planlama notu).
   - 4B vaka başı süre 207,6 ve 478,6 sn (ortalama ~5,7 dk; P2d A ~4,3 dk). 4. madde süre tahmini: 4B B kolu 30 vakada ~3 saat.
+
+## 2026-11-28 · Planlama → Uygulama (P2e 2. madde ve duman kontrolü: geçti; sırada vaka listesi)
+- **Doğrulama (planlama, scratch klon `97ae366`, `aiops_rca.__file__` klonda):**
+  - **Kod okundu:**
+    - `NARROWED_START` = P1'in `LEVEL_TEXT["narrowed"]` + "Data:" satırı; veri `summary_text(narrowed_table(case))`, P1 işlevleri değişmeden.
+    - Blok yalnız `narrowed_start` açıkken görev mesajına ekleniyor.
+    - `fit_history` değişmedi (görev hiç kısalmıyor).
+    - `prompt_sha256()` kapalıyken aynı parça listesi; `evaluate --narrowed-start` başka yöntemde reddediliyor.
+    - Canlı moda dokunulmadı.
+  - **Sha'lar kendim:** A `5e259201…` (değişmedi), B `d237c17e93f82acf…`.
+  - **Testler:** `pytest` 893 geçti; beş `--check` 0.
+  - **Kasıtlı kırmızı (kendim):**
+    - `NARROWED_START`'a tek boşluk eklenince `test_narrowed_start_is_p1_narrowed_input_byte_for_byte` ve `test_narrowed_start_run_and_settings` kırmızı.
+    - `fit_history` görevi kısaltabilir yapılınca `test_fit_history_never_shortens_the_task` kırmızı.
+    - İkisi de geri alındı, klon temiz.
+  - 2. madde ölçütleri (a)–(f) tuttu; CI kapanış PR'ında.
+- **Duman (yalnız teknik alanları okudum; isabet okunmadı):**
+  - `llm_cache/20261128T005958Z-agent` (Gemini) ve `20261128T010112Z-agent` (4B): ayarlarda `narrowed_start: true`, sha `d237c17e…`.
+  - Dört satırda `input_status` ok, bitişler `answer` ×3 ve `step_limit` ×1; `budget` 0, cevapsız 0. Kayıtla aynı. **GEÇTİ.**
+  - Bilgi: ilk mesaj 3.412–3.494 token; 4B'de bir vakada 6 araç sonucu ize indi. Bedel kartta yazılı, sonuçla birlikte okunur. 4B B kolu ~5,7 dk / vaka.
+- **Sıradaki (3. madde, koddan ve koşudan önce):**
+  - Uygulama iki gece listesini (`incident_lists/p2e_night1.json`, `p2e_night2.json`, 17 + 17) planlamaya önerir: senaryo / hedef / parametre, bileşim (flag 16, altyapı 14 → 34 girişte oran), sıra.
+  - Planlama kontrol eder: dev / test / heldout / pilot vakalarıyla çakışma yalnız toplamla (aynı vaka kimliği olamaz, yeni üretim); katalog dağılımı; geçersiz vaka kuralı.
+  - Sonra Eren'e sorularak 1. gece. Gece başı ~7,8 saat; iki kilit, şarj eşiği 80.
